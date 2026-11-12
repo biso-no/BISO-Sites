@@ -13,9 +13,12 @@ export interface EvalRow {
 
 /** `correctedTo` key for a receipt where the submitter typed their own text. */
 export const OWN_TEXT_KEY = "own text";
+/** The AI tab reads receipts from this many days back. */
+export const AI_EVAL_WINDOW_DAYS = 90;
+/** An own text is shown once it was written this many times in the window. */
+export const RECURRING_MIN_COUNT = 3;
 const CORRECTED_TO_LIMIT = 3;
 const RECURRING_LIMIT = 20;
-const DEFAULT_MIN_COUNT = 3;
 const MS_PER_DAY = 86_400_000;
 const WHITESPACE = /\s+/g;
 
@@ -91,9 +94,10 @@ export function normalizeOwnText(text: string): string {
   return text.trim().toLowerCase().replace(WHITESPACE, " ");
 }
 
+/** Own texts written at least `minCount` times, most first. */
 export function recurringOwnTexts(
-  rows: EvalRow[],
-  minCount = DEFAULT_MIN_COUNT
+  rows: readonly Pick<EvalRow, "costTypeText">[],
+  minCount = RECURRING_MIN_COUNT
 ): { count: number; example: string; text: string }[] {
   const groups = new Map<string, Map<string, number>>();
   for (const row of rows) {

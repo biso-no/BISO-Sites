@@ -1687,7 +1687,7 @@
       "ownText": "Own text",
       "none": "None",
       "recurringTitle": "Own texts that keep coming back",
-      "recurringHint": "Written in the free text field at least 3 times in the last 90 days. A type for one of them would let the AI pick it.",
+      "recurringHint": "Written in the free text field at least {count} times in the last {days} days. A type for one of them would let the AI pick it.",
       "recurringEmpty": "No own text has recurred yet.",
       "times": "{count} times",
       "makeType": "Make this a type",
@@ -1742,6 +1742,17 @@
       "saveError": "Could not save",
       "loadError": "Could not load approvers",
       "empty": "No approvers match.",
+      "capped": "Showing the first {count}; filter by campus or role to see the rest.",
+      "errors": {
+        "invalid_role": "Choose a role that fits the level: financial manager, manager or deputy for a department, and controller, president or national manager for a campus.",
+        "invalid_email": "The email must be an @biso.no address.",
+        "invalid_campus": "Choose a campus from the list. The national manager belongs to National only.",
+        "missing_department": "Choose a department.",
+        "department_mismatch": "That department doesn't belong to the campus you chose.",
+        "forbidden": "You can't edit this approver.",
+        "role_taken": "Another approver already holds that role.",
+        "failed": "Something went wrong. Try again."
+      },
       "roles": {
         "finance": "Financial manager",
         "manager": "Manager",

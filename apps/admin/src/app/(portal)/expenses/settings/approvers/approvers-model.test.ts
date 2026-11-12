@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { canEditApproverRow, normalizeApproverEmail } from "./approvers-model";
+import {
+  canEditApproverRow,
+  nameAfterEmailChange,
+  normalizeApproverEmail,
+} from "./approvers-model";
 
 const global = {
   isCampusAdmin: false,
@@ -61,5 +65,33 @@ describe("normalizeApproverEmail", () => {
     expect(normalizeApproverEmail("ola@biso.no.evil.com")).toBeNull();
     expect(normalizeApproverEmail("@biso.no")).toBeNull();
     expect(normalizeApproverEmail("")).toBeNull();
+  });
+});
+
+describe("nameAfterEmailChange", () => {
+  const draft = {
+    displayName: "Ola Nordmann",
+    nameTouched: false,
+    originalEmail: "ola@biso.no",
+    originalName: "Ola Nordmann",
+  };
+
+  test("clears the prefilled name when the email changes", () => {
+    expect(nameAfterEmailChange(draft, "kari@biso.no")).toBe("");
+  });
+
+  test("brings the name back when the email is changed back", () => {
+    expect(
+      nameAfterEmailChange({ ...draft, displayName: "" }, " OLA@biso.no")
+    ).toBe("Ola Nordmann");
+  });
+
+  test("keeps a name the admin typed", () => {
+    expect(
+      nameAfterEmailChange(
+        { ...draft, displayName: "Kari", nameTouched: true },
+        "kari@biso.no"
+      )
+    ).toBe("Kari");
   });
 });

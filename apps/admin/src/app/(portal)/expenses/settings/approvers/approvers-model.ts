@@ -31,6 +31,39 @@ export const DEPARTMENT_ROLES: readonly ApproverRoleKey[] = [
   "deputy",
 ];
 
+/** Campuses an approver row can sit on. */
+export const APPROVER_CAMPUS_IDS: readonly string[] = ["1", "2", "3", "4", "5"];
+const NATIONAL_CAMPUS_ID = "5";
+
+/** Most approver rows one list shows; the page says when there are more. */
+export const APPROVER_LIST_CAP = 500;
+
+/** Why an approver action was refused. Each has a message under `approvers.errors`. */
+export type ApproverErrorCode =
+  | "invalid_role"
+  | "invalid_email"
+  | "invalid_campus"
+  | "missing_department"
+  | "department_mismatch"
+  | "forbidden"
+  | "role_taken"
+  | "failed";
+
+export const APPROVER_ERROR_CODES: readonly ApproverErrorCode[] = [
+  "invalid_role",
+  "invalid_email",
+  "invalid_campus",
+  "missing_department",
+  "department_mismatch",
+  "forbidden",
+  "role_taken",
+  "failed",
+];
+
+export type ApproverActionResult<T> =
+  | { data: T }
+  | { error: ApproverErrorCode };
+
 export interface ApproverViewer {
   isCampusAdmin: boolean;
   isGlobalAdmin: boolean;
@@ -51,6 +84,12 @@ export interface ApproverInput {
   id?: string;
   role: string;
   scope: string;
+}
+
+export interface ApproverList {
+  /** True when more rows matched than the list shows. */
+  capped: boolean;
+  rows: ApproverView[];
 }
 
 export interface ApproverView {
@@ -117,35 +156,66 @@ export interface ParsedApproverInput {
 
 /**
  * Validates a save request for this viewer before anything is read or
- * written. Campus admins may only write department roles of their campuses.
+ * written. A department holds only department roles and a campus only the
+ * campus roles; the national approver sits on campus 5 alone. Campus admins
+ * may only write department roles of their campuses.
  */
 export function parseApproverInput(
   viewer: ApproverViewer,
   input: ApproverInput
-): { value: ParsedApproverInput } | { error: string } {
+): { value: ParsedApproverInput } | { error: ApproverErrorCode } {
   const { scope, role } = input;
   if (!(isApproverScope(scope) && isApproverRole(role))) {
-    return { error: "Invalid scope or role" };
+    return { error: "invalid_role" };
+  }
+  const isDepartmentRole = DEPARTMENT_ROLES.includes(role);
+  if ((scope === "department") !== isDepartmentRole) {
+    return { error: "invalid_role" };
   }
   const email = normalizeApproverEmail(input.email);
   if (!email) {
-    return { error: "The email must be an @biso.no address" };
+    return { error: "invalid_email" };
   }
   const campusId = input.campusId.trim();
-  if (!campusId) {
-    return { error: "Choose a campus" };
+  if (!APPROVER_CAMPUS_IDS.includes(campusId)) {
+    return { error: "invalid_campus" };
+  }
+  if (role === "national" && campusId !== NATIONAL_CAMPUS_ID) {
+    return { error: "invalid_campus" };
   }
   const departmentId =
     scope === "department" ? (input.departmentId?.trim() ?? "") : null;
   if (scope === "department" && !departmentId) {
-    return { error: "Choose a department" };
-  }
-  const isDepartmentRole = DEPARTMENT_ROLES.includes(role);
-  if (!(viewer.isGlobalAdmin || (scope === "department" && isDepartmentRole))) {
-    return { error: "Forbidden: campus admins manage department roles only" };
+    return { error: "missing_department" };
   }
   if (!canEditApproverRow(viewer, { campus_id: campusId, scope })) {
-    return { error: "Forbidden: this approver is outside your campus" };
+    return { error: "forbidden" };
   }
   return { value: { campusId, departmentId, email, role, scope } };
+}
+
+/** The dialog fields `nameAfterEmailChange` reads. */
+export interface ApproverNameDraft {
+  displayName: string;
+  /** The admin typed in the name field. */
+  nameTouched: boolean;
+  originalEmail: string;
+  originalName: string;
+}
+
+/**
+ * The name to show after the email changes. A name prefilled for another
+ * person is cleared, and comes back if the email is changed back. A name the
+ * admin typed stays.
+ */
+export function nameAfterEmailChange(
+  draft: ApproverNameDraft,
+  email: string
+): string {
+  if (draft.nameTouched) {
+    return draft.displayName;
+  }
+  const same =
+    email.trim().toLowerCase() === draft.originalEmail.trim().toLowerCase();
+  return same ? draft.originalName : "";
 }

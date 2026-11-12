@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import {
+  AI_EVAL_WINDOW_DAYS,
   type EvalRow,
   keptStats,
   normalizeOwnText,
+  RECURRING_MIN_COUNT,
   recurringOwnTexts,
 } from "./ai-model";
 
@@ -45,6 +47,19 @@ describe("keptStats", () => {
     const old = row({ createdAt: "2026-09-01T10:00:00Z" });
     expect(keptStats([old], NOW, 30).total).toBe(0);
     expect(keptStats([old], NOW, 90).total).toBe(1);
+  });
+
+  test("a row exactly N days old is inside the window", () => {
+    const at = (days: number, extraMs = 0) =>
+      row({
+        createdAt: new Date(
+          NOW.getTime() - days * 86_400_000 - extraMs
+        ).toISOString(),
+      });
+    expect(keptStats([at(30)], NOW, 30).total).toBe(1);
+    expect(keptStats([at(30, 1)], NOW, 30).total).toBe(0);
+    expect(keptStats([at(AI_EVAL_WINDOW_DAYS)], NOW, 90).total).toBe(1);
+    expect(keptStats([at(AI_EVAL_WINDOW_DAYS, 1)], NOW, 90).total).toBe(0);
   });
 
   test("excludes rows without an AI pick", () => {
@@ -96,6 +111,15 @@ describe("recurringOwnTexts", () => {
       withText("  TAXI"),
     ]);
     expect(result).toEqual([{ count: 4, example: "Taxi", text: "taxi" }]);
+  });
+
+  test("counts own texts that had no AI pick", () => {
+    const texts = Array.from({ length: RECURRING_MIN_COUNT }, () => ({
+      costTypeText: "Parking",
+    }));
+    expect(recurringOwnTexts(texts)).toEqual([
+      { count: RECURRING_MIN_COUNT, example: "Parking", text: "parking" },
+    ]);
   });
 
   test("honours minCount", () => {

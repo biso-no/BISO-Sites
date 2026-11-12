@@ -1687,7 +1687,7 @@
       "ownText": "Egentekst",
       "none": "Ingen",
       "recurringTitle": "Egentekster som går igjen",
-      "recurringHint": "Skrevet i fritekstfeltet minst 3 ganger de siste 90 dagene. En type for en av dem lar AI-en velge den.",
+      "recurringHint": "Skrevet i fritekstfeltet minst {count} ganger de siste {days} dagene. En type for en av dem lar AI-en velge den.",
       "recurringEmpty": "Ingen egentekst har gått igjen ennå.",
       "times": "{count} ganger",
       "makeType": "Lag en type av dette",
@@ -1742,6 +1742,17 @@
       "saveError": "Kunne ikke lagre",
       "loadError": "Kunne ikke laste godkjennere",
       "empty": "Ingen godkjennere samsvarer.",
+      "capped": "Viser de første {count}. Filtrer på campus eller rolle for å se resten.",
+      "errors": {
+        "invalid_role": "Velg en rolle som passer nivået: økonomiansvarlig, leder eller nestleder for en avdeling, og controller, president eller nasjonal leder for et campus.",
+        "invalid_email": "E-posten må være en @biso.no-adresse.",
+        "invalid_campus": "Velg et campus fra listen. Nasjonal leder hører bare til campuset National.",
+        "missing_department": "Velg en avdeling.",
+        "department_mismatch": "Avdelingen hører ikke til campuset du valgte.",
+        "forbidden": "Du kan ikke redigere denne godkjenneren.",
+        "role_taken": "En annen godkjenner har allerede den rollen.",
+        "failed": "Noe gikk galt. Prøv igjen."
+      },
       "roles": {
         "finance": "Økonomiansvarlig",
         "manager": "Leder",

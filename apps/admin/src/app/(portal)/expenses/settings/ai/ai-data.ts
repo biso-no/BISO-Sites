@@ -11,20 +11,22 @@ import {
 import { redirect } from "next/navigation";
 import { getUserAuthContext } from "@/lib/authorization";
 import { ROLES } from "@/lib/roles";
-import type { EvalRow } from "./ai-model";
+import { AI_EVAL_WINDOW_DAYS, type EvalRow } from "./ai-model";
 
-const WINDOW_DAYS = 90;
 const MS_PER_DAY = 86_400_000;
 const PAGE_SIZE = 500;
-/** Most receipts read; the page says so when this is hit. */
+/** Most receipts read per list; the page says so when this is hit. */
 export const AI_EVAL_ROW_CAP = 5000;
 /** Appwrite's limit for `Query.equal` values. */
 const ID_CHUNK = 100;
 const TYPES_LIMIT = 500;
 
 export interface AiEvalData {
-  /** True when the cap cut the read short, so older receipts are missing. */
+  /** True when a read stopped at the cap, so older receipts are missing. */
   capped: boolean;
+  /** Every non-draft receipt with an own text, AI pick or not. */
+  ownTextRows: Pick<EvalRow, "costTypeText">[];
+  /** Non-draft receipts with an AI pick. */
   rows: EvalRow[];
   typeLabels: { label: string; labelNo: string | null; slug: string }[];
 }
@@ -41,38 +43,33 @@ async function requireGlobalAdmin(): Promise<void> {
   }
 }
 
-/** The latest attachments with an AI pick, newest first, up to the cap. */
+/**
+ * The latest attachments matching `queries`, newest first, up to the cap. One
+ * row past the cap is read, so `capped` is true only when more rows exist.
+ */
 async function readAttachments(
   db: AdminDb,
-  since: string
+  queries: string[]
 ): Promise<{ capped: boolean; rows: ExpenseAttachments[] }> {
   const rows: ExpenseAttachments[] = [];
-  while (rows.length < AI_EVAL_ROW_CAP) {
+  while (rows.length <= AI_EVAL_ROW_CAP) {
+    const limit = Math.min(PAGE_SIZE, AI_EVAL_ROW_CAP + 1 - rows.length);
     const page = await db.listRows<ExpenseAttachments>(
       "app",
       "expense_attachments",
       [
-        Query.isNotNull("ai_cost_type"),
-        Query.greaterThanEqual("$createdAt", since),
-        Query.select([
-          "ai_cost_type",
-          "ai_confidence",
-          "cost_type",
-          "cost_type_text",
-          "expense_id",
-          "$createdAt",
-        ]),
+        ...queries,
         Query.orderDesc("$createdAt"),
-        Query.limit(PAGE_SIZE),
+        Query.limit(limit),
         Query.offset(rows.length),
       ]
     );
     rows.push(...page.rows);
-    if (page.rows.length < PAGE_SIZE) {
+    if (page.rows.length < limit) {
       return { capped: false, rows };
     }
   }
-  return { capped: true, rows };
+  return { capped: true, rows: rows.slice(0, AI_EVAL_ROW_CAP) };
 }
 
 /**
@@ -102,10 +99,30 @@ async function readDraftExpenseIds(
 export async function loadAiEvalData(): Promise<AiEvalData> {
   await requireGlobalAdmin();
   const { db } = await createAdminClient();
-  const since = new Date(Date.now() - WINDOW_DAYS * MS_PER_DAY).toISOString();
+  const since = new Date(
+    Date.now() - AI_EVAL_WINDOW_DAYS * MS_PER_DAY
+  ).toISOString();
 
-  const [attachments, types] = await Promise.all([
-    readAttachments(db, since),
+  // The own texts are read on their own: a student who typed one may have
+  // had no AI pick at all.
+  const [picks, ownTexts, types] = await Promise.all([
+    readAttachments(db, [
+      Query.isNotNull("ai_cost_type"),
+      Query.greaterThanEqual("$createdAt", since),
+      Query.select([
+        "ai_cost_type",
+        "ai_confidence",
+        "cost_type",
+        "cost_type_text",
+        "expense_id",
+        "$createdAt",
+      ]),
+    ]),
+    readAttachments(db, [
+      Query.isNotNull("cost_type_text"),
+      Query.greaterThanEqual("$createdAt", since),
+      Query.select(["cost_type_text", "expense_id", "$createdAt"]),
+    ]),
     db.listRows<ExpenseCostTypes>("app", "expense_cost_types", [
       Query.select(["slug", "label", "label_no"]),
       Query.limit(TYPES_LIMIT),
@@ -114,24 +131,27 @@ export async function loadAiEvalData(): Promise<AiEvalData> {
 
   const expenseIds = [
     ...new Set(
-      attachments.rows.flatMap((row) =>
+      [...picks.rows, ...ownTexts.rows].flatMap((row) =>
         row.expense_id ? [row.expense_id] : []
       )
     ),
   ];
   const drafts = await readDraftExpenseIds(db, expenseIds);
+  const notDraft = (row: ExpenseAttachments) =>
+    !(row.expense_id && drafts.has(row.expense_id));
 
   return {
-    capped: attachments.capped,
-    rows: attachments.rows
-      .filter((row) => !(row.expense_id && drafts.has(row.expense_id)))
-      .map((row) => ({
-        aiConfidence: row.ai_confidence,
-        aiCostType: row.ai_cost_type,
-        costType: row.cost_type,
-        costTypeText: row.cost_type_text,
-        createdAt: row.$createdAt,
-      })),
+    capped: picks.capped || ownTexts.capped,
+    ownTextRows: ownTexts.rows
+      .filter(notDraft)
+      .map((row) => ({ costTypeText: row.cost_type_text })),
+    rows: picks.rows.filter(notDraft).map((row) => ({
+      aiConfidence: row.ai_confidence,
+      aiCostType: row.ai_cost_type,
+      costType: row.cost_type,
+      costTypeText: row.cost_type_text,
+      createdAt: row.$createdAt,
+    })),
     typeLabels: types.rows.map((row) => ({
       label: row.label,
       labelNo: row.label_no ?? null,

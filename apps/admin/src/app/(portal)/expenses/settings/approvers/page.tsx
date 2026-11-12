@@ -7,9 +7,17 @@ import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
 import { ROLES } from "@/lib/roles";
 import { PageHeader } from "../../../_components/page-header";
 import { ExpensesSettingsTabs } from "../_components/expenses-settings-tabs";
-import { ApproversClient } from "./_components/approvers-client";
+import {
+  ApproversClient,
+  type ApproversLabels,
+} from "./_components/approvers-client";
 import { listApprovers } from "./approvers-actions";
-import { APPROVER_ROLES, DEPARTMENT_ROLES } from "./approvers-model";
+import {
+  APPROVER_ERROR_CODES,
+  APPROVER_LIST_CAP,
+  APPROVER_ROLES,
+  DEPARTMENT_ROLES,
+} from "./approvers-model";
 
 const DEPARTMENT_LIMIT = 500;
 
@@ -59,7 +67,8 @@ export default async function ExpenseApproversPage() {
           id: row.$id,
           name: row.Name,
         }))}
-        initialRows={"data" in initial ? initial.data : []}
+        initialCapped={"data" in initial && initial.data.capped}
+        initialRows={"data" in initial ? initial.data.rows : []}
         labels={{
           actions: ta("actions"),
           active: ta("active"),
@@ -69,6 +78,7 @@ export default async function ExpenseApproversPage() {
           campus: ta("campus"),
           campusScope: ta("campusScope"),
           cancel: ta("cancel"),
+          capped: ta("capped", { count: APPROVER_LIST_CAP }),
           confidence: ta("confidence"),
           department: ta("department"),
           departmentScope: ta("departmentScope"),
@@ -78,6 +88,9 @@ export default async function ExpenseApproversPage() {
           email: ta("email"),
           emailHint: ta("emailHint"),
           empty: ta("empty"),
+          errors: Object.fromEntries(
+            APPROVER_ERROR_CODES.map((code) => [code, ta(`errors.${code}`)])
+          ) as ApproversLabels["errors"],
           lastConfirmed: ta("lastConfirmed"),
           lastUsed: ta("lastUsed"),
           loadError: ta("loadError"),

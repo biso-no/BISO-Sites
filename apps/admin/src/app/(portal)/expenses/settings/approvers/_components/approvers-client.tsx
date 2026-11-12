@@ -10,18 +10,30 @@ import {
   DialogTitle,
 } from "@repo/ui/components/ui/dialog";
 import { Switch } from "@repo/ui/components/ui/switch";
-import { type CSSProperties, useId, useState, useTransition } from "react";
+import { useLocale } from "next-intl";
+import {
+  type CSSProperties,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { toast } from "sonner";
 import { STUDIO, studioSurface } from "../../../../_components/studio";
+import { normalizeLocale } from "../../../../shop/_components/shop-studio-theme";
 import {
   listApprovers,
   saveApprover,
   setApproverActive,
 } from "../approvers-actions";
 import {
+  type ApproverErrorCode,
   type ApproverInput,
+  type ApproverNameDraft,
   type ApproverView,
   DEPARTMENT_ROLES,
+  nameAfterEmailChange,
 } from "../approvers-model";
 
 export interface ApproversLabels {
@@ -33,6 +45,8 @@ export interface ApproversLabels {
   campus: string;
   campusScope: string;
   cancel: string;
+  /** Shown when the list stops at the cap. */
+  capped: string;
   confidence: string;
   department: string;
   departmentScope: string;
@@ -42,6 +56,7 @@ export interface ApproversLabels {
   email: string;
   emailHint: string;
   empty: string;
+  errors: Record<ApproverErrorCode, string>;
   lastConfirmed: string;
   lastUsed: string;
   loadError: string;
@@ -62,6 +77,7 @@ interface ApproversClientProps {
   allowCampusScope: boolean;
   campuses: { id: string; name: string }[];
   departments: { campusId: string; id: string; name: string }[];
+  initialCapped: boolean;
   initialRows: ApproverView[];
   labels: ApproversLabels;
   roles: string[];
@@ -78,19 +94,33 @@ const inputStyle: CSSProperties = {
 };
 
 const PERCENT = 100;
+const SEARCH_DEBOUNCE_MS = 300;
 
-interface Draft {
+interface Draft extends ApproverNameDraft {
   campusId: string;
   departmentId: string;
-  displayName: string;
   email: string;
   id?: string;
   role: string;
   scope: "campus" | "department";
 }
 
-function formatDate(value: string | null, fallback: string): string {
-  return value ? new Date(value).toLocaleDateString("nb-NO") : fallback;
+interface Filters {
+  campus: string;
+  q: string;
+  role: string;
+}
+
+function formatDate(
+  value: string | null,
+  locale: string,
+  fallback: string
+): string {
+  return value
+    ? new Date(value).toLocaleDateString(
+        normalizeLocale(locale) === "no" ? "nb-NO" : "en-GB"
+      )
+    : fallback;
 }
 
 function Field({
@@ -116,32 +146,58 @@ export function ApproversClient({
   allowCampusScope,
   campuses,
   departments,
+  initialCapped,
   initialRows,
   labels,
   roles,
 }: ApproversClientProps) {
+  const locale = useLocale();
   const [rows, setRows] = useState(initialRows);
+  const [capped, setCapped] = useState(initialCapped);
   const [campusFilter, setCampusFilter] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [pending, startTransition] = useTransition();
   const baseId = useId();
+  // Only the latest list request may set the rows; a slower, older answer
+  // to an earlier filter is dropped.
+  const latestRequest = useRef(0);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined
+  );
 
-  const reload = (next: { campus: string; q: string; role: string }) => {
+  useEffect(() => () => clearTimeout(searchTimer.current), []);
+
+  const reload = (next: Filters) => {
+    clearTimeout(searchTimer.current);
+    latestRequest.current += 1;
+    const request = latestRequest.current;
     startTransition(async () => {
       const result = await listApprovers({
         campusId: next.campus || null,
         q: next.q,
         role: next.role || null,
       });
+      if (request !== latestRequest.current) {
+        return;
+      }
       if ("error" in result) {
         toast.error(labels.loadError);
         return;
       }
-      setRows(result.data);
+      setRows(result.data.rows);
+      setCapped(result.data.capped);
     });
   };
+
+  const reloadSoon = (next: Filters) => {
+    clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => reload(next), SEARCH_DEBOUNCE_MS);
+  };
+
+  const errorText = (code: ApproverErrorCode) =>
+    labels.errors[code] ?? labels.saveError;
 
   const openAdd = () =>
     setDraft({
@@ -149,6 +205,9 @@ export function ApproversClient({
       departmentId: "",
       displayName: "",
       email: "",
+      nameTouched: false,
+      originalEmail: "",
+      originalName: "",
       role: roles[0] ?? "finance",
       scope: "department",
     });
@@ -160,6 +219,9 @@ export function ApproversClient({
       displayName: row.displayName ?? "",
       email: row.email,
       id: row.$id,
+      nameTouched: false,
+      originalEmail: row.email,
+      originalName: row.displayName ?? "",
       role: row.role,
       scope: row.scope === "campus" ? "campus" : "department",
     });
@@ -180,19 +242,12 @@ export function ApproversClient({
     startTransition(async () => {
       const result = await saveApprover(input);
       if ("error" in result) {
-        toast.error(result.error || labels.saveError);
+        toast.error(errorText(result.error));
         return;
       }
       toast.success(labels.saved);
       setDraft(null);
-      const refreshed = await listApprovers({
-        campusId: campusFilter || null,
-        q: query,
-        role: roleFilter || null,
-      });
-      if ("data" in refreshed) {
-        setRows(refreshed.data);
-      }
+      reload({ campus: campusFilter, q: query, role: roleFilter });
     });
   };
 
@@ -200,7 +255,7 @@ export function ApproversClient({
     startTransition(async () => {
       const result = await setApproverActive({ active, id: row.$id });
       if ("error" in result) {
-        toast.error(result.error || labels.saveError);
+        toast.error(errorText(result.error));
         return;
       }
       setRows((current) =>
@@ -265,7 +320,7 @@ export function ApproversClient({
           aria-label={labels.search}
           onChange={(event) => {
             setQuery(event.target.value);
-            reload({
+            reloadSoon({
               campus: campusFilter,
               q: event.target.value,
               role: roleFilter,
@@ -280,6 +335,16 @@ export function ApproversClient({
           {labels.add}
         </Button>
       </div>
+
+      {capped ? (
+        <p
+          className="mt-4 text-[13px]"
+          role="status"
+          style={{ color: STUDIO.ink3 }}
+        >
+          {labels.capped}
+        </p>
+      ) : null}
 
       {rows.length === 0 ? (
         <p className="mt-6 text-[13px]" style={{ color: STUDIO.ink3 }}>
@@ -339,10 +404,10 @@ export function ApproversClient({
                     ) : null}
                   </td>
                   <td className="py-2 pr-3">
-                    {formatDate(row.confirmedAt, labels.never)}
+                    {formatDate(row.confirmedAt, locale, labels.never)}
                   </td>
                   <td className="py-2 pr-3">
-                    {formatDate(row.lastUsedAt, labels.never)}
+                    {formatDate(row.lastUsedAt, locale, labels.never)}
                   </td>
                   <td className="py-2 pr-3">
                     <Switch
@@ -474,7 +539,14 @@ export function ApproversClient({
                 <input
                   id={`${baseId}-email`}
                   onChange={(event) =>
-                    setDraft({ ...draft, email: event.target.value })
+                    setDraft({
+                      ...draft,
+                      displayName: nameAfterEmailChange(
+                        draft,
+                        event.target.value
+                      ),
+                      email: event.target.value,
+                    })
                   }
                   placeholder="name@biso.no"
                   style={inputStyle}
@@ -489,7 +561,11 @@ export function ApproversClient({
                 <input
                   id={`${baseId}-name`}
                   onChange={(event) =>
-                    setDraft({ ...draft, displayName: event.target.value })
+                    setDraft({
+                      ...draft,
+                      displayName: event.target.value,
+                      nameTouched: true,
+                    })
                   }
                   style={inputStyle}
                   value={draft.displayName}
