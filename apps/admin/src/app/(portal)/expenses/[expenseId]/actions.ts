@@ -21,7 +21,7 @@ import {
 } from "@/lib/expense-access";
 import { getExpenseViewer } from "@/lib/expense-viewer";
 import { todayInOslo } from "@/lib/oslo-day";
-import type { ActionResult } from "../action-result";
+import type { ExpenseActionError, ExpenseActionResult } from "../action-result";
 import { loadReceiptEditOptions } from "./edit-options";
 import { planReceiptEdit, type ReceiptChanges, round2 } from "./receipt-edit";
 
@@ -29,8 +29,6 @@ const MAX_ROWS = 500;
 const BANK_ACCOUNT_SEPARATORS = /[\s.]/g;
 const BANK_ACCOUNT_FORMAT = /^\d{11}$/;
 const NON_DIGITS = /\D/g;
-
-const FORBIDDEN = "You cannot edit this expense";
 
 interface Loaded {
   db: Awaited<ReturnType<typeof createAdminClient>>["db"];
@@ -40,12 +38,16 @@ interface Loaded {
   viewer: ExpenseViewer;
 }
 
-function failure(error: unknown, fallback: string): { error: string } {
+function failure(error: unknown): { error: ExpenseActionError } {
   if (isRedirectError(error)) {
     throw error;
   }
   console.error("[expense-edit]", error);
-  return { error: fallback };
+  return isNotFoundError(error) ? { error: "not_found" } : { error: "failed" };
+}
+
+function isNotFoundError(error: unknown): boolean {
+  return (error as { code?: unknown } | null)?.code === 404;
 }
 
 async function loadForEdit(expenseId: string): Promise<Loaded | null> {
@@ -112,17 +114,17 @@ export async function updateExpenseReceipt(input: {
   attachmentId: string;
   changes: ReceiptChanges;
   expenseId: string;
-}): Promise<ActionResult<{ total: number }>> {
+}): Promise<ExpenseActionResult<{ total: number }>> {
   try {
     const loaded = await loadForEdit(input.expenseId);
     if (!loaded?.permissions.canEdit) {
-      return { error: FORBIDDEN };
+      return { error: "forbidden" };
     }
     const { db, expense } = loaded;
     const attachments: ExpenseAttachments[] = expense.expenseAttachments ?? [];
     const current = attachments.find((a) => a.$id === input.attachmentId);
     if (!current) {
-      return { error: "That receipt is not on this expense" };
+      return { error: "not_found" };
     }
 
     const options = await loadReceiptEditOptions(db);
@@ -157,10 +159,19 @@ export async function updateExpenseReceipt(input: {
 
     let total = expense.total;
     if (plan.patch.amount !== undefined) {
+      // From the stored rows, not the copy loaded above: another edit may
+      // have landed in between.
+      const fresh = await db.listRows<ExpenseAttachments>(
+        "app",
+        "expense_attachments",
+        [
+          Query.equal("expense_id", expense.$id),
+          Query.select(["amount"]),
+          Query.limit(MAX_ROWS),
+        ]
+      );
       total = round2(
-        attachments
-          .map((a) => (a.$id === current.$id ? plan.patch.amount : a.amount))
-          .reduce<number>((sum, amount) => sum + Math.max(amount ?? 0, 0), 0)
+        fresh.rows.reduce((sum, row) => sum + Math.max(row.amount ?? 0, 0), 0)
       );
       await db.updateRow("app", "expense", expense.$id, { total });
       events.push({
@@ -177,7 +188,7 @@ export async function updateExpenseReceipt(input: {
     revalidatePath(`/expenses/${expense.$id}`);
     return { data: { total } };
   } catch (error) {
-    return failure(error, "Could not save the receipt");
+    return failure(error);
   }
 }
 
@@ -185,15 +196,15 @@ export async function updateExpenseReceipt(input: {
 export async function updateExpenseBankAccount(input: {
   bankAccount: string;
   expenseId: string;
-}): Promise<ActionResult<null>> {
+}): Promise<ExpenseActionResult<null>> {
   try {
     const loaded = await loadForEdit(input.expenseId);
     if (!loaded?.permissions.canEditBankAccount) {
-      return { error: FORBIDDEN };
+      return { error: "forbidden" };
     }
     const digits = input.bankAccount.replace(BANK_ACCOUNT_SEPARATORS, "");
     if (!BANK_ACCOUNT_FORMAT.test(digits)) {
-      return { error: "A Norwegian bank account has 11 digits" };
+      return { error: "invalid_bank_account" };
     }
     const { db, expense } = loaded;
     if (digits === (expense.bank_account ?? "").replace(NON_DIGITS, "")) {
@@ -216,6 +227,6 @@ export async function updateExpenseBankAccount(input: {
     revalidatePath(`/expenses/${expense.$id}`);
     return { data: null };
   } catch (error) {
-    return failure(error, "Could not save the bank account");
+    return failure(error);
   }
 }

@@ -1573,9 +1573,23 @@
       "saveError": "Kunne ikke lagre",
       "bankTitle": "Rediger bankkonto",
       "bankAccount": "Bankkonto",
-      "bankHint": "11 siffer. Mellomrom og punktum ignoreres."
+      "bankHint": "11 siffer. Mellomrom og punktum ignoreres.",
+      "receiptDescription": "Endre det som bokføres for denne kvitteringen. Hver endring logges i historikken.",
+      "bankDescription": "Kontoen studenten får utbetalt til. Endringen logges i historikken."
     },
-    "eventTitleUnavailable": "Arrangement (tittel mangler)"
+    "eventTitleUnavailable": "Arrangement (tittel mangler)",
+    "errors": {
+      "forbidden": "Du kan ikke redigere dette utlegget.",
+      "not_found": "Utlegget eller kvitteringen finnes ikke lenger.",
+      "invalid_amount": "Beløpet må være over 0 og høyst 1 000 000.",
+      "invalid_date": "Datoen må være mellom 2000-01-01 og i dag.",
+      "invalid_description": "Beskrivelsen må være 1 til 255 tegn.",
+      "invalid_type": "Den utleggstypen er ikke tilgjengelig.",
+      "invalid_account": "Det er ikke en aktiv utleggskonto.",
+      "invalid_bank_account": "En norsk bankkonto har 11 siffer.",
+      "supporting_receipt": "Et vedlegg har bare dato og beskrivelse.",
+      "failed": "Kunne ikke lagre. Prøv igjen."
+    }
   },
   "expensesSettings": {
     "title": "Innstillinger for utlegg",

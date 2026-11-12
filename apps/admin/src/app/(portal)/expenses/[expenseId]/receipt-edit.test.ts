@@ -110,6 +110,34 @@ describe("planReceiptEdit", () => {
     expect(plan.patch.cost_type_text).toBeNull();
   });
 
+  test("the current type is a no-op", () => {
+    expect(planReceiptEdit(current(), { costType: "food" }, ctx())).toEqual({
+      events: [],
+      patch: {},
+    });
+  });
+
+  test("errors are codes", () => {
+    expect(planReceiptEdit(current(), { costType: "nope" }, ctx())).toEqual({
+      error: "invalid_type",
+    });
+    expect(planReceiptEdit(current(), { amount: -1 }, ctx())).toEqual({
+      error: "invalid_amount",
+    });
+    expect(planReceiptEdit(current(), { date: "2999-01-01" }, ctx())).toEqual({
+      error: "invalid_date",
+    });
+    expect(planReceiptEdit(current(), { description: "" }, ctx())).toEqual({
+      error: "invalid_description",
+    });
+    expect(planReceiptEdit(current(), { accountNumber: 7400 }, ctx())).toEqual({
+      error: "invalid_account",
+    });
+    expect(
+      planReceiptEdit(current({ amount: 0 }), { amount: 5 }, ctx())
+    ).toEqual({ error: "supporting_receipt" });
+  });
+
   test("inactive account refused", () => {
     expect(
       planReceiptEdit(current(), { accountNumber: 7400 }, ctx())

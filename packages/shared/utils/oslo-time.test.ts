@@ -4,6 +4,8 @@ import {
   formatOsloTime,
   isoToOsloWallClock,
   osloWallClockToIso,
+  receiptDateInOslo,
+  todayInOslo,
 } from "./oslo-time";
 
 describe("osloWallClockToIso", () => {
@@ -67,5 +69,20 @@ describe("formatters", () => {
         year: "numeric",
       })
     ).toBe("September 23, 2026");
+  });
+});
+
+describe("Oslo calendar days", () => {
+  it("todayInOslo rolls over at Oslo midnight, not UTC", () => {
+    expect(todayInOslo(new Date("2026-07-01T21:59:59Z"))).toBe("2026-07-01");
+    expect(todayInOslo(new Date("2026-07-01T22:00:00Z"))).toBe("2026-07-02");
+    expect(todayInOslo(new Date("2026-01-01T22:59:59Z"))).toBe("2026-01-01");
+    expect(todayInOslo(new Date("2026-01-01T23:00:00Z"))).toBe("2026-01-02");
+  });
+
+  it("receiptDateInOslo reads a stored datetime, or null", () => {
+    expect(receiptDateInOslo("2026-11-05T00:00:00.000Z")).toBe("2026-11-05");
+    expect(receiptDateInOslo(null)).toBeNull();
+    expect(receiptDateInOslo("nope")).toBeNull();
   });
 });

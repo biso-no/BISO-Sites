@@ -4,6 +4,7 @@ import { Button } from "@repo/ui/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -24,6 +25,7 @@ export function BankAccountEditor({
   expenseId: string;
 }) {
   const t = useTranslations("adminPortal.expenses.edit");
+  const te = useTranslations("adminPortal.expenses");
   const router = useRouter();
   const inputId = useId();
   const [open, setOpen] = useState(false);
@@ -37,7 +39,7 @@ export function BankAccountEditor({
         expenseId,
       });
       if ("error" in result) {
-        toast.error(t("saveError"));
+        toast.error(te(`errors.${result.error}`));
         return;
       }
       toast.success(t("saved"));
@@ -46,7 +48,15 @@ export function BankAccountEditor({
     });
 
   return (
-    <Dialog onOpenChange={setOpen} open={open}>
+    <Dialog
+      onOpenChange={(next) => {
+        if (next) {
+          setValue(bankAccount);
+        }
+        setOpen(next);
+      }}
+      open={open}
+    >
       <DialogTrigger asChild>
         <button className="ml-2 text-[12px] underline" type="button">
           {t("edit")}
@@ -55,6 +65,7 @@ export function BankAccountEditor({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("bankTitle")}</DialogTitle>
+          <DialogDescription>{t("bankDescription")}</DialogDescription>
         </DialogHeader>
         <label className="block text-[13px]" htmlFor={inputId}>
           {t("bankAccount")}

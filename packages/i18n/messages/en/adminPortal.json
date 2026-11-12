@@ -1573,9 +1573,23 @@
       "saveError": "Could not save",
       "bankTitle": "Edit bank account",
       "bankAccount": "Bank account",
-      "bankHint": "11 digits. Spaces and dots are ignored."
+      "bankHint": "11 digits. Spaces and dots are ignored.",
+      "receiptDescription": "Change what is booked for this receipt. Each change is logged in the history.",
+      "bankDescription": "The account the student is paid to. The change is logged in the history."
     },
-    "eventTitleUnavailable": "Event (title unavailable)"
+    "eventTitleUnavailable": "Event (title unavailable)",
+    "errors": {
+      "forbidden": "You cannot edit this expense.",
+      "not_found": "That expense or receipt no longer exists.",
+      "invalid_amount": "The amount must be above 0 and at most 1,000,000.",
+      "invalid_date": "The date must be between 2000-01-01 and today.",
+      "invalid_description": "The description must be 1 to 255 characters.",
+      "invalid_type": "That expense type is not available.",
+      "invalid_account": "That is not an active expense account.",
+      "invalid_bank_account": "A Norwegian bank account has 11 digits.",
+      "supporting_receipt": "A supporting statement only has a date and a description.",
+      "failed": "Could not save. Try again."
+    }
   },
   "expensesSettings": {
     "title": "Expense settings",

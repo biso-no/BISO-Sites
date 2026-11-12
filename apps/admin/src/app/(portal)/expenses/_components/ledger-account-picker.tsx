@@ -34,11 +34,14 @@ export function LedgerAccountPicker({
   accounts,
   labels,
   onChange,
+  size = "compact",
   value,
 }: {
   accounts: LedgerAccountOption[];
   labels: LedgerAccountPickerLabels;
   onChange: (accountNumber: number) => void;
+  /** `field` matches the dialog inputs (`px-3 py-2 text-[14px]`). */
+  size?: "compact" | "field";
   value: number | null;
 }) {
   const [open, setOpen] = useState(false);
@@ -57,8 +60,8 @@ export function LedgerAccountPicker({
             border: `0.5px solid ${STUDIO.rule2}`,
             borderRadius: 8,
             color: STUDIO.ink,
-            fontSize: 13,
-            padding: "6px 10px",
+            fontSize: size === "field" ? 14 : 13,
+            padding: size === "field" ? "8px 12px" : "6px 10px",
             textAlign: "left",
             width: "100%",
           }}

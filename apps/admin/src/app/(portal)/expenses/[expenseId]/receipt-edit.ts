@@ -7,6 +7,7 @@ import {
   ExpenseAttachmentsAccountSource,
 } from "@repo/api/types/appwrite";
 import { osloDayOf } from "@/lib/oslo-day";
+import type { ExpenseActionError } from "../action-result";
 import {
   EXPENSE_ACCOUNT_MAX,
   EXPENSE_ACCOUNT_MIN,
@@ -45,7 +46,7 @@ export interface ReceiptEditEvent {
 
 export type ReceiptEditPlan =
   | { events: ReceiptEditEvent[]; patch: Partial<ExpenseAttachments> }
-  | { error: string };
+  | { error: ExpenseActionError };
 
 /** The `expense_attachments.description` column size. */
 export const RECEIPT_DESCRIPTION_MAX = 255;
@@ -88,20 +89,22 @@ function applyCostType(
   slug: string,
   ctx: ReceiptEditContext,
   work: Working
-): string | null {
+): ExpenseActionError | null {
   const type = ctx.types.find((t) => t.slug === slug);
   if (!type) {
-    return "That expense type is not available";
+    return "invalid_type";
   }
-  if (current.cost_type !== slug || current.cost_type_text) {
-    work.events.push({
-      after: slug,
-      before:
-        current.cost_type ??
-        (current.cost_type_text ? `"${current.cost_type_text}"` : null),
-      field: "cost_type",
-    });
+  if (current.cost_type === slug && !current.cost_type_text) {
+    // Already this type: nothing to change or log.
+    return null;
   }
+  work.events.push({
+    after: slug,
+    before:
+      current.cost_type ??
+      (current.cost_type_text ? `"${current.cost_type_text}"` : null),
+    field: "cost_type",
+  });
   work.patch.cost_type = slug;
   work.patch.cost_type_text = null;
   work.patch.account_number = type.accountNumber;
@@ -118,14 +121,14 @@ function applyAccount(
   accountNumber: number,
   ctx: ReceiptEditContext,
   work: Working
-): string | null {
+): ExpenseActionError | null {
   const account = ctx.accounts.get(accountNumber);
   const inRange =
     Number.isInteger(accountNumber) &&
     accountNumber >= EXPENSE_ACCOUNT_MIN &&
     accountNumber <= EXPENSE_ACCOUNT_MAX;
   if (!(inRange && account?.active)) {
-    return `Account ${accountNumber} is not an active expense account`;
+    return "invalid_account";
   }
   if (accountNumber === work.accountNumber) {
     return null;
@@ -145,9 +148,9 @@ function applyDate(
   day: string,
   ctx: ReceiptEditContext,
   work: Working
-): string | null {
+): ExpenseActionError | null {
   if (!validDay(day, ctx.today)) {
-    return `The date must be between ${RECEIPT_MIN_DATE} and today`;
+    return "invalid_date";
   }
   const before = osloDayOf(current.date);
   if (before !== day) {
@@ -161,10 +164,10 @@ function applyDescription(
   current: ExpenseAttachments,
   raw: string,
   work: Working
-): string | null {
+): ExpenseActionError | null {
   const text = raw.trim();
   if (text.length < 1 || text.length > RECEIPT_DESCRIPTION_MAX) {
-    return `The description must be 1 to ${RECEIPT_DESCRIPTION_MAX} characters`;
+    return "invalid_description";
   }
   if (text !== (current.description ?? "")) {
     work.patch.description = text;
@@ -181,13 +184,13 @@ function applyAmount(
   current: ExpenseAttachments,
   raw: number,
   work: Working
-): string | null {
+): ExpenseActionError | null {
   if (!Number.isFinite(raw) || raw <= 0 || raw > RECEIPT_MAX_AMOUNT) {
-    return `The amount must be above 0 and at most ${RECEIPT_MAX_AMOUNT}`;
+    return "invalid_amount";
   }
   const amount = round2(raw);
   if (amount <= 0) {
-    return "The amount must be at least 0.01";
+    return "invalid_amount";
   }
   if (amount !== current.amount) {
     work.patch.amount = amount;
@@ -213,9 +216,7 @@ export function planReceiptEdit(
       changes.costType !== undefined ||
       changes.accountNumber !== undefined)
   ) {
-    return {
-      error: "A supporting statement only has a date and a description",
-    };
+    return { error: "supporting_receipt" };
   }
 
   const work: Working = {
@@ -223,7 +224,7 @@ export function planReceiptEdit(
     events: [],
     patch: {},
   };
-  const steps: (string | null)[] = [];
+  const steps: (ExpenseActionError | null)[] = [];
   if (changes.costType !== undefined) {
     steps.push(applyCostType(current, changes.costType, ctx, work));
   }

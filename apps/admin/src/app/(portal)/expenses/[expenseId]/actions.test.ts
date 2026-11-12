@@ -66,7 +66,10 @@ const steps = [
   },
 ];
 
+let freshAttachments: { amount: number }[] = [];
+
 beforeEach(() => {
+  freshAttachments = [{ amount: 100.46 }, { amount: 70 }, { amount: 0 }];
   for (const fn of Object.values(db)) {
     fn.mockReset();
   }
@@ -78,6 +81,9 @@ beforeEach(() => {
   db.listRows.mockImplementation((_d: string, table: string) => {
     if (table === "expense_approvals") {
       return Promise.resolve({ rows: steps });
+    }
+    if (table === "expense_attachments") {
+      return Promise.resolve({ rows: freshAttachments });
     }
     return Promise.resolve({ rows: [] });
   });
@@ -91,7 +97,7 @@ describe("updateExpenseReceipt", () => {
       changes: { amount: 10 },
       expenseId: "ex1",
     });
-    expect(result).toHaveProperty("error");
+    expect(result).toEqual({ error: "forbidden" });
     expect(db.updateRow).not.toHaveBeenCalled();
   });
 
@@ -105,13 +111,57 @@ describe("updateExpenseReceipt", () => {
     expect(db.updateRow).not.toHaveBeenCalled();
   });
 
+  test("refuses an edit on an approved expense", async () => {
+    db.getRow.mockResolvedValue({ ...expense(), status: "approved" });
+    const result = await updateExpenseReceipt({
+      attachmentId: "a1",
+      changes: { amount: 10 },
+      expenseId: "ex1",
+    });
+    expect(result).toEqual({ error: "forbidden" });
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+
+  test("an on-behalf actor records admin as source and actor", async () => {
+    getExpenseViewer.mockResolvedValue(
+      viewer({ emails: ["boss@example.com"], isGlobalAdmin: true })
+    );
+    const rowsByTable: Record<string, unknown[]> = {
+      expense_approvals: steps,
+      ledger_accounts: [
+        { account_number: 7300, active: true, name: "x", tax_code: 1 },
+      ],
+    };
+    db.listRows.mockImplementation((_d: string, table: string) =>
+      Promise.resolve({ rows: rowsByTable[table] ?? [] })
+    );
+    const result = await updateExpenseReceipt({
+      attachmentId: "a1",
+      changes: { accountNumber: 7300 },
+      expenseId: "ex1",
+    });
+    expect(result).toEqual({ data: { total: 250 } });
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "expense_attachments",
+      "a1",
+      { account_number: 7300, account_source: "admin", tax_code: 1 }
+    );
+    expect(db.createRow.mock.calls[0]?.[3]).toMatchObject({
+      actor_email: "boss@example.com",
+      actor_kind: "admin",
+      field: "account_number",
+    });
+  });
+
   test("recomputes the total after an amount change", async () => {
     const result = await updateExpenseReceipt({
       attachmentId: "a1",
       changes: { amount: 100.456 },
       expenseId: "ex1",
     });
-    expect(result).toEqual({ data: { total: 150.46 } });
+    // Computed from the re-read rows, not the loaded copy.
+    expect(result).toEqual({ data: { total: 170.46 } });
     expect(db.updateRow).toHaveBeenCalledWith(
       "app",
       "expense_attachments",
@@ -119,7 +169,7 @@ describe("updateExpenseReceipt", () => {
       { amount: 100.46 }
     );
     expect(db.updateRow).toHaveBeenCalledWith("app", "expense", "ex1", {
-      total: 150.46,
+      total: 170.46,
     });
     const events = db.createRow.mock.calls.map(
       (call) => call[3] as Record<string, unknown>
@@ -131,7 +181,7 @@ describe("updateExpenseReceipt", () => {
       actor_kind: "approver",
       attachment_id: "a1",
     });
-    expect(events[1]).toMatchObject({ after: "150.46", before: "250" });
+    expect(events[1]).toMatchObject({ after: "170.46", before: "250" });
   });
 
   test("a no-op change writes nothing", async () => {
@@ -164,7 +214,7 @@ describe("updateExpenseBankAccount", () => {
       bankAccount: "1234.56.7",
       expenseId: "ex1",
     });
-    expect(result).toHaveProperty("error");
+    expect(result).toEqual({ error: "invalid_bank_account" });
   });
 
   test("stores digits and logs masked values as admin", async () => {

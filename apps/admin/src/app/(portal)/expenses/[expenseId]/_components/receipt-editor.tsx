@@ -4,6 +4,7 @@ import { Button } from "@repo/ui/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -27,8 +28,11 @@ export interface ReceiptEditOptions {
 
 const fieldClass = "w-full rounded-lg border px-3 py-2 text-[14px]";
 
+const AMOUNT_SPACES = /[\s\u00a0\u202f]/g;
+
+/** `1 234,50` (with any kind of space) reads as 1234.5. */
 function parseAmount(text: string): number {
-  return Number(text.trim().replace(",", "."));
+  return Number(text.replace(AMOUNT_SPACES, "").replace(",", "."));
 }
 
 /** The edit button of one receipt row and its dialog. */
@@ -118,7 +122,7 @@ export function ReceiptEditor({
         expenseId,
       });
       if ("error" in result) {
-        toast.error(t("edit.saveError"));
+        toast.error(t(`errors.${result.error}`));
         return;
       }
       toast.success(t("edit.saved"));
@@ -136,6 +140,7 @@ export function ReceiptEditor({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("edit.receiptTitle")}</DialogTitle>
+          <DialogDescription>{t("edit.receiptDescription")}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3 text-[13px]">
           {!receipt.isSupporting && (
@@ -148,11 +153,16 @@ export function ReceiptEditor({
                   onChange={(event) => changeType(event.target.value)}
                   value={draft.costType}
                 >
-                  {draft.costType === "" && (
-                    <option value="">
+                  {!options.types.some(
+                    (type) => type.slug === draft.costType
+                  ) && (
+                    // The current value is not on the active list (own text,
+                    // or a type since deactivated): show it, never the first type.
+                    <option disabled value={draft.costType}>
                       {receipt.costTypeText
                         ? `“${receipt.costTypeText}”`
-                        : t("none")}
+                        : (receipt.costTypeLabel ??
+                          (draft.costType || t("none")))}
                     </option>
                   )}
                   {options.types.map((type) => (
@@ -175,6 +185,7 @@ export function ReceiptEditor({
                   onChange={(accountNumber) =>
                     setDraft({ ...draft, accountNumber })
                   }
+                  size="field"
                   value={draft.accountNumber}
                 />
               </div>
