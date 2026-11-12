@@ -325,6 +325,8 @@
     "noteLabel": "Note to the submitter",
     "approve": "Approve",
     "reject": "Reject",
+    "accountMissing": "A receipt has no account yet. Set it in admin before approving.",
+    "openInAdmin": "Open in admin",
     "decided": {
       "approved": "Reimbursement {number} approved",
       "rejected": "Reimbursement {number} rejected"

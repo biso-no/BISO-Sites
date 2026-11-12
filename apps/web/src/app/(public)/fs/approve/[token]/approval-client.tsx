@@ -20,12 +20,14 @@ interface ApprovalReceipt {
   type: string;
 }
 
-interface ApprovalContext {
+export interface ApprovalContext {
+  adminUrl: string;
   campusLabel: string;
   currency: string;
   departmentLabel: string;
   description: string;
   expired: boolean;
+  missingAccount: boolean;
   receipts: ApprovalReceipt[];
   reimbursementNumber: string;
   status: "pending" | "approved" | "rejected";
@@ -112,7 +114,11 @@ export function ApprovalClient({
       });
       const data = await res.json();
       if (!(res.ok && data.success)) {
-        setError(data.error ?? t("decisionFailed"));
+        setError(
+          data.code === "account_missing"
+            ? t("accountMissing")
+            : (data.error ?? t("decisionFailed"))
+        );
         return;
       }
       setOutcome(decision);
@@ -145,7 +151,7 @@ export function ApprovalClient({
   );
 }
 
-function ApprovalBody({
+export function ApprovalBody({
   context,
   decide,
   error,
@@ -292,23 +298,39 @@ function ApprovalBody({
             {error}
           </p>
         ) : null}
+        {context.missingAccount ? (
+          <p className="type-body-sm text-ink">
+            {t("accountMissing")}{" "}
+            <a
+              className={`inline-flex items-center gap-1 rounded-biso-sm text-ink-accent underline underline-offset-4 hover:no-underline ${focusRing}`}
+              href={context.adminUrl}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              {t("openInAdmin")}
+              <ExternalLink aria-hidden="true" className="size-3.5" />
+            </a>
+          </p>
+        ) : null}
         <div className="flex flex-wrap gap-3">
-          <button
-            className={cn(
-              intent === "reject"
-                ? statusPanelSecondaryAction
-                : statusPanelPrimaryAction,
-              "flex-1 justify-center disabled:cursor-not-allowed disabled:opacity-50"
-            )}
-            disabled={submitting}
-            onClick={() => decide("approved")}
-            type="button"
-          >
-            {submitting ? (
-              <Loader2 aria-hidden="true" className="size-4 animate-spin" />
-            ) : null}
-            {t("approve")}
-          </button>
+          {context.missingAccount ? null : (
+            <button
+              className={cn(
+                intent === "reject"
+                  ? statusPanelSecondaryAction
+                  : statusPanelPrimaryAction,
+                "flex-1 justify-center disabled:cursor-not-allowed disabled:opacity-50"
+              )}
+              disabled={submitting}
+              onClick={() => decide("approved")}
+              type="button"
+            >
+              {submitting ? (
+                <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+              ) : null}
+              {t("approve")}
+            </button>
+          )}
           <button
             className={cn(dangerFilled, "flex-1")}
             disabled={submitting}
