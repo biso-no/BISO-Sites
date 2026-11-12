@@ -158,5 +158,5 @@
 
 - **R1** — The web sends `cost_type_chosen: true` for every attachment, including AI-filled types, because the student saw and kept them.
 - **R2** — The occasion suggestion comes from the existing summary call (one model call, not two).
-- **R3** — An old draft's slug is shown as chosen even if its type is now inactive; the server still books inactive slugs.
+- **R3 (corrected in 2b final review)** — an inactive slug on a reopened draft hydrates as needs_choice; the server honours only active slugs.
 - **R4** — Event match is a web server action reading `events` directly (public data), not an apps/api endpoint.
