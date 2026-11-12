@@ -1400,6 +1400,61 @@
       "stripe": "Stripe (kort)"
     }
   },
+  "expenses": {
+    "title": "Utlegg",
+    "description": "Refusjonskrav fra studenter og medlemmer.",
+    "views": {
+      "all": "Alle",
+      "mine": "Venter på meg",
+      "attention": "Trenger oppfølging"
+    },
+    "search": "Søk på nummer eller beskrivelse",
+    "filters": {
+      "status": "Status",
+      "allStatuses": "Alle statuser",
+      "campus": "Campus",
+      "allCampuses": "Alle campus",
+      "department": "Avdeling",
+      "allDepartments": "Alle avdelinger"
+    },
+    "status": {
+      "pending": "Venter på godkjenning",
+      "approved": "Godkjent",
+      "submitted": "Under bokføring",
+      "success": "Bokført",
+      "rejected": "Avslått",
+      "failed": "Bokføring feilet"
+    },
+    "columns": {
+      "reference": "Nummer",
+      "submitter": "Sendt inn av",
+      "department": "Avdeling",
+      "campus": "Campus",
+      "total": "Beløp",
+      "status": "Status",
+      "waitingOn": "Venter på",
+      "submitted": "Sendt inn"
+    },
+    "roles": {
+      "finance": "Økonomi",
+      "manager": "Leder",
+      "deputy": "Nestleder",
+      "controller": "Controller",
+      "president": "President",
+      "national": "Nasjonal"
+    },
+    "flags": {
+      "hints": "{count, plural, one {# tips til godkjenneren} other {# tips til godkjenneren}}",
+      "failed": "Bokføring feilet",
+      "approverIssue": "Fant ingen godkjenner"
+    },
+    "empty": {
+      "title": "Ingen utlegg",
+      "description": "Ingenting passer med filtrene.",
+      "mine": "Ingenting venter på deg.",
+      "attention": "Ingenting trenger oppfølging."
+    }
+  },
   "expensesSettings": {
     "title": "Innstillinger for utlegg",
     "description": "Utleggstypene studentene velger mellom, og kontoen hver av dem bokføres på. Endringer logges.",

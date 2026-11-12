@@ -1400,6 +1400,61 @@
       "stripe": "Stripe (card)"
     }
   },
+  "expenses": {
+    "title": "Expenses",
+    "description": "Reimbursement requests from students and members.",
+    "views": {
+      "all": "All",
+      "mine": "Waiting on me",
+      "attention": "Needs attention"
+    },
+    "search": "Search by number or description",
+    "filters": {
+      "status": "Status",
+      "allStatuses": "All statuses",
+      "campus": "Campus",
+      "allCampuses": "All campuses",
+      "department": "Department",
+      "allDepartments": "All departments"
+    },
+    "status": {
+      "pending": "Waiting for approval",
+      "approved": "Approved",
+      "submitted": "Being booked",
+      "success": "Booked",
+      "rejected": "Rejected",
+      "failed": "Booking failed"
+    },
+    "columns": {
+      "reference": "Number",
+      "submitter": "Submitted by",
+      "department": "Department",
+      "campus": "Campus",
+      "total": "Amount",
+      "status": "Status",
+      "waitingOn": "Waiting on",
+      "submitted": "Submitted"
+    },
+    "roles": {
+      "finance": "Finance",
+      "manager": "Manager",
+      "deputy": "Deputy",
+      "controller": "Controller",
+      "president": "President",
+      "national": "National"
+    },
+    "flags": {
+      "hints": "{count, plural, one {# hint for the approver} other {# hints for the approver}}",
+      "failed": "Booking failed",
+      "approverIssue": "No approver could be found"
+    },
+    "empty": {
+      "title": "No expenses",
+      "description": "Nothing matches these filters.",
+      "mine": "Nothing is waiting on you.",
+      "attention": "Nothing needs attention."
+    }
+  },
   "expensesSettings": {
     "title": "Expense settings",
     "description": "The expense types students choose from, and the ledger account each one books to. Changes are audited.",
