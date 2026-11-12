@@ -98,3 +98,12 @@ export function slugFromLabel(label: string, taken: Set<string>): string {
     }
   }
 }
+
+/**
+ * The label the create form opens with when the page is reached through
+ * "Make this a type" (`?newType=`). A repeated param uses its first value.
+ */
+export function newTypePrefill(param: string | string[] | undefined): string {
+  const value = Array.isArray(param) ? param[0] : param;
+  return (value ?? "").trim().slice(0, LABEL_MAX_LENGTH);
+}

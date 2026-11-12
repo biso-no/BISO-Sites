@@ -97,19 +97,25 @@ function taxCodeInput(draft: Draft): number | null {
 function TypeRow({
   accounts,
   labels,
+  initialLabel = "",
   nextSort,
   onSave,
   pending,
   type,
 }: {
   accounts: ExpenseAccountOption[];
+  /** Prefills a new row's name, e.g. from "Make this a type". */
+  initialLabel?: string;
   labels: ExpenseTypesLabels;
   nextSort: number;
   onSave: (id: string | null, draft: Draft) => Promise<boolean>;
   pending: boolean;
   type: ExpenseTypeView | null;
 }) {
-  const [draft, setDraft] = useState(() => toDraft(type, nextSort));
+  const [draft, setDraft] = useState(() => ({
+    ...toDraft(type, nextSort),
+    ...(type ? {} : { label: initialLabel }),
+  }));
   const rowId = type?.$id ?? "new";
 
   return (
@@ -230,12 +236,17 @@ function TypeRow({
 export function ExpenseTypesClient({
   initialView,
   labels,
+  newTypeLabel = "",
 }: {
   initialView: View;
+  /** Opens the create row with this name filled in. */
+  newTypeLabel?: string;
   labels: ExpenseTypesLabels;
 }) {
   const [view, setView] = useState(initialView);
   const [pending, startTransition] = useTransition();
+  // Used once: after the type is created the next blank row starts empty.
+  const [prefill, setPrefill] = useState(newTypeLabel);
 
   const reload = async () => {
     setView(await getExpenseTypesView());
@@ -277,6 +288,9 @@ export function ExpenseTypesClient({
           return;
         }
         toast.success(labels.saved);
+        if (id === null) {
+          setPrefill("");
+        }
         try {
           await reload();
         } catch {
@@ -382,6 +396,7 @@ export function ExpenseTypesClient({
             ))}
             <TypeRow
               accounts={view.accounts}
+              initialLabel={prefill}
               key={`new-${view.types.length}`}
               labels={labels}
               nextSort={nextSort}

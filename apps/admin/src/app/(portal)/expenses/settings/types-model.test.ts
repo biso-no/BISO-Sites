@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { expenseTypeInputSchema, slugFromLabel } from "./types-model";
+import {
+  expenseTypeInputSchema,
+  newTypePrefill,
+  slugFromLabel,
+} from "./types-model";
 
 const valid = {
   accountNumber: 7140,
@@ -71,5 +75,24 @@ describe("slugFromLabel", () => {
     const next = slugFromLabel(long, taken);
     expect(next.length).toBeLessThanOrEqual(36);
     expect(next.endsWith("-2")).toBe(true);
+  });
+});
+
+describe("newTypePrefill", () => {
+  test("returns a trimmed label", () => {
+    expect(newTypePrefill("  Taxi ")).toBe("Taxi");
+  });
+
+  test("takes the first value of a repeated param", () => {
+    expect(newTypePrefill(["Taxi", "Bus"])).toBe("Taxi");
+  });
+
+  test("is empty when missing or blank", () => {
+    expect(newTypePrefill(undefined)).toBe("");
+    expect(newTypePrefill("   ")).toBe("");
+  });
+
+  test("is capped at the label length", () => {
+    expect(newTypePrefill("x".repeat(200))).toHaveLength(80);
   });
 });

@@ -6,8 +6,13 @@ import { PageHeader } from "../../_components/page-header";
 import { ExpenseTypesClient } from "./_components/expense-types-client";
 import { ExpensesSettingsTabs } from "./_components/expenses-settings-tabs";
 import { getExpenseTypesView } from "./actions";
+import { newTypePrefill } from "./types-model";
 
-export default async function ExpenseSettingsPage() {
+export default async function ExpenseSettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ newType?: string | string[] }>;
+}) {
   const ctx = await requireNavAccess("portal.expensesSettings");
   // Types is global-admin only; campus admins manage approvers.
   if (!ctx.roles.includes(ROLES.GLOBAL_ADMIN)) {
@@ -15,6 +20,7 @@ export default async function ExpenseSettingsPage() {
   }
   const t = await getTranslations("adminPortal.expensesSettings");
   const view = await getExpenseTypesView();
+  const newTypeLabel = newTypePrefill((await searchParams).newType);
 
   return (
     <div className="pb-12">
@@ -55,6 +61,7 @@ export default async function ExpenseSettingsPage() {
           taxCode: t("taxCode"),
           typesHint: t("typesHint"),
         }}
+        newTypeLabel={newTypeLabel}
       />
     </div>
   );
