@@ -54,6 +54,7 @@ If there are none, you see **Ingen avvik** (No approval issues).
 - It starts **No president approver found**. A campus controller submitted a reimbursement and no campus president could be found. It went to the national manager's mailbox. Find the president's role account as in the next step, then mark the issue as resolved.
 - It reads **Expense has no department set.** There's no approver account to fix. The reimbursement went to the campus controller. Mark the issue as resolved, as in [Mark an issue as resolved](#mark-an-issue-as-resolved).
 - It starts **Could not notify**. The approver was found, but the message asking them to approve couldn't be delivered. Go to [Resend the approval](#resend-the-approval).
+- It starts **No approver could be resolved**. Nobody was found for any step, not even a standard mailbox, so the reimbursement waits with no approver. There's no step to resend, so the issue has no **Send varsel på nytt** (Resend notification). Report it to the developers.
 
 **Søkt rolle** (Sought role) shows which approver was wanted, as a code: `finance`, `manager`, `deputy`, `controller`, `president` or `national`.
 
@@ -90,9 +91,10 @@ This only changes the status. It doesn't check that the department was fixed, an
 
 ## What happens next
 
-- An issue is recorded on its own when a reimbursement is submitted and its department approver can't be found, or when an approver can't be sent their approval link.
-- A reimbursement whose department approver couldn't be found doesn't wait for you. It skips that step and goes to the campus controller. Fixing the account helps the reimbursements that come after it, once the lookup finds it and saves it to the directory.
-- Each approver the admin finds is written to the reimbursement's history as **approver_resolved**, with the role and where it came from: the directory, the AI lookup or the standard mailbox.
+- An issue is recorded on its own when a reimbursement is submitted and its department approver can't be found, when no campus president can be found for a controller's own reimbursement, or when an approver can't be sent their approval link.
+- A reimbursement whose department approver couldn't be found doesn't wait for you. It skips that step and goes to the campus controller. A controller's own reimbursement with no president goes to the national manager's mailbox. Fixing the account helps the reimbursements that come after it, once the lookup finds it and saves it to the directory.
+- When the lookup finds nobody, it doesn't look for the same approver again for up to an hour. Until then, reimbursements fall back as above and record the same issue. So a fixed account can take up to an hour to be found.
+- Each approver the admin finds is recorded as an **approver_resolved** event, with the role and where it came from: the directory, the AI lookup or the standard mailbox. When the national manager's mailbox stands in for a president, the event reads `national (president fallback)`. The events are kept in the table `expense_events`. No page in the admin shows them.
 - A reimbursement whose approver couldn't be reached waits at that step until you choose **Send varsel på nytt** (Resend notification).
 - Nobody is told about a new issue. Open the tab now and then to check.
 - Marking an issue as resolved and resending are written to the activity log with your email.
@@ -103,6 +105,7 @@ This only changes the status. It doesn't check that the department was fixed, an
 - Marking an issue as resolved before fixing the account. Nothing checks it, so the next reimbursement from that department hits the same problem.
 - Expecting **Marker som løst** (Mark resolved) to send the reimbursement on. It only changes the status.
 - Expecting the admin to pick up a fix at once for a reimbursement already sent. The approvers are chosen when the student submits. Use the resend only for a notification that failed.
+- Expecting the next reimbursement to find a fixed account straight away. After a lookup has found nobody, the admin waits up to an hour before it looks for the same approver again.
 - Setting the department on the student who submitted. Set it on the department's approver role account.
 - Choosing a department with a similar name. The admin looks for the exact department name shown in the issue.
 - Leaving a **Could not notify** issue open. That reimbursement waits until you resend.

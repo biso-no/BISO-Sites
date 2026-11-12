@@ -63,7 +63,7 @@ Anything that needs a check on the server or a secret goes through `https://api.
 | Units | `/api/campus/<campusId>/<departmentId>/board` |
 | Settings | `/api/config` |
 
-Installed copies of the app update slowly, so treat these routes as a public contract. Keep the fields old versions read, and add new ones beside them. If you must rename or remove one, first raise the minimum app version (see [Update nudges](#update-nudges)).
+Installed copies of the app update slowly, so treat these routes as a public contract. Keep the fields old versions read, and add new ones beside them. A save from an old version mustn't clear a field it doesn't know: on a draft update, the expense draft and submit routes keep the stored occasion, event, own type text and controller flag when the app leaves them out (`mergeLegacyDraft` in `apps/api/src/lib/expense-payload.ts`). If you must rename or remove one, first raise the minimum app version (see [Update nudges](#update-nudges)).
 
 Each call carries a JWT from `account.createJWT()` in an `Authorization: Bearer` header. The app reuses a token for 10 minutes, because Appwrite allows only 100 new JWTs per account per hour (`lib/data/services/api_auth.dart`). The member-pass routes read only that header and answer `401` with `not_authenticated` without it. [Auth and roles](/developers/change-it/auth-and-roles#the-api) covers the API's side.
 

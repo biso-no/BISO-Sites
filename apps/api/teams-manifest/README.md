@@ -28,8 +28,15 @@ TEAMS_BOT_APP_TENANT_ID=74a117b9-9343-4c86-b44d-398c88ba1ed8
 TEAMS_APP_ID=287d6b99-0b85-49d0-afa2-c75920bb5f9a   # catalog app id (verify after upload, see below)
 ```
 
-The approver lookup (`findUsersByDepartment`) reuses the existing `AZURE_GRAPH_*`
-app; the bot app above carries the install/mail Graph permissions.
+The approver lookup reuses the existing `AZURE_GRAPH_*` app; the bot app above
+carries the install/mail Graph permissions. The lookup makes two Graph calls
+(see `apps/api/src/lib/expense-approver-lookup.ts`):
+
+- `findUsersByDepartment`: users whose `department` equals the department name.
+- `searchUsers`: users whose name or address starts with a role prefix such as
+  `finance.` or `president.`. It selects `signInActivity`, which needs
+  `AuditLog.Read.All`; when Graph answers 403 (or 400) it searches again
+  without that field, so the lookup works without the permission.
 
 ## Remaining manual step — publish to the org catalog
 
