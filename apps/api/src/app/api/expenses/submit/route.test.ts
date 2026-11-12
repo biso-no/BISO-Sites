@@ -119,6 +119,9 @@ describe("expense submit route", () => {
     storage.createFile.mockReset();
 
     account.get.mockResolvedValue({ $id: "submitter-1" });
+    vi.mocked(isFeatureEnabled).mockImplementation(
+      async (key: string) => key !== "expenses_ledger_posting"
+    );
     vi.mocked(createApprovalChain).mockClear();
     enrichment.enrichSubmission.mockReset();
     enrichment.enrichSubmission.mockResolvedValue(undefined);
@@ -498,8 +501,119 @@ describe("expense submit route", () => {
   it("treats a missing controller flag as false", async () => {
     vi.mocked(isFeatureEnabled).mockResolvedValue(true);
 
-    await POST(submitRequest(SUBMIT_BODY));
+    // Drift Campus Oslo offers the controller switch, so a missing flag is
+    // what decides here.
+    await POST(submitRequest({ ...SUBMIT_BODY, department: "1" }));
 
+    expect(adminDb.createRow).toHaveBeenCalledWith(
+      "app",
+      "expense",
+      expect.any(String),
+      expect.objectContaining({ submitter_is_controller: false }),
+      expect.anything()
+    );
+    expect(createApprovalChain).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        submitterIsController: false,
+        submitterIsFinancialManager: false,
+      })
+    );
+  });
+
+  it("routes a web draft's controller switch to the president when an old app submits it", async () => {
+    vi.mocked(isFeatureEnabled).mockResolvedValue(true);
+    // Saved on the web with the switch on, on Ledelsen Oslo.
+    adminDb.getRow.mockResolvedValue({
+      $id: "expense-1",
+      campus: "1",
+      department: "2",
+      expenseAttachments: [{ $id: "att-1", cost_type: "social", url: "f1" }],
+      status: ExpensesStatus.DRAFT,
+      submitter_is_controller: true,
+      userId: "submitter-1",
+    });
+
+    // An old app: no cost_type_chosen and no controller flag.
+    const response = await POST(
+      submitRequest({
+        ...SUBMIT_BODY,
+        department: "2",
+        expenseAttachments: [{ amount: 100, cost_type: "social", url: "f1" }],
+        expenseId: "expense-1",
+        submitter_is_financial_manager: false,
+      })
+    );
+
+    expect(response.status).toBe(200);
+    const [, , , select] = adminDb.getRow.mock.calls[0] ?? [];
+    expect(select?.[0]).toContain("submitter_is_controller");
+    const saved = adminDb.updateRow.mock.calls.find(
+      ([, table]) => table === "expense"
+    )?.[3];
+    expect(saved).toMatchObject({ submitter_is_controller: true });
+    // The history note is written from the same merged payload.
+    const [, , enrichedPayload] =
+      enrichment.enrichSubmission.mock.calls[0] ?? [];
+    expect(enrichedPayload).toMatchObject({ submitter_is_controller: true });
+    // The president, never the controller who submitted it.
+    expect(createApprovalChain).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        submitterIsController: true,
+        submitterIsFinancialManager: false,
+      })
+    );
+  });
+
+  it("stores and routes the financial-manager flag on Ledelsen Oslo as false", async () => {
+    vi.mocked(isFeatureEnabled).mockResolvedValue(true);
+
+    await POST(
+      submitRequest({
+        ...SUBMIT_BODY,
+        department: "2",
+        submitter_is_financial_manager: true,
+      })
+    );
+
+    expect(adminDb.createRow).toHaveBeenCalledWith(
+      "app",
+      "expense",
+      expect.any(String),
+      expect.objectContaining({
+        submitter_is_controller: false,
+        submitter_is_financial_manager: false,
+      }),
+      expect.anything()
+    );
+    expect(createApprovalChain).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        submitterIsController: false,
+        submitterIsFinancialManager: false,
+      })
+    );
+  });
+
+  it("stores and routes the controller flag on an ordinary Oslo department as false", async () => {
+    vi.mocked(isFeatureEnabled).mockResolvedValue(true);
+
+    await POST(
+      submitRequest({
+        ...SUBMIT_BODY,
+        department: "dept-1",
+        submitter_is_controller: true,
+      })
+    );
+
+    expect(adminDb.createRow).toHaveBeenCalledWith(
+      "app",
+      "expense",
+      expect.any(String),
+      expect.objectContaining({
+        submitter_is_controller: false,
+        submitter_is_financial_manager: false,
+      }),
+      expect.anything()
+    );
     expect(createApprovalChain).toHaveBeenLastCalledWith(
       expect.objectContaining({
         submitterIsController: false,

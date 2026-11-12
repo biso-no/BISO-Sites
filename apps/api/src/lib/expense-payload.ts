@@ -63,7 +63,9 @@ const ExpensePayloadSchema = z.object({
   expenseId: z.string().min(1).optional(),
   occasion: z.string().trim().max(OCCASION_MAX).nullish(),
   prepayment_amount: z.coerce.number().finite().nullable().optional(),
-  submitter_is_controller: z.boolean().optional().default(false),
+  // No default: an app that has no controller switch leaves it out, and a
+  // draft update then keeps the stored flag (see `mergeLegacyDraft`).
+  submitter_is_controller: z.boolean().optional(),
   submitter_is_financial_manager: z.boolean().optional().default(false),
   total: z.coerce.number().finite().default(0),
 });
@@ -172,7 +174,9 @@ function sentOccasionAndEvent(
 
 /**
  * The submitter's two self-declarations, kept only when the department offers
- * that switch. Old apps send no controller flag, which reads as false.
+ * that switch. A controller flag that is still absent here reads as false:
+ * a draft update has already put the stored one in its place (see
+ * `mergeLegacyDraft`), so absent means nothing is stored.
  */
 export function normalisedSwitches(
   data: Pick<
@@ -278,6 +282,7 @@ export interface StoredDraft {
   event_id?: string | null;
   expenseAttachments?: readonly StoredAttachmentType[] | null;
   occasion?: string | null;
+  submitter_is_controller?: boolean | null;
 }
 
 /**
@@ -288,6 +293,11 @@ export interface StoredDraft {
  * its `occasion` and `event_id` are kept. A client that sends `cost_type_chosen`
  * is taken as sent: it clears those two by sending null, and a draft update
  * that leaves them out keeps them (see `buildExpenseRowInput`).
+ *
+ * No app version has the controller switch, so a payload that leaves
+ * `submitter_is_controller` out keeps the stored flag. Dropping it would send
+ * a controller's own reimbursement, switched on from the web, to the
+ * controller.
  */
 export function mergeLegacyDraft(
   payload: ExpensePayload,
@@ -299,6 +309,10 @@ export function mergeLegacyDraft(
       payload.expenseAttachments ?? [],
       existing.expenseAttachments ?? []
     ),
+    submitter_is_controller:
+      payload.submitter_is_controller ??
+      existing.submitter_is_controller ??
+      undefined,
   };
   if (!isLegacyPayload(payload)) {
     return merged;

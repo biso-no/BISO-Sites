@@ -1041,6 +1041,34 @@ describe("enrichSubmission", () => {
     ]);
   });
 
+  it("adds no declaration note when the switch is off or not offered", async () => {
+    const cases = [
+      // Offered, switched off.
+      { campus: "1", department: "1", submitter_is_controller: false },
+      { campus: "1", department: "dept-x" },
+      // Not offered by the department, whatever the client sends.
+      {
+        campus: "2",
+        department: "302",
+        submitter_is_controller: true,
+        submitter_is_financial_manager: true,
+      },
+      { campus: "1", department: "2", submitter_is_financial_manager: true },
+      { campus: "1", department: "dept-x", submitter_is_controller: true },
+    ];
+    for (const over of cases) {
+      const { expense, payload } = submission([], over);
+      await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+    }
+
+    const submitted = recordExpenseEvents.mock.calls.map((call) => call[1][0]);
+    expect(submitted).toHaveLength(cases.length);
+    for (const event of submitted) {
+      expect(event.action).toBe("submitted");
+      expect(event).not.toHaveProperty("note");
+    }
+  });
+
   it("keeps own text and occasion when an old app submits a web draft", async () => {
     scanning.findScan.mockResolvedValue(scan("meeting-food", 0.95));
     generateObject.mockResolvedValue({

@@ -15,7 +15,6 @@ import {
   type ExpensePayload,
   type ExpenseRowInput,
   mergeLegacyDraft,
-  normalisedSwitches,
   parseExpensePayload,
 } from "@/lib/expense-payload";
 import {
@@ -218,6 +217,7 @@ async function loadOwnedDraft(
         "userId",
         "occasion",
         "event_id",
+        "submitter_is_controller",
         "expenseAttachments.*",
       ]),
     ])
@@ -238,40 +238,49 @@ async function loadOwnedDraft(
   return existingExpense;
 }
 
+/** The draft as saved: the row, the row data written and the payload behind it. */
+interface SavedDraft {
+  draft: CreateExpenseData;
+  row: ExpenseRowInput;
+  saved: ExpensePayload;
+}
+
 /**
- * Saves the payload over the draft and returns the payload as saved: when an
- * old app submits a draft made on the web, the draft's own type text,
- * occasion and event are kept (see `mergeLegacyDraft`).
+ * Saves the payload over the draft and returns it as saved: when an old app
+ * submits a draft made on the web, the draft's own type text, occasion, event
+ * and controller flag are kept (see `mergeLegacyDraft`).
  */
 async function saveDraftBeforeSubmission(
   adminDb: AdminClient["db"],
   payload: ExpensePayload,
   userId: string
-): Promise<{ draft: CreateExpenseData; saved: ExpensePayload }> {
+): Promise<SavedDraft> {
   const { expenseId } = payload;
 
   if (!expenseId) {
+    const row = buildExpenseRowInput(payload, userId, ExpensesStatus.DRAFT);
     const draft = await adminDb.createRow<CreateExpenseData>(
       "app",
       "expense",
       ID.unique(),
-      buildExpenseRowInput(payload, userId, ExpensesStatus.DRAFT),
+      row,
       buildExpenseRowPermissions(userId)
     );
-    return { draft, saved: payload };
+    return { draft, row, saved: payload };
   }
 
   // Expense rows are read-only to their submitter: ownership is checked here
   // and the write goes through the admin client.
   const existing = await loadOwnedDraft(adminDb, expenseId, userId);
   const saved = mergeLegacyDraft(payload, existing);
+  const row = buildExpenseRowInput(saved, userId, ExpensesStatus.DRAFT);
   const draft = await adminDb.updateRow<CreateExpenseData>(
     "app",
     "expense",
     expenseId,
-    buildExpenseRowInput(saved, userId, ExpensesStatus.DRAFT)
+    row
   );
-  return { draft, saved };
+  return { draft, row, saved };
 }
 
 /**
@@ -472,7 +481,7 @@ async function submitExpense(req: NextRequest) {
   const payload = await readExpensePayload(req);
   const admin = await createAdminClient();
 
-  const { draft, saved } = await saveDraftBeforeSubmission(
+  const { draft, row, saved } = await saveDraftBeforeSubmission(
     admin.db,
     payload,
     userId
@@ -486,14 +495,14 @@ async function submitExpense(req: NextRequest) {
   // Read again so both flows see the types and accounts enrichment stored.
   const expense = await readExpense();
 
-  const switches = normalisedSwitches(payload);
+  // Routed as stored, so the chain, the row and the history note agree.
   const submission: Submission = {
     expense,
     profile,
     reimbursementNumber: generateReimbursementNumber(expense.$sequence),
     submitterId: userId,
-    submitterIsController: switches.submitter_is_controller,
-    submitterIsFinancialManager: switches.submitter_is_financial_manager,
+    submitterIsController: row.submitter_is_controller,
+    submitterIsFinancialManager: row.submitter_is_financial_manager,
   };
 
   if (await isFeatureEnabled("expenses_ledger_posting")) {

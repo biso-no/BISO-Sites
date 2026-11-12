@@ -426,3 +426,65 @@ describe("ExpenseSplitView submit", () => {
     );
   });
 });
+
+describe("ExpenseSplitView reopened draft", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    fetchApi.mockReset();
+    intl.locale = "en";
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+
+  afterEach(async () => {
+    await act(() => {
+      root?.unmount();
+    });
+    root = null;
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("shows a saved controller switch on Ledelsen as on", async () => {
+    document.body.innerHTML = "";
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(() => {
+      root?.render(
+        createElement(ExpenseSplitView, {
+          campuses: [
+            {
+              $id: "2",
+              name: "Bergen",
+              departments: [{ $id: "300", Name: "Ledelsen", active: true }],
+            },
+          ],
+          initialDraft: {
+            $id: "expense-1",
+            bank_account: "12345678903",
+            campus: "2",
+            department: "300",
+            description: "Travel.",
+            eventName: null,
+            event_id: null,
+            expenseAttachments: [],
+            occasion: null,
+            submitter_is_controller: true,
+            submitter_is_financial_manager: false,
+            total: 0,
+          },
+          initialProfile: { bank_account: "12345678903", name: "Kari" },
+          typeOptions: OPTIONS,
+        } as never)
+      );
+    });
+
+    // The assignment is restored before the switch, which a change of
+    // department would otherwise clear.
+    expect(state().selectedDepartmentId).toBe("300");
+    expect(state().submitterIsController).toBe(true);
+    const toggle =
+      container.querySelector<HTMLInputElement>("#controller-toggle");
+    expect(toggle?.checked).toBe(true);
+  });
+});

@@ -148,6 +148,35 @@ describe("expense draft route", () => {
     expect(written.expenseAttachments[1]).not.toHaveProperty("cost_type_text");
   });
 
+  it("keeps the stored controller flag when an old app re-saves a web draft", async () => {
+    adminDb.getRow.mockResolvedValue({
+      $id: "expense-1",
+      expenseAttachments: [],
+      status: "draft",
+      submitter_is_controller: true,
+      userId: "submitter-1",
+    });
+
+    // An old app: no cost_type_chosen and no controller flag.
+    const response = await POST(
+      draftRequest({
+        ...DRAFT_BODY,
+        department: "2",
+        expenseAttachments: [{ amount: 100, cost_type: "social", url: "f1" }],
+        expenseId: "expense-1",
+        submitter_is_financial_manager: false,
+      })
+    );
+
+    expect(response.status).toBe(200);
+    const [, , , select] = adminDb.getRow.mock.calls[0] ?? [];
+    expect(select?.[0]).toContain("submitter_is_controller");
+    expect(adminDb.updateRow.mock.calls[0]?.[3]).toMatchObject({
+      submitter_is_controller: true,
+      submitter_is_financial_manager: false,
+    });
+  });
+
   it("refuses to update an expense that belongs to someone else", async () => {
     adminDb.getRow.mockResolvedValue({
       $id: "expense-1",

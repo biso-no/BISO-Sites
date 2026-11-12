@@ -36,8 +36,8 @@ const EXPENSES_BUCKET = "expenses";
 const REFERENCE_PROBE_LIMIT = 5;
 
 /**
- * The caller's own draft, with its attachment rows, or the response that
- * refuses the update.
+ * The caller's own draft, with what `mergeLegacyDraft` keeps from it, or the
+ * response that refuses the update.
  */
 async function loadOwnedDraft(
   db: AdminDb,
@@ -55,6 +55,7 @@ async function loadOwnedDraft(
         "userId",
         "occasion",
         "event_id",
+        "submitter_is_controller",
         "expenseAttachments.*",
       ]),
     ]
@@ -151,8 +152,8 @@ async function createDraftExpense(
  * the only thing between the caller and the row: the read and the write both
  * use the admin client.
  *
- * An old app re-saving a draft keeps the draft's own types, occasion and
- * event (see `mergeLegacyDraft`).
+ * An old app re-saving a draft keeps the draft's own types, occasion, event
+ * and controller flag (see `mergeLegacyDraft`).
  */
 async function updateDraftExpense(
   expenseId: string,

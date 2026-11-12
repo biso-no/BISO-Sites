@@ -444,10 +444,58 @@ describe("expense payload helpers", () => {
       department: "1",
     });
 
-    expect(payload?.submitter_is_controller).toBe(false);
+    // Left out, not false: a draft update keeps the stored flag.
+    expect(payload?.submitter_is_controller).toBeUndefined();
     expect(buildExpenseRowInput(payload!, "u").submitter_is_controller).toBe(
       false
     );
+  });
+
+  it("keeps the stored controller flag when a payload leaves it out", () => {
+    const stored = { submitter_is_controller: true };
+    const oldApp = parseExpensePayload({
+      ...BASE,
+      campus: "1",
+      department: "2",
+      expenseAttachments: [{ amount: 50, cost_type: "social", url: "file-1" }],
+    });
+
+    const merged = mergeLegacyDraft(oldApp!, stored);
+    expect(merged.submitter_is_controller).toBe(true);
+    expect(buildExpenseRowInput(merged, "u").submitter_is_controller).toBe(
+      true
+    );
+
+    // A client that sends the flag is taken as sent.
+    const switchedOff = parseExpensePayload({
+      ...BASE,
+      campus: "1",
+      department: "2",
+      submitter_is_controller: false,
+    });
+    expect(
+      buildExpenseRowInput(mergeLegacyDraft(switchedOff!, stored), "u")
+        .submitter_is_controller
+    ).toBe(false);
+
+    // Nothing stored reads as false.
+    expect(
+      buildExpenseRowInput(
+        mergeLegacyDraft(oldApp!, { submitter_is_controller: null }),
+        "u"
+      ).submitter_is_controller
+    ).toBe(false);
+
+    // A department without the switch still drops a kept flag.
+    const elsewhere = parseExpensePayload({
+      ...BASE,
+      campus: "1",
+      department: "dept-x",
+    });
+    expect(
+      buildExpenseRowInput(mergeLegacyDraft(elsewhere!, stored), "u")
+        .submitter_is_controller
+    ).toBe(false);
   });
 
   it("keeps a switch the department offers", () => {
