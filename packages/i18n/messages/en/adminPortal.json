@@ -1495,7 +1495,7 @@
     "steps": {
       "current": "Current",
       "byOn": "by {name}",
-      "onBehalf": "{name} on behalf of the {role}",
+      "onBehalf": "{name} on behalf of {role}",
       "decidedAt": "{time}",
       "pending": "Pending",
       "approved": "Approved",
@@ -1607,9 +1607,9 @@
       "title": "Decision",
       "approve": "Approve",
       "reject": "Reject",
-      "approveOnBehalf": "Approve on behalf of the {role}",
-      "rejectOnBehalf": "Reject on behalf of the {role}",
-      "onBehalfHint": "You are deciding on behalf of the {role}. This is logged in the history.",
+      "approveOnBehalf": "Approve on behalf of {role}",
+      "rejectOnBehalf": "Reject on behalf of {role}",
+      "onBehalfHint": "You are deciding on behalf of {role}. This is logged in the history.",
       "rejectDescription": "The student sees the reason. It is also logged in the history.",
       "reason": "Reason",
       "approved": "Approved",
@@ -1624,7 +1624,7 @@
       "save": "Change and send",
       "changed": "Approver changed and notified",
       "changedNoNotice": "Approver changed, but the notice could not be sent. It is listed under approval issues.",
-      "directoryNotSaved": "Approver changed and notified, but the saved approver for future expenses could not be updated."
+      "directoryNotSaved": "The saved approver for future expenses could not be updated."
     },
     "retry": {
       "button": "Retry booking",
@@ -1632,7 +1632,7 @@
       "warning": "Check in Finago that this expense isn't already booked before you retry. Booking it twice pays the student twice.",
       "confirm": "Retry booking",
       "booked": "Booked in Finago",
-      "failedAgain": "The booking failed again. See the reason above.",
+      "failedAgain": "The booking failed again.",
       "inProgress": "Booking is in progress. Check Finago before doing anything else."
     },
     "onBehalfRoles": {

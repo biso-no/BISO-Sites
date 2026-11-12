@@ -6,6 +6,7 @@ import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import type {
   ExpenseAttachments,
+  ExpenseEvents,
   Expenses,
   Users,
 } from "@repo/api/types/appwrite";
@@ -267,6 +268,7 @@ async function mergePdf(
 }
 
 type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
+type AdminStorage = Awaited<ReturnType<typeof createAdminClient>>["storage"];
 
 async function recordFailureEvent(
   db: AdminDb,
@@ -503,85 +505,46 @@ async function shouldSkipClaimedExpense(
   throw staleError;
 }
 
+const POSTING_SELECT = [
+  "$id",
+  "$updatedAt",
+  "campus",
+  "department",
+  "bank_account",
+  "total",
+  "description",
+  "userId",
+  "status",
+  "ledger_transaction_id",
+  "posting_lock",
+  "$sequence",
+  "departmentRel.Id",
+  "departmentRel.Name",
+  "campusRel.name",
+  "expenseAttachments.*",
+];
+
+function loadExpenseForPosting(
+  db: AdminDb,
+  expenseId: string
+): Promise<ExpenseWithRels> {
+  return db.getRow<ExpenseWithRels>("app", "expense", expenseId, [
+    Query.select(POSTING_SELECT),
+  ]);
+}
+
 /**
- * Posts a single approved expense to the ledger. Sets status to `success` on
- * success (storing the 24SO transaction id) or `failed` on error. Idempotent
- * and concurrency-safe: atomically claims the row via the `posting_lock` counter
- * before any 24SO call, so an already-posted/claimed expense is skipped even when
- * two dispatch runs overlap.
+ * Everything after a posting claim has been taken: builds the ledger document,
+ * posts it, saves the result and the booking history. The caller owns the claim
+ * (a `posting_lock` it won and a fresh `posting` marker on the row).
  */
-export async function postApprovedExpense(
-  expenseId: string,
-  options: { sleep?: Sleep } = {}
+async function postClaimedExpense(
+  db: AdminDb,
+  storage: AdminStorage,
+  expense: ExpenseWithRels,
+  sleep: Sleep
 ): Promise<void> {
-  const sleep = options.sleep ?? defaultSleep;
-  const { db, storage } = await createAdminClient();
-
-  const expense = await db.getRow<ExpenseWithRels>(
-    "app",
-    "expense",
-    expenseId,
-    [
-      Query.select([
-        "$id",
-        "$updatedAt",
-        "campus",
-        "department",
-        "bank_account",
-        "total",
-        "description",
-        "userId",
-        "status",
-        "ledger_transaction_id",
-        "$sequence",
-        "departmentRel.Id",
-        "departmentRel.Name",
-        "campusRel.name",
-        "expenseAttachments.*",
-      ]),
-    ]
-  );
-
-  if (await shouldSkipClaimedExpense(db, expense)) {
-    return;
-  }
-
-  try {
-    await assertApprovedExpenseChain(db, expenseId);
-  } catch (error) {
-    await db.updateRow("app", "expense", expenseId, {
-      status: ExpensesStatus.FAILED,
-    });
-    await recordFailureEvent(db, expenseId, error);
-    throw error;
-  }
-
-  // Atomically claim the row before any 24SO work. `incrementRowColumn` is a
-  // server-side atomic read-modify-write, so two overlapping dispatch runs are
-  // serialized rather than racing on a read-then-write: the first claimer takes
-  // `posting_lock` 0 → 1, the next 1 → 2, and so on. Only the run that observes
-  // exactly 1 owns the claim; any other value means another run already owns it.
-  // We intentionally do NOT pass a `max` bound: the claim is decided by the
-  // returned value, so a lost race is a normal `!== 1` return and any thrown error
-  // is a real failure (e.g. the column isn't deployed, permissions, an Appwrite
-  // outage) that must surface so the scheduler reports the run as failed.
-  const claimed = await db.incrementRowColumn<Expenses>({
-    databaseId: "app",
-    tableId: "expense",
-    rowId: expenseId,
-    column: "posting_lock",
-    value: 1,
-  });
-  if ((claimed.posting_lock ?? 0) !== 1) {
-    return; // lost the race — another run claimed first
-  }
-
-  // Mark the slow phase on `ledger_transaction_id` too, so the cheap early check
-  // above still short-circuits any re-entrant or legacy run.
-  await db.updateRow("app", "expense", expenseId, {
-    ledger_transaction_id: POSTING_CLAIM_MARKER,
-  });
-
+  const expenseId = expense.$id;
   let posted: PostedExpenseTransaction;
   let receipts: ExpenseReceiptLine[];
   let builtShifts: DateShift[];
@@ -680,6 +643,65 @@ export async function postApprovedExpense(
   );
 }
 
+/**
+ * Posts a single approved expense to the ledger. Sets status to `success` on
+ * success (storing the 24SO transaction id) or `failed` on error. Idempotent
+ * and concurrency-safe: atomically claims the row via the `posting_lock` counter
+ * before any 24SO call, so an already-posted/claimed expense is skipped even when
+ * two dispatch runs overlap.
+ */
+export async function postApprovedExpense(
+  expenseId: string,
+  options: { sleep?: Sleep } = {}
+): Promise<void> {
+  const sleep = options.sleep ?? defaultSleep;
+  const { db, storage } = await createAdminClient();
+
+  const expense = await loadExpenseForPosting(db, expenseId);
+
+  if (await shouldSkipClaimedExpense(db, expense)) {
+    return;
+  }
+
+  try {
+    await assertApprovedExpenseChain(db, expenseId);
+  } catch (error) {
+    await db.updateRow("app", "expense", expenseId, {
+      status: ExpensesStatus.FAILED,
+    });
+    await recordFailureEvent(db, expenseId, error);
+    throw error;
+  }
+
+  // Atomically claim the row before any 24SO work. `incrementRowColumn` is a
+  // server-side atomic read-modify-write, so two overlapping dispatch runs are
+  // serialized rather than racing on a read-then-write: the first claimer takes
+  // `posting_lock` 0 → 1, the next 1 → 2, and so on. Only the run that observes
+  // exactly 1 owns the claim; any other value means another run already owns it.
+  // We intentionally do NOT pass a `max` bound: the claim is decided by the
+  // returned value, so a lost race is a normal `!== 1` return and any thrown error
+  // is a real failure (e.g. the column isn't deployed, permissions, an Appwrite
+  // outage) that must surface so the scheduler reports the run as failed.
+  const claimed = await db.incrementRowColumn<Expenses>({
+    databaseId: "app",
+    tableId: "expense",
+    rowId: expenseId,
+    column: "posting_lock",
+    value: 1,
+  });
+  if ((claimed.posting_lock ?? 0) !== 1) {
+    return; // lost the race — another run claimed first
+  }
+
+  // Mark the slow phase on `ledger_transaction_id` too, so the cheap early check
+  // above still short-circuits any re-entrant or legacy run.
+  await db.updateRow("app", "expense", expenseId, {
+    ledger_transaction_id: POSTING_CLAIM_MARKER,
+  });
+
+  await postClaimedExpense(db, storage, expense, sleep);
+}
+
 export type RetryErrorCode =
   | "already_booked"
   | "not_failed"
@@ -691,24 +713,49 @@ type RetryResult =
   | { ok: true; status: string }
   | { ok: false; error: string; code: RetryErrorCode };
 
+const NOTE_TRANSACTION_ID = /^\S+/;
+
+/** The transaction id of an earlier `booked` event, or null when there is none. */
+async function bookedTransactionId(
+  db: AdminDb,
+  expenseId: string
+): Promise<string | null> {
+  const { rows } = await db.listRows<ExpenseEvents>("app", "expense_events", [
+    Query.equal("expense_id", expenseId),
+    Query.equal("action", "booked"),
+    Query.limit(1),
+  ]);
+  const event = rows[0];
+  if (!event) {
+    return null;
+  }
+  return event.note?.match(NOTE_TRANSACTION_ID)?.[0] ?? "an earlier booking";
+}
+
 /**
- * Re-runs the booking of a failed expense. The failed row still holds its claim
- * (the `posting` marker and a spent `posting_lock`) so nothing reposts by
- * itself; a person has checked Finago and chose to retry, so the claim is
- * released here and the normal posting run takes over. A stored real
- * transaction id means it is already booked, and nothing is written. Two
- * overlapping retries are serialized by an atomic `posting_lock` increment:
- * only the one that takes the next value while the row is still `failed` goes on.
+ * Re-runs the booking of a failed expense, after a person has checked Finago.
+ * Refuses when the expense is not failed, has a stored transaction id, or has a
+ * `booked` history event (Finago already has it, e.g. after a failed status
+ * write that the stale-lease reaper later turned `failed`). Overlapping retries
+ * are serialized by an atomic `posting_lock` increment: only the one that takes
+ * the next value while the row is still `failed` goes on. The lock is never
+ * reset, and the fresh `posting` marker keeps the scheduled run away; a crash is
+ * reaped after the lease like any other claim.
  */
 export async function retryExpenseBooking(params: {
   expenseId: string;
   actor: ApprovalActor;
 }): Promise<RetryResult> {
-  const { db } = await createAdminClient();
+  const { db, storage } = await createAdminClient();
   const { expenseId, actor } = params;
-  const expense = await db.getRow<Expenses>("app", "expense", expenseId, [
-    Query.select(["$id", "status", "ledger_transaction_id", "posting_lock"]),
-  ]);
+  const expense = await loadExpenseForPosting(db, expenseId);
+  if (expense.status !== ExpensesStatus.FAILED) {
+    return {
+      ok: false,
+      code: "not_failed",
+      error: "Only failed bookings can be retried.",
+    };
+  }
   const stored = expense.ledger_transaction_id;
   if (stored && stored !== POSTING_CLAIM_MARKER) {
     return {
@@ -717,11 +764,21 @@ export async function retryExpenseBooking(params: {
       error: `Already booked as ${stored}.`,
     };
   }
-  if (expense.status !== ExpensesStatus.FAILED) {
+  const booked = await bookedTransactionId(db, expenseId);
+  if (booked) {
     return {
       ok: false,
-      code: "not_failed",
-      error: "Only failed bookings can be retried.",
+      code: "already_booked",
+      error: `Already booked as ${booked}.`,
+    };
+  }
+  try {
+    await assertApprovedExpenseChain(db, expenseId);
+  } catch (error) {
+    return {
+      ok: false,
+      code: "booking_failed",
+      error: error instanceof Error ? error.message : String(error),
     };
   }
 
@@ -746,8 +803,7 @@ export async function retryExpenseBooking(params: {
 
   await db.updateRow("app", "expense", expenseId, {
     status: ExpensesStatus.APPROVED,
-    posting_lock: 0,
-    ledger_transaction_id: null,
+    ledger_transaction_id: POSTING_CLAIM_MARKER,
   });
   await recordExpenseEvents(db, [
     {
@@ -761,7 +817,7 @@ export async function retryExpenseBooking(params: {
   ]);
 
   try {
-    await postApprovedExpense(expenseId);
+    await postClaimedExpense(db, storage, expense, defaultSleep);
   } catch (error) {
     return {
       ok: false,

@@ -1624,7 +1624,7 @@
       "save": "Bytt og send",
       "changed": "Godkjenner byttet og varslet",
       "changedNoNotice": "Godkjenner byttet, men varselet kunne ikke sendes. Det ligger under godkjenningsproblemer.",
-      "directoryNotSaved": "Godkjenner byttet og varslet, men den lagrede godkjenneren for fremtidige utlegg kunne ikke oppdateres."
+      "directoryNotSaved": "Den lagrede godkjenneren for fremtidige utlegg kunne ikke oppdateres."
     },
     "retry": {
       "button": "Prøv bokføring på nytt",
@@ -1632,7 +1632,7 @@
       "warning": "Sjekk i Finago at utlegget ikke allerede er bokført før du prøver på nytt. Bokføres det to ganger, får studenten betalt to ganger.",
       "confirm": "Prøv på nytt",
       "booked": "Bokført i Finago",
-      "failedAgain": "Bokføringen mislyktes igjen. Se årsaken ovenfor.",
+      "failedAgain": "Bokføringen mislyktes igjen.",
       "inProgress": "Bokføringen pågår. Sjekk Finago før du gjør noe mer."
     },
     "onBehalfRoles": {

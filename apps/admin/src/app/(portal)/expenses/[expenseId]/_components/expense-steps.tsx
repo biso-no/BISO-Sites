@@ -68,7 +68,10 @@ export function ExpenseSteps({
                 {s.decidedAt && (
                   <p style={{ color: STUDIO.ink2 }}>
                     {s.onBehalf
-                      ? t("steps.onBehalf", { name: who, role })
+                      ? t("steps.onBehalf", {
+                          name: who,
+                          role: t(`onBehalfRoles.${s.role}`),
+                        })
                       : t("steps.byOn", { name: who })}
                     {" · "}
                     {formatDateTime(s.decidedAt, locale)}
