@@ -42,14 +42,13 @@ describe("callExpensesApi", () => {
   test("callExpensesApi maps an error body", async () => {
     fetchMock.mockResolvedValue(
       Response.json(
-        { error: "Only failed bookings can be retried." },
-        {
-          status: 400,
-        }
+        { code: "not_failed", error: "Only failed bookings can be retried." },
+        { status: 400 }
       )
     );
 
     expect(await callExpensesApi("/x", {})).toEqual({
+      code: "not_failed",
       error: "Only failed bookings can be retried.",
       ok: false,
     });

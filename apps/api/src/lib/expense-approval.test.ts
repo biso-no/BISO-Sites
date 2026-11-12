@@ -537,6 +537,7 @@ describe("decideApprovalStep", () => {
     });
 
     expect(result).toEqual({
+      code: "not_current_step",
       error: "This step is not waiting for a decision.",
       ok: false,
     });
@@ -554,6 +555,7 @@ describe("decideApprovalStep", () => {
     });
 
     expect(result).toEqual({
+      code: "not_current_step",
       error: "This step is not waiting for a decision.",
       ok: false,
     });
@@ -758,6 +760,7 @@ describe("token decision paths", () => {
     setup(row({ expires_at: new Date(Date.now() - 1000).toISOString() }));
 
     expect(await decide()).toEqual({
+      code: "link_expired",
       error: "This approval link has expired.",
       ok: false,
     });
@@ -910,24 +913,31 @@ describe("changeStepApprover", () => {
   const ACTOR = { email: "it@biso.no", kind: "admin" as const, name: "IT" };
 
   function setup(
-    options: { approval?: object; directoryRows?: object[] } = {}
+    options: {
+      approval?: object;
+      directoryRows?: object[];
+      pending?: object[];
+    } = {}
   ) {
     const row = { ...approval, ...options.approval };
-    db.getRow.mockImplementation((_db: string, table: string) =>
-      Promise.resolve(
-        table === "expense_approvals"
-          ? row
-          : {
-              $id: "expense-1",
-              $sequence: 42,
-              campus: "1",
-              status: "pending",
-              userId: "user-1",
-            }
-      )
-    );
+    db.getRow.mockImplementation((_db: string, table: string) => {
+      if (table === "expense_approvals") {
+        return Promise.resolve(row);
+      }
+      if (table === "user") {
+        return Promise.resolve({ email: " Student@Biso.no " });
+      }
+      return Promise.resolve({
+        $id: "expense-1",
+        $sequence: 42,
+        campus: "1",
+        department: "dept-1",
+        status: "pending",
+        userId: "user-1",
+      });
+    });
     const rowsByTable: Record<string, object[]> = {
-      expense_approvals: [row],
+      expense_approvals: options.pending ?? [row],
       expense_approvers: options.directoryRows ?? [],
     };
     db.listRows.mockImplementation((_db: string, table: string) =>
@@ -949,7 +959,7 @@ describe("changeStepApprover", () => {
       email: " New@BISO.no ",
     });
 
-    expect(result).toEqual({ notified: true, ok: true });
+    expect(result).toEqual({ directorySaved: true, notified: true, ok: true });
     const stepWrites = db.updateRow.mock.calls
       .filter(([, table]) => table === "expense_approvals")
       .map(([, , , data]) => data);
@@ -1063,7 +1073,7 @@ describe("changeStepApprover", () => {
       email: "new@biso.no",
     });
 
-    expect(result).toEqual({ notified: false, ok: true });
+    expect(result).toMatchObject({ notified: false, ok: true });
     expect(
       db.createRow.mock.calls.some(
         ([, table]) => table === "expense_approval_issues"
@@ -1081,10 +1091,135 @@ describe("changeStepApprover", () => {
     });
 
     expect(result).toEqual({
+      code: "not_current_step",
       error: "This step is not waiting for a decision.",
       ok: false,
     });
     expect(db.updateRow).not.toHaveBeenCalled();
     expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  it("refuses a pending step that is not current", async () => {
+    const lower = { ...approval, $id: "approval-0", step: 1 };
+    setup({
+      approval: { $id: "approval-2", step: 2 },
+      pending: [lower, { ...approval, $id: "approval-2", step: 2 }],
+    });
+
+    const result = await changeStepApprover({
+      actor: ACTOR,
+      approvalId: "approval-2",
+      email: "new@biso.no",
+    });
+
+    expect(result).toMatchObject({ code: "not_current_step", ok: false });
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+
+  it("keys a finance step by the expense's department id, not the name", async () => {
+    setup({
+      approval: {
+        approver_role: "finance",
+        department: "Marketing",
+        directory_key: null,
+      },
+    });
+
+    await changeStepApprover({
+      actor: ACTOR,
+      approvalId: "approval-1",
+      email: "new@biso.no",
+    });
+
+    const created = db.createRow.mock.calls.find(
+      ([, table]) => table === "expense_approvers"
+    )?.[3];
+    expect(created).toMatchObject({
+      department_id: "dept-1",
+      key: "dept:dept-1:finance",
+      scope: "department",
+    });
+  });
+
+  it("keys a controller step by campus with no department", async () => {
+    setup({
+      approval: {
+        approver_role: "controller",
+        department: "Marketing",
+        directory_key: null,
+      },
+    });
+
+    await changeStepApprover({
+      actor: ACTOR,
+      approvalId: "approval-1",
+      email: "new@biso.no",
+    });
+
+    const created = db.createRow.mock.calls.find(
+      ([, table]) => table === "expense_approvers"
+    )?.[3];
+    expect(created).toMatchObject({
+      department_id: null,
+      key: "campus:1:controller",
+      scope: "campus",
+    });
+  });
+
+  it("uses the stored key but the expense's department id for a department role", async () => {
+    setup({
+      approval: {
+        approver_role: "manager",
+        department: "Marketing",
+        directory_key: "dept:dept-1:manager",
+      },
+    });
+
+    await changeStepApprover({
+      actor: ACTOR,
+      approvalId: "approval-1",
+      email: "new@biso.no",
+    });
+
+    const created = db.createRow.mock.calls.find(
+      ([, table]) => table === "expense_approvers"
+    )?.[3];
+    expect(created).toMatchObject({
+      department_id: "dept-1",
+      key: "dept:dept-1:manager",
+    });
+  });
+
+  it("refuses the submitter as the new approver", async () => {
+    setup();
+
+    const result = await changeStepApprover({
+      actor: ACTOR,
+      approvalId: "approval-1",
+      email: "  STUDENT@biso.no ",
+    });
+
+    expect(result).toMatchObject({ code: "self_approver", ok: false });
+    expect(db.updateRow).not.toHaveBeenCalled();
+    expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  it("reports directorySaved false when the directory write fails", async () => {
+    setup();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    db.createRow.mockImplementation(
+      (_db: string, table: string, id: string, data: object) =>
+        table === "expense_approvers"
+          ? Promise.reject(new Error("write failed"))
+          : Promise.resolve({ $id: id, ...data })
+    );
+
+    const result = await changeStepApprover({
+      actor: ACTOR,
+      approvalId: "approval-1",
+      email: "new@biso.no",
+    });
+
+    expect(result).toMatchObject({ directorySaved: false, ok: true });
   });
 });

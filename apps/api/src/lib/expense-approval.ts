@@ -12,6 +12,7 @@ import {
   type ExpenseApprovalsApproverRole,
   ExpenseApprovalsStatus,
   ExpensesStatus,
+  type Users,
 } from "@repo/api/types/appwrite";
 import {
   type ApprovalCardData,
@@ -498,8 +499,17 @@ export async function approvalOwnsFile(
   return (expense.expenseAttachments ?? []).some((att) => att.url === fileId);
 }
 
+/** Stable reasons an approval action is refused, for callers to branch on. */
+export type ApprovalErrorCode =
+  | "invalid_link"
+  | "link_expired"
+  | "not_found"
+  | "not_current_step"
+  | "in_progress"
+  | "self_approver";
+
 export type DecisionResult =
-  | { ok: false; error: string }
+  | { ok: false; error: string; code: ApprovalErrorCode }
   | {
       ok: true;
       decision: "approved" | "rejected";
@@ -554,6 +564,7 @@ async function concurrentDecisionResult(
   }
   return {
     ok: false,
+    code: "in_progress",
     error:
       "This approval is already being processed. Please refresh in a moment.",
   };
@@ -704,7 +715,11 @@ async function decideStep(
   }
 
   if (input.requireCurrentStep && !(await isCurrentStep(db, row, expense))) {
-    return { ok: false, error: NOT_CURRENT_STEP_ERROR };
+    return {
+      ok: false,
+      code: "not_current_step",
+      error: NOT_CURRENT_STEP_ERROR,
+    };
   }
 
   // Atomically claim this step before applying the decision. Appwrite has no
@@ -851,10 +866,18 @@ export async function decideApproval(params: {
   );
   const row = found.rows[0];
   if (!row) {
-    return { ok: false, error: "This approval link is invalid." };
+    return {
+      ok: false,
+      code: "invalid_link",
+      error: "This approval link is invalid.",
+    };
   }
   if (Date.now() > new Date(row.expires_at).getTime()) {
-    return { ok: false, error: "This approval link has expired." };
+    return {
+      ok: false,
+      code: "link_expired",
+      error: "This approval link has expired.",
+    };
   }
 
   return await decideStep(db, row, {
@@ -892,7 +915,11 @@ export async function decideApprovalStep(params: {
     );
   } catch (error) {
     if (appwriteErrorStatus(error) === HTTP_NOT_FOUND) {
-      return { ok: false, error: "This approval step does not exist." };
+      return {
+        ok: false,
+        code: "not_found",
+        error: "This approval step does not exist.",
+      };
     }
     throw error;
   }
@@ -1043,25 +1070,38 @@ async function lookupGraphPerson(
   }
 }
 
-/** The directory key and scope a step's approver belongs to. */
+const DEPARTMENT_ROLES: ReadonlySet<string> = new Set([
+  "finance",
+  "manager",
+  "deputy",
+]);
+
+/**
+ * The directory entry a step's approver belongs to. Finance, manager and deputy
+ * are per department (keyed by the expense's department id); the rest are per
+ * campus. `row.department` holds the department NAME, so it is never used here.
+ */
 function directoryTarget(
   row: ExpenseApprovals,
-  expenseCampus: string
-): { campusId: string; key: string; scope: "department" | "campus" } {
-  const campusId = row.campus_id ?? expenseCampus;
-  const scope =
-    row.directory_key?.startsWith("dept:") ||
-    (!row.directory_key && row.department)
-      ? "department"
-      : "campus";
+  expense: ExpenseSummaryRow
+): {
+  campusId: string;
+  departmentId: string | null;
+  key: string;
+  scope: "department" | "campus";
+} {
+  const isDepartmentRole = DEPARTMENT_ROLES.has(row.approver_role);
+  const scope = isDepartmentRole ? "department" : "campus";
+  const departmentId = isDepartmentRole ? (expense.department ?? null) : null;
   return {
-    campusId,
+    campusId: expense.campus,
+    departmentId,
     scope,
     key:
       row.directory_key ??
       directoryKey({
-        campusId,
-        departmentId: row.department,
+        campusId: expense.campus,
+        departmentId,
         role: row.approver_role,
         scope,
       }),
@@ -1077,7 +1117,10 @@ export async function changeStepApprover(params: {
   approvalId: string;
   email: string;
   actor: ApprovalActor;
-}): Promise<{ ok: true; notified: boolean } | { ok: false; error: string }> {
+}): Promise<
+  | { ok: true; notified: boolean; directorySaved: boolean }
+  | { ok: false; error: string; code: ApprovalErrorCode }
+> {
   const { db } = await createAdminClient();
   let row: ExpenseApprovals;
   try {
@@ -1088,7 +1131,11 @@ export async function changeStepApprover(params: {
     );
   } catch (error) {
     if (appwriteErrorStatus(error) === HTTP_NOT_FOUND) {
-      return { ok: false, error: "This approval step does not exist." };
+      return {
+        ok: false,
+        code: "not_found",
+        error: "This approval step does not exist.",
+      };
     }
     throw error;
   }
@@ -1102,21 +1149,33 @@ export async function changeStepApprover(params: {
     row.status !== ExpenseApprovalsStatus.PENDING ||
     !(await isCurrentStep(db, row, expense))
   ) {
-    return { ok: false, error: NOT_CURRENT_STEP_ERROR };
+    return {
+      ok: false,
+      code: "not_current_step",
+      error: NOT_CURRENT_STEP_ERROR,
+    };
   }
 
   const email = params.email.trim().toLowerCase();
+  const submitter = await db.getRow<Users>("app", "user", expense.userId);
+  if (submitter.email?.trim().toLowerCase() === email) {
+    return {
+      ok: false,
+      code: "self_approver",
+      error: "The submitter cannot approve their own expense.",
+    };
+  }
   const person = await lookupGraphPerson(email);
   await db.updateRow<ExpenseApprovals>("app", "expense_approvals", row.$id, {
     approver_aad_id: person?.aadId ?? null,
     approver_email: email,
   } as Partial<ExpenseApprovals>);
 
-  const target = directoryTarget(row, expense.campus);
-  await setAdminDirectoryApprover(db, {
+  const target = directoryTarget(row, expense);
+  const directorySaved = await setAdminDirectoryApprover(db, {
     aadId: person?.aadId ?? null,
     campusId: target.campusId,
-    departmentId: row.department,
+    departmentId: target.departmentId,
     displayName: person?.displayName ?? null,
     email,
     key: target.key,
@@ -1147,9 +1206,9 @@ export async function changeStepApprover(params: {
     await reissueAndNotify(stepRow, expense);
   } catch (error) {
     await recordNotificationIssue(expense, stepRow, error);
-    return { ok: true, notified: false };
+    return { ok: true, notified: false, directorySaved };
   }
-  return { ok: true, notified: true };
+  return { ok: true, notified: true, directorySaved };
 }
 
 function buildContextFromExpense(

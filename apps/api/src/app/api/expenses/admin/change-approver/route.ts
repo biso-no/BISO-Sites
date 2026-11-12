@@ -16,6 +16,8 @@ const MAX_APPROVAL_ID = 64;
 const MAX_EMAIL = 320;
 const MAX_NAME = 256;
 
+const BISO_EMAIL = /@biso\.no$/i;
+
 const BodySchema = z.object({
   approvalId: z.string().min(1).max(MAX_APPROVAL_ID),
   email: z.email().max(MAX_EMAIL),
@@ -36,8 +38,20 @@ export async function POST(req: NextRequest) {
 
   const parsed = BodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
+    const emailIssue = parsed.error.issues.some(
+      (issue) => issue.path[0] === "email"
+    );
     return NextResponse.json(
-      { error: parsed.error.issues[0]?.message ?? "Invalid request" },
+      {
+        code: emailIssue ? "invalid_email" : "invalid_body",
+        error: parsed.error.issues[0]?.message ?? "Invalid request",
+      },
+      { status: HTTP_BAD_REQUEST }
+    );
+  }
+  if (!BISO_EMAIL.test(parsed.data.email)) {
+    return NextResponse.json(
+      { code: "invalid_email", error: "Use a @biso.no email address." },
       { status: HTTP_BAD_REQUEST }
     );
   }
@@ -46,7 +60,7 @@ export async function POST(req: NextRequest) {
     const result = await changeStepApprover(parsed.data);
     if (!result.ok) {
       return NextResponse.json(
-        { error: result.error },
+        { code: result.code, error: result.error },
         { status: HTTP_BAD_REQUEST }
       );
     }

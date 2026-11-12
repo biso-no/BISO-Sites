@@ -40,14 +40,20 @@ export async function POST(req: NextRequest) {
   const parsed = BodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json(
-      { error: parsed.error.issues[0]?.message ?? "Invalid request" },
+      {
+        code: "invalid_body",
+        error: parsed.error.issues[0]?.message ?? "Invalid request",
+      },
       { status: HTTP_BAD_REQUEST }
     );
   }
 
   if (!(await isFeatureEnabled("expenses_ledger_posting"))) {
     return NextResponse.json(
-      { error: "expenses_ledger_posting disabled" },
+      {
+        code: "posting_disabled",
+        error: "expenses_ledger_posting disabled",
+      },
       { status: HTTP_CONFLICT }
     );
   }
@@ -56,7 +62,7 @@ export async function POST(req: NextRequest) {
     const result = await retryExpenseBooking(parsed.data);
     if (!result.ok) {
       return NextResponse.json(
-        { error: result.error },
+        { code: result.code, error: result.error },
         { status: HTTP_BAD_REQUEST }
       );
     }

@@ -5,6 +5,7 @@ import { createAdminClient } from "@repo/api/server";
 import {
   type ExpenseApprovalIssues,
   type ExpenseApprovals,
+  type ExpenseApprovalsApproverRole,
   type ExpenseAttachments,
   type ExpenseCostTypes,
   type ExpenseEvents,
@@ -369,7 +370,7 @@ export interface ExpenseDetailStep {
   isCurrent: boolean;
   onBehalf: boolean;
   reason: string | null;
-  role: string;
+  role: ExpenseApprovalsApproverRole;
   status: string;
   step: number;
 }

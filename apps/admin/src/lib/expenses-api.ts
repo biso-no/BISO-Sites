@@ -4,7 +4,7 @@ const TRAILING_SLASHES = /\/+$/;
 
 export type ExpensesApiResult<T> =
   | { ok: true; data: T }
-  | { ok: false; error: string };
+  | { ok: false; error: string; code?: string };
 
 /**
  * Calls an internal expenses route on the api service, server to server, with
@@ -43,14 +43,19 @@ export async function callExpensesApi<T>(
   }
 
   const json = (await response.json().catch(() => null)) as
-    | (T & { error?: unknown })
+    | (T & { error?: unknown; code?: unknown })
     | null;
   if (!response.ok) {
     const message =
       typeof json?.error === "string" && json.error
         ? json.error
         : response.statusText || `Request failed (${response.status})`;
-    return { ok: false, error: message };
+    const code = (json as { code?: unknown } | null)?.code;
+    return {
+      ok: false,
+      error: message,
+      ...(typeof code === "string" ? { code } : {}),
+    };
   }
   return { ok: true, data: json as T };
 }

@@ -43,7 +43,14 @@ export function ChangeApproverDialog({
         toast.error(te(`errors.${result.error}`));
         return;
       }
-      toast.success(result.data.notified ? t("changed") : t("changedNoNotice"));
+      if (result.data.notified) {
+        toast.success(t("changed"));
+      } else {
+        toast.warning(t("changedNoNotice"));
+      }
+      if (!result.data.directorySaved) {
+        toast.warning(t("directoryNotSaved"));
+      }
       setOpen(false);
       setEmail("");
       router.refresh();

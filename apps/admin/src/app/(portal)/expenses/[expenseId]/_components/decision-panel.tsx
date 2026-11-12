@@ -46,7 +46,10 @@ export function DecisionPanel({ approvalId, expenseId, onBehalfRole }: Props) {
       });
       if ("error" in result) {
         toast.error(te(`errors.${result.error}`));
-        if (result.error === "already_decided") {
+        if (
+          result.error === "already_decided" ||
+          result.error === "not_current_step"
+        ) {
           setRejecting(false);
           router.refresh();
         }

@@ -18,26 +18,34 @@ export type ExpenseActionError =
   | "already_booked"
   | "not_failed"
   | "posting_disabled"
+  | "in_progress"
+  | "self_approver"
+  | "retry_in_progress"
+  | "booking_failed"
+  | "status_write_failed"
   | "api_failed"
   | "failed";
 
 /** The result of an expense edit action. */
 export type ExpenseActionResult<T> =
   | { data: T }
-  | { error: ExpenseActionError };
+  | { error: ExpenseActionError; message?: string };
 
-const API_MESSAGE_CODES: [prefix: string, code: ExpenseActionError][] = [
-  ["This step is not waiting for a decision", "not_current_step"],
-  ["This approval step does not exist", "not_found"],
-  ["Already booked as", "already_booked"],
-  ["Only failed bookings can be retried", "not_failed"],
-  ["expenses_ledger_posting disabled", "posting_disabled"],
-];
+const API_CODES: Record<string, ExpenseActionError> = {
+  already_booked: "already_booked",
+  booking_failed: "booking_failed",
+  in_progress: "in_progress",
+  invalid_email: "invalid_email",
+  not_current_step: "not_current_step",
+  not_failed: "not_failed",
+  not_found: "not_found",
+  posting_disabled: "posting_disabled",
+  retry_in_progress: "retry_in_progress",
+  self_approver: "self_approver",
+  status_write_failed: "status_write_failed",
+};
 
-/** The action error code for a refusal message from the expenses api. */
-export function apiErrorCode(message: string): ExpenseActionError {
-  return (
-    API_MESSAGE_CODES.find(([prefix]) => message.startsWith(prefix))?.[1] ??
-    "api_failed"
-  );
+/** The action error for a stable `code` from the expenses api. */
+export function apiErrorCode(code: string | undefined): ExpenseActionError {
+  return (code && API_CODES[code]) || "api_failed";
 }

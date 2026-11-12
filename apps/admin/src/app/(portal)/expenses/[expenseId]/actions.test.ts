@@ -378,7 +378,10 @@ describe("decideExpenseStep", () => {
   test("maps a refused step from the api", async () => {
     fetchMock.mockResolvedValue(
       Response.json(
-        { error: "This step is not waiting for a decision." },
+        {
+          code: "not_current_step",
+          error: "This step is not waiting for a decision.",
+        },
         { status: 400 }
       )
     );
@@ -431,14 +434,18 @@ describe("changeExpenseApprover", () => {
   test("accepts a biso address in any case and reports notified", async () => {
     globalAdmin();
     fetchMock.mockResolvedValue(
-      Response.json({ result: { notified: false, ok: true } })
+      Response.json({
+        result: { directorySaved: false, notified: false, ok: true },
+      })
     );
     const result = await changeExpenseApprover({
       approvalId: "s1",
       email: " New@BISO.no ",
       expenseId: "ex1",
     });
-    expect(result).toEqual({ data: { notified: false } });
+    expect(result).toEqual({
+      data: { directorySaved: false, notified: false },
+    });
     expect(apiUrl()).toBe(
       "https://api.example.test/api/expenses/admin/change-approver"
     );
@@ -478,24 +485,72 @@ describe("retryExpenseBooking", () => {
     });
   });
 
-  test("maps the api refusals", async () => {
-    spyOn(console, "error").mockImplementation(() => undefined);
+  test("maps the api refusals by code, not by message", async () => {
+    const errorSpy = spyOn(console, "error").mockImplementation(
+      () => undefined
+    );
+    try {
+      failedExpense();
+      globalAdmin();
+      const cases: [string | undefined, ExpenseActionError][] = [
+        ["already_booked", "already_booked"],
+        ["not_failed", "not_failed"],
+        ["posting_disabled", "posting_disabled"],
+        ["retry_in_progress", "retry_in_progress"],
+        ["status_write_failed", "status_write_failed"],
+        ["something_new", "api_failed"],
+        [undefined, "api_failed"],
+      ];
+      for (const [code, expected] of cases) {
+        fetchMock.mockReset();
+        fetchMock.mockResolvedValue(
+          Response.json(
+            { error: "Only failed bookings can be retried.", code },
+            { status: 400 }
+          )
+        );
+        expect(await retryExpenseBooking({ expenseId: "ex1" })).toEqual({
+          error: expected,
+        });
+      }
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  test("keeps Finago's message for a failed booking", async () => {
     failedExpense();
     globalAdmin();
-    const cases: [string, ExpenseActionError][] = [
-      ["Already booked as tx-1.", "already_booked"],
-      ["Only failed bookings can be retried.", "not_failed"],
-      ["expenses_ledger_posting disabled", "posting_disabled"],
-      ["Finago down", "api_failed"],
-    ];
-    for (const [message, code] of cases) {
-      fetchMock.mockReset();
-      fetchMock.mockResolvedValue(
-        Response.json({ error: message }, { status: 400 })
-      );
-      expect(await retryExpenseBooking({ expenseId: "ex1" })).toEqual({
-        error: code,
-      });
-    }
+    fetchMock.mockResolvedValue(
+      Response.json(
+        { code: "booking_failed", error: "Finago down" },
+        { status: 400 }
+      )
+    );
+    expect(await retryExpenseBooking({ expenseId: "ex1" })).toEqual({
+      error: "booking_failed",
+      message: "Finago down",
+    });
+  });
+});
+
+describe("changeExpenseApprover api codes", () => {
+  test("maps self_approver", async () => {
+    getExpenseViewer.mockResolvedValue(
+      viewer({ emails: ["boss@example.com"], isGlobalAdmin: true })
+    );
+    fetchMock.mockResolvedValue(
+      Response.json(
+        { code: "self_approver", error: "The submitter cannot approve" },
+        { status: 400 }
+      )
+    );
+    expect(
+      await changeExpenseApprover({
+        approvalId: "s1",
+        email: "student@biso.no",
+        expenseId: "ex1",
+      })
+    ).toEqual({ error: "self_approver" });
   });
 });

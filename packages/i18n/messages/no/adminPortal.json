@@ -1596,7 +1596,12 @@
       "already_booked": "Dette utlegget er allerede bokført i Finago.",
       "not_failed": "Bare mislykkede bokføringer kan forsøkes på nytt.",
       "posting_disabled": "Bokføring til Finago er slått av.",
-      "api_failed": "Utleggstjenesten svarte ikke som forventet. Prøv igjen."
+      "api_failed": "Utleggstjenesten svarte ikke som forventet. Prøv igjen.",
+      "in_progress": "Dette trinnet behandles allerede. Prøv igjen om et øyeblikk.",
+      "self_approver": "Studenten som leverte utlegget kan ikke være godkjenner.",
+      "retry_in_progress": "Noen andre prøver allerede denne bokføringen på nytt.",
+      "booking_failed": "Bokføringen mislyktes igjen.",
+      "status_write_failed": "Finago har bokføringen, men lagring av status feilet. Ikke prøv på nytt; kontakt IT."
     },
     "decision": {
       "title": "Avgjørelse",
@@ -1618,7 +1623,8 @@
       "directoryNote": "Dette endrer også den lagrede godkjenneren for fremtidige utlegg med denne rollen.",
       "save": "Bytt og send",
       "changed": "Godkjenner byttet og varslet",
-      "changedNoNotice": "Godkjenner byttet, men varselet kunne ikke sendes. Det ligger under godkjenningsproblemer."
+      "changedNoNotice": "Godkjenner byttet, men varselet kunne ikke sendes. Det ligger under godkjenningsproblemer.",
+      "directoryNotSaved": "Godkjenner byttet og varslet, men den lagrede godkjenneren for fremtidige utlegg kunne ikke oppdateres."
     },
     "retry": {
       "button": "Prøv bokføring på nytt",
@@ -1626,7 +1632,16 @@
       "warning": "Sjekk i Finago at utlegget ikke allerede er bokført før du prøver på nytt. Bokføres det to ganger, får studenten betalt to ganger.",
       "confirm": "Prøv på nytt",
       "booked": "Bokført i Finago",
-      "failedAgain": "Bokføringen mislyktes igjen. Se årsaken ovenfor."
+      "failedAgain": "Bokføringen mislyktes igjen. Se årsaken ovenfor.",
+      "inProgress": "Bokføringen pågår. Sjekk Finago før du gjør noe mer."
+    },
+    "onBehalfRoles": {
+      "finance": "økonomiansvarlig",
+      "manager": "enhetslederen",
+      "deputy": "nestlederen",
+      "controller": "campusets controller",
+      "president": "campuspresidenten",
+      "national": "den nasjonale godkjenneren"
     }
   },
   "expensesSettings": {

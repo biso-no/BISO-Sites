@@ -45,7 +45,10 @@ export async function POST(req: NextRequest) {
   const parsed = BodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json(
-      { error: parsed.error.issues[0]?.message ?? "Invalid request" },
+      {
+        code: "invalid_body",
+        error: parsed.error.issues[0]?.message ?? "Invalid request",
+      },
       { status: HTTP_BAD_REQUEST }
     );
   }
@@ -54,7 +57,7 @@ export async function POST(req: NextRequest) {
     const result = await decideApprovalStep(parsed.data);
     if (!result.ok) {
       return NextResponse.json(
-        { error: result.error },
+        { code: result.code, error: result.error },
         { status: HTTP_BAD_REQUEST }
       );
     }

@@ -300,6 +300,17 @@ const SUCCESS_WRITE_BACKOFF_MS = [500, 2000];
 
 type Sleep = (ms: number) => Promise<void>;
 
+/**
+ * Finago accepted the booking, but saving `success` on the expense failed. The
+ * expense IS booked, so callers must never present this as "try again".
+ */
+export class BookingStatusWriteError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BookingStatusWriteError";
+  }
+}
+
 const defaultSleep: Sleep = (ms) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -341,7 +352,7 @@ async function writeSuccess(
       note: `${transactionId} (status write failed: ${message})`,
     },
   ]);
-  throw lastError instanceof Error ? lastError : new Error(message);
+  throw new BookingStatusWriteError(message);
 }
 
 // Bookkeeping after a successful post. Failures here only log: the money is
@@ -669,14 +680,25 @@ export async function postApprovedExpense(
   );
 }
 
-type RetryResult = { ok: true; status: string } | { ok: false; error: string };
+export type RetryErrorCode =
+  | "already_booked"
+  | "not_failed"
+  | "retry_in_progress"
+  | "booking_failed"
+  | "status_write_failed";
+
+type RetryResult =
+  | { ok: true; status: string }
+  | { ok: false; error: string; code: RetryErrorCode };
 
 /**
  * Re-runs the booking of a failed expense. The failed row still holds its claim
  * (the `posting` marker and a spent `posting_lock`) so nothing reposts by
  * itself; a person has checked Finago and chose to retry, so the claim is
  * released here and the normal posting run takes over. A stored real
- * transaction id means it is already booked, and nothing is written.
+ * transaction id means it is already booked, and nothing is written. Two
+ * overlapping retries are serialized by an atomic `posting_lock` increment:
+ * only the one that takes the next value while the row is still `failed` goes on.
  */
 export async function retryExpenseBooking(params: {
   expenseId: string;
@@ -685,14 +707,41 @@ export async function retryExpenseBooking(params: {
   const { db } = await createAdminClient();
   const { expenseId, actor } = params;
   const expense = await db.getRow<Expenses>("app", "expense", expenseId, [
-    Query.select(["$id", "status", "ledger_transaction_id"]),
+    Query.select(["$id", "status", "ledger_transaction_id", "posting_lock"]),
   ]);
   const stored = expense.ledger_transaction_id;
   if (stored && stored !== POSTING_CLAIM_MARKER) {
-    return { ok: false, error: `Already booked as ${stored}.` };
+    return {
+      ok: false,
+      code: "already_booked",
+      error: `Already booked as ${stored}.`,
+    };
   }
   if (expense.status !== ExpensesStatus.FAILED) {
-    return { ok: false, error: "Only failed bookings can be retried." };
+    return {
+      ok: false,
+      code: "not_failed",
+      error: "Only failed bookings can be retried.",
+    };
+  }
+
+  const readLock = expense.posting_lock ?? 0;
+  const claimed = await db.incrementRowColumn<Expenses>({
+    databaseId: "app",
+    tableId: "expense",
+    rowId: expenseId,
+    column: "posting_lock",
+    value: 1,
+  });
+  if (
+    (claimed.posting_lock ?? 0) !== readLock + 1 ||
+    claimed.status !== ExpensesStatus.FAILED
+  ) {
+    return {
+      ok: false,
+      code: "retry_in_progress",
+      error: "This booking is already being retried.",
+    };
   }
 
   await db.updateRow("app", "expense", expenseId, {
@@ -716,6 +765,10 @@ export async function retryExpenseBooking(params: {
   } catch (error) {
     return {
       ok: false,
+      code:
+        error instanceof BookingStatusWriteError
+          ? "status_write_failed"
+          : "booking_failed",
       error: error instanceof Error ? error.message : String(error),
     };
   }

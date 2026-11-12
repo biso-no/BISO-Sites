@@ -29,11 +29,17 @@ export function RetryBookingButton({ expenseId }: { expenseId: string }) {
       const result = await retryExpenseBooking({ expenseId });
       setOpen(false);
       if ("error" in result) {
-        toast.error(te(`errors.${result.error}`));
+        toast.error(
+          result.error === "booking_failed" && result.message
+            ? `${t("failedAgain")} ${result.message}`
+            : te(`errors.${result.error}`)
+        );
       } else if (result.data.status === "success") {
         toast.success(t("booked"));
-      } else {
+      } else if (result.data.status === "failed") {
         toast.error(t("failedAgain"));
+      } else {
+        toast.warning(t("inProgress"));
       }
       router.refresh();
     });

@@ -49,8 +49,29 @@ describe("POST /api/expenses/admin/change-approver", () => {
     expect(approval.changeStepApprover).not.toHaveBeenCalled();
   });
 
-  it("returns 400 when the change is refused", async () => {
+  it("returns 400 with invalid_email for an address outside biso.no", async () => {
+    for (const email of [
+      "x@gmail.com",
+      "x@biso.no.evil.com",
+      "x@sub.biso.no",
+    ]) {
+      const res = await call({ ...VALID, email });
+      expect(res.status).toBe(400);
+      expect((await res.json()).code).toBe("invalid_email");
+    }
+    expect((await call({ ...VALID, email: "New@BISO.no" })).status).not.toBe(
+      400
+    );
+  });
+
+  it("returns invalid_body for a malformed body", async () => {
+    const res = await call({ ...VALID, approvalId: "" });
+    expect((await res.json()).code).toBe("invalid_body");
+  });
+
+  it("returns 400 with the code when the change is refused", async () => {
     approval.changeStepApprover.mockResolvedValue({
+      code: "not_current_step",
       error: "This step is not waiting for a decision.",
       ok: false,
     });
@@ -59,17 +80,24 @@ describe("POST /api/expenses/admin/change-approver", () => {
 
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({
+      code: "not_current_step",
       error: "This step is not waiting for a decision.",
     });
   });
 
   it("returns 200 with the result on success", async () => {
-    approval.changeStepApprover.mockResolvedValue({ notified: true, ok: true });
+    approval.changeStepApprover.mockResolvedValue({
+      directorySaved: true,
+      notified: true,
+      ok: true,
+    });
 
     const res = await call(VALID);
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ result: { notified: true, ok: true } });
+    expect(await res.json()).toEqual({
+      result: { directorySaved: true, notified: true, ok: true },
+    });
     expect(approval.changeStepApprover).toHaveBeenCalledWith(VALID);
   });
 

@@ -94,7 +94,10 @@ beforeEach(() => {
     table === "user" ? { email: "t@example.test", name: "Student" } : expense
   );
   db.listRows.mockResolvedValue({ rows: [] });
-  db.incrementRowColumn.mockResolvedValue({ posting_lock: 1 });
+  db.incrementRowColumn.mockResolvedValue({
+    posting_lock: 1,
+    status: "failed",
+  });
   db.updateRow.mockResolvedValue({});
   db.createRow.mockResolvedValue({});
   finago.getFiscalYearLocks.mockResolvedValue([]);
@@ -121,7 +124,11 @@ describe("retryExpenseBooking", () => {
       expenseId: "exp-1",
     });
 
-    expect(result).toEqual({ error: "Already booked as tx-77.", ok: false });
+    expect(result).toEqual({
+      code: "already_booked",
+      error: "Already booked as tx-77.",
+      ok: false,
+    });
     expect(db.updateRow).not.toHaveBeenCalled();
     expect(db.createRow).not.toHaveBeenCalled();
     expect(finago.postExpenseTransaction).not.toHaveBeenCalled();
@@ -136,6 +143,7 @@ describe("retryExpenseBooking", () => {
     });
 
     expect(result).toEqual({
+      code: "not_failed",
       error: "Only failed bookings can be retried.",
       ok: false,
     });
@@ -200,8 +208,110 @@ describe("retryExpenseBooking", () => {
       expenseId: "exp-1",
     });
 
-    expect(result).toEqual({ error: "Finago down", ok: false });
+    expect(result).toEqual({
+      code: "booking_failed",
+      error: "Finago down",
+      ok: false,
+    });
     expect(eventActions()).toContain("booking_failed");
+  });
+});
+
+describe("retry claim", () => {
+  const failedRow = {
+    ...expense,
+    ledger_transaction_id: "posting",
+    posting_lock: 1,
+    status: "failed",
+  };
+
+  // The failed row until the retry resets it, the approved row after.
+  const rowsAfterReset = (_d: string, table: string) => {
+    if (table === "user") {
+      return Promise.resolve({ email: "t@example.test", name: "Student" });
+    }
+    return Promise.resolve(
+      db.updateRow.mock.calls.length > 0 ? expense : failedRow
+    );
+  };
+
+  it("refuses when another retry took the increment", async () => {
+    db.getRow.mockResolvedValue(failedRow);
+    db.incrementRowColumn.mockResolvedValue({
+      posting_lock: 3,
+      status: "failed",
+    });
+
+    const result = await retryExpenseBooking({
+      actor: ACTOR,
+      expenseId: "exp-1",
+    });
+
+    expect(result).toMatchObject({ code: "retry_in_progress", ok: false });
+    expect(db.updateRow).not.toHaveBeenCalled();
+    expect(finago.postExpenseTransaction).not.toHaveBeenCalled();
+  });
+
+  it("refuses when a parallel retry already moved the status on", async () => {
+    db.getRow.mockResolvedValue(failedRow);
+    db.incrementRowColumn.mockResolvedValue({
+      posting_lock: 2,
+      status: "approved",
+    });
+
+    const result = await retryExpenseBooking({
+      actor: ACTOR,
+      expenseId: "exp-1",
+    });
+
+    expect(result).toMatchObject({ code: "retry_in_progress", ok: false });
+    expect(db.updateRow).not.toHaveBeenCalled();
+    expect(finago.postExpenseTransaction).not.toHaveBeenCalled();
+  });
+
+  it("lets the winner of the increment proceed", async () => {
+    db.getRow.mockImplementation(rowsAfterReset);
+    db.incrementRowColumn
+      .mockResolvedValueOnce({ posting_lock: 2, status: "failed" })
+      .mockResolvedValue({ posting_lock: 1, status: "approved" });
+
+    const result = await retryExpenseBooking({
+      actor: ACTOR,
+      expenseId: "exp-1",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(db.incrementRowColumn.mock.calls[0]?.[0]).toMatchObject({
+      column: "posting_lock",
+      rowId: "exp-1",
+      value: 1,
+    });
+    expect(finago.postExpenseTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports status_write_failed when Finago booked but the status write failed", async () => {
+    db.getRow.mockImplementation(rowsAfterReset);
+    db.incrementRowColumn
+      .mockResolvedValueOnce({ posting_lock: 2, status: "failed" })
+      .mockResolvedValue({ posting_lock: 1, status: "approved" });
+    db.updateRow.mockImplementation(
+      (_d: string, table: string, _id: string, data: { status?: string }) =>
+        table === "expense" && data.status === "success"
+          ? Promise.reject(new Error("write failed"))
+          : Promise.resolve({})
+    );
+
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    try {
+      const pending = retryExpenseBooking({ actor: ACTOR, expenseId: "exp-1" });
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(await pending).toMatchObject({
+        code: "status_write_failed",
+        ok: false,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

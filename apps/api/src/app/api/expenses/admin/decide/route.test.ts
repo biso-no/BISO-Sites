@@ -50,11 +50,13 @@ describe("POST /api/expenses/admin/decide", () => {
   it("returns 400 for a malformed body", async () => {
     const res = await call({ ...VALID, actor: { ...VALID.actor, name: "" } });
     expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe("invalid_body");
     expect(approval.decideApprovalStep).not.toHaveBeenCalled();
   });
 
   it("returns 400 when the decision is refused", async () => {
     approval.decideApprovalStep.mockResolvedValue({
+      code: "not_current_step",
       error: "This step is not waiting for a decision.",
       ok: false,
     });
@@ -63,6 +65,7 @@ describe("POST /api/expenses/admin/decide", () => {
 
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({
+      code: "not_current_step",
       error: "This step is not waiting for a decision.",
     });
   });

@@ -62,6 +62,7 @@ describe("POST /api/expenses/admin/retry-booking", () => {
 
   it("returns 400 when the retry is refused", async () => {
     posting.retryExpenseBooking.mockResolvedValue({
+      code: "not_failed",
       error: "Only failed bookings can be retried.",
       ok: false,
     });
@@ -70,8 +71,24 @@ describe("POST /api/expenses/admin/retry-booking", () => {
 
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({
+      code: "not_failed",
       error: "Only failed bookings can be retried.",
     });
+  });
+
+  it("returns codes for 400 body, 409 flag and 401 is plain", async () => {
+    expect((await (await call({ ...VALID, expenseId: "" })).json()).code).toBe(
+      "invalid_body"
+    );
+    flags.isFeatureEnabled.mockResolvedValue(false);
+    expect((await (await call(VALID)).json()).code).toBe("posting_disabled");
+  });
+
+  it("returns 500 when the retry throws", async () => {
+    posting.retryExpenseBooking.mockRejectedValue(new Error("boom"));
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    expect((await call(VALID)).status).toBe(500);
   });
 
   it("returns 200 with the status on success", async () => {

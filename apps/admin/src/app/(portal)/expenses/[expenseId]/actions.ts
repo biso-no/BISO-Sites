@@ -253,16 +253,19 @@ function apiActorOf(loaded: Loaded): ApiActor {
   };
 }
 
-/** Maps an api refusal to its code; only an unexpected one is logged. */
+/** Maps an api refusal by its stable code; only an unexpected one is logged. */
 function apiFailure(
   scope: string,
-  message: string
-): { error: ExpenseActionError } {
-  const code = apiErrorCode(message);
+  failed: { code?: string; error: string }
+): { error: ExpenseActionError; message?: string } {
+  const code = apiErrorCode(failed.code);
   if (code === "api_failed") {
-    console.error(`[${scope}]`, message);
+    console.error(`[${scope}]`, failed.error);
   }
-  return { error: code };
+  // Finago's own words are what a person needs after a failed booking.
+  return code === "booking_failed"
+    ? { error: code, message: failed.error }
+    : { error: code };
 }
 
 function revalidateExpense(expenseId: string): void {
@@ -306,7 +309,7 @@ export async function decideExpenseStep(input: {
       ...(input.decision === "rejected" ? { reason } : {}),
     });
     if (!response.ok) {
-      return apiFailure("expense-decide", response.error);
+      return apiFailure("expense-decide", response);
     }
     revalidateExpense(input.expenseId);
     const stored = response.data.result.decision;
@@ -324,7 +327,9 @@ export async function changeExpenseApprover(input: {
   approvalId: string;
   email: string;
   expenseId: string;
-}): Promise<ExpenseActionResult<{ notified: boolean }>> {
+}): Promise<
+  ExpenseActionResult<{ directorySaved: boolean; notified: boolean }>
+> {
   try {
     const loaded = await loadForEdit(input.expenseId);
     if (!loaded?.permissions.canChangeApprover) {
@@ -338,15 +343,19 @@ export async function changeExpenseApprover(input: {
       return { error: "invalid_email" };
     }
 
-    const response = await callExpensesApi<{ result: { notified: boolean } }>(
-      "/api/expenses/admin/change-approver",
-      { actor: apiActorOf(loaded), approvalId: input.approvalId, email }
-    );
+    const response = await callExpensesApi<{
+      result: { directorySaved: boolean; notified: boolean };
+    }>("/api/expenses/admin/change-approver", {
+      actor: apiActorOf(loaded),
+      approvalId: input.approvalId,
+      email,
+    });
     if (!response.ok) {
-      return apiFailure("expense-change-approver", response.error);
+      return apiFailure("expense-change-approver", response);
     }
     revalidateExpense(input.expenseId);
-    return { data: { notified: response.data.result.notified } };
+    const { directorySaved, notified } = response.data.result;
+    return { data: { directorySaved, notified } };
   } catch (error) {
     return failure(error);
   }
@@ -368,7 +377,7 @@ export async function retryExpenseBooking(input: {
     );
     if (!response.ok) {
       revalidateExpense(input.expenseId);
-      return apiFailure("expense-retry-booking", response.error);
+      return apiFailure("expense-retry-booking", response);
     }
     revalidateExpense(input.expenseId);
     return { data: { status: response.data.result.status } };

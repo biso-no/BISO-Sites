@@ -79,7 +79,7 @@ export default async function ExpenseDetailPage({
           expenseId={detail.id}
           onBehalfRole={
             detail.permissions.decideAs === "on_behalf"
-              ? t(`roles.${currentStep.role}` as never).toLocaleLowerCase()
+              ? t(`onBehalfRoles.${currentStep.role}`)
               : null
           }
         />

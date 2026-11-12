@@ -1596,7 +1596,12 @@
       "already_booked": "This expense is already booked in Finago.",
       "not_failed": "Only failed bookings can be retried.",
       "posting_disabled": "Booking to Finago is switched off.",
-      "api_failed": "The expense service did not respond as expected. Try again."
+      "api_failed": "The expense service did not respond as expected. Try again.",
+      "in_progress": "This step is already being processed. Try again in a moment.",
+      "self_approver": "The student who submitted the expense cannot be its approver.",
+      "retry_in_progress": "Someone else is already retrying this booking.",
+      "booking_failed": "The booking failed again.",
+      "status_write_failed": "Finago has the booking, but saving the status failed. Do not retry; contact IT."
     },
     "decision": {
       "title": "Decision",
@@ -1618,7 +1623,8 @@
       "directoryNote": "This also changes the saved approver for future expenses with this role.",
       "save": "Change and send",
       "changed": "Approver changed and notified",
-      "changedNoNotice": "Approver changed, but the notice could not be sent. It is listed under approval issues."
+      "changedNoNotice": "Approver changed, but the notice could not be sent. It is listed under approval issues.",
+      "directoryNotSaved": "Approver changed and notified, but the saved approver for future expenses could not be updated."
     },
     "retry": {
       "button": "Retry booking",
@@ -1626,7 +1632,16 @@
       "warning": "Check in Finago that this expense isn't already booked before you retry. Booking it twice pays the student twice.",
       "confirm": "Retry booking",
       "booked": "Booked in Finago",
-      "failedAgain": "The booking failed again. See the reason above."
+      "failedAgain": "The booking failed again. See the reason above.",
+      "inProgress": "Booking is in progress. Check Finago before doing anything else."
+    },
+    "onBehalfRoles": {
+      "finance": "the financial manager",
+      "manager": "the department manager",
+      "deputy": "the deputy manager",
+      "controller": "the campus controller",
+      "president": "the campus president",
+      "national": "the national approver"
     }
   },
   "expensesSettings": {

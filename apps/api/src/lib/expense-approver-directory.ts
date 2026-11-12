@@ -114,12 +114,12 @@ export async function saveDirectoryApprover(
  * Sets the directory entry for `input.key` as an admin choice, replacing whatever
  * is there (even a confirmed or admin entry): a person changed it on purpose.
  * Clears the confirmation, so the new approver confirms by deciding. Best-effort:
- * a failed write is logged and the caller carries on.
+ * a failed write is logged and reported as `false`.
  */
 export async function setAdminDirectoryApprover(
   db: Db,
   input: Omit<DirectoryApproverInput, "confidence" | "source">
-): Promise<void> {
+): Promise<boolean> {
   const data = {
     key: input.key,
     scope: input.scope,
@@ -142,11 +142,13 @@ export async function setAdminDirectoryApprover(
     const existing = rows[0];
     if (existing) {
       await db.updateRow(DB, TABLE, existing.$id, data);
-      return;
+      return true;
     }
     await db.createRow(DB, TABLE, ID.unique(), data);
+    return true;
   } catch (error) {
     console.error("[expense-approver-directory] admin save failed", error);
+    return false;
   }
 }
 
