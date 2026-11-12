@@ -1415,7 +1415,7 @@
       "deputy": "Nestleder",
       "controller": "Controller",
       "president": "President",
-      "national": "Nasjonal"
+      "national": "Daglig leder"
     },
     "flags": {
       "hints": "{count} tips til godkjenneren",
@@ -1637,9 +1637,9 @@
       "finance": "økonomiansvarlig",
       "manager": "enhetslederen",
       "deputy": "nestlederen",
-      "controller": "campusets controller",
+      "controller": "controlleren",
       "president": "campuspresidenten",
-      "national": "den nasjonale godkjenneren"
+      "national": "daglig leder"
     }
   },
   "expensesSettings": {
@@ -1759,7 +1759,7 @@
         "deputy": "Nestleder",
         "controller": "Controller",
         "president": "President",
-        "national": "Nasjonal leder"
+        "national": "Daglig leder"
       },
       "sources": {
         "seed": "Standard",

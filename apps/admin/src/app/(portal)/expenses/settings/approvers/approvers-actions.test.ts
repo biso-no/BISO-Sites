@@ -333,6 +333,17 @@ describe("saveApprover", () => {
     expect("error" in nationalOnNational).toBe(false);
   });
 
+  test("a global admin can add the National controller", async () => {
+    const result = await saveApprover({
+      campusId: "5",
+      email: "controller@biso.no",
+      role: "controller",
+      scope: "campus",
+    });
+
+    expect("error" in result).toBe(false);
+  });
+
   test("a new row whose key exists updates that row", async () => {
     db.listRows.mockResolvedValue({ rows: [stored({ active: false })] });
     await saveApprover({

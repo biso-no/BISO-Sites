@@ -94,6 +94,8 @@
       "financialManagerHint": "Turn this on so the approval is routed to your department manager instead of you.",
       "controller": "I'm the campus financial controller",
       "controllerHint": "Your campus president approves instead.",
+      "nationalController": "I'm the controller",
+      "nationalControllerHint": "The general manager approves instead.",
       "itemColumn": "Item description",
       "empty": "No receipts added yet",
       "processing": "Processing…",

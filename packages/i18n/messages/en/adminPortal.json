@@ -1415,7 +1415,7 @@
       "deputy": "Deputy",
       "controller": "Controller",
       "president": "President",
-      "national": "National"
+      "national": "General manager"
     },
     "flags": {
       "hints": "{count, plural, one {# hint for the approver} other {# hints for the approver}}",
@@ -1637,9 +1637,9 @@
       "finance": "the financial manager",
       "manager": "the department manager",
       "deputy": "the deputy manager",
-      "controller": "the campus controller",
+      "controller": "the controller",
       "president": "the campus president",
-      "national": "the national approver"
+      "national": "the general manager"
     }
   },
   "expensesSettings": {
@@ -1759,7 +1759,7 @@
         "deputy": "Deputy",
         "controller": "Controller",
         "president": "President",
-        "national": "National manager"
+        "national": "General manager"
       },
       "sources": {
         "seed": "Seed",

@@ -94,6 +94,8 @@
       "financialManagerHint": "Slå på dette, så sendes godkjenningen til enhetslederen din i stedet for til deg.",
       "controller": "Jeg er campusets controller",
       "controllerHint": "Campuspresidenten godkjenner i stedet.",
+      "nationalController": "Jeg er controller",
+      "nationalControllerHint": "Daglig leder godkjenner i stedet.",
       "itemColumn": "Beskrivelse",
       "empty": "Ingen kvitteringer er lagt til ennå",
       "processing": "Behandler …",

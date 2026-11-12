@@ -550,8 +550,12 @@ interface ApprovalSwitchConfig {
   onChange: (value: boolean) => void;
 }
 
+/** National's controller switch: the general manager approves instead. */
+const NATIONAL_CAMPUS_ID = "5";
+
 function approvalSwitchConfig(
   kind: ReturnType<typeof approvalSwitchFor>,
+  campusId: string,
   state: {
     controller: boolean;
     financialManager: boolean;
@@ -560,11 +564,16 @@ function approvalSwitchConfig(
   }
 ): ApprovalSwitchConfig | null {
   if (kind === "controller") {
+    const national = campusId === NATIONAL_CAMPUS_ID;
     return {
       checked: state.controller,
-      hintKey: "composer.report.controllerHint",
+      hintKey: national
+        ? "composer.report.nationalControllerHint"
+        : "composer.report.controllerHint",
       id: "controller-toggle",
-      labelKey: "composer.report.controller",
+      labelKey: national
+        ? "composer.report.nationalController"
+        : "composer.report.controller",
       onChange: state.onController,
     };
   }
@@ -679,6 +688,7 @@ export function ExpenseReport({
   // Exactly one self-declaration switch, chosen by the department.
   const approvalSwitch = approvalSwitchConfig(
     approvalSwitchFor(selectedCampusId, selectedDepartmentId),
+    selectedCampusId,
     {
       controller: submitterIsController,
       financialManager: submitterIsFinancialManager,

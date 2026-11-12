@@ -428,6 +428,26 @@ describe("ExpenseReport approval switch", () => {
     expect(container.textContent).toContain("composer.report.controllerHint");
   });
 
+  it("shows the national controller switch on Drift BISO and none on HR", async () => {
+    const drift = await renderReport([receipt()], {
+      selectedCampusId: "5",
+      selectedDepartmentId: "1000",
+    });
+    expect(switchIds(drift.container)).toEqual(["controller-toggle"]);
+    expect(drift.container.textContent).toContain(
+      "composer.report.nationalController"
+    );
+    expect(drift.container.textContent).toContain(
+      "composer.report.nationalControllerHint"
+    );
+
+    const hr = await renderReport([receipt()], {
+      selectedCampusId: "5",
+      selectedDepartmentId: "1005",
+    });
+    expect(switchIds(hr.container)).toEqual([]);
+  });
+
   it("shows the financial-manager switch on an OSL department and none on Bergen 302", async () => {
     const osl = await renderReport([receipt()], {
       selectedCampusId: "1",
