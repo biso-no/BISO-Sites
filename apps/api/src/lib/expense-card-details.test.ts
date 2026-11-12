@@ -156,6 +156,108 @@ describe("loadApprovalCardDetails", () => {
     expect(details.fallbackNote).toContain("national approver");
   });
 
+  it("says the president could not be found when national stands in for one", async () => {
+    // Drift Campus Oslo with the controller switch on: the plan's one step is
+    // the president, so a national step there stands in for the president.
+    seed(
+      { approvals: [{ approver_role: "national" }] },
+      { ...EXPENSE, department: "1", submitter_is_controller: true }
+    );
+
+    expect((await loadApprovalCardDetails(asDb(), "e1")).fallbackNote).toBe(
+      "The campus president could not be found or is the submitter; the national approver decides instead."
+    );
+  });
+
+  it("uses a neutral fallback note when national stands in for another role", async () => {
+    seed(
+      { approvals: [{ approver_role: "national" }] },
+      { ...EXPENSE, department: "dept-9", submitter_is_controller: false }
+    );
+
+    expect((await loadApprovalCardDetails(asDb(), "e1")).fallbackNote).toBe(
+      "The national approver decides in place of the usual approver."
+    );
+  });
+
+  it("names the receipt a hint is about", async () => {
+    seed(
+      {
+        attachments: [
+          TAXI,
+          {
+            ...TAXI,
+            $id: "a2",
+            description:
+              "Pizza and drinks for the volunteers after the autumn fair",
+            sort_order: 1,
+          },
+          { ...TAXI, $id: "a3", description: "", sort_order: 2 },
+        ],
+        costTypes: COST_TYPES,
+      },
+      {
+        ...EXPENSE,
+        approver_hints: JSON.stringify([
+          { attachmentId: "a1", code: "account_missing" },
+          { attachmentId: "a2", code: "type_defaulted" },
+          { attachmentId: "a3", code: "occasion_missing" },
+          { code: "possible_duplicate" },
+        ]),
+      }
+    );
+
+    const { hints } = await loadApprovalCardDetails(asDb(), "e1");
+
+    expect(hints).toEqual([
+      "Ruter: No account is set for this receipt type.",
+      "Pizza and drinks for the volunteers aft…: No type was chosen, so Other was used.",
+      "Taxi: The occasion is missing.",
+      "Possible duplicate of another receipt.",
+    ]);
+  });
+
+  it("offers no Approve when the receipts cannot be read", async () => {
+    db.getRow.mockResolvedValue(EXPENSE);
+    db.listRows.mockImplementation((_db: string, table: string) =>
+      table === "expense_attachments"
+        ? Promise.reject(new Error("boom"))
+        : Promise.resolve({ rows: [], total: 0 })
+    );
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const details = await loadApprovalCardDetails(asDb(), "e1");
+
+    expect(details.missingAccount).toBe(true);
+    expect(details.receipts).toEqual([]);
+    log.mockRestore();
+  });
+
+  it("reads the history while the receipts are still loading", async () => {
+    seed({ attachments: [TAXI], costTypes: COST_TYPES });
+    const seeded = db.listRows.getMockImplementation();
+    let release: () => void = () => undefined;
+    const receiptsHeld = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    db.listRows.mockImplementation(async (...args: [string, string]) => {
+      if (args[1] === "expense_attachments") {
+        await receiptsHeld;
+      }
+      return seeded?.(...args);
+    });
+
+    const loading = loadApprovalCardDetails(asDb(), "e1");
+    await vi.waitFor(() =>
+      expect(
+        db.listRows.mock.calls.some(([, t]) => t === "expense_events")
+      ).toBe(true)
+    );
+    release();
+
+    expect((await loading).receipts).toHaveLength(1);
+  });
+
   it("does not set a fallback note on the national campus", async () => {
     seed(
       { approvals: [{ approver_role: "national" }] },
@@ -211,12 +313,13 @@ describe("loadApprovalCardDetails", () => {
     db.listRows.mockRejectedValue(new Error("boom"));
     const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
+    // With no receipts read, the card must not offer Approve.
     await expect(loadApprovalCardDetails(asDb(), "e1")).resolves.toEqual({
       declaration: null,
       fallbackNote: null,
       hints: [],
       history: [],
-      missingAccount: false,
+      missingAccount: true,
       receipts: [],
     });
     log.mockRestore();

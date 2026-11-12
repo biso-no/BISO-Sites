@@ -30,8 +30,10 @@ export interface GuardContext {
 const normalise = (email: string): string => email.trim().toLowerCase();
 
 /**
- * The substitutes for a step whose approver is the submitter, best first.
- * Department roles have none: the controller step after them still approves.
+ * The substitutes for a step whose approver is the submitter, best first. The
+ * national mailbox is the last resort for every campus-level role, the
+ * national step included. Department roles have none: the controller step
+ * after them still approves.
  */
 function substitutesFor(
   step: ResolvedApproverStep,
@@ -62,6 +64,8 @@ function substitutesFor(
     add(national, "national", "controller");
   } else if (step.role === "president") {
     add(national, "national", "president");
+  } else if (step.role === "national") {
+    add(national, "national");
   }
   return candidates;
 }
@@ -69,8 +73,9 @@ function substitutesFor(
 /**
  * A step whose approver is the submitter is replaced by the first substitute
  * that is not the submitter (controller: the campus default mailbox, then
- * national; president: national), or dropped when there is none, so the next
- * step still approves. Either way it records "Approver is the submitter". Of
+ * national; president and national: the national mailbox), or dropped when
+ * there is none, so the next step still approves. Either way it records
+ * "Approver is the submitter". Of
  * two steps with the same approver the earlier is dropped (the later is the
  * stronger role), with an issue. Surviving steps are renumbered from 1.
  */

@@ -97,13 +97,39 @@ describe("guardChain", () => {
     ]);
   });
 
-  it("drops a national step that is the submitter: no further fallback", () => {
+  it("sends a national step pointed at the submitter to the national mailbox", () => {
+    const { steps, issues } = guard(
+      [step("national", "me@biso.no", 1)],
+      "me@biso.no"
+    );
+    expect(steps).toEqual([
+      {
+        aadId: null,
+        directoryKey: null,
+        email: NATIONAL_APPROVER_EMAIL,
+        fallbackFor: undefined,
+        role: "national",
+        source: "default",
+        step: 1,
+      },
+    ]);
+    expect(issues).toEqual([
+      expect.objectContaining({
+        reason: `Approver is the submitter; sent to ${NATIONAL_APPROVER_EMAIL} instead`,
+        roleSought: "national",
+      }),
+    ]);
+  });
+
+  it("drops a national step when the national mailbox is the submitter", () => {
     const { steps, issues } = guard(
       [step("national", NATIONAL_APPROVER_EMAIL, 1)],
       NATIONAL_APPROVER_EMAIL
     );
     expect(steps).toEqual([]);
-    expect(issues).toHaveLength(1);
+    expect(issues).toEqual([
+      expect.objectContaining({ reason: "Approver is the submitter" }),
+    ]);
   });
 
   it("leaves no steps when every candidate is the submitter", () => {

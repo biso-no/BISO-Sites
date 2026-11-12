@@ -11,6 +11,7 @@ import {
   type ExpenseApprovals,
   type ExpenseApprovalsApproverRole,
   ExpenseApprovalsStatus,
+  type ExpenseAttachments,
   type Expenses,
   ExpensesStatus,
   type Users,
@@ -43,6 +44,7 @@ import {
 } from "./expense-approver-resolution";
 import {
   type ApprovalCardDetails,
+  hasReceiptWithoutAccount,
   loadApprovalCardDetails,
 } from "./expense-card-details";
 import { getGraphService } from "./graph";
@@ -106,6 +108,14 @@ export function stepLabel(role: string, index: number, count: number): string {
 
 const TRAILING_SLASHES = /\/+$/;
 
+/** The expense's page in the admin, where an account is set. */
+function expenseAdminUrl(expenseId: string): string {
+  const base = (
+    process.env.EXPENSE_ADMIN_URL || "https://admin.biso.no"
+  ).replace(TRAILING_SLASHES, "");
+  return `${base}/expenses/${expenseId}`;
+}
+
 function cardDataFor(
   context: ApprovalChainContext,
   row: ExpenseApprovals,
@@ -127,7 +137,7 @@ function cardDataFor(
     stepLabel: stepLabel(row.approver_role, row.step, totalSteps),
     viewUrl,
     ...details,
-    adminUrl: `${(process.env.EXPENSE_ADMIN_URL || "https://admin.biso.no").replace(TRAILING_SLASHES, "")}/expenses/${row.expense_id}`,
+    adminUrl: expenseAdminUrl(row.expense_id),
   };
 }
 
@@ -320,22 +330,22 @@ export async function createApprovalChain(
 ): Promise<CreateChainResult> {
   const { db } = await createAdminClient();
 
-  const resolved = await resolveExpenseApprovers(
-    {
-      campusId: context.campusId,
-      campusName: context.campusLabel,
-      departmentId: context.departmentId,
-      departmentName: context.departmentName,
-      submitterIsController: context.submitterIsController,
-      submitterIsFinancialManager: context.submitterIsFinancialManager,
-    },
-    { db }
-  );
-  const { steps, issues } = guardChain(
-    context,
-    resolved,
-    await loadSubmitterEmail(db, context.expenseId, context.submitterUserId)
-  );
+  // Independent reads: the submitter's email is only compared afterwards.
+  const [resolved, submitterEmail] = await Promise.all([
+    resolveExpenseApprovers(
+      {
+        campusId: context.campusId,
+        campusName: context.campusLabel,
+        departmentId: context.departmentId,
+        departmentName: context.departmentName,
+        submitterIsController: context.submitterIsController,
+        submitterIsFinancialManager: context.submitterIsFinancialManager,
+      },
+      { db }
+    ),
+    loadSubmitterEmail(db, context.expenseId, context.submitterUserId),
+  ]);
+  const { steps, issues } = guardChain(context, resolved, submitterEmail);
 
   if (steps.length === 0) {
     // No chain row exists, so nothing is claimed and the expense is still a
@@ -491,12 +501,16 @@ export interface ApprovalReceipt {
 }
 
 export interface ApprovalContext {
+  /** The expense's admin page, where a missing account is set. */
+  adminUrl: string;
   approverRole: string;
   campusLabel: string;
   currency: string;
   departmentLabel: string;
   description: string;
   expired: boolean;
+  /** A receipt with an amount has no account, so the page offers no Approve. */
+  missingAccount: boolean;
   receipts: ApprovalReceipt[];
   reimbursementNumber: string;
   status: "pending" | "approved" | "rejected";
@@ -513,6 +527,7 @@ type ExpenseContextRow = Models.Row & {
   campusRel?: { name?: string } | null;
   expenseAttachments?: Array<{
     $id: string;
+    account_number?: number | null;
     description: string | null;
     amount: number | null;
     date: string | null;
@@ -575,6 +590,8 @@ export async function getApprovalContext(
     stepLabel: stepLabel(row.approver_role, row.step, totalSteps),
     approverRole: row.approver_role,
     expired,
+    adminUrl: expenseAdminUrl(row.expense_id),
+    missingAccount: hasReceiptWithoutAccount(attachments),
     receipts: attachments.map((att) => ({
       id: att.$id,
       description: att.description ?? "",
@@ -624,7 +641,8 @@ export type ApprovalErrorCode =
   | "not_current_step"
   | "in_progress"
   | "self_approver"
-  | "same_approver";
+  | "same_approver"
+  | "account_missing";
 
 export type DecisionResult =
   | { ok: false; error: string; code: ApprovalErrorCode }
@@ -752,8 +770,12 @@ const ROLE_NOUN: Record<ExpenseApprovalsApproverRole, string> = {
 };
 
 const GRAPH_LOOKUP_TIMEOUT_MS = 6000;
+const CARD_UPDATE_TIMEOUT_MS = 5000;
 const NOTE_SEPARATOR = " · ";
 const NOT_CURRENT_STEP_ERROR = "This step is not waiting for a decision.";
+const ACCOUNT_MISSING_ERROR =
+  "A receipt has no account yet. Set it in admin before approving.";
+const ATTACHMENT_LIMIT = 100;
 
 export interface ApprovalActor {
   email: string | null;
@@ -775,8 +797,9 @@ interface StepDecisionInput {
 /**
  * Replaces the sent Teams card with the decision result when the step was
  * decided somewhere else (the web page or the admin), so the approver cannot
- * click a stale card. Best-effort: a failure is logged and never fails the
- * decision.
+ * click a stale card. Best-effort and bounded: it runs after the decision is
+ * fully applied, and a failure or a call slower than
+ * `CARD_UPDATE_TIMEOUT_MS` is logged and never fails the decision.
  */
 async function updateSentCard(
   row: ExpenseApprovals,
@@ -790,19 +813,31 @@ async function updateSentCard(
   ) {
     return;
   }
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    await updateProactiveCard({
-      activityId: row.teams_activity_id,
-      card: buildDecisionResultCard({
-        decidedBy: input.actor.name,
-        decision: input.decision,
-        reimbursementNumber: refNumber,
+    await Promise.race([
+      updateProactiveCard({
+        activityId: row.teams_activity_id,
+        card: buildDecisionResultCard({
+          decidedBy: input.actor.name,
+          decision: input.decision,
+          reimbursementNumber: refNumber,
+        }),
+        chatId: row.teams_conversation_id,
+        tenantId: process.env.TEAMS_BOT_APP_TENANT_ID || "",
       }),
-      chatId: row.teams_conversation_id,
-      tenantId: process.env.TEAMS_BOT_APP_TENANT_ID || "",
-    });
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () =>
+            reject(new Error(`timed out after ${CARD_UPDATE_TIMEOUT_MS} ms`)),
+          CARD_UPDATE_TIMEOUT_MS
+        );
+      }),
+    ]);
   } catch (error) {
     console.error("[expense-approval] Teams card update failed:", error);
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -936,8 +971,25 @@ async function decideStep(
       note: decisionNote(row, input),
     },
   ]);
-  await updateSentCard(row, input, refNumber);
 
+  const result = await applyDecisionOutcome(db, row, expense, input, refNumber);
+  // Last, so a slow Teams call never holds up the status or the next step.
+  await updateSentCard(row, input, refNumber);
+  return result;
+}
+
+/**
+ * After a step's decision is written: a rejection rejects the expense, an
+ * approval confirms the directory entry and notifies the next step, or
+ * finalizes the expense.
+ */
+async function applyDecisionOutcome(
+  db: AdminDb,
+  row: ExpenseApprovals,
+  expense: ExpenseSummaryRow,
+  input: StepDecisionInput,
+  refNumber: string
+): Promise<DecisionResult> {
   if (input.decision === "rejected") {
     await db.updateRow("app", "expense", row.expense_id, {
       status: ExpensesStatus.REJECTED,
@@ -999,6 +1051,23 @@ async function decideStep(
   };
 }
 
+/** True when a receipt of the expense has an amount but no account. */
+async function expenseLacksAccount(
+  db: AdminDb,
+  expenseId: string
+): Promise<boolean> {
+  const { rows } = await db.listRows<ExpenseAttachments>(
+    "app",
+    "expense_attachments",
+    [
+      Query.equal("expense_id", expenseId),
+      Query.select(["$id", "amount", "account_number"]),
+      Query.limit(ATTACHMENT_LIMIT),
+    ]
+  );
+  return hasReceiptWithoutAccount(rows);
+}
+
 /**
  * Records an approve/reject decision for the step identified by `rawToken`.
  * Idempotent: a step that is already decided returns its existing outcome.
@@ -1034,6 +1103,15 @@ export async function decideApproval(params: {
       code: "link_expired",
       error: "This approval link has expired.",
     };
+  }
+  // The card and the page hide Approve here, but an old card or a crafted
+  // call must not book an account nobody chose. Rejecting stays open.
+  if (
+    params.decision === "approved" &&
+    row.status === ExpenseApprovalsStatus.PENDING &&
+    (await expenseLacksAccount(db, row.expense_id))
+  ) {
+    return { ok: false, code: "account_missing", error: ACCOUNT_MISSING_ERROR };
   }
 
   return await decideStep(db, row, {

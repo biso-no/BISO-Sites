@@ -13,6 +13,7 @@ import type {
   LedgerAccounts,
 } from "@repo/api/types/appwrite";
 import type { ApprovalCardData } from "@repo/connectors/teams-bot";
+import { getCampusApprovalPlan } from "@repo/shared/utils/expense-approvers";
 import type { CostTypeOption } from "@repo/shared/utils/expense-cost-types";
 import {
   type ApproverHint,
@@ -37,8 +38,15 @@ const HISTORY_LIMIT = 6;
 const APPROVAL_LIMIT = 20;
 const NATIONAL_CAMPUS_ID = "5";
 const MAX_REASON_CHARS = 120;
+/** How much of a receipt's text names it in front of a hint. */
+const RECEIPT_NAME_CHARS = 40;
 const ISO_DATE_CHARS = 10;
 const OSLO_TIME_ZONE = "Europe/Oslo";
+
+const PRESIDENT_FALLBACK_NOTE =
+  "The campus president could not be found or is the submitter; the national approver decides instead.";
+const NATIONAL_FALLBACK_NOTE =
+  "The national approver decides in place of the usual approver.";
 
 // English copies of the admin's `adminPortal.expenses.hintsText.*` strings
 // (packages/i18n/messages/en/adminPortal.json). The api has no i18n, so keep
@@ -112,7 +120,7 @@ function fill(template: string, data: Record<string, string | number>) {
   );
 }
 
-function hintText(hint: ApproverHint): string | null {
+function hintSentence(hint: ApproverHint): string | null {
   const data = hint.data ?? {};
   if (hint.code === "receipt_issue") {
     const issue = String(data.issue ?? "");
@@ -126,6 +134,22 @@ function hintText(hint: ApproverHint): string | null {
       : hint.code;
   const template = HINT_TEXT[key];
   return template ? fill(template, data) : null;
+}
+
+/** The hint's sentence, led by the receipt it is about when it names one. */
+function hintText(
+  hint: ApproverHint,
+  nameById: Map<string, string>
+): string | null {
+  const sentence = hintSentence(hint);
+  const name = hint.attachmentId ? nameById.get(hint.attachmentId) : undefined;
+  return sentence && name ? `${name}: ${sentence}` : sentence;
+}
+
+/** At most `max` characters, never splitting a surrogate pair. */
+function shorten(text: string, max: number): string {
+  const chars = Array.from(text);
+  return chars.length > max ? `${chars.slice(0, max - 1).join("")}…` : text;
 }
 
 function declarationText(expense: Expenses): string | null {
@@ -151,24 +175,54 @@ function formatEventTime(iso: string): string {
   return `${get("day")} ${get("month")} ${get("hour")}:${get("minute")}`;
 }
 
+/**
+ * Whether the expense's plan has a president step. It has one only for a
+ * controller's own claim, and a national step on that chain stands in for the
+ * president. Any other national step on a campus stands in for a controller
+ * who is the submitter.
+ */
+function planHasPresident(expense: Expenses): boolean {
+  try {
+    return getCampusApprovalPlan({
+      campusId: String(expense.campus),
+      departmentId: expense.department,
+      submitterIsController: Boolean(expense.submitter_is_controller),
+      submitterIsFinancialManager: Boolean(
+        expense.submitter_is_financial_manager
+      ),
+    }).some((step) => step.role === "president");
+  } catch {
+    // An unknown campus has no plan: say nothing about a president.
+    return false;
+  }
+}
+
+interface ExpenseParts {
+  declaration: string | null;
+  fallbackNote: string | null;
+  hints: ApproverHint[];
+}
+
+const EMPTY_EXPENSE_PARTS: ExpenseParts = {
+  declaration: null,
+  fallbackNote: null,
+  hints: [],
+};
+
 async function loadExpenseParts(
   db: Db,
   expenseId: string
-): Promise<
-  Pick<ApprovalCardDetails, "declaration" | "fallbackNote" | "hints">
-> {
+): Promise<ExpenseParts> {
   const expense = await db.getRow<Expenses>("app", "expense", expenseId, [
     Query.select([
       "$id",
       "campus",
+      "department",
       "approver_hints",
       "submitter_is_controller",
       "submitter_is_financial_manager",
     ]),
   ]);
-  const hints = parseApproverHints(expense.approver_hints)
-    .map(hintText)
-    .filter((text): text is string => Boolean(text));
 
   let fallbackNote: string | null = null;
   if (String(expense.campus) !== NATIONAL_CAMPUS_ID) {
@@ -184,11 +238,16 @@ async function loadExpenseParts(
         ).rows
     );
     if (steps.some((step) => step.approver_role === "national")) {
-      fallbackNote =
-        "No approver was found for the campus president, so the national approver decides instead.";
+      fallbackNote = planHasPresident(expense)
+        ? PRESIDENT_FALLBACK_NOTE
+        : NATIONAL_FALLBACK_NOTE;
     }
   }
-  return { declaration: declarationText(expense), fallbackNote, hints };
+  return {
+    declaration: declarationText(expense),
+    fallbackNote,
+    hints: parseApproverHints(expense.approver_hints),
+  };
 }
 
 function accountLabel(
@@ -249,14 +308,33 @@ interface ReceiptParts {
   /** Every attachment's type label by id, supporting rows included. */
   labelById: Map<string, string>;
   missingAccount: boolean;
+  /** Every attachment's short name for hint lines: its text, else its type. */
+  nameById: Map<string, string>;
   receipts: ApprovalCardDetails["receipts"];
 }
 
-const EMPTY_RECEIPTS: ReceiptParts = {
+/**
+ * When the receipts can't be read, nothing says every one has an account, so
+ * the card offers "Set the account in admin" instead of Approve.
+ */
+const UNREAD_RECEIPTS: ReceiptParts = {
   labelById: new Map(),
-  missingAccount: false,
+  missingAccount: true,
+  nameById: new Map(),
   receipts: [],
 };
+
+/** True when a receipt with an amount has no account yet. */
+export function hasReceiptWithoutAccount(
+  rows: readonly {
+    account_number?: number | null;
+    amount?: number | null;
+  }[]
+): boolean {
+  return rows.some(
+    (row) => (row.amount ?? 0) > 0 && row.account_number == null
+  );
+}
 
 async function loadReceiptParts(
   db: Db,
@@ -283,11 +361,21 @@ async function loadReceiptParts(
     ),
   ]);
   const priced = rows.filter((row) => (row.amount ?? 0) > 0);
+  const labelById = new Map(
+    rows.map((row) => [row.$id, typeLabel(row, typeLabels)])
+  );
   return {
-    labelById: new Map(
-      rows.map((row) => [row.$id, typeLabel(row, typeLabels)])
+    labelById,
+    missingAccount: hasReceiptWithoutAccount(rows),
+    nameById: new Map(
+      rows.map((row) => [
+        row.$id,
+        shorten(
+          row.description?.trim() || labelById.get(row.$id) || "",
+          RECEIPT_NAME_CHARS
+        ),
+      ])
     ),
-    missingAccount: priced.some((row) => row.account_number == null),
     receipts: priced.map((row) => ({
       account: accountLabel(row.account_number, accountNames),
       amount: row.amount ?? 0,
@@ -373,48 +461,48 @@ function describeHistoryEvent(
   }
 }
 
-async function loadHistory(
+async function loadHistoryEvents(
   db: Db,
-  expenseId: string,
-  labelById: Map<string, string>
-): Promise<ApprovalCardDetails["history"]> {
+  expenseId: string
+): Promise<ExpenseEvents[]> {
   const { rows } = await db.listRows<ExpenseEvents>("app", "expense_events", [
     Query.equal("expense_id", expenseId),
     Query.orderDesc("$createdAt"),
     Query.limit(HISTORY_LIMIT),
   ]);
-  return rows.map((event) => ({
-    at: formatEventTime(event.$createdAt),
-    text: describeHistoryEvent(event, labelById),
-  }));
+  return rows;
 }
 
 /**
  * The extra card data for one expense. Loaded fresh for every notification, so
- * the next approver sees the changes made at earlier steps.
+ * the next approver sees the changes made at earlier steps. The three reads
+ * run at once; hints and history are worded once the receipts are in.
  */
 export async function loadApprovalCardDetails(
   db: Db,
   expenseId: string
 ): Promise<ApprovalCardDetails> {
-  const [expenseParts, receiptParts] = await Promise.all([
-    bestEffort(
-      "expense lookup",
-      { declaration: null, fallbackNote: null, hints: [] } as Awaited<
-        ReturnType<typeof loadExpenseParts>
-      >,
-      () => loadExpenseParts(db, expenseId)
+  const [expenseParts, receiptParts, events] = await Promise.all([
+    bestEffort("expense lookup", EMPTY_EXPENSE_PARTS, () =>
+      loadExpenseParts(db, expenseId)
     ),
-    bestEffort("receipts lookup", EMPTY_RECEIPTS, () =>
+    bestEffort("receipts lookup", UNREAD_RECEIPTS, () =>
       loadReceiptParts(db, expenseId)
     ),
+    bestEffort("history lookup", [] as ExpenseEvents[], () =>
+      loadHistoryEvents(db, expenseId)
+    ),
   ]);
-  const history = await bestEffort("history lookup", [], () =>
-    loadHistory(db, expenseId, receiptParts.labelById)
-  );
   return {
-    ...expenseParts,
-    history,
+    declaration: expenseParts.declaration,
+    fallbackNote: expenseParts.fallbackNote,
+    hints: expenseParts.hints
+      .map((hint) => hintText(hint, receiptParts.nameById))
+      .filter((text): text is string => Boolean(text)),
+    history: events.map((event) => ({
+      at: formatEventTime(event.$createdAt),
+      text: describeHistoryEvent(event, receiptParts.labelById),
+    })),
     missingAccount: receiptParts.missingAccount,
     receipts: receiptParts.receipts,
   };

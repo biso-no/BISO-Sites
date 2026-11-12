@@ -59,7 +59,10 @@ export async function POST(req: NextRequest) {
 
   if (!result.ok) {
     return applyCorsHeaders(
-      NextResponse.json({ error: result.error }, { status: 400 }),
+      NextResponse.json(
+        { code: result.code, error: result.error },
+        { status: 400 }
+      ),
       origin
     );
   }

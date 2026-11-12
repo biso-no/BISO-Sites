@@ -35,7 +35,10 @@ const EMPTY_DETAILS = {
   missingAccount: false,
   receipts: [],
 };
-vi.mock("./expense-card-details", () => cardDetails);
+vi.mock("./expense-card-details", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./expense-card-details")>()),
+  ...cardDetails,
+}));
 const messaging = vi.hoisted(() => ({ createEmail: vi.fn() }));
 vi.mock("@repo/connectors/teams-bot", () => ({
   buildApprovalCard: teams.buildApprovalCard,
@@ -56,6 +59,7 @@ import {
   createApprovalChain,
   decideApproval,
   decideApprovalStep,
+  getApprovalContext,
   stepLabel,
 } from "./expense-approval";
 
@@ -424,6 +428,71 @@ describe("approval chain", () => {
     expect(db.updateRow).toHaveBeenCalledWith("app", "expense", "expense-1", {
       status: "pending",
     });
+  });
+
+  const NATIONAL_CONTEXT = {
+    ...CONTEXT,
+    campusId: "5",
+    campusLabel: "National",
+  };
+
+  it("sends a national step pointed at the submitter to the national mailbox", async () => {
+    submitterIs("leader@biso.no");
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [stepFor("national", "leader@biso.no", 1)],
+    });
+
+    const result = await createApprovalChain(NATIONAL_CONTEXT);
+
+    expect(result).toEqual({ notified: true, stepsCreated: 1 });
+    expect(approvalRows()).toEqual([
+      expect.objectContaining({
+        approver_email: "manager@biso.no",
+        approver_role: "national",
+        directory_key: null,
+      }),
+    ]);
+  });
+
+  it("goes to the zero-steps branch when the national mailbox is the submitter", async () => {
+    submitterIs("manager@biso.no");
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [stepFor("national", "manager@biso.no", 1)],
+    });
+
+    const result = await createApprovalChain(NATIONAL_CONTEXT);
+
+    expect(result).toEqual({ notified: false, stepsCreated: 0 });
+    expect(approvalRows()).toEqual([]);
+    expect(issueRows()).toEqual([
+      expect.objectContaining({ reason: "Approver is the submitter" }),
+      expect.objectContaining({
+        reason: expect.stringContaining("No approver could be resolved"),
+      }),
+    ]);
+  });
+
+  it("reads the submitter while the approvers are still resolving", async () => {
+    submitterIs("me@biso.no");
+    let finish: (value: unknown) => void = () => undefined;
+    resolution.resolveExpenseApprovers.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      })
+    );
+
+    const chain = createApprovalChain({
+      ...CONTEXT,
+      submitterUserId: "user-9",
+    });
+    await vi.waitFor(() =>
+      expect(db.getRow).toHaveBeenCalledWith("app", "user", "user-9")
+    );
+    finish({ issues: [], steps: [stepFor("controller", "ctrl@biso.no", 1)] });
+
+    await expect(chain).resolves.toEqual({ notified: true, stepsCreated: 1 });
   });
 
   it("reads the submitter from the context user id without re-reading the expense", async () => {
@@ -1217,6 +1286,118 @@ describe("token decisions history", () => {
   });
 });
 
+describe("receipts without an account", () => {
+  const RAW = "raw-token";
+  const STEP = {
+    $id: "approval-1",
+    approver_email: "ctrl@biso.no",
+    approver_role: "controller",
+    decision_lock: 0,
+    directory_key: null,
+    expense_id: "expense-1",
+    expires_at: new Date(Date.now() + 60_000).toISOString(),
+    status: "pending",
+    step: 1,
+    token_hash: createHash("sha256").update(RAW).digest("hex"),
+  };
+  const UNSET = { $id: "att-1", account_number: null, amount: 120 };
+  const SET = { $id: "att-2", account_number: 6555, amount: 80 };
+  const SUPPORTING = { $id: "att-3", account_number: null, amount: 0 };
+
+  function setup(attachments: object[]) {
+    const rowsByTable: Record<string, object[]> = {
+      expense_approvals: [STEP],
+      expense_attachments: attachments,
+    };
+    db.listRows.mockImplementation((_db: string, table: string) =>
+      Promise.resolve({ rows: rowsByTable[table] ?? [] })
+    );
+    db.getRow.mockResolvedValue({
+      $id: "expense-1",
+      $sequence: 42,
+      campus: "1",
+      department: "dept-1",
+      description: "Travel",
+      expenseAttachments: attachments.map((row, index) => ({
+        date: null,
+        description: "",
+        sort_order: index,
+        type: "receipt",
+        url: null,
+        ...row,
+      })),
+      status: "pending",
+      total: 200,
+      userId: "user-1",
+    });
+    db.incrementRowColumn.mockResolvedValue({ decision_lock: 1 });
+  }
+
+  it("the approval page context flags a receipt without an account", async () => {
+    setup([UNSET, SET]);
+
+    const context = await getApprovalContext(RAW);
+
+    expect(context).toMatchObject({
+      adminUrl: "https://admin.biso.no/expenses/expense-1",
+      missingAccount: true,
+    });
+  });
+
+  it("a supporting row without an amount needs no account", async () => {
+    setup([SET, SUPPORTING]);
+
+    expect(await getApprovalContext(RAW)).toMatchObject({
+      missingAccount: false,
+    });
+  });
+
+  it("refuses an approve by link while a receipt has no account", async () => {
+    setup([UNSET, SET]);
+
+    const result = await decideApproval({
+      decidedBy: "Ctrl",
+      decision: "approved",
+      rawToken: RAW,
+      source: "web",
+    });
+
+    expect(result).toEqual({
+      code: "account_missing",
+      error: "A receipt has no account yet. Set it in admin before approving.",
+      ok: false,
+    });
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+
+  it("still takes a rejection by link while a receipt has no account", async () => {
+    setup([UNSET]);
+
+    const result = await decideApproval({
+      decidedBy: "Ctrl",
+      decision: "rejected",
+      rawToken: RAW,
+      source: "teams",
+    });
+
+    expect(result).toMatchObject({ decision: "rejected", ok: true });
+  });
+
+  it("approves by link once every receipt has an account", async () => {
+    setup([SET, SUPPORTING]);
+
+    const result = await decideApproval({
+      decidedBy: "Ctrl",
+      decision: "approved",
+      rawToken: RAW,
+      source: "teams",
+    });
+
+    expect(result).toMatchObject({ decision: "approved", ok: true });
+  });
+});
+
 describe("changeStepApprover", () => {
   const approval = {
     $id: "approval-1",
@@ -1717,6 +1898,82 @@ describe("card data and card updates", () => {
     expect(result).toMatchObject({ decision: "approved", ok: true });
     expect(log).toHaveBeenCalled();
     log.mockRestore();
+  });
+
+  it("a hanging card update waits until the status write and next-step notify are done", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const order: string[] = [];
+    const next = { ...SENT, $id: "approval-2", step: 2 };
+    // The lowest pending step is approval-1 until its decision is written.
+    let decided = false;
+    db.listRows.mockImplementation((_db: string, table: string) => {
+      if (table !== "expense_approvals") {
+        return Promise.resolve({ rows: [] });
+      }
+      return Promise.resolve({ rows: [decided ? next : SENT] });
+    });
+    db.getRow.mockImplementation((_db: string, table: string) =>
+      Promise.resolve(
+        table === "expense_approvals"
+          ? SENT
+          : { $id: "expense-1", $sequence: 42, status: "pending", userId: "u" }
+      )
+    );
+    db.incrementRowColumn.mockResolvedValue({ decision_lock: 1 });
+    db.updateRow.mockImplementation(
+      (_db: string, table: string, id: string) => {
+        order.push(`write ${table}`);
+        decided ||= table === "expense_approvals" && id === "approval-1";
+        return Promise.resolve({});
+      }
+    );
+    teams.sendApprovalEmail.mockImplementation(() => {
+      order.push("notify next");
+      return Promise.resolve();
+    });
+    teams.updateProactiveCard.mockImplementation(() => {
+      order.push("card update");
+      return new Promise(() => undefined);
+    });
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    try {
+      // Approve with a next step: the next approver is notified first.
+      const approving = decideApprovalStep({
+        actor: ACTOR,
+        approvalId: "approval-1",
+        decision: "approved",
+        onBehalf: false,
+      });
+      await vi.advanceTimersByTimeAsync(5000);
+      await expect(approving).resolves.toMatchObject({ finalized: false });
+      expect(order.indexOf("notify next")).toBeLessThan(
+        order.indexOf("card update")
+      );
+
+      // Reject: the expense status is written first.
+      order.length = 0;
+      decided = false;
+      const rejecting = decideApprovalStep({
+        actor: ACTOR,
+        approvalId: "approval-1",
+        decision: "rejected",
+        onBehalf: false,
+      });
+      await vi.advanceTimersByTimeAsync(5000);
+      await expect(rejecting).resolves.toMatchObject({ decision: "rejected" });
+      expect(order.indexOf("write expense")).toBeGreaterThanOrEqual(0);
+      expect(order.indexOf("write expense")).toBeLessThan(
+        order.indexOf("card update")
+      );
+      expect(log).toHaveBeenCalledWith(
+        "[expense-approval] Teams card update failed:",
+        expect.objectContaining({ message: expect.stringContaining("5000") })
+      );
+    } finally {
+      vi.useRealTimers();
+      log.mockRestore();
+    }
   });
 
   it("leaves a step without Teams ids alone", async () => {
