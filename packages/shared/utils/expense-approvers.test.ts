@@ -151,6 +151,23 @@ describe("approvalSwitchFor", () => {
   });
 });
 
+describe("cross-campus leadership departments", () => {
+  it("keeps Bergen's leadership ids off Oslo and Trondheim's off Bergen", () => {
+    expect(approvalSwitchFor("1", "300")).toBe("financial_manager");
+    expect(approvalSwitchFor("2", "600")).toBeNull();
+  });
+
+  it("gives a controller submitter in another campus's department only a controller step", () => {
+    expect(
+      getCampusApprovalPlan({
+        campusId: "2",
+        departmentId: "600",
+        submitterIsController: true,
+      })
+    ).toEqual([controller]);
+  });
+});
+
 describe("directoryKey", () => {
   it("formats department and campus keys", () => {
     expect(

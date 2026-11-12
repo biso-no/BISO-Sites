@@ -67,14 +67,6 @@ const CAMPUS_LEADERSHIP_DEPARTMENTS: Record<string, readonly string[]> = {
   "4": ["800", "801"],
 };
 
-/** Campus id → email slug used in role mailboxes. */
-const CAMPUS_EMAIL_SLUGS: Record<string, string> = {
-  "1": "oslo",
-  "2": "bergen",
-  "3": "trondheim",
-  "4": "stavanger",
-};
-
 /** Campus id → every mailbox slug a campus is known by. */
 export const CAMPUS_MAILBOX_SLUGS: Record<string, string[]> = {
   "1": ["oslo"],
@@ -103,7 +95,7 @@ export const ROLE_EMAIL_PREFIXES = {
 } as const;
 
 export function getCampusEmailSlug(campusId: string): string | undefined {
-  return CAMPUS_EMAIL_SLUGS[campusId];
+  return CAMPUS_MAILBOX_SLUGS[campusId]?.[0];
 }
 
 /** Which self-declaration switch the submit form offers for a department. */
@@ -142,7 +134,7 @@ export function getCampusApprovalPlan(
   if (campusId === NATIONAL_CAMPUS_ID) {
     return [{ kind: "directory", role: "national" }];
   }
-  if (!CAMPUS_EMAIL_SLUGS[campusId]) {
+  if (!CAMPUS_MAILBOX_SLUGS[campusId]) {
     throw new Error(`Unknown campus id "${campusId}" for expense approval`);
   }
 
