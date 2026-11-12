@@ -19,6 +19,8 @@ export interface RerunMiss {
 export interface RerunCheckResult {
   checked: number;
   considered: number;
+  /** Calls that errored or timed out; not part of the score. */
+  failed: number;
   hitRate: number | null;
   hits: number;
   misses: RerunMiss[];

@@ -172,14 +172,59 @@ describe("runRerunCheck", () => {
     expect(result.misses).toHaveLength(50);
   });
 
-  it("counts a failed classification as a miss", async () => {
-    listRows.mockResolvedValue({ rows: [row("a")] });
-    scan.classifyReceipt.mockRejectedValue(new Error("boom"));
+  it("does not count failed classifications as checked, hits or misses", async () => {
+    listRows.mockResolvedValue({ rows: [row("a"), row("b"), row("c")] });
     vi.spyOn(console, "error").mockImplementation(() => undefined);
+    scan.classifyReceipt
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockResolvedValueOnce({
+        confidence: 0.9,
+        costType: "food",
+        reason: null,
+      })
+      .mockRejectedValueOnce(new Error("outage"));
+
+    const result = await runRerunCheck(db, { concurrency: 1 });
+    vi.restoreAllMocks();
+
+    expect(result).toMatchObject({
+      checked: 1,
+      failed: 2,
+      hitRate: 1,
+      hits: 1,
+      misses: [],
+    });
+  });
+
+  it("has a null hit rate when every call fails", async () => {
+    listRows.mockResolvedValue({ rows: [row("a"), row("b")] });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    scan.classifyReceipt.mockRejectedValue(new Error("outage"));
 
     const result = await runRerunCheck(db);
     vi.restoreAllMocks();
 
-    expect(result.misses[0]).toMatchObject({ exampleId: "a", predicted: null });
+    expect(result).toMatchObject({ checked: 0, failed: 2, hitRate: null });
+    expect(result.misses).toEqual([]);
+  });
+
+  it("never runs more calls at once than the concurrency", async () => {
+    listRows.mockResolvedValue({
+      rows: Array.from({ length: 10 }, (_, i) => row(`r${i}`)),
+    });
+    let inFlight = 0;
+    let maxInFlight = 0;
+    scan.classifyReceipt.mockImplementation(async () => {
+      inFlight += 1;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      inFlight -= 1;
+      return { confidence: 0.9, costType: "food", reason: null };
+    });
+
+    const result = await runRerunCheck(db, { concurrency: 3 });
+
+    expect(result.checked).toBe(10);
+    expect(maxInFlight).toBe(3);
   });
 });

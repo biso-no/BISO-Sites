@@ -1693,7 +1693,7 @@
       "makeType": "Make this a type",
       "loadError": "Could not load the AI results",
       "rerunTitle": "Check against today's setup",
-      "rerunHint": "Runs the AI again on the latest 200 booked receipts, with today's types and prompt, and counts how often it picks the type that was booked. Nothing is saved.",
+      "rerunHint": "Runs the AI again on the latest {limit} booked receipts, with today's types and prompt, and counts how often it picks the type that was booked. Nothing is saved.",
       "rerunRun": "Run check",
       "rerunPending": "Running. This can take up to two minutes.",
       "rerunHitRate": "Would pick the booked type",
@@ -1706,7 +1706,10 @@
       "rerunExpected": "Booked type",
       "rerunPredicted": "AI's pick",
       "rerunConfidence": "Confidence",
-      "rerunNoPick": "No pick"
+      "rerunNoPick": "No pick",
+      "rerunFailed": "Could not check {count}. They are not counted.",
+      "rerunLowConfidence": "below {threshold} %",
+      "rerunUnscored": "The rest only have the student's own text, so there is no type to score."
     },
     "approvers": {
       "description": "Who approves expenses, per department and campus. Rows found by the AI show how sure it was; confirm or change them here. Changes are audited.",

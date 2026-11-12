@@ -30,6 +30,9 @@ export interface CostTypeOption {
 /** Minimum AI confidence for its suggested type to be applied on its own. */
 export const AI_TYPE_CONFIDENCE_THRESHOLD = 0.8;
 
+/** How many of the latest booked examples the AI re-run check scores. */
+export const AI_RERUN_LIMIT = 200;
+
 /**
  * Owner-reviewable starting list. Seeds the `expense_cost_types` table; the
  * table is authoritative once seeded and accounting edits it there.

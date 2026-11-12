@@ -1,5 +1,6 @@
 "use client";
 
+import { AI_TYPE_CONFIDENCE_THRESHOLD } from "@repo/shared/utils/expense-cost-types";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { STUDIO, studioSurface } from "../../../../_components/studio";
@@ -27,8 +28,12 @@ export interface RerunLabels {
   /** The message for each action error code; `failed` is the fallback. */
   errors: Record<string, string>;
   expected: string;
+  /** Contains `{count}`. */
+  failed: string;
   hint: string;
   hitRate: string;
+  /** Contains `{threshold}`. */
+  lowConfidence: string;
   missesTitle: string;
   noMisses: string;
   noPick: string;
@@ -37,6 +42,7 @@ export interface RerunLabels {
   run: string;
   stoppedEarly: string;
   title: string;
+  unscored: string;
   vendor: string;
 }
 
@@ -152,6 +158,17 @@ function RerunSection({
               .replace("{checked}", String(result.checked))
               .replace("{considered}", String(result.considered))}
           </p>
+          {result.failed > 0 && (
+            <p className="mt-2 text-[12px]" role="status">
+              {labels.failed.replace("{count}", String(result.failed))}
+            </p>
+          )}
+          {result.checked + result.failed < result.considered &&
+            !result.stoppedEarly && (
+              <p className="mt-2 text-[12px]" style={{ color: STUDIO.ink4 }}>
+                {labels.unscored}
+              </p>
+            )}
           {result.stoppedEarly && (
             <p className="mt-2 text-[12px]" style={{ color: STUDIO.ink4 }}>
               {labels.stoppedEarly}
@@ -188,7 +205,19 @@ function RerunSection({
                           ? nameOf(miss.predicted)
                           : labels.noPick}
                       </td>
-                      <td className="py-2">{percent(miss.confidence)}</td>
+                      <td className="py-2">
+                        {percent(miss.confidence)}
+                        {miss.predicted === miss.expected && (
+                          <span className="ml-1" style={{ color: STUDIO.ink4 }}>
+                            {labels.lowConfidence.replace(
+                              "{threshold}",
+                              String(
+                                Math.round(AI_TYPE_CONFIDENCE_THRESHOLD * 100)
+                              )
+                            )}
+                          </span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

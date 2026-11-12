@@ -1,7 +1,10 @@
 import { Query } from "@repo/api";
 import type { createAdminClient } from "@repo/api/server";
 import type { ExpenseTypeExamples } from "@repo/api/types/appwrite";
-import { AI_TYPE_CONFIDENCE_THRESHOLD } from "@repo/shared/utils/expense-cost-types";
+import {
+  AI_RERUN_LIMIT,
+  AI_TYPE_CONFIDENCE_THRESHOLD,
+} from "@repo/shared/utils/expense-cost-types";
 import { selectExamples } from "./expense-examples";
 import { loadActiveCostTypes } from "./expense-types";
 import {
@@ -12,7 +15,6 @@ import {
 
 type Db = Awaited<ReturnType<typeof createAdminClient>>["db"];
 
-const DEFAULT_LIMIT = 200;
 const DEFAULT_BUDGET_MS = 120_000;
 const DEFAULT_CONCURRENCY = 8;
 const MAX_MISSES = 50;
@@ -27,10 +29,12 @@ export interface RerunMiss {
 }
 
 export interface RerunResult {
-  /** Examples classified; the rest ran out of budget. */
+  /** Examples classified; the rest ran out of budget or failed. */
   checked: number;
   /** Examples fetched, own-text ones included. */
   considered: number;
+  /** Calls that errored or timed out: not scored, so an outage is no 0 %. */
+  failed: number;
   hitRate: number | null;
   hits: number;
   misses: RerunMiss[];
@@ -67,7 +71,7 @@ export async function runRerunCheck(
   const {
     budgetMs = DEFAULT_BUDGET_MS,
     concurrency = DEFAULT_CONCURRENCY,
-    limit = DEFAULT_LIMIT,
+    limit = AI_RERUN_LIMIT,
   } = opts;
   const startedAt = Date.now();
   const { rows } = await db.listRows<ExpenseTypeExamples>(
@@ -81,6 +85,7 @@ export async function runRerunCheck(
   let next = 0;
   let checked = 0;
   let hits = 0;
+  let failed = 0;
   let stoppedEarly = false;
   const misses: RerunMiss[] = [];
 
@@ -88,6 +93,7 @@ export async function runRerunCheck(
     const expected = row.final_cost_type as string;
     let predicted: string | null = null;
     let confidence = 0;
+    const signal = AbortSignal.timeout(CLASSIFY_TIMEOUT_MS);
     try {
       const examples = await selectExamples(db, {
         excludeId: row.$id,
@@ -95,15 +101,22 @@ export async function runRerunCheck(
         vendor: row.vendor_key || null,
       });
       const result = await classifyReceipt({
-        abortSignal: AbortSignal.timeout(CLASSIFY_TIMEOUT_MS),
+        abortSignal: signal,
         examples,
         receipt: receiptFor(row),
         types,
       });
+      // A timed out call comes back as "no type": not a verdict.
+      if (signal.aborted) {
+        failed += 1;
+        return;
+      }
       predicted = result.costType;
       confidence = result.confidence;
     } catch (error) {
       console.error("[expense-eval] Classification failed", error);
+      failed += 1;
+      return;
     }
     checked += 1;
     if (predicted === expected && confidence >= AI_TYPE_CONFIDENCE_THRESHOLD) {
@@ -138,6 +151,7 @@ export async function runRerunCheck(
   return {
     checked,
     considered: rows.length,
+    failed,
     hitRate: checked === 0 ? null : hits / checked,
     hits,
     misses,

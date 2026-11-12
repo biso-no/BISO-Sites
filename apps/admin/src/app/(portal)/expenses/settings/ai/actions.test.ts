@@ -11,6 +11,7 @@ const { runRerunCheck } = await import("./actions");
 const RESULT = {
   checked: 2,
   considered: 3,
+  failed: 0,
   hitRate: 0.5,
   hits: 1,
   misses: [],

@@ -1,4 +1,7 @@
-import { costTypeLabel } from "@repo/shared/utils/expense-cost-types";
+import {
+  AI_RERUN_LIMIT,
+  costTypeLabel,
+} from "@repo/shared/utils/expense-cost-types";
 import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
@@ -8,6 +11,9 @@ import { ExpensesSettingsTabs } from "../_components/expenses-settings-tabs";
 import { AiEvalClient, type AiEvalWindow } from "./_components/ai-eval-client";
 import { AI_EVAL_ROW_CAP, loadAiEvalData } from "./ai-data";
 import { keptStats, recurringOwnTexts } from "./ai-model";
+
+// The re-run check is a server action that waits on the model for minutes.
+export const maxDuration = 300;
 
 export default async function ExpenseAiSettingsPage() {
   const ctx = await requireNavAccess("portal.expensesSettings");
@@ -106,7 +112,9 @@ export default async function ExpenseAiSettingsPage() {
               forbidden: te("forbidden"),
             },
             expected: ta("rerunExpected"),
-            hint: ta("rerunHint"),
+            failed: ta("rerunFailed"),
+            hint: ta("rerunHint", { limit: AI_RERUN_LIMIT }),
+            lowConfidence: ta("rerunLowConfidence"),
             hitRate: ta("rerunHitRate"),
             missesTitle: ta("rerunMissesTitle"),
             noMisses: ta("rerunNoMisses"),
@@ -116,6 +124,7 @@ export default async function ExpenseAiSettingsPage() {
             run: ta("rerunRun"),
             stoppedEarly: ta("rerunStoppedEarly"),
             title: ta("rerunTitle"),
+            unscored: ta("rerunUnscored"),
             vendor: ta("rerunVendor"),
           },
           times: ta.raw("times") as string,

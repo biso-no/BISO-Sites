@@ -1693,7 +1693,7 @@
       "makeType": "Lag en type av dette",
       "loadError": "Kunne ikke laste AI-resultatene",
       "rerunTitle": "Sjekk mot dagens oppsett",
-      "rerunHint": "Kjører AI-en på nytt på de siste 200 bokførte kvitteringene, med dagens typer og prompt, og teller hvor ofte den velger typen som ble bokført. Ingenting lagres.",
+      "rerunHint": "Kjører AI-en på nytt på de siste {limit} bokførte kvitteringene, med dagens typer og prompt, og teller hvor ofte den velger typen som ble bokført. Ingenting lagres.",
       "rerunRun": "Kjør sjekk",
       "rerunPending": "Kjører. Dette kan ta opptil to minutter.",
       "rerunHitRate": "Ville valgt den bokførte typen",
@@ -1706,7 +1706,10 @@
       "rerunExpected": "Bokført type",
       "rerunPredicted": "AI-ens valg",
       "rerunConfidence": "Sikkerhet",
-      "rerunNoPick": "Ingen type"
+      "rerunNoPick": "Ingen type",
+      "rerunFailed": "Kunne ikke sjekke {count}. De er ikke regnet med.",
+      "rerunLowConfidence": "under {threshold} %",
+      "rerunUnscored": "Resten har bare studentens egentekst, så det finnes ingen type å bedømme."
     },
     "approvers": {
       "description": "Hvem som godkjenner utlegg, per avdeling og campus. Rader funnet av AI viser hvor sikker den var; bekreft eller endre dem her. Endringer logges.",
