@@ -30,6 +30,9 @@ const TABLE = "expense_approvers";
 /** Sources a person set; the AI and the seed never overwrite them. */
 const PROTECTED_SOURCES = new Set(["admin", "confirmed"]);
 
+/** Sources a decision turns into "confirmed". */
+const CONFIRMABLE_SOURCES = new Set(["ai", "seed"]);
+
 function isConflict(error: unknown): boolean {
   const e = error as { code?: unknown; type?: unknown } | null;
   return e?.code === 409 || e?.type === "row_already_exists";
@@ -45,6 +48,24 @@ async function activeRow(
     Query.limit(1),
   ]);
   return rows[0] ?? null;
+}
+
+/** True when the key has a row an admin deactivated: it stays off. */
+export async function hasInactiveDirectoryRow(
+  db: Db,
+  key: string
+): Promise<boolean> {
+  try {
+    const { rows } = await db.listRows<ExpenseApprovers>(DB, TABLE, [
+      Query.equal("key", key),
+      Query.equal("active", false),
+      Query.limit(1),
+    ]);
+    return rows.length > 0;
+  } catch (error) {
+    console.error("[expense-approver-directory] inactive check failed", error);
+    return false;
+  }
 }
 
 export async function findDirectoryApprover(
@@ -101,7 +122,11 @@ export async function saveDirectoryApprover(
       Query.limit(1),
     ]);
     const existing = rows[0];
-    if (!existing || PROTECTED_SOURCES.has(existing.source)) {
+    if (
+      !existing ||
+      existing.active === false ||
+      PROTECTED_SOURCES.has(existing.source)
+    ) {
       return;
     }
     await db.updateRow(DB, TABLE, existing.$id, data);
@@ -178,8 +203,10 @@ export async function confirmDirectoryApprover(
     if (!row || row.email.toLowerCase() !== email.toLowerCase()) {
       return;
     }
+    // An admin's choice stays an admin choice; only guesses become confirmed.
+    const keepsSource = !CONFIRMABLE_SOURCES.has(row.source);
     await db.updateRow(DB, TABLE, row.$id, {
-      source: "confirmed",
+      ...(keepsSource ? {} : { source: "confirmed" }),
       confirmed_at: new Date().toISOString(),
     });
   } catch (error) {

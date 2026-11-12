@@ -8,6 +8,12 @@ import { clean } from "./receipt-scan";
 
 export type LookupRole = "finance" | "manager" | "deputy" | "president";
 
+/**
+ * How a lookup ended. `empty` (nobody fits) and `timeout` are worth
+ * remembering; `failed` (Graph or the model broke) is retried next time.
+ */
+export type LookupOutcome = "found" | "empty" | "failed" | "timeout";
+
 export interface Candidate {
   aadId: string | null;
   department: string | null;
@@ -116,6 +122,7 @@ function normalizeName(name: string | null | undefined): string {
   return (name ?? "").trim().replace(WHITESPACE_RUN, " ");
 }
 
+/** Rejects when every Graph call failed: no answer is not the same as nobody. */
 export async function findApproverCandidates(
   graph: Pick<GraphUserService, "searchUsers" | "findUsersByDepartment">,
   input: {
@@ -161,6 +168,12 @@ export async function findApproverCandidates(
       : Promise.resolve([]),
     ...searchPrefixes.map((prefix) => graph.searchUsers(prefix, SEARCH_LIMIT)),
   ]);
+
+  // The department query only counts as a call when there was a name to ask.
+  const calls = departmentName ? [byDepartment, ...searches] : searches;
+  if (calls.length > 0 && calls.every((r) => r.status === "rejected")) {
+    throw new Error("Graph lookup failed: every call was rejected");
+  }
 
   if (byDepartment.status === "rejected") {
     console.error(
@@ -233,30 +246,26 @@ export async function chooseApprover(input: {
   ]
     .filter((line, index, all) => line !== "" || all[index - 1] !== "")
     .join("\n");
-  try {
-    const { object } = await generateObject({
-      abortSignal,
-      model: fastModel,
-      prompt,
-      reasoning: "low",
-      schema: ApproverChoiceSchema,
-    });
-    const chosen = candidates.find(
-      (c) => c.email.toLowerCase() === object.email?.trim().toLowerCase()
-    );
-    if (!chosen) {
-      return null;
-    }
-    const confidence = Number.isFinite(object.confidence)
-      ? Math.min(1, Math.max(0, object.confidence))
-      : 0;
-    return {
-      email: chosen.email.toLowerCase(),
-      confidence,
-      reason: object.reason.slice(0, MAX_REASON_LENGTH),
-    };
-  } catch (error) {
-    console.warn("[expense-approver-lookup] chooseApprover failed", error);
+  // A model error propagates: the caller tells a failure from "none fits".
+  const { object } = await generateObject({
+    abortSignal,
+    model: fastModel,
+    prompt,
+    reasoning: "low",
+    schema: ApproverChoiceSchema,
+  });
+  const chosen = candidates.find(
+    (c) => c.email.toLowerCase() === object.email?.trim().toLowerCase()
+  );
+  if (!chosen) {
     return null;
   }
+  const confidence = Number.isFinite(object.confidence)
+    ? Math.min(1, Math.max(0, object.confidence))
+    : 0;
+  return {
+    email: chosen.email.toLowerCase(),
+    confidence,
+    reason: object.reason.slice(0, MAX_REASON_LENGTH),
+  };
 }

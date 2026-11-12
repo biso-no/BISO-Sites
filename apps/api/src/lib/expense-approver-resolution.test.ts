@@ -4,11 +4,13 @@ const directory = vi.hoisted(() => ({
   find: vi.fn(),
   save: vi.fn(),
   touch: vi.fn(),
+  inactive: vi.fn(),
 }));
 vi.mock("./expense-approver-directory", () => ({
   findDirectoryApprover: directory.find,
   saveDirectoryApprover: directory.save,
   touchDirectoryApprover: directory.touch,
+  hasInactiveDirectoryRow: directory.inactive,
 }));
 vi.mock("@repo/api/server", () => ({ createAdminClient: vi.fn() }));
 const getGraphService = vi.hoisted(() => vi.fn());
@@ -74,6 +76,7 @@ beforeEach(() => {
   directory.find.mockReset().mockResolvedValue(null);
   directory.save.mockReset().mockResolvedValue(undefined);
   directory.touch.mockReset().mockResolvedValue(undefined);
+  directory.inactive.mockReset().mockResolvedValue(false);
 });
 
 describe("resolveExpenseApprovers", () => {
@@ -419,6 +422,40 @@ describe("resolveExpenseApprovers", () => {
       expect(candidates).toHaveBeenCalledTimes(1);
     });
 
+    it("does not cache a failed lookup as a miss", async () => {
+      const time = clock();
+      const { deps, candidates } = setup();
+      candidates.mockRejectedValue(new Error("graph down"));
+      await resolveExpenseApprovers(base, { ...deps, now: time.now });
+      await resolveExpenseApprovers(base, { ...deps, now: time.now });
+      expect(candidates).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not cache a model error either", async () => {
+      const time = clock();
+      const { deps, choose } = setup();
+      choose.mockRejectedValue(new Error("model down"));
+      await resolveExpenseApprovers(base, { ...deps, now: time.now });
+      await resolveExpenseApprovers(base, { ...deps, now: time.now });
+      expect(choose).toHaveBeenCalledTimes(2);
+    });
+
+    it("caches an empty result and a timeout", async () => {
+      const time = clock();
+      const empty = setup();
+      await resolveExpenseApprovers(base, { ...empty.deps, now: time.now });
+      await resolveExpenseApprovers(base, { ...empty.deps, now: time.now });
+      expect(empty.choose).toHaveBeenCalledTimes(1);
+
+      forgetLookupMisses();
+      const stalled = setup();
+      stalled.candidates.mockImplementation(() => new Promise(() => undefined));
+      const deps = { ...stalled.deps, lookupTimeoutMs: 20, now: time.now };
+      await resolveExpenseApprovers(base, deps);
+      await resolveExpenseApprovers(base, deps);
+      expect(stalled.candidates).toHaveBeenCalledTimes(1);
+    });
+
     it("clears the miss when the lookup finds someone", async () => {
       const time = clock();
       const { deps, candidates, choose } = setup();
@@ -486,6 +523,22 @@ describe("resolveExpenseApprovers", () => {
       const result = await resolveExpenseApprovers(asController, noGraph());
       expect(result.steps.map((s) => s.role)).toEqual(["national"]);
       expect(result.issues[0]?.roleSought).toBe("president");
+    });
+  });
+});
+
+describe("a deactivated directory key", () => {
+  it("skips the lookup for a deactivated key and records an issue", async () => {
+    directory.inactive.mockImplementation((_db: unknown, key: string) =>
+      Promise.resolve(key.endsWith(":finance"))
+    );
+    const { deps, candidates } = setup({ finance: "finance@biso.no" });
+    const result = await resolveExpenseApprovers(base, deps);
+    expect(candidates).not.toHaveBeenCalled();
+    expect(result.steps.map((s) => s.role)).toEqual(["controller"]);
+    expect(result.issues[0]).toMatchObject({
+      roleSought: "finance",
+      reason: "Approver is deactivated in the directory",
     });
   });
 });

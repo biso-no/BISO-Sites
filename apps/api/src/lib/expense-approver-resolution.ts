@@ -6,8 +6,10 @@
 //   2. for department steps and the president, a Microsoft 365 lookup where the
 //      AI picks among mailbox candidates (only answers with confidence >= 0.8
 //      count, and a confident answer is saved to the directory). Graph and the
-//      model share one 8 s deadline per lookup, and a key the lookup found
-//      nobody for is not looked up again for an hour;
+//      model share one 8 s deadline per lookup. A key the lookup found nobody
+//      for (or ran out of time on) is not looked up again for an hour; a
+//      Graph or model error is retried next time. A key an admin deactivated
+//      is never looked up, and its step is dropped with an issue;
 //   3. for the controller and national steps, the seeded default mailbox.
 // Steps resolve concurrently; order and numbering follow the plan. A department
 // step nobody can fill is dropped with an issue, so the controller step that
@@ -24,6 +26,7 @@ import {
 } from "@repo/shared/utils/expense-approvers";
 import {
   findDirectoryApprover,
+  hasInactiveDirectoryRow,
   saveDirectoryApprover,
   touchDirectoryApprover,
 } from "./expense-approver-directory";
@@ -31,6 +34,7 @@ import {
   type Candidate,
   chooseApprover,
   findApproverCandidates,
+  type LookupOutcome,
   type LookupRole,
 } from "./expense-approver-lookup";
 import { getGraphService } from "./graph";
@@ -44,6 +48,7 @@ const MIN_CONFIDENCE = 0.8;
  * runs inside submit, and the old app gives up after 20 s.
  */
 const LOOKUP_TIMEOUT_MS = 8000;
+const DEACTIVATED_REASON = "Approver is deactivated in the directory";
 /** How long a key the lookup found nobody for is left alone. */
 const MISS_TTL_MS = 60 * 60 * 1000;
 const NATIONAL_CAMPUS_ID = "5";
@@ -202,16 +207,25 @@ export async function resolveExpenseApprovers(
     };
   };
 
+  /** Keys an admin deactivated; their steps explain themselves in the issue. */
+  const deactivatedKeys = new Set<string>();
+
   /**
    * Graph candidates and the model's choice for one role, inside one
-   * deadline. A failure or the deadline counts as nobody found.
+   * deadline. The outcome says why nobody was found: the deadline passed
+   * (`timeout`), Graph or the model broke (`failed`), or neither did and
+   * nobody fits (`empty`).
    */
   const askAi = async (
     role: LookupRole
-  ): Promise<{
-    candidates: Candidate[];
-    choice: Awaited<ReturnType<typeof chooseApprover>>;
-  } | null> => {
+  ): Promise<
+    | { outcome: Exclude<LookupOutcome, "found"> }
+    | {
+        outcome: "found";
+        candidates: Candidate[];
+        choice: NonNullable<Awaited<ReturnType<typeof chooseApprover>>>;
+      }
+  > => {
     const signal = AbortSignal.timeout(timeoutMs);
     const lookup = async () => {
       const candidates = await findCandidates(getGraph(), {
@@ -229,36 +243,53 @@ export async function resolveExpenseApprovers(
       return { candidates, choice };
     };
     try {
-      return await Promise.race([lookup(), aborted(signal)]);
+      const { candidates, choice } = await Promise.race([
+        lookup(),
+        aborted(signal),
+      ]);
+      return choice
+        ? { outcome: "found", candidates, choice }
+        : { outcome: "empty" };
     } catch (error) {
       console.error(
         `[expense-approver-resolution] ${role} lookup failed`,
         error
       );
-      return null;
+      return { outcome: signal.aborted ? "timeout" : "failed" };
     }
   };
 
   /**
-   * Asks the AI for one role, unless it found nobody for this key in the last
-   * hour. Nobody found is remembered; a find clears it.
+   * Asks the AI for one role, unless the key is deactivated or it found
+   * nobody for it in the last hour. Only an empty result or a timeout is
+   * remembered (a low-confidence answer counts as empty); an error is not,
+   * and a find clears it.
    */
   const fromAi = async (
     key: string,
     role: LookupRole,
     scope: "department" | "campus"
   ): Promise<Lookup | null> => {
+    if (await hasInactiveDirectoryRow(await getDb(), key)) {
+      deactivatedKeys.add(key);
+      return null;
+    }
     if (missedRecently(key, now())) {
       return null;
     }
     const answer = await askAi(role);
-    const choice = answer?.choice;
-    if (!(answer && choice) || choice.confidence < MIN_CONFIDENCE) {
+    if (answer.outcome === "failed") {
+      return null;
+    }
+    if (
+      answer.outcome !== "found" ||
+      answer.choice.confidence < MIN_CONFIDENCE
+    ) {
       lookupMisses.set(key, now());
       return null;
     }
     lookupMisses.delete(key);
-    const { candidates } = answer;
+    const { candidates, choice } = answer;
     const { confidence, email } = choice;
     const match = candidates.find(
       (c) => c.email.toLowerCase() === email.toLowerCase()
@@ -352,9 +383,16 @@ export async function resolveExpenseApprovers(
       await picked.commit();
       return { found: picked.found, issues: [] };
     }
-    const why = input.departmentName
-      ? `No ${role} approver in the directory or found by the lookup for department "${input.departmentName}".`
-      : `No ${role} approver in the directory, and the expense has no department name to search by.`;
+    const sought = role === "manager" ? ["manager", "deputy"] : [role];
+    const deactivated = sought.some((r) =>
+      deactivatedKeys.has(departmentKey(r as ApproverRole))
+    );
+    let why = DEACTIVATED_REASON;
+    if (!deactivated) {
+      why = input.departmentName
+        ? `No ${role} approver in the directory or found by the lookup for department "${input.departmentName}".`
+        : `No ${role} approver in the directory, and the expense has no department name to search by.`;
+    }
     return {
       found: null,
       issues: [
@@ -403,6 +441,14 @@ export async function resolveExpenseApprovers(
       return { found: lookup.found, issues: [] };
     }
     const national = await seedDefault("national", NATIONAL_CAMPUS_ID);
+    const presidentReason = (nationalEmail: string | null): string => {
+      if (deactivatedKeys.has(key)) {
+        return DEACTIVATED_REASON;
+      }
+      return nationalEmail
+        ? `No president approver found for campus ${input.campusId}; sent to the national approver (${nationalEmail}).`
+        : `No president approver found for campus ${input.campusId}, and no national approver is configured.`;
+    };
     return {
       // Shown as a fallback, wherever the national mailbox came from.
       found: national
@@ -413,9 +459,7 @@ export async function resolveExpenseApprovers(
           campusId: input.campusId,
           department,
           roleSought: "president",
-          reason: national
-            ? `No president approver found for campus ${input.campusId}; sent to the national approver (${national.email}).`
-            : `No president approver found for campus ${input.campusId}, and no national approver is configured.`,
+          reason: presidentReason(national?.email ?? null),
         },
       ],
     };

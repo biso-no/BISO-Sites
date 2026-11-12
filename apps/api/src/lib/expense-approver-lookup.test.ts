@@ -258,15 +258,15 @@ describe("findApproverCandidates", () => {
     ).toBe(500);
   });
 
-  it("returns no candidates when Graph fails", async () => {
+  it("rejects when every Graph call fails, so it is not an empty result", async () => {
     const graph = {
       findUsersByDepartment: vi.fn().mockRejectedValue(new Error("x")),
       searchUsers: vi.fn().mockRejectedValue(new Error("x")),
     } as never;
     vi.spyOn(console, "error").mockImplementation(() => undefined);
-    expect(
-      await findApproverCandidates(graph, { role: "president", campusId: "1" })
-    ).toEqual([]);
+    await expect(
+      findApproverCandidates(graph, { role: "president", campusId: "1" })
+    ).rejects.toThrow("Graph");
   });
 });
 
@@ -321,8 +321,8 @@ describe("chooseApprover", () => {
     expect(generateObject).not.toHaveBeenCalled();
   });
 
-  it("returns null when the model fails", async () => {
+  it("rejects when the model fails, so a failure is not an empty result", async () => {
     generateObject.mockRejectedValue(new Error("down"));
-    expect(await chooseApprover(input)).toBeNull();
+    await expect(chooseApprover(input)).rejects.toThrow("down");
   });
 });

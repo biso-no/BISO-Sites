@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   confirmDirectoryApprover,
   findDirectoryApprover,
+  hasInactiveDirectoryRow,
   saveDirectoryApprover,
   touchDirectoryApprover,
 } from "./expense-approver-directory";
@@ -104,10 +105,49 @@ describe("saveDirectoryApprover", () => {
   });
 });
 
+describe("a deactivated row", () => {
+  it("is never reactivated", async () => {
+    createRow.mockRejectedValue({ code: 409 });
+    listRows.mockResolvedValue({
+      rows: [{ $id: "r1", source: "ai", active: false }],
+    });
+    await saveDirectoryApprover(db, row);
+    expect(updateRow).not.toHaveBeenCalled();
+  });
+
+  it("is reported by hasInactiveDirectoryRow", async () => {
+    listRows.mockResolvedValue({ rows: [{ $id: "r1", active: false }] });
+    expect(await hasInactiveDirectoryRow(db, row.key)).toBe(true);
+    listRows.mockResolvedValue({ rows: [] });
+    expect(await hasInactiveDirectoryRow(db, row.key)).toBe(false);
+  });
+});
+
 describe("confirmDirectoryApprover", () => {
+  it("keeps an admin row's source and sets confirmed_at", async () => {
+    listRows.mockResolvedValue({
+      rows: [{ $id: "r1", email: row.email, source: "admin" }],
+    });
+    await confirmDirectoryApprover(db, row.key, row.email);
+    const patch = updateRow.mock.calls[0]?.[3];
+    expect(patch).toHaveProperty("confirmed_at");
+    expect(patch).not.toHaveProperty("source");
+  });
+
+  it.each(["ai", "seed"])("turns a %s row into confirmed", async (source) => {
+    listRows.mockResolvedValue({
+      rows: [{ $id: "r1", email: row.email, source }],
+    });
+    await confirmDirectoryApprover(db, row.key, row.email);
+    expect(updateRow.mock.calls[0]?.[3]).toMatchObject({
+      source: "confirmed",
+    });
+    expect(updateRow.mock.calls[0]?.[3]).toHaveProperty("confirmed_at");
+  });
+
   it("confirms only when the email matches", async () => {
     listRows.mockResolvedValue({
-      rows: [{ $id: "r1", email: "Controller.Oslo@biso.no" }],
+      rows: [{ $id: "r1", email: "Controller.Oslo@biso.no", source: "ai" }],
     });
     await confirmDirectoryApprover(db, row.key, "controller.oslo@biso.no");
     expect(updateRow).toHaveBeenCalledTimes(1);
