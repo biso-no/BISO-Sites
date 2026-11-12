@@ -48,7 +48,11 @@ const MIN_CONFIDENCE = 0.8;
  * runs inside submit, and the old app gives up after 20 s.
  */
 const LOOKUP_TIMEOUT_MS = 8000;
-const DEACTIVATED_REASON = "Approver is deactivated in the directory";
+/** Reads "The deputy entry is deactivated in the directory". */
+const deactivatedReason = (...names: string[]): string =>
+  names.length === 1
+    ? `The ${names[0]} entry is deactivated in the directory`
+    : `The ${names.join(" and ")} entries are deactivated in the directory`;
 /** How long a key the lookup found nobody for is left alone. */
 const MISS_TTL_MS = 60 * 60 * 1000;
 const NATIONAL_CAMPUS_ID = "5";
@@ -383,12 +387,13 @@ export async function resolveExpenseApprovers(
       await picked.commit();
       return { found: picked.found, issues: [] };
     }
-    const sought = role === "manager" ? ["manager", "deputy"] : [role];
-    const deactivated = sought.some((r) =>
-      deactivatedKeys.has(departmentKey(r as ApproverRole))
+    const sought: ApproverRole[] =
+      role === "manager" ? ["manager", "deputy"] : [role];
+    const deactivated = sought.filter((r) =>
+      deactivatedKeys.has(departmentKey(r))
     );
-    let why = DEACTIVATED_REASON;
-    if (!deactivated) {
+    let why = deactivatedReason(...deactivated);
+    if (deactivated.length === 0) {
       why = input.departmentName
         ? `No ${role} approver in the directory or found by the lookup for department "${input.departmentName}".`
         : `No ${role} approver in the directory, and the expense has no department name to search by.`;
@@ -415,6 +420,10 @@ export async function resolveExpenseApprovers(
     if (!email) {
       return null;
     }
+    if (await hasInactiveDirectoryRow(await getDb(), key)) {
+      // A campus always needs one: the default stands in, and the issue says so.
+      deactivatedKeys.add(key);
+    }
     await saveDirectoryApprover(await getDb(), {
       key,
       scope: "campus",
@@ -430,7 +439,26 @@ export async function resolveExpenseApprovers(
     role: "controller" | "president" | "national"
   ): Promise<StepOutcome> => {
     if (role !== "president") {
-      return { found: await seedDefault(role, input.campusId), issues: [] };
+      const found = await seedDefault(role, input.campusId);
+      const deactivated = deactivatedKeys.has(campusKey(input.campusId, role));
+      return {
+        found,
+        issues:
+          found && deactivated
+            ? [
+                {
+                  campusId: input.campusId,
+                  department,
+                  roleSought: role,
+                  reason: `${deactivatedReason(
+                    role === "controller"
+                      ? "campus controller"
+                      : "national approver"
+                  )}; sent to the default ${found.email}`,
+                },
+              ]
+            : [],
+      };
     }
     const key = campusKey(input.campusId, "president");
     const lookup =
@@ -443,7 +471,9 @@ export async function resolveExpenseApprovers(
     const national = await seedDefault("national", NATIONAL_CAMPUS_ID);
     const presidentReason = (nationalEmail: string | null): string => {
       if (deactivatedKeys.has(key)) {
-        return DEACTIVATED_REASON;
+        return `${deactivatedReason("president")}; sent to the national approver${
+          nationalEmail ? ` (${nationalEmail})` : ""
+        }`;
       }
       return nationalEmail
         ? `No president approver found for campus ${input.campusId}; sent to the national approver (${nationalEmail}).`

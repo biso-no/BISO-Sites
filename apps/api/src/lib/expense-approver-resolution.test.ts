@@ -528,17 +528,71 @@ describe("resolveExpenseApprovers", () => {
 });
 
 describe("a deactivated directory key", () => {
-  it("skips the lookup for a deactivated key and records an issue", async () => {
+  const deactivate = (...suffixes: string[]) =>
     directory.inactive.mockImplementation((_db: unknown, key: string) =>
-      Promise.resolve(key.endsWith(":finance"))
+      Promise.resolve(suffixes.some((suffix) => key.endsWith(suffix)))
     );
+
+  it("skips the lookup for a deactivated key and records an issue", async () => {
+    deactivate(":finance");
     const { deps, candidates } = setup({ finance: "finance@biso.no" });
     const result = await resolveExpenseApprovers(base, deps);
     expect(candidates).not.toHaveBeenCalled();
     expect(result.steps.map((s) => s.role)).toEqual(["controller"]);
     expect(result.issues[0]).toMatchObject({
       roleSought: "finance",
-      reason: "Approver is deactivated in the directory",
+      reason: "The finance entry is deactivated in the directory",
     });
+  });
+
+  it("names a deactivated manager", async () => {
+    deactivate(":manager");
+    const { deps } = setup();
+    const result = await resolveExpenseApprovers(asManager, deps);
+    expect(result.issues[0]).toMatchObject({
+      roleSought: "manager",
+      reason: "The manager entry is deactivated in the directory",
+    });
+  });
+
+  it("names only the deputy when only the deputy is deactivated", async () => {
+    deactivate(":deputy");
+    const { deps } = setup();
+    const result = await resolveExpenseApprovers(asManager, deps);
+    expect(result.issues[0]?.reason).toBe(
+      "The deputy entry is deactivated in the directory"
+    );
+  });
+
+  it("falls back to the national approver for a deactivated president", async () => {
+    deactivate(":president");
+    const { deps } = setup();
+    const result = await resolveExpenseApprovers(asController, deps);
+    expect(result.steps.at(-1)).toMatchObject({
+      role: "national",
+      fallbackFor: "president",
+    });
+    expect(result.issues[0]).toMatchObject({ roleSought: "president" });
+    expect(result.issues[0]?.reason).toContain(
+      "The president entry is deactivated in the directory; sent to the national approver"
+    );
+  });
+
+  it("sends a deactivated controller to the default mailbox with an issue", async () => {
+    deactivate(":controller");
+    const { deps } = setup();
+    const result = await resolveExpenseApprovers(base, deps);
+    expect(result.steps.at(-1)).toMatchObject({
+      role: "controller",
+      email: "controller.oslo@biso.no",
+      source: "default",
+    });
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({
+        roleSought: "controller",
+        reason:
+          "The campus controller entry is deactivated in the directory; sent to the default controller.oslo@biso.no",
+      })
+    );
   });
 });
