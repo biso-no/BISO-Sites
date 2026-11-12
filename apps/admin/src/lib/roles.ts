@@ -80,7 +80,7 @@ export const NAV_ACCESS = {
   // organisation-wide finance surface: global and campus admins only.
   "portal.shopAccounting": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   // Expense types and their ledger accounts: global admins (finance) only.
-  "portal.expensesSettings": [ROLES.GLOBAL_ADMIN],
+  "portal.expensesSettings": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   // The expense list: admins plus anyone named as an approver.
   "portal.expenses": [
     ROLES.GLOBAL_ADMIN,

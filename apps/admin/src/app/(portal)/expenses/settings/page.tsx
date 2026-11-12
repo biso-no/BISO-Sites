@@ -1,34 +1,32 @@
+import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
+import { ROLES } from "@/lib/roles";
 import { PageHeader } from "../../_components/page-header";
-import { STUDIO } from "../../_components/studio";
 import { ExpenseTypesClient } from "./_components/expense-types-client";
+import { ExpensesSettingsTabs } from "./_components/expenses-settings-tabs";
 import { getExpenseTypesView } from "./actions";
 
 export default async function ExpenseSettingsPage() {
-  // Global admins only; the helper 404s for everyone else.
-  await requireNavAccess("portal.expensesSettings");
+  const ctx = await requireNavAccess("portal.expensesSettings");
+  // Types is global-admin only; campus admins manage approvers.
+  if (!ctx.roles.includes(ROLES.GLOBAL_ADMIN)) {
+    redirect("/expenses/settings/approvers");
+  }
   const t = await getTranslations("adminPortal.expensesSettings");
   const view = await getExpenseTypesView();
 
   return (
     <div className="pb-12">
       <PageHeader description={t("description")} title={t("title")} />
-      <div
-        className="mt-6 flex gap-4"
-        style={{ borderBottom: `0.5px solid ${STUDIO.rule}` }}
-      >
-        <span
-          aria-current="page"
-          className="pb-2 font-medium text-[14px]"
-          style={{
-            borderBottom: `2px solid ${STUDIO.ink}`,
-            color: STUDIO.ink,
-          }}
-        >
-          {t("tabTypes")}
-        </span>
-      </div>
+      <ExpensesSettingsTabs
+        labels={{
+          ai: t("tabAi"),
+          approvers: t("tabApprovers"),
+          types: t("tabTypes"),
+        }}
+        showGlobalTabs
+      />
       <ExpenseTypesClient
         initialView={view}
         labels={{

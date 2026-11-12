@@ -56,6 +56,18 @@ describe("filterNavTree", () => {
     expect(labels(nodes)).not.toContain("analytics");
   });
 
+  test("campus admin sees the Expenses settings leaf", () => {
+    const expenses = filterNavTree(campusAdmin).find(
+      (n) => n.labelKey === "expenses"
+    );
+    if (expenses?.kind !== "group") {
+      throw new Error("expected expenses group");
+    }
+    expect(expenses.children.map((c) => c.labelKey)).toContain(
+      "expensesSettings"
+    );
+  });
+
   test("department user sees general publishing surfaces but never jobs", () => {
     const nodes = filterNavTree(departmentUser);
     // "organization" now carries two visible children (departments +
@@ -178,9 +190,9 @@ describe("expenses navigation", () => {
   const paths = (input: typeof globalAdmin) =>
     flattenNavTree(filterNavTree(input)).map((n) => n.path);
 
-  test("the expenses settings page shows for a global admin only", () => {
+  test("the expenses settings page shows for global and campus admins only", () => {
     expect(paths(globalAdmin)).toContain("/expenses/settings");
-    expect(paths(campusAdmin)).not.toContain("/expenses/settings");
+    expect(paths(campusAdmin)).toContain("/expenses/settings");
     expect(paths(departmentUser)).not.toContain("/expenses/settings");
   });
 
