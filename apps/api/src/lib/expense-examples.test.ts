@@ -72,6 +72,21 @@ describe("selectExamples", () => {
     expect(result.map((r) => r.description)).toEqual(["a1", "s1"]);
   });
 
+  it("leaves out the example named by excludeId", async () => {
+    listRows.mockResolvedValue({
+      rows: [
+        row({ $id: "self", description: "self" }),
+        row({ $id: "other", description: "other" }),
+      ],
+    });
+    const result = await selectExamples(db, {
+      excludeId: "self",
+      types,
+      vendor: "Rema",
+    });
+    expect(result.map((r) => r.description)).toEqual(["other"]);
+  });
+
   it("caps vendor matches at 6 and the total at 10", async () => {
     const many = Array.from({ length: 8 }, (_, i) =>
       row({ description: `v${i}` })

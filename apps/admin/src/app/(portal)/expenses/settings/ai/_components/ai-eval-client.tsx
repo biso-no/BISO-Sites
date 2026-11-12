@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { STUDIO, studioSurface } from "../../../../_components/studio";
+import { type RerunCheckResult, runRerunCheck } from "../actions";
 
 export interface AiEvalWindow {
   kept: number;
@@ -16,6 +17,27 @@ export interface AiEvalWindow {
     total: number;
   }[];
   total: number;
+}
+
+export interface RerunLabels {
+  /** Contains `{checked}` and `{considered}`. */
+  checked: string;
+  confidence: string;
+  description: string;
+  /** The message for each action error code; `failed` is the fallback. */
+  errors: Record<string, string>;
+  expected: string;
+  hint: string;
+  hitRate: string;
+  missesTitle: string;
+  noMisses: string;
+  noPick: string;
+  pending: string;
+  predicted: string;
+  run: string;
+  stoppedEarly: string;
+  title: string;
+  vendor: string;
 }
 
 export interface AiEvalLabels {
@@ -35,6 +57,7 @@ export interface AiEvalLabels {
   recurringEmpty: string;
   recurringHint: string;
   recurringTitle: string;
+  rerun: RerunLabels;
   /** Contains `{count}`. */
   times: string;
   type: string;
@@ -47,15 +70,148 @@ type Days = 30 | 90;
 const percent = (rate: number | null): string =>
   rate === null ? "–" : `${Math.round(rate * 100)} %`;
 
+function RerunSection({
+  labels,
+  typeNames,
+}: {
+  labels: RerunLabels;
+  /** Display name per type slug. */
+  typeNames: Record<string, string>;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [result, setResult] = useState<RerunCheckResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const nameOf = (slug: string) => typeNames[slug] ?? slug;
+
+  const run = () => {
+    setError(null);
+    startTransition(async () => {
+      try {
+        const outcome = await runRerunCheck();
+        if ("error" in outcome) {
+          setResult(null);
+          setError(labels.errors[outcome.error] ?? labels.errors.failed);
+          return;
+        }
+        setResult(outcome.data);
+      } catch {
+        setResult(null);
+        setError(labels.errors.failed);
+      }
+    });
+  };
+
+  return (
+    <section className="rounded-2xl p-5" style={studioSurface}>
+      <h2 className="font-medium text-[15px]">{labels.title}</h2>
+      <p className="mt-1 text-[13px]" style={{ color: STUDIO.ink4 }}>
+        {labels.hint}
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <button
+          disabled={pending}
+          onClick={run}
+          style={{
+            background: STUDIO.ink,
+            borderRadius: 8,
+            color: STUDIO.white,
+            fontSize: 13,
+            fontWeight: 500,
+            opacity: pending ? 0.6 : 1,
+            padding: "6px 14px",
+          }}
+          type="button"
+        >
+          {labels.run}
+        </button>
+        {pending && (
+          <p
+            aria-live="polite"
+            className="text-[13px]"
+            style={{ color: STUDIO.ink4 }}
+          >
+            {labels.pending}
+          </p>
+        )}
+      </div>
+      {error && (
+        <p className="mt-3 text-[13px]" role="alert">
+          {error}
+        </p>
+      )}
+      {result && (
+        <div className="mt-4">
+          <p className="text-[12px]" style={{ color: STUDIO.ink4 }}>
+            {labels.hitRate}
+          </p>
+          <p className="font-medium text-2xl" style={{ color: STUDIO.ink }}>
+            {percent(result.hitRate)}
+          </p>
+          <p className="text-[12px]" style={{ color: STUDIO.ink4 }}>
+            {labels.checked
+              .replace("{checked}", String(result.checked))
+              .replace("{considered}", String(result.considered))}
+          </p>
+          {result.stoppedEarly && (
+            <p className="mt-2 text-[12px]" style={{ color: STUDIO.ink4 }}>
+              {labels.stoppedEarly}
+            </p>
+          )}
+          <h3 className="mt-4 font-medium text-[13px]">{labels.missesTitle}</h3>
+          {result.misses.length === 0 ? (
+            <p className="mt-2 text-[13px]" style={{ color: STUDIO.ink4 }}>
+              {labels.noMisses}
+            </p>
+          ) : (
+            <div className="mt-2 overflow-x-auto">
+              <table className="w-full text-left text-[13px]">
+                <thead>
+                  <tr className="text-[12px]" style={{ color: STUDIO.ink4 }}>
+                    <th className="pb-2 font-normal">{labels.vendor}</th>
+                    <th className="pb-2 font-normal">{labels.description}</th>
+                    <th className="pb-2 font-normal">{labels.expected}</th>
+                    <th className="pb-2 font-normal">{labels.predicted}</th>
+                    <th className="pb-2 font-normal">{labels.confidence}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.misses.map((miss) => (
+                    <tr
+                      key={miss.exampleId}
+                      style={{ borderTop: `0.5px solid ${STUDIO.rule}` }}
+                    >
+                      <td className="py-2 pr-3">{miss.vendor ?? "–"}</td>
+                      <td className="py-2 pr-3">{miss.description ?? "–"}</td>
+                      <td className="py-2 pr-3">{nameOf(miss.expected)}</td>
+                      <td className="py-2 pr-3">
+                        {miss.predicted
+                          ? nameOf(miss.predicted)
+                          : labels.noPick}
+                      </td>
+                      <td className="py-2">{percent(miss.confidence)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function AiEvalClient({
   capped,
   labels,
   recurring,
+  typeNames,
   windows,
 }: {
   capped: boolean;
   labels: AiEvalLabels;
   recurring: { count: number; example: string; text: string }[];
+  typeNames: Record<string, string>;
   windows: Record<Days, AiEvalWindow>;
 }) {
   const [days, setDays] = useState<Days>(30);
@@ -193,6 +349,8 @@ export function AiEvalClient({
           </ul>
         )}
       </section>
+
+      <RerunSection labels={labels.rerun} typeNames={typeNames} />
     </div>
   );
 }

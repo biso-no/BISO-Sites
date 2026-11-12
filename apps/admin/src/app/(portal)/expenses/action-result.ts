@@ -2,6 +2,7 @@ export type ActionResult<T> = { data: T } | { error: string };
 
 /** Why an expense edit was refused. Each code has a message under `adminPortal.expenses.errors`. */
 export type ExpenseActionError =
+  | "ai_disabled"
   | "forbidden"
   | "not_found"
   | "invalid_amount"
@@ -33,6 +34,7 @@ export type ExpenseActionResult<T> =
   | { error: ExpenseActionError; message?: string };
 
 const API_CODES: Record<string, ExpenseActionError> = {
+  ai_disabled: "ai_disabled",
   already_booked: "already_booked",
   booking_failed: "booking_failed",
   in_progress: "in_progress",

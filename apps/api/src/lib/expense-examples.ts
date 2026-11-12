@@ -57,7 +57,8 @@ function toExample(row: ExpenseTypeExamples): TypeExample | null {
 async function vendorExamples(
   db: Db,
   vendorKey: string,
-  activeSlugs: Set<string>
+  activeSlugs: Set<string>,
+  excludeId?: string
 ): Promise<TypeExample[]> {
   const { rows } = await db.listRows<ExpenseTypeExamples>(
     "app",
@@ -69,6 +70,7 @@ async function vendorExamples(
     ]
   );
   const examples = rows
+    .filter((row) => !excludeId || row.$id !== excludeId)
     .map(toExample)
     .filter(
       (e): e is TypeExample => e !== null && activeSlugs.has(e.finalType)
@@ -84,7 +86,8 @@ async function recentPerType(
   db: Db,
   activeSlugs: Set<string>,
   seen: Set<string>,
-  room: number
+  room: number,
+  excludeId?: string
 ): Promise<TypeExample[]> {
   const { rows } = await db.listRows<ExpenseTypeExamples>(
     "app",
@@ -95,6 +98,9 @@ async function recentPerType(
   for (const row of rows) {
     if (out.length >= room) {
       break;
+    }
+    if (excludeId && row.$id === excludeId) {
+      continue;
     }
     const example = toExample(row);
     if (
@@ -111,20 +117,26 @@ async function recentPerType(
 
 export async function selectExamples(
   db: Db,
-  input: { vendor: string | null; types: CostTypeOption[] }
+  input: {
+    /** An example to leave out, so a re-run never sees the row it scores. */
+    excludeId?: string;
+    vendor: string | null;
+    types: CostTypeOption[];
+  }
 ): Promise<TypeExample[]> {
   try {
     const activeSlugs = new Set(input.types.map((t) => t.slug));
     const vendorKey = normalizeVendor(input.vendor);
     const matched = vendorKey
-      ? await vendorExamples(db, vendorKey, activeSlugs)
+      ? await vendorExamples(db, vendorKey, activeSlugs, input.excludeId)
       : [];
     const seen = new Set(matched.map((e) => e.finalType));
     const filler = await recentPerType(
       db,
       activeSlugs,
       seen,
-      MAX_EXAMPLES - matched.length
+      MAX_EXAMPLES - matched.length,
+      input.excludeId
     );
     return [...matched, ...filler];
   } catch {

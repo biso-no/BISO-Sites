@@ -15,9 +15,10 @@ export default async function ExpenseAiSettingsPage() {
   if (!ctx.roles.includes(ROLES.GLOBAL_ADMIN)) {
     redirect("/expenses/settings/approvers");
   }
-  const [t, ta, locale] = await Promise.all([
+  const [t, ta, te, locale] = await Promise.all([
     getTranslations("adminPortal.expensesSettings"),
     getTranslations("adminPortal.expensesSettings.ai"),
+    getTranslations("adminPortal.expenses.errors"),
     getLocale(),
   ]);
 
@@ -94,12 +95,36 @@ export default async function ExpenseAiSettingsPage() {
           recurringEmpty: ta("recurringEmpty"),
           recurringHint: ta("recurringHint"),
           recurringTitle: ta("recurringTitle"),
+          rerun: {
+            checked: ta("rerunChecked"),
+            confidence: ta("rerunConfidence"),
+            description: ta("rerunDescription"),
+            errors: {
+              ai_disabled: te("ai_disabled"),
+              api_failed: te("api_failed"),
+              failed: te("failed"),
+              forbidden: te("forbidden"),
+            },
+            expected: ta("rerunExpected"),
+            hint: ta("rerunHint"),
+            hitRate: ta("rerunHitRate"),
+            missesTitle: ta("rerunMissesTitle"),
+            noMisses: ta("rerunNoMisses"),
+            noPick: ta("rerunNoPick"),
+            pending: ta("rerunPending"),
+            predicted: ta("rerunPredicted"),
+            run: ta("rerunRun"),
+            stoppedEarly: ta("rerunStoppedEarly"),
+            title: ta("rerunTitle"),
+            vendor: ta("rerunVendor"),
+          },
           times: ta.raw("times") as string,
           type: ta("type"),
           window30: ta("window30"),
           window90: ta("window90"),
         }}
         recurring={recurringOwnTexts(data.rows)}
+        typeNames={Object.fromEntries(labelBySlug)}
         windows={{ 30: windowFor(30), 90: windowFor(90) }}
       />
     </div>
