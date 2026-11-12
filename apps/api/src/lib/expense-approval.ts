@@ -98,6 +98,8 @@ export function stepLabel(role: string, index: number, count: number): string {
   return count > 1 ? `Step ${index} of ${count} — ${base}` : base;
 }
 
+const TRAILING_SLASHES = /\/+$/;
+
 function cardDataFor(
   context: ApprovalChainContext,
   row: ExpenseApprovals,
@@ -118,7 +120,7 @@ function cardDataFor(
     stepLabel: stepLabel(row.approver_role, row.step, totalSteps),
     viewUrl,
     // Placeholders until Stage 4b Task 4 supplies the real data.
-    adminUrl: `${process.env.EXPENSE_ADMIN_URL || "https://admin.biso.no"}/expenses/${row.expense_id}`,
+    adminUrl: `${(process.env.EXPENSE_ADMIN_URL || "https://admin.biso.no").replace(TRAILING_SLASHES, "")}/expenses/${row.expense_id}`,
     receipts: [],
     hints: [],
     history: [],

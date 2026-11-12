@@ -41,6 +41,8 @@ function baseData(overrides: Partial<ApprovalCardData> = {}): ApprovalCardData {
   };
 }
 
+const VENDOR_TEXT = /^Vendor \d+$/;
+
 type Item = Record<string, unknown>;
 
 function texts(card: Record<string, unknown>): string[] {
@@ -63,6 +65,12 @@ function texts(card: Record<string, unknown>): string[] {
   walk(card.body);
   return out;
 }
+
+function bytes(card: unknown): number {
+  return new TextEncoder().encode(JSON.stringify(card)).length;
+}
+
+const ACTION_TITLES = ["Approve", "Reject", "Open in admin", "View receipts"];
 
 function actions(card: Record<string, unknown>): Item[] {
   return card.actions as Item[];
@@ -133,32 +141,100 @@ describe("buildApprovalCard", () => {
     expect(all.some((t) => t.includes("event 6"))).toBe(false);
   });
 
+  const hugeCardData = () =>
+    baseData({
+      receipts: Array.from({ length: 40 }, (_, i) =>
+        receipt(i, "x".repeat(300))
+      ),
+      history: Array.from({ length: 30 }, (_, i) => ({
+        at: "2026-11-01",
+        text: `history ${i} ${"h".repeat(200)}`,
+      })),
+      description: "d".repeat(3000),
+      hints: Array.from(
+        { length: 12 },
+        (_, i) => `hint ${i} ${"y".repeat(400)}`
+      ),
+    });
+
   test("keeps a 40-receipt card under the size limit with its actions", () => {
-    const long = "x".repeat(300);
-    const receipts = Array.from({ length: 40 }, (_, i) => receipt(i, long));
-    const history = Array.from({ length: 30 }, (_, i) => ({
+    const card = buildApprovalCard(hugeCardData());
+    expect(bytes(card)).toBeLessThanOrEqual(CARD_MAX_BYTES);
+    const all = texts(card);
+    expect(all).toContain("and 25 more");
+    expect(
+      all.filter((t) => t.includes("history ")).length
+    ).toBeLessThanOrEqual(6);
+    expect(actions(card).map((a) => a.title)).toEqual(ACTION_TITLES);
+  });
+
+  test("shrinks history, then receipt rows, when the limit is tight", () => {
+    const card = buildApprovalCard(hugeCardData(), 9000);
+    expect(bytes(card)).toBeLessThanOrEqual(9000);
+    const all = texts(card);
+    expect(all.some((t) => t.includes("history "))).toBe(false);
+    expect(all).toContain("and 35 more");
+    expect(all.filter((t) => t.startsWith("x")).length).toBeLessThanOrEqual(5);
+    expect(actions(card).map((a) => a.title)).toEqual(ACTION_TITLES);
+  });
+
+  test("keeps a large card that fits whole, with 6 history lines and 15 rows", () => {
+    const receipts = Array.from({ length: 15 }, (_, i) => receipt(i));
+    const history = Array.from({ length: 6 }, (_, i) => ({
       at: "2026-11-01",
-      text: `history ${i} ${"h".repeat(200)}`,
+      text: `history ${i}`,
+    }));
+    const card = buildApprovalCard(baseData({ receipts, history }));
+    const all = texts(card);
+    expect(all.filter((t) => t.startsWith("history ")).length).toBe(0);
+    expect(all.filter((t) => t.includes("history ")).length).toBe(6);
+    expect(all.filter((t) => VENDOR_TEXT.test(t)).length).toBe(15);
+  });
+
+  test("caps one huge receipt, hint and declaration", () => {
+    const huge = "z".repeat(30_000);
+    const card = buildApprovalCard(
+      baseData({
+        receipts: [receipt(1, huge)],
+        hints: [huge],
+        declaration: huge,
+      })
+    );
+    expect(bytes(card)).toBeLessThanOrEqual(CARD_MAX_BYTES);
+    expect(texts(card).every((t) => t.length <= 300)).toBe(true);
+    expect(texts(card).some((t) => t.endsWith("…"))).toBe(true);
+    expect(actions(card).map((a) => a.title)).toEqual(ACTION_TITLES);
+  });
+
+  test("measures bytes, not characters, for æøå text", () => {
+    const receipts = Array.from({ length: 15 }, (_, i) =>
+      receipt(i, "æøåÆØÅ".repeat(20))
+    );
+    const history = Array.from({ length: 6 }, () => ({
+      at: "i dag",
+      text: "æøå".repeat(100),
     }));
     const card = buildApprovalCard(
       baseData({
         receipts,
         history,
-        description: "d".repeat(3000),
-        hints: Array.from(
-          { length: 12 },
-          (_, i) => `hint ${i} ${"y".repeat(400)}`
-        ),
-      })
+        description: "æøå".repeat(1000),
+        hints: Array.from({ length: 5 }, () => "æøå".repeat(100)),
+      }),
+      9000
     );
-    expect(JSON.stringify(card).length).toBeLessThanOrEqual(CARD_MAX_BYTES);
-    const list = actions(card);
-    expect(list.map((a) => a.title)).toEqual([
-      "Approve",
-      "Reject",
-      "Open in admin",
-      "View receipts",
-    ]);
+    expect(bytes(card)).toBeLessThanOrEqual(9000);
+    expect(actions(card).map((a) => a.title)).toEqual(ACTION_TITLES);
+  });
+
+  test("returns the minimal card with all actions when nothing else fits", () => {
+    const receipts = Array.from({ length: 40 }, (_, i) => receipt(i));
+    const card = buildApprovalCard(baseData({ receipts }), 500);
+    const all = texts(card);
+    expect(all).toContain("40 receipts — open in admin for details");
+    expect(all).not.toContain("Vendor 0");
+    expect(actions(card).map((a) => a.title)).toEqual(ACTION_TITLES);
+    expect(JSON.stringify(card)).toContain("FactSet");
   });
 });
 
@@ -183,6 +259,20 @@ describe("buildApprovalEmailHtml", () => {
     const html = buildApprovalEmailHtml({ ...baseData(), ...links });
     expect(html).toContain(links.approveUrl);
     expect(html).toContain("Open in admin");
+  });
+
+  test("lists at most 30 receipts and links the rest to admin", () => {
+    const receipts = Array.from({ length: 35 }, (_, i) => receipt(i));
+    const html = buildApprovalEmailHtml({
+      ...baseData({ receipts }),
+      ...links,
+    });
+    expect(html).toContain("Vendor 29");
+    expect(html).not.toContain("Vendor 30<");
+    expect(html).toContain("and 5 more");
+    expect(html).toContain(
+      'href="https://admin.example/expenses/e1">see all in admin'
+    );
   });
 
   test("escapes every interpolated value in the email", () => {

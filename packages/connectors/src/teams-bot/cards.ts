@@ -76,15 +76,38 @@ function formatAmount(total: number, currency: string): string {
   })} ${currency}`;
 }
 
+const MAX_RECEIPT_TEXT = 120;
+const MAX_RECEIPT_LABEL = 60;
+const MAX_LINE = 300;
+const MAX_FACT_VALUE = 200;
+const MAX_STEP_LABEL = 120;
+const MAX_EMAIL_RECEIPTS = 30;
+
+const encoder = new TextEncoder();
+
+function byteLength(card: unknown): number {
+  return encoder.encode(JSON.stringify(card)).length;
+}
+
+function truncate(value: string, max: number): string {
+  return value.length > max ? `${value.slice(0, max - 1)}…` : value;
+}
+
 function factSet(data: ApprovalCardData) {
   return [
-    { title: "Submitter", value: data.submitterName },
+    { title: "Submitter", value: truncate(data.submitterName, MAX_FACT_VALUE) },
     {
       title: "Department",
-      value: `${data.departmentName} — ${data.campusName}`,
+      value: truncate(
+        `${data.departmentName} — ${data.campusName}`,
+        MAX_FACT_VALUE
+      ),
     },
     { title: "Amount", value: formatAmount(data.total, data.currency) },
-    { title: "Reference", value: data.reimbursementNumber },
+    {
+      title: "Reference",
+      value: truncate(data.reimbursementNumber, MAX_FACT_VALUE),
+    },
   ];
 }
 
@@ -142,10 +165,6 @@ function receiptRow(values: string[], header: boolean) {
   };
 }
 
-function truncate(value: string, max: number): string {
-  return value.length > max ? `${value.slice(0, max - 1)}…` : value;
-}
-
 function cardBody(data: ApprovalCardData, limits: CardLimits) {
   const body: Record<string, unknown>[] = [
     {
@@ -156,7 +175,7 @@ function cardBody(data: ApprovalCardData, limits: CardLimits) {
     },
     {
       type: "TextBlock",
-      text: data.stepLabel,
+      text: truncate(data.stepLabel, MAX_STEP_LABEL),
       isSubtle: true,
       spacing: "None",
       wrap: true,
@@ -168,7 +187,7 @@ function cardBody(data: ApprovalCardData, limits: CardLimits) {
     if (note) {
       body.push({
         type: "TextBlock",
-        text: note,
+        text: truncate(note, MAX_LINE),
         color: "attention",
         wrap: true,
         spacing: "Small",
@@ -179,7 +198,7 @@ function cardBody(data: ApprovalCardData, limits: CardLimits) {
   for (const hint of data.hints.slice(0, limits.hints)) {
     body.push({
       type: "TextBlock",
-      text: hint,
+      text: truncate(hint, MAX_LINE),
       color: "warning",
       wrap: true,
       spacing: "Small",
@@ -192,10 +211,10 @@ function cardBody(data: ApprovalCardData, limits: CardLimits) {
       body.push(
         receiptRow(
           [
-            receipt.date,
-            receipt.text,
-            receipt.type,
-            receipt.account ?? "—",
+            truncate(receipt.date, MAX_RECEIPT_LABEL),
+            truncate(receipt.text, MAX_RECEIPT_TEXT),
+            truncate(receipt.type, MAX_RECEIPT_LABEL),
+            truncate(receipt.account ?? "—", MAX_RECEIPT_LABEL),
             formatAmount(receipt.amount, data.currency),
           ],
           false
@@ -227,7 +246,10 @@ function cardBody(data: ApprovalCardData, limits: CardLimits) {
         spacing: "Medium",
       },
       ...history.map((line) =>
-        cell(`${line.at} — ${line.text}`, { isSubtle: true, spacing: "None" })
+        cell(truncate(`${line.at} — ${line.text}`, MAX_LINE), {
+          isSubtle: true,
+          spacing: "None",
+        })
       )
     );
   }
@@ -263,12 +285,40 @@ function cardActions(data: ApprovalCardData) {
   ];
 }
 
+/** Last resort when even the shrunk card is too large. */
+function minimalBody(data: ApprovalCardData) {
+  const count = data.receipts.length;
+  return [
+    {
+      type: "TextBlock",
+      text: "Reimbursement approval",
+      weight: "Bolder",
+      size: "Medium",
+    },
+    {
+      type: "TextBlock",
+      text: truncate(data.stepLabel, MAX_STEP_LABEL),
+      isSubtle: true,
+      spacing: "None",
+      wrap: true,
+    },
+    { type: "FactSet", facts: factSet(data) },
+    {
+      type: "TextBlock",
+      text: `${count} receipts — open in admin for details`,
+      wrap: true,
+      spacing: "Medium",
+    },
+  ];
+}
+
 /**
  * Universal-Action Adaptive Card with Approve / Reject (Action.Execute).
  * Shrinks its body (never its actions) to stay under `CARD_MAX_BYTES`.
  */
 export function buildApprovalCard(
-  data: ApprovalCardData
+  data: ApprovalCardData,
+  maxBytes: number = CARD_MAX_BYTES
 ): Record<string, unknown> {
   const actions = cardActions(data);
   const make = (limits: CardLimits) => ({
@@ -282,13 +332,19 @@ export function buildApprovalCard(
   let limits = FULL_LIMITS;
   let card = make(limits);
   for (const step of SHRINK_STEPS) {
-    if (JSON.stringify(card).length <= CARD_MAX_BYTES) {
+    if (byteLength(card) <= maxBytes) {
       break;
     }
     limits = { ...limits, ...step };
     card = make(limits);
   }
-  return card;
+  if (byteLength(card) <= maxBytes) {
+    return card;
+  }
+  return {
+    ...card,
+    body: minimalBody(data),
+  };
 }
 
 /** Card shown after a decision (replaces the actionable card). */
@@ -333,17 +389,23 @@ export function buildApprovalEmailHtml(
 
   const cellStyle = "padding:4px 8px;border-bottom:1px solid #eee";
   const receiptRows = data.receipts
+    .slice(0, MAX_EMAIL_RECEIPTS)
     .map(
       (r) =>
         `<tr><td style="${cellStyle}">${escapeHtml(r.date)}</td><td style="${cellStyle}">${escapeHtml(r.text)}</td><td style="${cellStyle}">${escapeHtml(r.type)}</td><td style="${cellStyle}">${escapeHtml(r.account ?? "—")}</td><td style="${cellStyle};text-align:right">${escapeHtml(formatAmount(r.amount, data.currency))}</td></tr>`
     )
     .join("");
+  const hiddenReceipts = data.receipts.length - MAX_EMAIL_RECEIPTS;
+  const moreReceipts =
+    hiddenReceipts > 0
+      ? `<p style="margin:0 0 16px;font-size:13px">and ${hiddenReceipts} more — <a href="${escapeHtml(data.adminUrl)}">see all in admin</a></p>`
+      : "";
   const receiptsTable =
     data.receipts.length > 0
       ? `<table style="border-collapse:collapse;margin-bottom:16px;width:100%;font-size:13px">
         <tr style="color:#555;text-align:left"><th style="${cellStyle}">Date</th><th style="${cellStyle}">Text</th><th style="${cellStyle}">Type</th><th style="${cellStyle}">Account</th><th style="${cellStyle};text-align:right">Amount</th></tr>
         ${receiptRows}
-      </table>`
+      </table>${moreReceipts}`
       : "";
 
   const history = data.history.slice(0, MAX_HISTORY_LINES);
