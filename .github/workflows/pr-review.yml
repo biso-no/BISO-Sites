@@ -6,6 +6,9 @@ on:
 
 jobs:
   claude-review:
+    # Dependabot's pull requests don't get the repository's secrets, so the
+    # review would fail on every one of them. Skip them instead.
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     permissions:
       contents: read

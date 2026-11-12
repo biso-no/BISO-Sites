@@ -39,7 +39,7 @@ export async function getAuthStatus(): Promise<{
   isAnonymous: boolean;
 }> {
   const availableCookies = await cookies();
-  const adminCookie = availableCookies.get("a_session_biso_admin");
+  const adminCookie = availableCookies.get("biso_admin_session");
   if (!adminCookie) {
     return { ...LOGGED_OUT };
   }

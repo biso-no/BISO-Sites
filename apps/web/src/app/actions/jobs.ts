@@ -46,7 +46,7 @@ export type JobSort = "deadline" | "newest";
 
 // Primitive arguments only: React cache() keys on argument identity
 // (Object.is), so an options object allocated fresh at each call site would
-// never hit the memo. See WEB_APP_APPWRITE_INCIDENT_AUDIT.md (F-6b).
+// never hit the memo.
 // `pageSize` is threaded as its own primitive argument for the same reason —
 // bundling it into an options object would silently kill the memo.
 const _listJobs = cache(

@@ -21,7 +21,7 @@ Read this before you ship a change to production, and again when a deploy goes w
 
 - The four web apps (web, admin, api and docs) run as Sites in Appwrite. The owner deploys each one by hand in the Appwrite console.
 - Pushing to `main` doesn't deploy them. Nobody knows why yet. A GitHub deploy workflow is planned.
-- Nothing in GitHub builds, tests, lints or type-checks the apps. The two workflows in `.github/workflows/` are a Claude PR review and a docs coverage check that only warns.
+- Nothing in GitHub builds, tests, lints or type-checks the apps. The two workflows in `.github/workflows/` are a Claude PR review and a docs coverage check that only warns. Dependabot (`.github/dependabot.yml`) opens pull requests that update dependencies each week, and the Claude review skips those.
 - There is no staging environment. A deploy goes straight to `biso.no`, `admin.biso.no` or `api.biso.no`.
 - The three functions are deployed from the console too, each with its own settings.
 - The BISO app ships differently: Android from CI, iOS by hand.
@@ -31,7 +31,7 @@ Read this before you ship a change to production, and again when a deploy goes w
 | web | `bun run build:web:appwrite` | By hand, Appwrite console | `biso.no` |
 | admin | `bun run build:admin:appwrite` | By hand, Appwrite console | `admin.biso.no` |
 | api | `bun run build:api:appwrite`, or the older `deploy:build` (check) | By hand, Appwrite console | `api.biso.no` |
-| docs | `bun run build:docs:appwrite` | Not deployed yet | `docs.biso.no`, planned |
+| docs | `bun run build:docs:appwrite` | By hand, Appwrite console | `docs.biso.no` |
 | scheduled-dispatch | `bun install`, no build step | Appwrite console, Git integration | Appwrite function |
 | content-notifier | A `bun build` bundle | Appwrite console | Appwrite function |
 | member-roster-sync | A `bun build` bundle | Appwrite console | Appwrite function |
@@ -99,10 +99,10 @@ After you change a variable or rotate a secret, you redeploy. A new deployment o
 
 ### Notes per app
 
-- **web** refuses to start unless `APPWRITE_SESSION_COOKIE` is `a_session_biso_web`.
-- **admin** refuses to start without `APPWRITE_API_KEY` and `NEXT_PUBLIC_BASE_URL`, and unless `APPWRITE_SESSION_COOKIE` is `a_session_biso_admin`.
+- **web** refuses to start unless `APPWRITE_SESSION_COOKIE` is `biso_web_session`.
+- **admin** refuses to start without `APPWRITE_API_KEY` and `NEXT_PUBLIC_BASE_URL`, and unless `APPWRITE_SESSION_COOKIE` is `biso_admin_session`.
 - **api** has no start-up check. A missing variable shows up only when a route needs it.
-- **docs** isn't live yet. Before its first deploy, do the "Owner actions" in `apps/docs/CLAUDE.md`, and the "Owner steps" under "Assistant" there before you switch the assistant on. It must run on a `*.biso.no` host, or the browser never sends it the admin's session cookie.
+- **docs** runs at `docs.biso.no`. It must stay on a `*.biso.no` host, or the browser never sends it the admin's session cookie. The "Owner actions" in `apps/docs/CLAUDE.md` set up its sign-in and private details. Do the "Owner steps" under "Assistant" there before you switch the assistant on.
 
 ### Don't use the Dockerfiles
 
@@ -222,7 +222,7 @@ The app is in the BISO-Flutter repository. Its version is the `version:` line in
 
 ### Android
 
-`.github/workflows/build.yml` in BISO-Flutter runs on every push to `main` and on `v*` tags. It sets up Flutter 3.47.2 and Java 17, runs `flutter test`, builds a signed app bundle and APK, and uploads the bundle to Google Play's **internal** track. On `main` it then creates a GitHub release with the APK. Its release notes say the app was "deployed to both app stores", but only Android is uploaded. Pull requests get tests and a debug build only.
+`.github/workflows/build.yml` in BISO-Flutter runs on every push to `main` and on `v*` tags. It sets up Flutter 3.47.9 and Java 21, runs `flutter test`, builds a signed app bundle and APK, and uploads the bundle to Google Play's **internal** track. On `main` it then creates a GitHub release with the APK. Its release notes say the app was "deployed to both app stores", but only Android is uploaded. Pull requests get tests and a debug build only.
 
 Moving a release from the internal track to production is done by hand in the Google Play Console (<Private name="google-play-account" label="Google Play account" />).
 
@@ -272,7 +272,7 @@ Each lists one Appwrite user with the app's API key, with a 3-second limit.
 
 Every `ready` call costs a Site execution and an Appwrite request, so don't point an uptime monitor at it every few seconds.
 
-Docs has `/api/health` only. Once it's live, check `https://docs.biso.no/api/health`.
+Docs has `/api/health` only. Check `https://docs.biso.no/api/health`.
 
 ### Then check by hand
 

@@ -54,8 +54,8 @@ cp apps/admin/.env.example apps/admin/.env.local
 
 | App | Template | Must be set, or the app refuses to start |
 |---|---|---|
-| web | `apps/web/.env.example` | `APPWRITE_SESSION_COOKIE=a_session_biso_web` |
-| admin | `apps/admin/.env.example` | `APPWRITE_API_KEY`, `NEXT_PUBLIC_BASE_URL`, and `APPWRITE_SESSION_COOKIE=a_session_biso_admin` |
+| web | `apps/web/.env.example` | `APPWRITE_SESSION_COOKIE=biso_web_session` |
+| admin | `apps/admin/.env.example` | `APPWRITE_API_KEY`, `NEXT_PUBLIC_BASE_URL`, and `APPWRITE_SESSION_COOKIE=biso_admin_session` |
 | api | `apps/api/.env.example` | Nothing. The API has no start-up checks. |
 | docs | `apps/docs/.env.example` | Nothing. Sign-in, private details and the assistant need more: see `apps/docs/CLAUDE.md`. |
 
@@ -147,7 +147,7 @@ bun x ultracite check apps/admin/src/lib/roles.ts
 ### Nothing checks your work for you
 
 - **No pre-commit hook runs.** Every line of `lefthook.yml` is commented out, lefthook doesn't read `lefthook-temp.yml`, and nothing installs hooks on `bun install`. The root `CLAUDE.md` says lefthook and lint-staged format each commit. They don't.
-- **CI runs no tests, lint or type-check.** The only workflows are `docs-coverage.yml`, which warns when a PR changes code without its docs page, and `pr-review.yml`, an automated Claude Code review of each PR.
+- **CI runs no tests, lint or type-check.** The only workflows are `docs-coverage.yml`, which warns when a PR changes code without its docs page, and `pr-review.yml`, an automated Claude Code review of each PR. The review skips Dependabot's PRs, which `.github/dependabot.yml` opens every week to update dependencies. Run the checks on those before you merge them, too.
 
 So before you open a PR, run the type-check, Ultracite on your paths, and the tests of every workspace you touched.
 
@@ -189,7 +189,7 @@ Things to know when a test fails:
 
 ### The website or the admin stops at start-up: session cookie
 
-**Symptom:** `[web] APPWRITE_SESSION_COOKIE must be "a_session_biso_web" but is "(unset)"`, or the same line from `[admin]` with `a_session_biso_admin`.
+**Symptom:** `[web] APPWRITE_SESSION_COOKIE must be "biso_web_session" but is "(unset)"`, or the same line from `[admin]` with `biso_admin_session`.
 
 **Fix:** set `APPWRITE_SESSION_COOKIE` to exactly that value in the app's `.env.local`. Never use `a_session_biso` here. The website's start-up check explains why.
 

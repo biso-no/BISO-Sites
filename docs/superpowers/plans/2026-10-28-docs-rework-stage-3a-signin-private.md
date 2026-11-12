@@ -5,7 +5,7 @@
 **Goal:** Let global admins, campus admins and members of a "Docs handover" Appwrite team see private details on docs pages. Everyone else sees a "sign in to see this" box. Private values come from Infisical at request time and never reach the public repo, static HTML, the search index, `llms-full.txt` or OG images.
 
 **Architecture:**
-- **Sign-in.** Docs reuses the admin's Microsoft sign-in. In production the admin session cookie `a_session_biso_admin` is set on `.biso.no`. Locally it is set host-only on `localhost`, and cookies ignore ports, so docs receives it either way. Docs validates the cookie with `@repo/api/server`'s `createSessionClient()`, configured through `APPWRITE_SESSION_COOKIE=a_session_biso_admin`, then reads the user's teams.
+- **Sign-in.** Docs reuses the admin's Microsoft sign-in. In production the admin session cookie `biso_admin_session` is set on `.biso.no`. Locally it is set host-only on `localhost`, and cookies ignore ports, so docs receives it either way. Docs validates the cookie with `@repo/api/server`'s `createSessionClient()`, configured through `APPWRITE_SESSION_COOKIE=biso_admin_session`, then reads the user's teams.
 - **Who gets access.** A pure function in docs derives access from team names. A drift test pins it to the admin's role derivation.
 - **"Sign in".** The button links to the admin login. The admin learns to redirect back to the docs origin, and only that exact origin.
 - **Pages stay static.** A `<Private name="…" />` client component fetches values from a no-store API route, `/api/private`. The route checks the viewer and returns only values the viewer may see, from a `PrivateValueSource`: Infisical in production, a fake source for development and tests.
@@ -101,7 +101,7 @@
   - A global admin's teams → access globaladmin.
   - The module source must not contain `createAdminClient` (a static check in the test).
 - [ ] **Step 2:** Run the tests and confirm they fail.
-- [ ] **Step 3:** Implement `viewer.ts` and the route. Document in `apps/docs/CLAUDE.md` that docs must run with `APPWRITE_SESSION_COOKIE=a_session_biso_admin`, plus the Appwrite endpoint and project vars. **Read the cookie-collision warning in `apps/web/CLAUDE.md` and confirm docs never sets cookies.**
+- [ ] **Step 3:** Implement `viewer.ts` and the route. Document in `apps/docs/CLAUDE.md` that docs must run with `APPWRITE_SESSION_COOKIE=biso_admin_session`, plus the Appwrite endpoint and project vars. **Read the cookie-collision warning in `apps/web/CLAUDE.md` and confirm docs never sets cookies.**
 - [ ] **Step 4:** Run the tests, `check-types` and the build. Expected: PASS.
 - [ ] **Step 5:** Commit `feat(docs): read the signed-in viewer from the admin session`.
 

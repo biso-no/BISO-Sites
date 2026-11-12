@@ -3,7 +3,7 @@
  * start-up (`apps/admin/src/instrumentation.ts`) and reads it in
  * `apps/admin/src/lib/auth-utils.ts`; a test keeps this copy in step.
  */
-export const ADMIN_SESSION_COOKIE = "a_session_biso_admin";
+export const ADMIN_SESSION_COOKIE = "biso_admin_session";
 
 /** A cookie in the shape Playwright's `context.addCookies()` takes. */
 export interface AdminSessionCookie {

@@ -2,8 +2,8 @@
  * The signed-in viewer, read from the admin's Appwrite session cookie.
  *
  * Docs reuses the admin's Microsoft sign-in: the admin sets
- * `a_session_biso_admin` (on `.biso.no` in production), and docs runs with
- * `APPWRITE_SESSION_COOKIE=a_session_biso_admin` so `createSessionClient()`
+ * `biso_admin_session` (on `.biso.no` in production), and docs runs with
+ * `APPWRITE_SESSION_COOKIE=biso_admin_session` so `createSessionClient()`
  * reads it. Docs only reads that cookie. It never sets or clears cookies and
  * never uses the service-key client.
  */

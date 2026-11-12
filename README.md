@@ -1,124 +1,95 @@
-## BISO Sites Monorepo
+# BISO-Sites
 
-**BISO Sites** is a Turborepo-powered monorepo for BISO’s public website, admin CMS, and internal tooling. It hosts multiple Next.js applications and shared packages for API access, payments, UI, and page building.
+The websites and services of BI Studentorganisasjon (BISO): the public website
+at [biso.no](https://biso.no), the admin and CMS that BISO staff use, the API
+behind them, and the documentation at [docs.biso.no](https://docs.biso.no).
+Everything shares one Appwrite backend.
 
-If you are new to the project, start in the docs app: `/docs` (see **Documentation** below).
+The mobile app lives in [BISO-Flutter](https://github.com/biso-no/BISO-Flutter).
 
-### Monorepo Layout
+## What's in here
 
-```text
-apps/
-  web/    # Public website for students and visitors (port 3000)
-  admin/  # Admin & CMS for editors and IT (port 3001)
-  docs/   # Documentation site powered by Fumadocs (port 3002)
+| Path | What it is | Local port |
+|---|---|---|
+| `apps/web` | Public website for students, members and visitors | 3000 |
+| `apps/admin` | Admin and CMS for BISO staff, with a block-based page editor | 3001 |
+| `apps/docs` | Staff guide and developer handover, built with Fumadocs | 3002 |
+| `apps/api` | REST API with JWT auth, called by the website and the admin | 3003 |
+| `functions/*` | Appwrite functions: push notifications for new content, the member roster sync from 24SevenOffice, and scheduled jobs | |
 
-packages/
-  api/             # Appwrite client & helpers
-  payment/         # Vipps MobilePay integration
-  ui/              # Shared design system & primitives
-  editor/          # Puck-based page builder
-  eslint-config/   # Shared ESLint configs
-  typescript-config/ # Shared tsconfig bases
-```
+| Package | What it is |
+|---|---|
+| `@repo/api` | Appwrite access and generated types. All data access goes through it. |
+| `@repo/editor` | The block editor. The admin edits pages with it and the website renders them. |
+| `@repo/ui` | Shared React components (Radix and Tailwind) |
+| `@repo/ai` | AI SDK setup, model providers and tools |
+| `@repo/connectors` | Microsoft 365 (Entra ID, Graph, SharePoint), 24SevenOffice and WooCommerce |
+| `@repo/payment` | Vipps MobilePay and Stripe |
+| `@repo/i18n` | Norwegian and English translations for `next-intl` |
+| `@repo/shared` | Shared helpers and types |
+| `@repo/tours` | Guided tours in the admin |
+| `@repo/wp-import` | One-off migration from the old WordPress site |
+| `@repo/typescript-config` | Shared `tsconfig` presets |
 
-### Tech Stack
+Built with Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4,
+Appwrite, Turborepo and Bun. Biome, through the Ultracite preset, formats and
+lints the code.
 
-- **Framework**: Next.js 15 (App Router), React 19, TypeScript (strict)
-- **Styling**: Tailwind CSS, design tokens from `@repo/ui`
-- **Backend**: Appwrite (database, auth, storage)
-- **Payments**: Vipps MobilePay via `@repo/payment`
-- **i18n**: `next-intl` (Norwegian & English)
-- **Monorepo tooling**: Turborepo + Bun
+## Getting started
 
-For architectural details, see the docs pages under `/docs/repository` and `/docs/architecture`.
-
-### Getting Started
-
-#### Prerequisites
-
-- Node.js `>=18`
-- Bun `>=1.3`
-- Appwrite and Vipps credentials (see **Operations** docs for setup)
-
-#### Install dependencies
+You need [Bun](https://bun.sh) 1.3.1 and Node 22 or later. npm and pnpm don't
+work with this repository.
 
 ```bash
 bun install
-```
-
-#### Run all apps in development
-
-```bash
-bun run dev
-```
-
-#### Run a single app
-
-```bash
-# Public web app
+cp apps/web/.env.example apps/web/.env.local   # and the same for each app you run
 bun run dev --filter=web
-
-# Admin CMS
-bun run dev --filter=admin
-
-# Docs app
-bun run dev --filter=docs
 ```
 
-### Core Commands
+> [!WARNING]
+> An Appwrite endpoint or project you leave unset falls back to
+> **production**. Read
+> [Local setup](https://docs.biso.no/developers/change-it/local-setup) and
+> point the apps at an Appwrite project of your own before you run them.
 
-From the repo root:
+## Commands
 
-```bash
-# Build all apps and packages
-bun run build
+Run these from the repository root. Add `--filter=<app or package>` to run
+one workspace only, for example `--filter=admin`.
 
-# Lint all apps and packages
-bun run lint
+| Command | What it does |
+|---|---|
+| `bun run dev` | Starts every app in development mode |
+| `bun run build` | Builds everything |
+| `bun run check-types` | Type-checks everything. Required before merging. |
+| `bun run test` | Runs every test suite |
+| `bun x ultracite fix <paths>` | Formats and fixes the files you name |
+| `bun x ultracite check <paths>` | Reports lint problems in the files you name |
 
-# Type-check all apps and packages
-bun run check-types
+## Documentation
 
-# Format supported files
-bun run format
-```
+- [Developer docs](https://docs.biso.no/developers): how the platform works,
+  how to change it and how to keep it running. Start here if you're new.
+- [Platform guide](https://docs.biso.no/guide): how BISO staff use the admin.
+- `CLAUDE.md` files at the root and in each app hold the coding rules.
 
-You can scope any of these with `--filter=<app-or-package>` if needed.
+The docs source is in `apps/docs/content/docs/`. Run it locally with
+`bun run dev --filter=docs`.
 
-### Applications
+## Contributing
 
-- **Web (`apps/web`)**: Public-facing site for students, members, and visitors.
-  - Features: membership onboarding, events, e‑commerce, units/departments, news, jobs.
-  - Docs: `/docs/applications/web-app`
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to report a bug, set up the
+project and get a change merged. Everyone who takes part follows the
+[code of conduct](CODE_OF_CONDUCT.md).
 
-- **Admin (`apps/admin`)**: Admin console and CMS for editors and IT.
-  - Features: user management, page builder, events/news, shop & orders, units, jobs, expenses.
-  - Docs: `/docs/applications/admin-app`
+## Security
 
-- **Docs (`apps/docs`)**: Fumadocs-powered documentation site.
-  - Purpose: canonical documentation for repository, applications, architecture, operations, and packages.
-  - Docs about docs: `/docs/architecture/apps#docs-application`
+Found a security problem? Don't open an issue. Follow
+[SECURITY.md](SECURITY.md).
 
-### Shared Packages
+## License
 
-- **`@repo/api`** (`packages/api`): Type-safe Appwrite clients for server and browser, plus storage helpers and generated types.
-- **`@repo/payment`** (`packages/payment`): Vipps checkout and payment flow abstractions with server actions and core helpers.
-- **`@repo/ui`** (`packages/ui`): Design system, tokens, and UI primitives used by web, admin, and docs.
-- **`@repo/editor`** (`packages/editor`): Puck configuration, editor, and renderer for visual page building.
-- **`@repo/eslint-config`** (`packages/eslint-config`): Shared ESLint configs for apps and packages.
-- **`@repo/typescript-config`** (`packages/typescript-config`): Base `tsconfig` presets for Next.js apps and React libraries.
+Copyright (c) 2025-2026 BI Studentorganisasjon (BISO). All rights reserved.
 
-See `/docs/packages` for in-depth package documentation and examples.
-
-### Documentation
-
-The docs app is the **source of truth** for workflows, operations, and APIs.
-
-- **Repository**: `/docs/repository` – onboarding, quickstart, project structure, troubleshooting.
-- **Applications**: `/docs/applications` – web/admin overviews and feature guides.
-- **Packages**: `/docs/packages` – `@repo/api`, `@repo/payment`, `@repo/ui`, `@repo/editor` details.
-- **Architecture**: `/docs/architecture` – high-level design and data flow.
-- **Operations**: `/docs/operations` – environments, Appwrite, Docker, and deployment.
-- **Reference**: `/docs/reference/commands` – full command reference for Bun/Turbo.
-
-When in doubt, update the docs app first and keep READMEs short, linking back to the relevant pages.
+The code is public so anyone can read it, but it isn't open source. You may
+not reuse it without written permission from BISO. See [LICENSE](LICENSE).

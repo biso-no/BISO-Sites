@@ -1,0 +1,58 @@
+name: Bug report
+description: Something on the website, the admin, the API or the docs doesn't work as it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this. The repository is public, so leave out personal data: no names, email addresses, order numbers, or screenshots that show them.
+
+        **Found a security problem?** Don't use this form. Follow the [security policy](https://github.com/biso-no/BISO-Sites/security/policy) instead.
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where is the problem?
+      options:
+        - Website (biso.no)
+        - Admin (admin.biso.no)
+        - API (api.biso.no)
+        - Documentation (docs.biso.no)
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: Page address
+      description: The address of the page where it happens, if there is one.
+      placeholder: https://biso.no/…
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to …
+        2. Click …
+        3. See …
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots or error messages
+      description: Paste error text or drag in screenshots. Hide any personal data first.
+  - type: input
+    id: device
+    attributes:
+      label: Browser and device
+      placeholder: Safari on iPhone 15, Chrome on Windows 11, …

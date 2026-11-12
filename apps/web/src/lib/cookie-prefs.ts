@@ -19,10 +19,10 @@ export const CAMPUS_COOKIE = "campusId";
  * signal that an Appwrite session *may* exist — readers must check it before
  * making any `account.*` call, because for cookieless visitors (crawlers,
  * uptime monitors, first-time users) such calls are guaranteed-401 network
- * round-trips into Appwrite. See WEB_APP_APPWRITE_INCIDENT_AUDIT.md (F-2/F-3).
+ * round-trips into Appwrite.
  */
 export const SESSION_COOKIE =
-  process.env.APPWRITE_SESSION_COOKIE || "a_session_biso_web";
+  process.env.APPWRITE_SESSION_COOKIE || "biso_web_session";
 
 /**
  * The name this app used for its session cookie before 2026-08-13.

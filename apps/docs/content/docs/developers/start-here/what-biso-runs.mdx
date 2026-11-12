@@ -25,7 +25,7 @@ This page is the map of the platform. Read it before you change anything, and co
       web["web<br/>biso.no"]
       admin["admin<br/>admin.biso.no"]
       api["api<br/>api.biso.no"]
-      docs["docs<br/>docs.biso.no, planned"]
+      docs["docs<br/>docs.biso.no"]
       data[("Database, sign-in,<br/>files, push and email")]
       fns["Functions<br/>scheduled-dispatch<br/>content-notifier<br/>member-roster-sync"]
     end
@@ -68,7 +68,7 @@ To keep it readable, the diagram leaves out these calls:
 | web | The public site at `biso.no`. Students sign in here with BI or a magic link. | Appwrite Site | `apps/web` |
 | admin | The staff CMS at `admin.biso.no`. Staff sign in with Microsoft. | Appwrite Site | `apps/admin` |
 | api | A REST service at `api.biso.no` for the website and the app: payments, membership checks, expenses, the member pass and BI sign-in. Most scheduled jobs call it. | Appwrite Site | `apps/api` |
-| docs | These docs. | Appwrite Site, planned for `docs.biso.no` | `apps/docs` |
+| docs | These docs, at `docs.biso.no`. | Appwrite Site | `apps/docs` |
 | Appwrite 2.5.0 | Two databases with about 100 tables, sign-in and sessions, file storage, push and email, functions, and hosting for the apps. An upgrade is planned. | Webdock VPS, self-hosted | Schema in `packages/api/appwrite.config.json`. Apps reach it through `packages/api`. |
 | Infisical | Where developers get credentials, for example when setting up a new machine. Values are copied from it into the Appwrite console by hand. The website, admin and API never read it. The docs read their private details from it. | Webdock VPS, self-hosted | Infisical itself isn't in the repo. The docs' reader is `apps/docs/lib/private/infisical.ts`. |
 | scheduled-dispatch | Every 5 minutes, calls the apps' background endpoints, such as order reconciliation, scheduled announcements and data clean-up. | Appwrite Function | `functions/scheduled-dispatch` |

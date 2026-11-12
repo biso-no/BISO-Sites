@@ -6,7 +6,7 @@ vi.mock("@repo/shared/utils/server-error-logging", () => ({
 
 import { register } from "./instrumentation";
 
-const EXPECTS_CURRENT_NAME = /must be "a_session_biso_web"/;
+const EXPECTS_CURRENT_NAME = /must be "biso_web_session"/;
 const REFUSES_TO_START = /Refusing to start/;
 
 afterEach(() => {
@@ -17,14 +17,14 @@ afterEach(() => {
 describe("register", () => {
   it("accepts the expected cookie configuration", () => {
     vi.stubEnv("NEXT_PHASE", "");
-    vi.stubEnv("APPWRITE_SESSION_COOKIE", "a_session_biso_web");
+    vi.stubEnv("APPWRITE_SESSION_COOKIE", "biso_web_session");
     vi.stubEnv("APPWRITE_SESSION_COOKIE_FALLBACK", "a_session_biso");
 
     expect(() => register()).not.toThrow();
   });
 
   it("refuses to start when APPWRITE_SESSION_COOKIE is unset", () => {
-    // Unset means cookie-prefs writes `a_session_biso_web` while the shared
+    // Unset means cookie-prefs writes `biso_web_session` while the shared
     // createSessionClient reads `a_session_biso` — a silent, total logout.
     vi.stubEnv("NEXT_PHASE", "");
     vi.stubEnv("APPWRITE_SESSION_COOKIE", undefined);
@@ -46,7 +46,7 @@ describe("register", () => {
       // silence expected warning
     });
     vi.stubEnv("NEXT_PHASE", "");
-    vi.stubEnv("APPWRITE_SESSION_COOKIE", "a_session_biso_web");
+    vi.stubEnv("APPWRITE_SESSION_COOKIE", "biso_web_session");
     vi.stubEnv("APPWRITE_SESSION_COOKIE_FALLBACK", undefined);
 
     expect(() => register()).not.toThrow();

@@ -14,7 +14,8 @@ Each is a Fumadocs root folder with its own sidebar. The landing page at `/`
 is coded, not MDX. Its links live in `lib/landing.ts`, and a test checks that
 every href resolves to a page.
 
-`GO-LIVE.md` is the owner's ordered checklist for putting docs live at `docs.biso.no`.
+Docs is live at `docs.biso.no`. `GO-LIVE.md` is the ordered checklist the owner followed to
+put it there. Follow it again if docs ever has to be set up from scratch.
 
 Old URLs are redirected through `redirects.json`. Rules there are
 `{ source, destination }` only. `next.config.mjs` serves all of them as
@@ -133,7 +134,7 @@ cookie (`lib/auth/viewer.ts`, exposed as `GET /api/viewer`, `no-store`). Docs
 never sets or clears cookies and never uses `createAdminClient`. With no
 session cookie at all, docs answers "signed out" without calling Appwrite.
 
-- `APPWRITE_SESSION_COOKIE=a_session_biso_admin` must be set. Unset, the
+- `APPWRITE_SESSION_COOKIE=biso_admin_session` must be set. Unset, the
   shared client reads `a_session_biso` instead. Old web sessions may have left
   an `a_session_biso` cookie on `.biso.no` (see `apps/web/CLAUDE.md`), so docs
   could treat such a visitor as signed in with no access, while real admins
@@ -212,7 +213,7 @@ If the sync changes how it builds ids, that test fails and points back here.
 Docs:
 
 - `NEXT_PUBLIC_APPWRITE_ENDPOINT`, `NEXT_PUBLIC_APPWRITE_PROJECT`
-- `APPWRITE_SESSION_COOKIE=a_session_biso_admin`
+- `APPWRITE_SESSION_COOKIE=biso_admin_session`
 - `NEXT_PUBLIC_ADMIN_URL`: the admin's origin, for sign-in links. Inlined at
   build time, so rebuild docs after changing it.
 - `DOCS_PRIVATE_SOURCE`: `infisical`, `fake` or `none` (default `none`)
@@ -261,7 +262,7 @@ Use one of these instead:
 
   ```bash
   cd apps/docs
-  export APPWRITE_SESSION_COOKIE=a_session_biso_admin
+  export APPWRITE_SESSION_COOKIE=biso_admin_session
   export DOCS_PRIVATE_SOURCE=fake DOCS_PRIVATE_FAKE_FILE=/path/to/values.json
   bun run dev
   ```

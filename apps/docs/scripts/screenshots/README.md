@@ -97,7 +97,7 @@ not one set up for an app.
    | `NEXT_PUBLIC_APPWRITE_ENDPOINT` | the same as `DOCS_APPWRITE_ENDPOINT` |
    | `NEXT_PUBLIC_APPWRITE_PROJECT` | the same as `DOCS_APPWRITE_PROJECT` |
    | `APPWRITE_API_KEY` | the same as `DOCS_APPWRITE_API_KEY` |
-   | `APPWRITE_SESSION_COOKIE` | `a_session_biso_admin` |
+   | `APPWRITE_SESSION_COOKIE` | `biso_admin_session` |
    | `NEXT_PUBLIC_BASE_URL` | `http://localhost:3001` |
 
    and start the admin from its own folder:
@@ -199,7 +199,7 @@ made-up data and never call Microsoft.
 Real sign-in goes through Microsoft, which also syncs the user's groups into
 Appwrite teams. `capture.ts` skips that: it creates a session for the seeded
 user with the server SDK and sets the admin's session cookie,
-`a_session_biso_admin`, for the admin's own host. The seeded team memberships
+`biso_admin_session`, for the admin's own host. The seeded team memberships
 and each user's `m365_team_sync` row (the saved team list the real sync writes
 at sign-in) are what give each user their role. The admin counts a team only
 when its id is in that list:

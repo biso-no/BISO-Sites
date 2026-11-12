@@ -2,7 +2,7 @@
 
 Remaining items from the production-readiness audit that need a decision,
 external configuration, or staging verification. Code-level fixes are
-complete — see `AUDIT_LOG.md` for the full record.
+complete.
 
 ## 1. Decisions only you can make
 
