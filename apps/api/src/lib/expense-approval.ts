@@ -178,7 +178,7 @@ async function notifyStep(
     {
       action: "notified",
       actorKind: "system",
-      after: row.approver_email,
+      after: row.approver_email.toLowerCase(),
       expenseId: row.expense_id,
       note: teamsDelivered ? "teams,email" : "email",
     },
@@ -606,7 +606,7 @@ const EXPENSE_SUMMARY_SELECT = [
   "campusRel.name",
 ];
 
-const ROLE_NOUN: Record<string, string> = {
+const ROLE_NOUN: Record<ExpenseApprovalsApproverRole, string> = {
   finance: "the financial manager",
   manager: "the department manager",
   deputy: "the deputy manager",
@@ -639,12 +639,11 @@ function decisionNote(
 ): string | null {
   const parts: string[] = [];
   if (input.onBehalf) {
-    parts.push(
-      `On behalf of ${ROLE_NOUN[row.approver_role] ?? row.approver_role}`
-    );
+    parts.push(`On behalf of ${ROLE_NOUN[row.approver_role]}`);
   }
-  if (input.reason) {
-    parts.push(`Reason: ${input.reason}`);
+  const reason = input.reason?.trim();
+  if (reason) {
+    parts.push(`Reason: ${reason}`);
   }
   return parts.length > 0 ? parts.join(NOTE_SEPARATOR) : null;
 }
@@ -852,7 +851,7 @@ export async function decideApproval(params: {
 
   return await decideStep(db, row, {
     actor: {
-      email: row.approver_email,
+      email: row.approver_email.toLowerCase(),
       kind: "approver",
       name: params.decidedBy,
     },

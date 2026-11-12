@@ -50,6 +50,7 @@ describe("POST /api/expenses/admin/decide", () => {
   it("returns 400 for a malformed body", async () => {
     const res = await call({ ...VALID, actor: { ...VALID.actor, name: "" } });
     expect(res.status).toBe(400);
+    expect(approval.decideApprovalStep).not.toHaveBeenCalled();
   });
 
   it("returns 400 when the decision is refused", async () => {

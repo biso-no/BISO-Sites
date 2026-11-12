@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { isInternalRequest } from "./internal-auth";
 
 const request = (headers: Record<string, string>) =>
@@ -6,11 +6,10 @@ const request = (headers: Record<string, string>) =>
 
 describe("isInternalRequest", () => {
   beforeEach(() => {
-    process.env.CRON_SECRET = "s3cret";
+    vi.stubEnv("CRON_SECRET", "s3cret");
   });
   afterEach(() => {
-    // biome-ignore lint/performance/noDelete: env vars must be removed, not stringified
-    delete process.env.CRON_SECRET;
+    vi.unstubAllEnvs();
   });
 
   it("accepts a Bearer secret", () => {
@@ -33,8 +32,7 @@ describe("isInternalRequest", () => {
   });
 
   it("rejects everything when CRON_SECRET is unset", () => {
-    // biome-ignore lint/performance/noDelete: env vars must be removed, not stringified
-    delete process.env.CRON_SECRET;
+    vi.stubEnv("CRON_SECRET", "");
     expect(isInternalRequest(request({ authorization: "Bearer " }))).toBe(
       false
     );

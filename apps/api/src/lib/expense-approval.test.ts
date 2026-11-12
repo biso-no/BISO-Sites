@@ -1,8 +1,10 @@
 import { createHash } from "node:crypto";
+import { Query } from "@repo/api";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = vi.hoisted(() => ({
   createRow: vi.fn(),
+  decrementRowColumn: vi.fn(),
   deleteRow: vi.fn(),
   getRow: vi.fn(),
   incrementRowColumn: vi.fn(),
@@ -14,17 +16,19 @@ const resolution = vi.hoisted(() => ({ resolveExpenseApprovers: vi.fn() }));
 const events = vi.hoisted(() => ({ recordExpenseEvents: vi.fn() }));
 
 vi.mock("@repo/api/server", () => ({
-  createAdminClient: vi.fn(async () => ({ db })),
+  createAdminClient: vi.fn(async () => ({ db, messaging })),
 }));
 const teams = vi.hoisted(() => ({
   ensureBotChatForUser: vi.fn(),
+  sendApprovalEmail: vi.fn(),
   sendProactiveCard: vi.fn(),
 }));
+const messaging = vi.hoisted(() => ({ createEmail: vi.fn() }));
 vi.mock("@repo/connectors/teams-bot", () => ({
   buildApprovalCard: vi.fn(() => ({})),
   buildApprovalEmailHtml: vi.fn(() => "<p>approve</p>"),
   ensureBotChatForUser: teams.ensureBotChatForUser,
-  sendApprovalEmail: vi.fn(async () => undefined),
+  sendApprovalEmail: teams.sendApprovalEmail,
   sendProactiveCard: teams.sendProactiveCard,
 }));
 vi.mock("./expense-approver-resolution", () => resolution);
@@ -61,6 +65,8 @@ beforeEach(() => {
   events.recordExpenseEvents.mockReset();
   teams.ensureBotChatForUser.mockReset().mockResolvedValue(null);
   teams.sendProactiveCard.mockReset().mockResolvedValue(null);
+  teams.sendApprovalEmail.mockReset().mockResolvedValue(undefined);
+  messaging.createEmail.mockReset().mockResolvedValue({});
   db.createRow.mockImplementation(
     async (_db: string, _table: string, id: string, data: object) => ({
       $id: id,
@@ -245,7 +251,7 @@ describe("notification history", () => {
   const STEP = {
     aadId: "aad-1",
     directoryKey: "campus:1:controller",
-    email: "ctrl@biso.no",
+    email: "Ctrl@BISO.no",
     role: "controller",
     source: "default",
     step: 1,
@@ -272,6 +278,18 @@ describe("notification history", () => {
         note: "email",
       },
     ]);
+  });
+
+  it("records no notified event when neither channel delivered", async () => {
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [{ ...STEP, aadId: null }],
+    });
+    teams.sendApprovalEmail.mockRejectedValue(new Error("smtp down"));
+
+    await expect(createApprovalChain(CONTEXT)).rejects.toThrow();
+
+    expect(notifiedEvents()).toEqual([]);
   });
 
   it("notes Teams as well when the card was delivered", async () => {
@@ -426,12 +444,25 @@ describe("decideApprovalStep", () => {
             }
       )
     );
-    db.listRows.mockImplementation((_db: string, table: string) =>
-      Promise.resolve({
-        rows: table === "expense_approvals" ? pending : [],
-      })
-    );
+    db.listRows.mockImplementation((_db: string, table: string) => {
+      if (table === "expense_approvals") {
+        return Promise.resolve({ rows: pending });
+      }
+      if (table === "expense_approvers") {
+        return Promise.resolve({
+          rows: [
+            {
+              $id: "entry-1",
+              email: "ctrl@biso.no",
+              key: "campus:1:controller",
+            },
+          ],
+        });
+      }
+      return Promise.resolve({ rows: [] });
+    });
     db.incrementRowColumn.mockResolvedValue({ decision_lock: 1 });
+    db.decrementRowColumn.mockResolvedValue({});
     return approval;
   }
 
@@ -589,7 +620,68 @@ describe("decideApprovalStep", () => {
     expect(events.recordExpenseEvents).toHaveBeenCalledWith(db, [
       expect.objectContaining({ note: null }),
     ]);
-    expect(directoryWrites()).toHaveLength(0);
+    expect(directoryWrites()).toHaveLength(1);
+  });
+
+  it("looks up the current step as the lowest pending one", async () => {
+    setup();
+
+    await decideApprovalStep({
+      actor: ACTOR,
+      approvalId: "approval-1",
+      decision: "approved",
+      onBehalf: false,
+    });
+
+    const lookup = db.listRows.mock.calls.find(
+      ([, table]) => table === "expense_approvals"
+    );
+    expect(lookup?.[2]).toEqual([
+      Query.equal("expense_id", "expense-1"),
+      Query.equal("status", "pending"),
+      Query.orderAsc("step"),
+      Query.limit(1),
+    ]);
+  });
+
+  it("trims the reason and drops a blank one from the note", async () => {
+    setup();
+    await decideApprovalStep({
+      actor: ACTOR,
+      approvalId: "approval-1",
+      decision: "rejected",
+      onBehalf: false,
+      reason: "  No receipt  ",
+    });
+    setup();
+    await decideApprovalStep({
+      actor: ACTOR,
+      approvalId: "approval-1",
+      decision: "rejected",
+      onBehalf: false,
+      reason: "   ",
+    });
+
+    const notes = events.recordExpenseEvents.mock.calls.map(
+      ([, list]) => list[0].note
+    );
+    expect(notes).toEqual(["Reason: No receipt", null]);
+  });
+
+  it("records no decision event when the step write fails", async () => {
+    setup();
+    db.updateRow.mockRejectedValueOnce(new Error("write failed"));
+
+    await expect(
+      decideApprovalStep({
+        actor: ACTOR,
+        approvalId: "approval-1",
+        decision: "approved",
+        onBehalf: false,
+      })
+    ).rejects.toThrow("write failed");
+
+    expect(events.recordExpenseEvents).not.toHaveBeenCalled();
   });
 
   it("reports a missing step instead of throwing", async () => {
@@ -608,12 +700,127 @@ describe("decideApprovalStep", () => {
   });
 });
 
+describe("token decision paths", () => {
+  const RAW = "raw-token";
+  const row = (over: object = {}) => ({
+    $id: "approval-1",
+    approver_email: "ctrl@biso.no",
+    approver_role: "controller",
+    decision_lock: 0,
+    directory_key: null,
+    expense_id: "expense-1",
+    expires_at: new Date(Date.now() + 60_000).toISOString(),
+    status: "pending",
+    step: 1,
+    token_hash: createHash("sha256").update(RAW).digest("hex"),
+    ...over,
+  });
+  const decide = (decision: "approved" | "rejected" = "approved") =>
+    decideApproval({ decidedBy: "Ctrl", decision, rawToken: RAW });
+
+  function setup(approval: object, others: object[] = []) {
+    db.listRows.mockImplementation(
+      (_db: string, table: string, queries: unknown[]) => {
+        if (table !== "expense_approvals") {
+          return Promise.resolve({ rows: [] });
+        }
+        const isTokenLookup = JSON.stringify(queries).includes("token_hash");
+        return Promise.resolve({ rows: isTokenLookup ? [approval] : others });
+      }
+    );
+    db.getRow.mockResolvedValue({
+      $id: "expense-1",
+      $sequence: 42,
+      userId: "user-1",
+    });
+    db.incrementRowColumn.mockResolvedValue({ decision_lock: 1 });
+    db.decrementRowColumn.mockResolvedValue({});
+  }
+
+  it("returns the expiry error and never claims an expired link", async () => {
+    setup(row({ expires_at: new Date(Date.now() - 1000).toISOString() }));
+
+    expect(await decide()).toEqual({
+      error: "This approval link has expired.",
+      ok: false,
+    });
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+  });
+
+  it("releases the claim and rethrows when the step write fails", async () => {
+    setup(row());
+    db.updateRow.mockRejectedValueOnce(new Error("write failed"));
+
+    await expect(decide()).rejects.toThrow("write failed");
+
+    expect(db.decrementRowColumn).toHaveBeenCalledWith(
+      expect.objectContaining({ column: "decision_lock", min: 0 })
+    );
+    expect(events.recordExpenseEvents).not.toHaveBeenCalled();
+  });
+
+  it("returns the concurrent outcome when the claim is lost", async () => {
+    setup(row());
+    db.incrementRowColumn.mockResolvedValue({ decision_lock: 2 });
+    db.getRow.mockImplementation((_db: string, table: string) =>
+      Promise.resolve(
+        table === "expense_approvals"
+          ? row({ status: "approved" })
+          : { $id: "expense-1", $sequence: 42 }
+      )
+    );
+
+    expect(await decide()).toMatchObject({ decision: "approved", ok: true });
+    expect(db.updateRow).not.toHaveBeenCalled();
+    expect(events.recordExpenseEvents).not.toHaveBeenCalled();
+  });
+
+  it("notifies the submitter of a rejection", async () => {
+    setup(row());
+
+    const result = await decide("rejected");
+
+    expect(result).toMatchObject({ decision: "rejected", ok: true });
+    expect(db.updateRow).toHaveBeenCalledWith("app", "expense", "expense-1", {
+      status: "rejected",
+    });
+    expect(messaging.createEmail).toHaveBeenCalledTimes(1);
+    expect(messaging.createEmail.mock.calls[0]?.[4]).toEqual(["user-1"]);
+  });
+
+  it("records an issue and still succeeds when the next step cannot be notified", async () => {
+    const next = row({
+      $id: "approval-2",
+      approver_email: "next@biso.no",
+      step: 2,
+    });
+    setup(row(), [next]);
+    teams.sendApprovalEmail.mockRejectedValue(new Error("smtp down"));
+
+    const result = await decide();
+
+    expect(result).toMatchObject({
+      decision: "approved",
+      finalized: false,
+      ok: true,
+    });
+    const issues = db.createRow.mock.calls.filter(
+      ([, table]) => table === "expense_approval_issues"
+    );
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.[3]).toMatchObject({
+      expense_id: "expense-1",
+      status: "open",
+    });
+  });
+});
+
 describe("token decisions history", () => {
   it("token decisions record the approver email and confirm the directory row", async () => {
     const raw = "raw-token";
     const approval = {
       $id: "approval-1",
-      approver_email: "ctrl@biso.no",
+      approver_email: "Ctrl@BISO.no",
       approver_role: "controller",
       decision_lock: 0,
       directory_key: "campus:1:controller",

@@ -22,7 +22,7 @@ const BodySchema = z
     approvalId: z.string().min(1).max(MAX_APPROVAL_ID),
     decision: z.enum(["approved", "rejected"]),
     actor: z.object({
-      email: z.string().email().max(MAX_EMAIL).nullable(),
+      email: z.email().max(MAX_EMAIL).nullable(),
       name: z.string().min(1).max(MAX_NAME),
       kind: z.enum(["approver", "admin"]),
     }),
