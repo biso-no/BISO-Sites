@@ -96,7 +96,7 @@ Choose **Prøv på nytt** (Retry). You see **Bokført i Finago** (Booked in Fina
 - A failed booking is never retried by itself, because 24SevenOffice may already have it.
 - Edits, decisions, approver changes and retries are written to the reimbursement's history with your name.
 - After a decision made in the admin, the next approver gets the Teams card and the email, and a rejection notifies the student.
-- When a step is decided in the admin or on the web approval page, the Teams card that was sent to that step's approver changes to show who decided and what. The buttons go away. A decision made in Teams already updates its own card. If the card can't be updated, the decision still stands.
+- When a step is decided in the admin or on the web approval page, the Teams card that was sent to that step's approver changes to show who decided and what. The buttons go away. This happens after the reimbursement has moved on, so a slow Teams never holds it up. A decision made in Teams already updates its own card. If the card can't be updated within 5 seconds, it stays as it was, and the decision still stands.
 </WhatHappensNext>
 
 ## What the approver sees in Teams and email
@@ -104,11 +104,12 @@ Choose **Prøv på nytt** (Retry). You see **Bokført i Finago** (Booked in Fina
 The approval card in Teams, and the email, give the approver what they need to decide without opening the admin. The card is in English.
 
 - **Receipts.** A table with the date, description, type, account and amount of each receipt. The card shows up to 15 receipts and the email up to 30, then **and N more**. A receipt without a type shows the student's own text in quotes.
-- **Notes for the approver.** The things the AI or the system flagged, such as a missing account, an amount that differs from what the receipt reads, an old receipt or a possible duplicate. These are the same as **Ting å sjekke** (Things to check) in the admin.
+- **Notes for the approver.** The things the AI or the system flagged, such as a missing account, an amount that differs from what the receipt reads, an old receipt or a possible duplicate. These are the same as **Ting å sjekke** (Things to check) in the admin. A note about one receipt starts with that receipt's description, or its type when it has none, cut to 40 characters.
 - **The submitter's declaration.** A line when the student said they are the campus controller or the department's financial manager.
-- **The president note.** When the national manager approves because no campus president could be found: **No approver was found for the campus president, so the national approver decides instead.**
+- **The national note.** It shows when the national manager approves a reimbursement from one of the four campuses. For a controller's own reimbursement it reads **The campus president could not be found or is the submitter; the national approver decides instead.** Otherwise, when the national manager stands in for a controller who submitted, it reads **The national approver decides in place of the usual approver.**
 - **Recent history.** The latest 6 history lines. If the card gets too large for Teams, the history goes first, then the receipts are cut to 5, and as a last resort the card shows only the number of receipts.
-- **Buttons.** **Approve**, **Reject**, **Open in admin** and **View receipts**. When a receipt has no account, **Approve** is replaced by **Set the account in admin**, which opens the reimbursement. Set the account on the receipt, then approve in the admin. The email has the same buttons.
+- **Buttons.** **Approve**, **Reject**, **Open in admin** and **View receipts**. When a receipt has no account, or the receipts couldn't be read, **Approve** is replaced by **Set the account in admin**, which opens the reimbursement. Set the account on the receipt, then approve in the admin. The email has the same buttons.
+- **The approval page.** The email's link opens a page on the website. When a receipt has no account, the page has no **Godkjenn** (Approve) button. It shows **En kvittering mangler konto. Sett den i admin før du godkjenner.** (A receipt has no account yet. Set it in admin before approving.) with the link **Åpne i admin** (Open in admin). **Avslå** (Reject) stays. An old card or link that still tries to approve is refused with the same sentence.
 
 ## What the student sees
 
