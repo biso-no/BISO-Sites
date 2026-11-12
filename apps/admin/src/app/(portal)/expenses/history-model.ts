@@ -31,6 +31,8 @@ export interface HistoryLabels {
 /** The English phrases the api writes after "On behalf of", and the role each means. */
 const ROLE_PHRASES: Record<string, string> = {
   "the campus controller": "controller",
+  "the controller": "controller",
+  "the general manager": "national",
   "the campus president": "president",
   "the deputy manager": "deputy",
   "the department manager": "manager",

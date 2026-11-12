@@ -74,10 +74,43 @@ describe("getCampusApprovalPlan", () => {
     expect(getCampusApprovalPlan({ campusId: "4" })).toEqual([controller]);
   });
 
-  it("national: national only", () => {
-    expect(getCampusApprovalPlan({ campusId: "5" })).toEqual([
-      { kind: "directory", role: "national" },
-    ]);
+  it("national: the national controller approves every department", () => {
+    for (const departmentId of [undefined, "1000", "1002", "1004", "1005"]) {
+      expect(getCampusApprovalPlan({ campusId: "5", departmentId })).toEqual([
+        controller,
+      ]);
+    }
+  });
+
+  it("national controller's own reimbursement goes to the general manager only", () => {
+    for (const departmentId of ["1000", "1002"]) {
+      expect(
+        getCampusApprovalPlan({
+          campusId: "5",
+          departmentId,
+          submitterIsController: true,
+        })
+      ).toEqual([{ kind: "directory", role: "national" }]);
+    }
+  });
+
+  it("ignores the controller switch on other national departments", () => {
+    for (const departmentId of ["1005", "1004", undefined]) {
+      expect(
+        getCampusApprovalPlan({
+          campusId: "5",
+          departmentId,
+          submitterIsController: true,
+        })
+      ).toEqual([controller]);
+    }
+  });
+
+  it("offers the controller switch on Drift BISO and Operations Unit only", () => {
+    expect(approvalSwitchFor("5", "1000")).toBe("controller");
+    expect(approvalSwitchFor("5", "1002")).toBe("controller");
+    expect(approvalSwitchFor("5", "1005")).toBeNull();
+    expect(approvalSwitchFor("5", "1004")).toBeNull();
   });
 
   it("ignores a switch that does not apply", () => {

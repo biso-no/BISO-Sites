@@ -43,9 +43,11 @@ const ISO_DATE_CHARS = 10;
 const OSLO_TIME_ZONE = "Europe/Oslo";
 
 const PRESIDENT_FALLBACK_NOTE =
-  "The campus president could not be found or is the submitter; the national approver decides instead.";
+  "The campus president could not be found or is the submitter; the general manager decides instead.";
 const NATIONAL_FALLBACK_NOTE =
-  "The national approver decides in place of the usual approver.";
+  "The general manager decides in place of the usual approver.";
+const NATIONAL_CONTROLLER_FALLBACK_NOTE =
+  "The controller could not be found or is the submitter; the general manager decides instead.";
 
 // English copies of the admin's `adminPortal.expenses.hintsText.*` strings
 // (packages/i18n/messages/en/adminPortal.json). The api has no i18n, so keep
@@ -175,12 +177,12 @@ function formatEventTime(iso: string): string {
 }
 
 /**
- * Whether the expense's plan has a president step. It has one only for a
- * controller's own claim, and a national step on that chain stands in for the
- * president. Any other national step on a campus stands in for a controller
- * who is the submitter.
+ * Whether the expense's plan has a step with this role. A president step exists
+ * only for a controller's own claim on campuses 1-4; a national step on that
+ * chain stands in for the president. On National a national step is the plan's
+ * own only for the controller's own claim.
  */
-function planHasPresident(expense: Expenses): boolean {
+function planHasRole(expense: Expenses, role: string): boolean {
   try {
     return getCampusApprovalPlan({
       campusId: String(expense.campus),
@@ -189,11 +191,26 @@ function planHasPresident(expense: Expenses): boolean {
       submitterIsFinancialManager: Boolean(
         expense.submitter_is_financial_manager
       ),
-    }).some((step) => step.role === "president");
+    }).some((step) => step.role === role);
   } catch {
     // An unknown campus has no plan: say nothing about a president.
     return false;
   }
+}
+
+/**
+ * The note for a national step on the expense's chain, or null when the plan
+ * itself asks for the general manager (National, controller switch on).
+ */
+function nationalStandInNote(expense: Expenses): string | null {
+  if (String(expense.campus) === NATIONAL_CAMPUS_ID) {
+    return planHasRole(expense, "national")
+      ? null
+      : NATIONAL_CONTROLLER_FALLBACK_NOTE;
+  }
+  return planHasRole(expense, "president")
+    ? PRESIDENT_FALLBACK_NOTE
+    : NATIONAL_FALLBACK_NOTE;
 }
 
 interface ExpenseParts {
@@ -223,25 +240,20 @@ async function loadExpenseParts(
     ]),
   ]);
 
-  let fallbackNote: string | null = null;
-  if (String(expense.campus) !== NATIONAL_CAMPUS_ID) {
-    const steps = await bestEffort(
-      "approval steps lookup",
-      [] as ExpenseApprovals[],
-      async () =>
-        (
-          await db.listRows<ExpenseApprovals>("app", "expense_approvals", [
-            Query.equal("expense_id", expenseId),
-            Query.limit(APPROVAL_LIMIT),
-          ])
-        ).rows
-    );
-    if (steps.some((step) => step.approver_role === "national")) {
-      fallbackNote = planHasPresident(expense)
-        ? PRESIDENT_FALLBACK_NOTE
-        : NATIONAL_FALLBACK_NOTE;
-    }
-  }
+  const steps = await bestEffort(
+    "approval steps lookup",
+    [] as ExpenseApprovals[],
+    async () =>
+      (
+        await db.listRows<ExpenseApprovals>("app", "expense_approvals", [
+          Query.equal("expense_id", expenseId),
+          Query.limit(APPROVAL_LIMIT),
+        ])
+      ).rows
+  );
+  const fallbackNote = steps.some((step) => step.approver_role === "national")
+    ? nationalStandInNote(expense)
+    : null;
   return {
     declaration: declarationText(expense),
     fallbackNote,

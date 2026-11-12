@@ -51,6 +51,7 @@ import { getGraphService } from "./graph";
 
 const HTTP_NOT_FOUND = 404;
 const TOKEN_TTL_DAYS = 14;
+const NATIONAL_CAMPUS_ID = "5";
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 // `expense_approval_issues.reason` is capped at 500 chars in the schema; cap here
 // so a long Graph/Mail error can't make the remediation createRow throw and
@@ -93,16 +94,24 @@ export interface ApprovalChainContext {
   total: number;
 }
 
-export function stepLabel(role: string, index: number, count: number): string {
+export function stepLabel(
+  role: string,
+  index: number,
+  count: number,
+  campusId?: string
+): string {
   const roleText: Record<string, string> = {
     finance: "Department financial manager",
     manager: "Department manager",
     deputy: "Department deputy",
     controller: "Campus financial controller",
     president: "Campus president",
-    national: "National approver",
+    national: "General manager",
   };
-  const base = roleText[role] ?? role;
+  const base =
+    role === "controller" && campusId === NATIONAL_CAMPUS_ID
+      ? "Controller"
+      : (roleText[role] ?? role);
   return count > 1 ? `Step ${index} of ${count} — ${base}` : base;
 }
 
@@ -134,7 +143,12 @@ function cardDataFor(
     total: context.total,
     currency: context.currency,
     description: context.description,
-    stepLabel: stepLabel(row.approver_role, row.step, totalSteps),
+    stepLabel: stepLabel(
+      row.approver_role,
+      row.step,
+      totalSteps,
+      context.campusId
+    ),
     viewUrl,
     ...details,
     adminUrl: expenseAdminUrl(row.expense_id),
@@ -584,7 +598,12 @@ export async function getApprovalContext(
     currency: "NOK",
     description: expense.description ?? "",
     status: row.status,
-    stepLabel: stepLabel(row.approver_role, row.step, totalSteps),
+    stepLabel: stepLabel(
+      row.approver_role,
+      row.step,
+      totalSteps,
+      String(expense.campus)
+    ),
     approverRole: row.approver_role,
     expired,
     adminUrl: expenseAdminUrl(row.expense_id),
@@ -763,8 +782,18 @@ const ROLE_NOUN: Record<ExpenseApprovalsApproverRole, string> = {
   deputy: "the deputy manager",
   controller: "the campus controller",
   president: "the campus president",
-  national: "the national approver",
+  national: "the general manager",
 };
+
+/** The role as shown after "On behalf of"; National's controller is just "the controller". */
+function roleNoun(
+  role: ExpenseApprovalsApproverRole,
+  campusId: string | null | undefined
+): string {
+  return role === "controller" && String(campusId) === NATIONAL_CAMPUS_ID
+    ? "the controller"
+    : ROLE_NOUN[role];
+}
 
 const GRAPH_LOOKUP_TIMEOUT_MS = 6000;
 const CARD_UPDATE_TIMEOUT_MS = 5000;
@@ -839,11 +868,12 @@ async function updateSentCard(
 
 function decisionNote(
   row: ExpenseApprovals,
-  input: StepDecisionInput
+  input: StepDecisionInput,
+  campusId: string | null | undefined
 ): string | null {
   const parts: string[] = [];
   if (input.onBehalf) {
-    parts.push(`On behalf of ${ROLE_NOUN[row.approver_role]}`);
+    parts.push(`On behalf of ${roleNoun(row.approver_role, campusId)}`);
   }
   const reason = input.reason?.trim();
   if (reason) {
@@ -964,7 +994,7 @@ async function decideStep(
       actorKind: input.actor.kind,
       actorName: input.actor.name,
       expenseId: row.expense_id,
-      note: decisionNote(row, input),
+      note: decisionNote(row, input, expense.campus),
     },
   ]);
 

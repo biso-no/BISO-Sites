@@ -14,7 +14,9 @@
 // Steps resolve concurrently; order and numbering follow the plan. A department
 // step nobody can fill is dropped with an issue, so the controller step that
 // follows still approves. A president nobody can fill falls back to
-// the national approver with an issue, never to the controller.
+// the national approver with an issue, never to the controller. A National
+// controller nobody holds (no active row, no default) falls back to the general
+// manager (the national role) the same way.
 
 import { createAdminClient } from "@repo/api/server";
 import type { GraphUserService } from "@repo/connectors/azure/users";
@@ -435,11 +437,43 @@ export async function resolveExpenseApprovers(
     return { aadId: null, directoryKey: key, email, role, source: "default" };
   };
 
+  /**
+   * A controller step nobody holds (National has no seeded controller) goes to
+   * the general manager, marked as standing in for the controller.
+   */
+  const generalManagerForController = async (): Promise<StepOutcome> => {
+    const key = campusKey(input.campusId, "controller");
+    const deactivated = await hasInactiveDirectoryRow(await getDb(), key);
+    const general = await seedDefault("national", NATIONAL_CAMPUS_ID);
+    const sentTo = general
+      ? `sent to the general manager (${general.email})`
+      : "and no general manager is configured";
+    const reason = deactivated
+      ? `${deactivatedReason("controller")}; ${sentTo}`
+      : `No National controller in the approver directory; ${sentTo}`;
+    return {
+      found: general
+        ? { ...general, fallbackFor: "controller", source: "default" }
+        : null,
+      issues: [
+        {
+          campusId: input.campusId,
+          department,
+          roleSought: "controller",
+          reason,
+        },
+      ],
+    };
+  };
+
   const resolveDirectory = async (
     role: "controller" | "president" | "national"
   ): Promise<StepOutcome> => {
     if (role !== "president") {
       const found = await seedDefault(role, input.campusId);
+      if (!found && role === "controller") {
+        return generalManagerForController();
+      }
       const deactivated = deactivatedKeys.has(campusKey(input.campusId, role));
       return {
         found,
@@ -453,7 +487,7 @@ export async function resolveExpenseApprovers(
                   reason: `${deactivatedReason(
                     role === "controller"
                       ? "campus controller"
-                      : "national approver"
+                      : "general manager"
                   )}; sent to the default ${found.email}`,
                 },
               ]
@@ -471,13 +505,13 @@ export async function resolveExpenseApprovers(
     const national = await seedDefault("national", NATIONAL_CAMPUS_ID);
     const presidentReason = (nationalEmail: string | null): string => {
       if (deactivatedKeys.has(key)) {
-        return `${deactivatedReason("president")}; sent to the national approver${
+        return `${deactivatedReason("president")}; sent to the general manager${
           nationalEmail ? ` (${nationalEmail})` : ""
         }`;
       }
       return nationalEmail
-        ? `No president approver found for campus ${input.campusId}; sent to the national approver (${nationalEmail}).`
-        : `No president approver found for campus ${input.campusId}, and no national approver is configured.`;
+        ? `No president approver found for campus ${input.campusId}; sent to the general manager (${nationalEmail}).`
+        : `No president approver found for campus ${input.campusId}, and no general manager is configured.`;
     };
     return {
       // Shown as a fallback, wherever the national mailbox came from.

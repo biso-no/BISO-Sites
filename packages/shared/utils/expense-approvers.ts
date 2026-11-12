@@ -14,7 +14,10 @@
  *   normally the campus controller approves (1 step); a submitter who is the
  *   controller goes to the campus president instead, never to a controller.
  * - Bergen / Trondheim / Stavanger, other departments: the campus controller.
- * - National (campus 5): the national manager mailbox, manager@biso.no.
+ * - National (campus 5): the National controller approves every department.
+ *   Drift BISO (1000) and Operations Unit (1002) offer the controller switch:
+ *   a submitter who is the controller goes to the general manager (the
+ *   `national` role) instead, never to a controller step.
  */
 
 export type ApproverRole =
@@ -60,6 +63,7 @@ const CAMPUS_LEADERSHIP_DEPARTMENTS: Record<string, readonly string[]> = {
   "2": ["300", "301"],
   "3": ["600", "601"],
   "4": ["800", "801"],
+  "5": ["1000", "1002"],
 };
 
 /** Campus id → every mailbox slug a campus is known by. */
@@ -109,17 +113,14 @@ export function directoryKey(input: {
 /**
  * Builds the ordered approval plan. A switch the department does not offer is
  * treated as off. With the controller switch on there is never a controller
- * step: the expense goes to the president instead. Throws on an unknown campus.
+ * step: the expense goes to the president instead (the general manager on campus 5). Throws on an unknown campus.
  */
 export function getCampusApprovalPlan(
   input: ApprovalPlanInput
 ): ApprovalStepPlan[] {
   const { campusId, departmentId } = input;
 
-  if (campusId === NATIONAL_CAMPUS_ID) {
-    return [{ kind: "directory", role: "national" }];
-  }
-  if (!CAMPUS_MAILBOX_SLUGS[campusId]) {
+  if (campusId !== NATIONAL_CAMPUS_ID && !CAMPUS_MAILBOX_SLUGS[campusId]) {
     throw new Error(`Unknown campus id "${campusId}" for expense approval`);
   }
 
@@ -130,11 +131,11 @@ export function getCampusApprovalPlan(
   };
 
   if (offered === "controller") {
-    return [
-      input.submitterIsController
-        ? { kind: "directory", role: "president" }
-        : controllerStep,
-    ];
+    const escalation: ApprovalStepPlan = {
+      kind: "directory",
+      role: campusId === NATIONAL_CAMPUS_ID ? "national" : "president",
+    };
+    return [input.submitterIsController ? escalation : controllerStep];
   }
 
   if (offered === "financial_manager") {

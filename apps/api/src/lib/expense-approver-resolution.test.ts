@@ -59,6 +59,14 @@ function setup(answers: Record<string, string | null> = {}) {
   };
 }
 
+const nationalBase = {
+  ...base,
+  campusId: "5",
+  campusName: "National",
+  departmentId: "1000",
+  departmentName: "Drift BISO",
+};
+
 const asManager = { ...base, submitterIsFinancialManager: true };
 const asController = {
   ...base,
@@ -277,13 +285,99 @@ describe("resolveExpenseApprovers", () => {
     expect(result.issues[0]?.reason).toContain("nat@biso.no");
   });
 
-  it("marks no fallback on a national expense", async () => {
+  it("marks no fallback on the general manager step of a controller's own national expense", async () => {
     const { deps } = setup();
     const result = await resolveExpenseApprovers(
-      { ...base, campusId: "5", departmentId: null, departmentName: null },
+      { ...nationalBase, submitterIsController: true },
       deps
     );
+    expect(result.steps).toEqual([
+      expect.objectContaining({ role: "national", email: "manager@biso.no" }),
+    ]);
     expect(result.steps[0]).not.toHaveProperty("fallbackFor");
+    expect(result.issues).toEqual([]);
+  });
+
+  it("uses the campus:5:controller row for a national expense", async () => {
+    directory.find.mockImplementation(async (_db: unknown, key: string) =>
+      key === "campus:5:controller"
+        ? { email: "nc@biso.no", aadId: "a5", key, source: "admin" }
+        : null
+    );
+    const { deps, choose } = setup();
+    const result = await resolveExpenseApprovers(nationalBase, deps);
+    expect(choose).not.toHaveBeenCalled();
+    expect(result.steps).toEqual([
+      expect.objectContaining({
+        email: "nc@biso.no",
+        role: "controller",
+        directoryKey: "campus:5:controller",
+        source: "directory",
+        step: 1,
+      }),
+    ]);
+    expect(result.steps[0]).not.toHaveProperty("fallbackFor");
+    expect(result.issues).toEqual([]);
+  });
+
+  it("missing national controller falls back to the general manager with an issue", async () => {
+    directory.find.mockImplementation(async (_db: unknown, key: string) =>
+      key === "campus:5:national"
+        ? { email: "gm@biso.no", aadId: null, key, source: "admin" }
+        : null
+    );
+    const { deps } = setup();
+    const result = await resolveExpenseApprovers(nationalBase, deps);
+    expect(result.steps).toEqual([
+      expect.objectContaining({
+        email: "gm@biso.no",
+        role: "national",
+        fallbackFor: "controller",
+        step: 1,
+      }),
+    ]);
+    expect(result.issues).toEqual([
+      {
+        campusId: "5",
+        department: "Drift BISO",
+        roleSought: "controller",
+        reason:
+          "No National controller in the approver directory; sent to the general manager (gm@biso.no)",
+      },
+    ]);
+  });
+
+  it("falls back to the seeded general manager when no national row exists either", async () => {
+    const { deps } = setup();
+    const result = await resolveExpenseApprovers(nationalBase, deps);
+    expect(result.steps[0]).toMatchObject({
+      email: "manager@biso.no",
+      role: "national",
+      fallbackFor: "controller",
+    });
+    expect(result.issues[0]?.reason).toBe(
+      "No National controller in the approver directory; sent to the general manager (manager@biso.no)"
+    );
+  });
+
+  it("an inactive campus-5 controller row sends it to the general manager with the deactivated wording", async () => {
+    directory.inactive.mockImplementation(
+      async (_db: unknown, key: string) => key === "campus:5:controller"
+    );
+    const { deps } = setup();
+    const result = await resolveExpenseApprovers(nationalBase, deps);
+    expect(result.steps[0]).toMatchObject({
+      email: "manager@biso.no",
+      role: "national",
+      fallbackFor: "controller",
+    });
+    expect(result.issues).toEqual([
+      expect.objectContaining({
+        roleSought: "controller",
+        reason:
+          "The controller entry is deactivated in the directory; sent to the general manager (manager@biso.no)",
+      }),
+    ]);
   });
 
   it("prefers a confident AI manager over a deputy in the directory", async () => {
@@ -513,7 +607,7 @@ describe("resolveExpenseApprovers", () => {
 
     it("still resolves a national expense", async () => {
       const result = await resolveExpenseApprovers(
-        { ...base, campusId: "5", departmentId: null, departmentName: null },
+        { ...nationalBase, submitterIsController: true },
         noGraph()
       );
       expect(result.steps.map((s) => s.role)).toEqual(["national"]);
@@ -574,7 +668,7 @@ describe("a deactivated directory key", () => {
     });
     expect(result.issues[0]).toMatchObject({ roleSought: "president" });
     expect(result.issues[0]?.reason).toContain(
-      "The president entry is deactivated in the directory; sent to the national approver"
+      "The president entry is deactivated in the directory; sent to the general manager"
     );
   });
 

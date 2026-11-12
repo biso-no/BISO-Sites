@@ -193,7 +193,7 @@ describe("loadApprovalCardDetails", () => {
     expect(details.declaration).toBe(
       "Submitter says they are the campus controller"
     );
-    expect(details.fallbackNote).toContain("national approver");
+    expect(details.fallbackNote).toContain("general manager");
   });
 
   it("says the president could not be found when national stands in for one", async () => {
@@ -205,7 +205,7 @@ describe("loadApprovalCardDetails", () => {
     );
 
     expect((await loadApprovalCardDetails(asDb(), "e1")).fallbackNote).toBe(
-      "The campus president could not be found or is the submitter; the national approver decides instead."
+      "The campus president could not be found or is the submitter; the general manager decides instead."
     );
   });
 
@@ -216,7 +216,7 @@ describe("loadApprovalCardDetails", () => {
     );
 
     expect((await loadApprovalCardDetails(asDb(), "e1")).fallbackNote).toBe(
-      "The national approver decides in place of the usual approver."
+      "The general manager decides in place of the usual approver."
     );
   });
 
@@ -299,10 +299,37 @@ describe("loadApprovalCardDetails", () => {
     expect((await loading).receipts).toHaveLength(1);
   });
 
-  it("does not set a fallback note on the national campus", async () => {
+  it("does not set a fallback note when the general manager is the plan's own step", async () => {
+    // Drift BISO with the controller switch on: the general manager is the
+    // plan's step, not a stand-in.
     seed(
       { approvals: [{ approver_role: "national" }] },
-      { ...EXPENSE, campus: "5" }
+      {
+        ...EXPENSE,
+        campus: "5",
+        department: "1000",
+        submitter_is_controller: true,
+      }
+    );
+    expect(
+      (await loadApprovalCardDetails(asDb(), "e1")).fallbackNote
+    ).toBeNull();
+  });
+
+  it("says the general manager stands in for a missing National controller", async () => {
+    seed(
+      { approvals: [{ approver_role: "national" }] },
+      { ...EXPENSE, campus: "5", department: "1005" }
+    );
+    expect((await loadApprovalCardDetails(asDb(), "e1")).fallbackNote).toBe(
+      "The controller could not be found or is the submitter; the general manager decides instead."
+    );
+  });
+
+  it("sets no fallback note on the national campus when the controller approves", async () => {
+    seed(
+      { approvals: [{ approver_role: "controller" }] },
+      { ...EXPENSE, campus: "5", department: "1005" }
     );
     expect(
       (await loadApprovalCardDetails(asDb(), "e1")).fallbackNote

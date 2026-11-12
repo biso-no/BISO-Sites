@@ -718,6 +718,19 @@ describe("step labels", () => {
   it("labels the president step", () => {
     expect(stepLabel("president", 1, 1)).toBe("Campus president");
   });
+
+  it("labels the national step as the general manager", () => {
+    expect(stepLabel("national", 1, 1)).toBe("General manager");
+  });
+
+  it("labels the controller step Controller on campus 5 and Campus financial controller elsewhere", () => {
+    expect(stepLabel("controller", 1, 1, "5")).toBe("Controller");
+    expect(stepLabel("controller", 1, 2, "5")).toBe("Step 1 of 2 — Controller");
+    expect(stepLabel("controller", 1, 1, "1")).toBe(
+      "Campus financial controller"
+    );
+    expect(stepLabel("controller", 1, 1)).toBe("Campus financial controller");
+  });
 });
 
 describe("decideApproval", () => {
@@ -832,6 +845,7 @@ describe("decideApprovalStep", () => {
   function setup(
     options: {
       approval?: object;
+      campus?: string;
       expenseStatus?: string;
       pending?: object[];
     } = {}
@@ -845,6 +859,7 @@ describe("decideApprovalStep", () => {
           : {
               $id: "expense-1",
               $sequence: 42,
+              campus: options.campus,
               status: options.expenseStatus ?? "pending",
               userId: "user-1",
             }
@@ -991,6 +1006,45 @@ describe("decideApprovalStep", () => {
         expenseId: "expense-1",
         note: "On behalf of the campus controller",
       },
+    ]);
+  });
+
+  it("names the general manager on behalf of a national step", async () => {
+    setup({
+      approval: {
+        approver_role: "national",
+        directory_key: "campus:5:national",
+      },
+      campus: "5",
+    });
+
+    await decideApprovalStep({
+      actor: ACTOR,
+      approvalId: "approval-1",
+      decision: "approved",
+      onBehalf: true,
+    });
+
+    expect(events.recordExpenseEvents).toHaveBeenCalledWith(db, [
+      expect.objectContaining({ note: "On behalf of the general manager" }),
+    ]);
+  });
+
+  it("names the controller, not the campus controller, on behalf of a campus-5 controller step", async () => {
+    setup({
+      approval: { directory_key: "campus:5:controller" },
+      campus: "5",
+    });
+
+    await decideApprovalStep({
+      actor: ACTOR,
+      approvalId: "approval-1",
+      decision: "approved",
+      onBehalf: true,
+    });
+
+    expect(events.recordExpenseEvents).toHaveBeenCalledWith(db, [
+      expect.objectContaining({ note: "On behalf of the controller" }),
     ]);
   });
 

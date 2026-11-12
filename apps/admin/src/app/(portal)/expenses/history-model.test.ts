@@ -203,6 +203,8 @@ describe("describeEvent with labels", () => {
       "the department manager": "Leder",
       "the financial manager": "Økonomi",
       "the national approver": "Nasjonal",
+      "the general manager": "Nasjonal",
+      "the controller": "Controller",
     };
     for (const [phrase, label] of Object.entries(phrases)) {
       expect(

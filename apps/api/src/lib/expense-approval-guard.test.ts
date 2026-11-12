@@ -70,6 +70,32 @@ describe("guardChain", () => {
     ]);
   });
 
+  it("sends a National controller who is the submitter to the general manager", () => {
+    const { steps, issues } = guardChain(
+      { campusId: "5", departmentName: "Drift BISO" },
+      {
+        issues: [],
+        steps: [{ ...step("controller", "me@biso.no", 1) }],
+      },
+      "me@biso.no"
+    );
+    expect(steps).toEqual([
+      expect.objectContaining({
+        directoryKey: null,
+        email: NATIONAL_APPROVER_EMAIL,
+        fallbackFor: "controller",
+        role: "national",
+        step: 1,
+      }),
+    ]);
+    expect(issues).toEqual([
+      expect.objectContaining({
+        reason: `Approver is the submitter; sent to ${NATIONAL_APPROVER_EMAIL} instead`,
+        roleSought: "controller",
+      }),
+    ]);
+  });
+
   it("sends a president who is the submitter to national, marked as the fallback", () => {
     const { steps } = guard([step("president", "me@biso.no", 1)], "me@biso.no");
     expect(steps).toEqual([
