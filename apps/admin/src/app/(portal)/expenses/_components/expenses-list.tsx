@@ -13,7 +13,11 @@ import {
   fmtNOK,
   normalizeLocale,
 } from "../../shop/_components/shop-studio-theme";
-import type { ExpenseListFilters, ExpenseListRow } from "../expenses-data";
+import type {
+  ExpenseListFilters,
+  ExpenseListRow,
+  ExpenseListView,
+} from "../expenses-data";
 import { ExpenseStatusBadge } from "./expense-status-badge";
 
 export interface FilterOption {
@@ -57,28 +61,26 @@ export function ExpensesList({
   const setFilter = (key: string, value: string) =>
     setParams({ [key]: value || null });
 
-  const emptyText =
-    {
-      attention: t("empty.attention"),
-      mine: t("empty.mine"),
-    }[filters.view as string] ?? t("empty.description");
+  const emptyText: Record<ExpenseListView, string> = {
+    all: t("empty.description"),
+    attention: t("empty.attention"),
+    mine: t("empty.mine"),
+  };
 
   return (
     <>
       <div
         className="mt-6 flex gap-4"
-        role="tablist"
         style={{ borderBottom: `0.5px solid ${STUDIO.rule}` }}
       >
         {VIEWS.map((view) => {
           const active = filters.view === view;
           return (
             <button
-              aria-selected={active}
+              aria-pressed={active}
               className="pb-2 font-medium text-[14px]"
               key={view}
               onClick={() => setView(view)}
-              role="tab"
               style={{
                 borderBottom: `2px solid ${active ? STUDIO.ink : "transparent"}`,
                 color: active ? STUDIO.ink : STUDIO.ink3,
@@ -151,7 +153,10 @@ export function ExpensesList({
 
       {rows.length === 0 ? (
         <div className="mt-6">
-          <EmptyState description={emptyText} title={t("empty.title")} />
+          <EmptyState
+            description={emptyText[filters.view]}
+            title={t("empty.title")}
+          />
         </div>
       ) : (
         <section className="mt-4 flex flex-col">
@@ -219,7 +224,7 @@ export function ExpensesList({
               <div className="truncate" style={{ color: STUDIO.ink3 }}>
                 {row.currentStep
                   ? `${t(`roles.${row.currentStep.role}`)} · ${row.currentStep.approverEmail}`
-                  : "—"}
+                  : t("none")}
               </div>
               <div style={{ color: STUDIO.ink3 }}>
                 {fmtDate(row.submittedAt, locale)}

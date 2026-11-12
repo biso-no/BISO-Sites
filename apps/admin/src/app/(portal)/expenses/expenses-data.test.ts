@@ -1,15 +1,15 @@
-import { describe, expect, mock, test } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { Query } from "@repo/api";
 import type { ExpenseViewer } from "@/lib/expense-access";
 
 mock.module("server-only", () => ({}));
+const db = { listRows: mock() };
 mock.module("@repo/api/server", () => ({
-  createAdminClient: mock(async () => ({ db: {} })),
+  createAdminClient: mock(async () => ({ db })),
 }));
 
-const { buildExpenseListQueries, resolveExpenseListFilters } = await import(
-  "./expenses-data"
-);
+const { buildExpenseListQueries, listExpenses, resolveExpenseListFilters } =
+  await import("./expenses-data");
 
 const viewer = (over: Partial<ExpenseViewer> = {}): ExpenseViewer => ({
   accountEmail: null,
@@ -152,5 +152,121 @@ describe("buildExpenseListQueries", () => {
       noIds
     );
     expect(queries).toContain(Query.equal("campus", ["c1"]));
+  });
+});
+
+describe("search guards", () => {
+  test("a 12-digit q uses description search", () => {
+    const q = "123456789012";
+    const queries = buildExpenseListQueries(viewer(), filters({ q }), noIds);
+    expect(queries).toContain(Query.search("description", q));
+  });
+
+  test("q=5 uses description search", () => {
+    const queries = buildExpenseListQueries(
+      viewer(),
+      filters({ q: "5" }),
+      noIds
+    );
+    expect(queries).toContain(Query.search("description", "5"));
+  });
+
+  test("a campus filter is ANDed with the visibility queries", () => {
+    const queries = buildExpenseListQueries(
+      viewer({
+        isCampusAdmin: true,
+        isGlobalAdmin: false,
+        managedCampusIds: ["1"],
+      }),
+      filters({ campusId: "2" }),
+      noIds
+    );
+    expect(queries).toContain(Query.equal("campus", ["1"]));
+    expect(queries).toContain(Query.equal("campus", "2"));
+  });
+});
+
+const expenseRow = {
+  $createdAt: "2026-01-01T00:00:00.000Z",
+  $id: "e1",
+  $sequence: "7",
+  approver_hints: JSON.stringify([
+    { code: "old_receipt" },
+    { code: "amount_differs" },
+  ]),
+  campusRel: { name: "Oslo" },
+  departmentRel: { Name: "IT" },
+  status: "pending",
+  total: 100,
+  user: { name: "Ann" },
+};
+
+describe("listExpenses", () => {
+  beforeEach(() => {
+    db.listRows.mockReset();
+  });
+
+  test("enriches rows with step, issue flag and hint count", async () => {
+    db.listRows.mockImplementation((_d: string, table: string) => {
+      if (table === "expense") {
+        return { rows: [expenseRow], total: 1 };
+      }
+      if (table === "expense_approvals") {
+        return {
+          rows: [
+            {
+              $id: "s2",
+              approver_email: "b@biso.no",
+              approver_role: "finance",
+              expense_id: "e1",
+              status: "pending",
+              step: 2,
+            },
+            {
+              $id: "s1",
+              approver_email: "a@biso.no",
+              approver_role: "manager",
+              expense_id: "e1",
+              status: "pending",
+              step: 1,
+            },
+          ],
+        };
+      }
+      return { rows: [{ expense_id: "e1" }] };
+    });
+    const result = await listExpenses(viewer(), filters());
+    expect(result.rows[0]).toMatchObject({
+      currentStep: { approverEmail: "a@biso.no", role: "manager" },
+      flags: { approverIssue: true, failed: false, hints: 2 },
+      reference: "10007",
+    });
+  });
+
+  test("falls back to description search when the sequence query throws", async () => {
+    const errorSpy = mock();
+    const original = console.error;
+    console.error = errorSpy;
+    const seen: string[][] = [];
+    db.listRows.mockImplementation(
+      (_d: string, table: string, queries: string[]) => {
+        if (table !== "expense") {
+          return { rows: [] };
+        }
+        seen.push(queries);
+        if (queries.includes(Query.equal("$sequence", 42))) {
+          throw new Error("invalid query");
+        }
+        return { rows: [], total: 0 };
+      }
+    );
+    try {
+      await listExpenses(viewer(), filters({ q: "10042" }));
+    } finally {
+      console.error = original;
+    }
+    expect(seen).toHaveLength(2);
+    expect(seen[1]).toContain(Query.search("description", "10042"));
+    expect(errorSpy).toHaveBeenCalled();
   });
 });

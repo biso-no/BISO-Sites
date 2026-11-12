@@ -1420,7 +1420,7 @@
     "status": {
       "pending": "Venter på godkjenning",
       "approved": "Godkjent",
-      "submitted": "Under bokføring",
+      "submitted": "Innsendt",
       "success": "Bokført",
       "rejected": "Avslått",
       "failed": "Bokføring feilet"
@@ -1444,10 +1444,11 @@
       "national": "Nasjonal"
     },
     "flags": {
-      "hints": "{count, plural, one {# tips til godkjenneren} other {# tips til godkjenneren}}",
+      "hints": "{count} tips til godkjenneren",
       "failed": "Bokføring feilet",
       "approverIssue": "Fant ingen godkjenner"
     },
+    "none": "—",
     "empty": {
       "title": "Ingen utlegg",
       "description": "Ingenting passer med filtrene.",

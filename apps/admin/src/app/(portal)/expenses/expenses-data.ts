@@ -57,7 +57,7 @@ export const EXPENSE_LIST_STATUSES: string[] = Object.values(
 ).filter((status) => status !== ExpensesStatus.DRAFT);
 
 const VIEWS: readonly ExpenseListView[] = ["all", "mine", "attention"];
-const DIGITS_ONLY = /^\d+$/;
+const SEQUENCE_QUERY = /^\d{1,9}$/;
 /** The first reimbursement number is 10001, i.e. `$sequence` 1. */
 const SEQUENCE_OFFSET = 10_000;
 const LOOKUP_LIMIT = 100;
@@ -101,11 +101,17 @@ export interface ExpenseListIds {
   mineExpenseIds: string[];
 }
 
+/** A reimbursement number: 1-9 digits that map to a positive sequence. */
+function isSequenceQuery(q: string): boolean {
+  return SEQUENCE_QUERY.test(q) && Number(q) - SEQUENCE_OFFSET > 0;
+}
+
 /** The `expense` list queries, or `null` when the result is provably empty. */
 export function buildExpenseListQueries(
   viewer: ExpenseViewer,
   filters: ExpenseListFilters,
-  ids: ExpenseListIds
+  ids: ExpenseListIds,
+  opts: { textSearchOnly?: boolean } = {}
 ): string[] | null {
   if (filters.view === "mine" && ids.mineExpenseIds.length === 0) {
     return null;
@@ -141,7 +147,7 @@ export function buildExpenseListQueries(
   }
   if (filters.q) {
     queries.push(
-      DIGITS_ONLY.test(filters.q)
+      !opts.textSearchOnly && isSequenceQuery(filters.q)
         ? Query.equal("$sequence", Number(filters.q) - SEQUENCE_OFFSET)
         : Query.search("description", filters.q)
     );
@@ -251,8 +257,11 @@ export async function listExpenses(
     filters.view === "attention" ? listOpenIssueExpenseIds(db) : [],
   ]);
 
+  const approverExpenseIds = [
+    ...new Set(approverSteps.map((s) => s.expense_id)),
+  ];
   const queries = buildExpenseListQueries(viewer, filters, {
-    approverExpenseIds: [...new Set(approverSteps.map((s) => s.expense_id))],
+    approverExpenseIds,
     issueExpenseIds,
     mineExpenseIds,
   });
@@ -260,11 +269,24 @@ export async function listExpenses(
     return emptyResult(filters);
   }
 
-  const { rows, total } = await db.listRows<Expenses>(
-    "app",
-    "expense",
-    queries
-  );
+  let response: { rows: Expenses[]; total: number };
+  try {
+    response = await db.listRows<Expenses>("app", "expense", queries);
+  } catch (error) {
+    if (!isSequenceQuery(filters.q)) {
+      throw error;
+    }
+    // The server may reject `$sequence` queries; fall back to description search.
+    console.error("[expenses-list] sequence search failed", error);
+    const fallback = buildExpenseListQueries(
+      viewer,
+      filters,
+      { approverExpenseIds, issueExpenseIds, mineExpenseIds },
+      { textSearchOnly: true }
+    );
+    response = await db.listRows<Expenses>("app", "expense", fallback ?? []);
+  }
+  const { rows, total } = response;
   const pageIds = rows.map((row) => row.$id);
   const [steps, issueIds] = await Promise.all([
     listStepsFor(db, pageIds),
