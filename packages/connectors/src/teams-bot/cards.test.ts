@@ -227,6 +227,11 @@ describe("buildApprovalCard", () => {
     expect(actions(card).map((a) => a.title)).toEqual(ACTION_TITLES);
   });
 
+  test("the minimal card says 1 receipt in the singular", () => {
+    const card = buildApprovalCard(baseData({ receipts: [receipt(0)] }), 100);
+    expect(texts(card)).toContain("1 receipt — open in admin for details");
+  });
+
   test("returns the minimal card with all actions when nothing else fits", () => {
     const receipts = Array.from({ length: 40 }, (_, i) => receipt(i));
     const card = buildApprovalCard(baseData({ receipts }), 500);

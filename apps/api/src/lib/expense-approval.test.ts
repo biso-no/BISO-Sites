@@ -19,17 +19,32 @@ vi.mock("@repo/api/server", () => ({
   createAdminClient: vi.fn(async () => ({ db, messaging })),
 }));
 const teams = vi.hoisted(() => ({
+  buildApprovalCard: vi.fn(() => ({})),
+  buildDecisionResultCard: vi.fn(() => ({ result: true })),
   ensureBotChatForUser: vi.fn(),
   sendApprovalEmail: vi.fn(),
   sendProactiveCard: vi.fn(),
+  updateProactiveCard: vi.fn(),
 }));
+const cardDetails = vi.hoisted(() => ({ loadApprovalCardDetails: vi.fn() }));
+const EMPTY_DETAILS = {
+  declaration: null,
+  fallbackNote: null,
+  hints: [],
+  history: [],
+  missingAccount: false,
+  receipts: [],
+};
+vi.mock("./expense-card-details", () => cardDetails);
 const messaging = vi.hoisted(() => ({ createEmail: vi.fn() }));
 vi.mock("@repo/connectors/teams-bot", () => ({
-  buildApprovalCard: vi.fn(() => ({})),
+  buildApprovalCard: teams.buildApprovalCard,
   buildApprovalEmailHtml: vi.fn(() => "<p>approve</p>"),
+  buildDecisionResultCard: teams.buildDecisionResultCard,
   ensureBotChatForUser: teams.ensureBotChatForUser,
   sendApprovalEmail: teams.sendApprovalEmail,
   sendProactiveCard: teams.sendProactiveCard,
+  updateProactiveCard: teams.updateProactiveCard,
 }));
 const graph = vi.hoisted(() => ({ getUser: vi.fn() }));
 vi.mock("./graph", () => ({ getGraphService: () => graph }));
@@ -69,6 +84,12 @@ beforeEach(() => {
   teams.ensureBotChatForUser.mockReset().mockResolvedValue(null);
   teams.sendProactiveCard.mockReset().mockResolvedValue(null);
   teams.sendApprovalEmail.mockReset().mockResolvedValue(undefined);
+  teams.updateProactiveCard.mockReset().mockResolvedValue(undefined);
+  teams.buildApprovalCard.mockClear();
+  teams.buildDecisionResultCard.mockClear();
+  cardDetails.loadApprovalCardDetails
+    .mockReset()
+    .mockResolvedValue(EMPTY_DETAILS);
   messaging.createEmail.mockReset().mockResolvedValue({});
   db.createRow.mockImplementation(
     async (_db: string, _table: string, id: string, data: object) => ({
@@ -1550,5 +1571,171 @@ describe("changeStepApprover", () => {
     });
 
     expect(result).toMatchObject({ directorySaved: false, ok: true });
+  });
+});
+
+describe("card data and card updates", () => {
+  const SENT = {
+    $id: "approval-1",
+    approver_email: "ctrl@biso.no",
+    approver_role: "controller",
+    decision_lock: 0,
+    directory_key: null,
+    expense_id: "expense-1",
+    expires_at: new Date(Date.now() + 60_000).toISOString(),
+    status: "pending",
+    step: 1,
+    teams_activity_id: "activity-1",
+    teams_conversation_id: "chat-1",
+    token_hash: createHash("sha256").update("raw-token").digest("hex"),
+  };
+  const ACTOR = {
+    email: "Admin@biso.no",
+    kind: "admin" as const,
+    name: "Admin Person",
+  };
+
+  function setup() {
+    db.listRows.mockImplementation((_db: string, table: string) =>
+      Promise.resolve({ rows: table === "expense_approvals" ? [SENT] : [] })
+    );
+    db.getRow.mockImplementation((_db: string, table: string) =>
+      Promise.resolve(
+        table === "expense_approvals"
+          ? SENT
+          : {
+              $id: "expense-1",
+              $sequence: 42,
+              status: "pending",
+              userId: "user-1",
+            }
+      )
+    );
+    db.incrementRowColumn.mockResolvedValue({ decision_lock: 1 });
+    db.decrementRowColumn.mockResolvedValue({});
+  }
+
+  it("notifyStep sends the admin link and the details", async () => {
+    const details = {
+      ...EMPTY_DETAILS,
+      hints: ["The occasion is missing."],
+      missingAccount: true,
+    };
+    cardDetails.loadApprovalCardDetails.mockResolvedValue(details);
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [
+        {
+          aadId: "aad-1",
+          directoryKey: "campus:1:controller",
+          email: "ctrl@biso.no",
+          role: "controller",
+          source: "default",
+          step: 1,
+        },
+      ],
+    });
+    teams.ensureBotChatForUser.mockResolvedValue("chat-1");
+    teams.sendProactiveCard.mockResolvedValue("activity-1");
+
+    await createApprovalChain(CONTEXT);
+
+    expect(cardDetails.loadApprovalCardDetails).toHaveBeenCalledWith(
+      db,
+      "expense-1"
+    );
+    expect(teams.buildApprovalCard).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ...details,
+        adminUrl: "https://admin.biso.no/expenses/expense-1",
+      })
+    );
+  });
+
+  it("an admin decision updates the sent Teams card", async () => {
+    setup();
+
+    const result = await decideApprovalStep({
+      actor: ACTOR,
+      approvalId: "approval-1",
+      decision: "approved",
+      onBehalf: false,
+    });
+
+    expect(result).toMatchObject({ ok: true });
+    expect(teams.buildDecisionResultCard).toHaveBeenCalledWith({
+      decidedBy: "Admin Person",
+      decision: "approved",
+      reimbursementNumber: expect.any(String),
+    });
+    expect(teams.updateProactiveCard).toHaveBeenCalledWith({
+      activityId: "activity-1",
+      card: { result: true },
+      chatId: "chat-1",
+      tenantId: expect.any(String),
+    });
+  });
+
+  it("a web decision updates the sent Teams card", async () => {
+    setup();
+
+    await decideApproval({
+      decidedBy: "Ctrl",
+      decision: "rejected",
+      rawToken: "raw-token",
+      source: "web",
+    });
+
+    expect(teams.updateProactiveCard).toHaveBeenCalledTimes(1);
+  });
+
+  it("a Teams decision does not call updateProactiveCard", async () => {
+    setup();
+
+    await decideApproval({
+      decidedBy: "Ctrl",
+      decision: "approved",
+      rawToken: "raw-token",
+      source: "teams",
+    });
+
+    expect(teams.updateProactiveCard).not.toHaveBeenCalled();
+  });
+
+  it("a failed card update does not fail the decision", async () => {
+    setup();
+    teams.updateProactiveCard.mockRejectedValue(new Error("teams down"));
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const result = await decideApprovalStep({
+      actor: ACTOR,
+      approvalId: "approval-1",
+      decision: "approved",
+      onBehalf: false,
+    });
+
+    expect(result).toMatchObject({ decision: "approved", ok: true });
+    expect(log).toHaveBeenCalled();
+    log.mockRestore();
+  });
+
+  it("leaves a step without Teams ids alone", async () => {
+    setup();
+    db.getRow.mockImplementation((_db: string, table: string) =>
+      Promise.resolve(
+        table === "expense_approvals"
+          ? { ...SENT, teams_activity_id: null, teams_conversation_id: null }
+          : { $id: "expense-1", $sequence: 42, status: "pending", userId: "u" }
+      )
+    );
+
+    await decideApprovalStep({
+      actor: ACTOR,
+      approvalId: "approval-1",
+      decision: "approved",
+      onBehalf: false,
+    });
+
+    expect(teams.updateProactiveCard).not.toHaveBeenCalled();
   });
 });

@@ -305,7 +305,7 @@ function minimalBody(data: ApprovalCardData) {
     { type: "FactSet", facts: factSet(data) },
     {
       type: "TextBlock",
-      text: `${count} receipts — open in admin for details`,
+      text: `${count} ${count === 1 ? "receipt" : "receipts"} — open in admin for details`,
       wrap: true,
       spacing: "Medium",
     },

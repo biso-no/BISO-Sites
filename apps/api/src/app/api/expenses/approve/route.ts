@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
     decision: body.decision,
     decidedBy: body.decidedBy || "Web approver",
     reason: body.reason,
+    source: "web",
   });
 
   if (!result.ok) {

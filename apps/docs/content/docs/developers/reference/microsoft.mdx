@@ -16,6 +16,7 @@ covers:
   - apps/api/src/app/api/teams/bot/route.ts
   - apps/api/teams-manifest/**
   - apps/api/src/lib/expense-approval.ts
+  - apps/api/src/lib/expense-card-details.ts
   - apps/api/src/lib/expense-approver-resolution.ts
   - apps/api/src/lib/expense-approver-directory.ts
   - apps/api/src/lib/expense-approver-lookup.ts
@@ -125,7 +126,11 @@ On the IT pages, global admins may do everything. Campus admins may look up acco
 
 **What it does.** It's part of direct ledger posting for reimbursements, which runs only while the feature flag `expenses_ledger_posting` is on. It's off by default. With it on, a submitted reimbursement goes through an approval chain. Each approver gets a Teams card from the bot and an Outlook email with a link to the website's approval page (`/fs/approve/<token>`). A decision on the card comes back to the api at `POST /api/teams/bot`. With the flag off, nothing uses the bot, and submissions are emailed to accounting instead. [Accounting](/developers/reference/accounting#reimbursements) has the rest of the flow.
 
-**Code.** `packages/connectors/src/teams-bot/`, `apps/api/src/app/api/teams/bot/route.ts` and `apps/api/src/lib/expense-approval.ts`. The Teams app package is in `apps/api/teams-manifest/`. Its README lists the bot's Graph permissions, and says the package has to be uploaded to the organisation's Teams app catalog by hand. The approvers are found with the [Microsoft Graph](#microsoft-graph) registration, by the rules under "Who approves" below.
+**Code.** `packages/connectors/src/teams-bot/`, `apps/api/src/app/api/teams/bot/route.ts` and `apps/api/src/lib/expense-approval.ts`. The card's extra data comes from `apps/api/src/lib/expense-card-details.ts`. The Teams app package is in `apps/api/teams-manifest/`. Its README lists the bot's Graph permissions, and says the package has to be uploaded to the organisation's Teams app catalog by hand. The approvers are found with the [Microsoft Graph](#microsoft-graph) registration, by the rules under "Who approves" below.
+
+**What the card shows.** `loadApprovalCardDetails` (`expense-card-details.ts`) runs for every notification: the first step, the next step after a decision, and a resend. The next approver therefore sees what earlier steps changed. The card and the email list the receipts (type, account, amount; supporting rows with no amount are left out), the AI and system hints, the six latest history lines with the newest first, the submitter's self-declaration, and a note when the national approver stands in for the campus president. The hint and history sentences are English copies written in the api, because it has no i18n. The hint sentences mirror `adminPortal.expenses.hintsText.*`, so change both together. A receipt with no account turns Approve into a link to the admin page (`EXPENSE_ADMIN_URL` plus `/expenses/<id>`), where the account is set. Every lookup is best-effort: one that fails leaves its part empty and the card still goes out. A card too large for Teams is cut down, and last of all replaced by a minimal card.
+
+**Updating a sent card.** The api stores the chat and activity id of each sent card on the step. When a step is decided on the website or in the admin, `decideStep` calls `updateProactiveCard` to replace the card with the decision result, so a stale card can't be clicked. A decision made on the card itself keeps the normal invoke response and does not call it. A failed update is logged as `[expense-approval] Teams card update failed:` and never fails the decision.
 
 **Who approves.** `getCampusApprovalPlan` (`packages/shared/utils/expense-approvers.ts`) gives the ordered steps, and `resolveExpenseApprovers` (`expense-approver-resolution.ts`) turns each into a person.
 
@@ -141,7 +146,7 @@ On the IT pages, global admins may do everything. Campus admins may look up acco
 - **Issues and history.** `createApprovalChain` writes the issues after the chain rows. Those rows are the claim, through the unique (`expense_id`, `step`) index, so a duplicate submit that loses the race writes none. Each resolved step also writes an `approver_resolved` event, with the role and source (`directory`, `ai` or `default`) in the note, as in `finance via ai`. The president fallback reads `national (president fallback)`.
 - **Confirming.** A decision to approve calls `confirmDirectoryApprover` for the step's `directory_key`. It marks the row `confirmed` only when the step's email equals the row's email. A rejection doesn't.
 
-**Variables.** `TEAMS_BOT_APP_ID`, `TEAMS_BOT_APP_PASSWORD`, `TEAMS_BOT_APP_TENANT_ID`, `TEAMS_APP_ID`, `TEAMS_BOT_MAIL_FROM` and `TEAMS_BOT_SERVICE_URL`, all on the api. `EXPENSE_APPROVAL_WEB_URL` sets the website address in the approval links.
+**Variables.** `TEAMS_BOT_APP_ID`, `TEAMS_BOT_APP_PASSWORD`, `TEAMS_BOT_APP_TENANT_ID`, `TEAMS_APP_ID`, `TEAMS_BOT_MAIL_FROM` and `TEAMS_BOT_SERVICE_URL`, all on the api. `EXPENSE_APPROVAL_WEB_URL` sets the website address in the approval links, and `EXPENSE_ADMIN_URL` the admin address in the card's admin link.
 
 **When it fails.**
 

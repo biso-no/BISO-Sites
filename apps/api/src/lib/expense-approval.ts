@@ -19,9 +19,11 @@ import {
   type ApprovalCardData,
   buildApprovalCard,
   buildApprovalEmailHtml,
+  buildDecisionResultCard,
   ensureBotChatForUser,
   sendApprovalEmail,
   sendProactiveCard,
+  updateProactiveCard,
 } from "@repo/connectors/teams-bot";
 import {
   directoryKey,
@@ -39,6 +41,10 @@ import {
   type ResolvedApproverStep,
   resolveExpenseApprovers,
 } from "./expense-approver-resolution";
+import {
+  type ApprovalCardDetails,
+  loadApprovalCardDetails,
+} from "./expense-card-details";
 import { getGraphService } from "./graph";
 
 const HTTP_NOT_FOUND = 404;
@@ -104,7 +110,8 @@ function cardDataFor(
   context: ApprovalChainContext,
   row: ExpenseApprovals,
   rawToken: string,
-  totalSteps: number
+  totalSteps: number,
+  details: ApprovalCardDetails
 ): ApprovalCardData {
   const viewUrl = `${webBaseUrl()}/fs/approve/${rawToken}`;
   return {
@@ -119,14 +126,8 @@ function cardDataFor(
     description: context.description,
     stepLabel: stepLabel(row.approver_role, row.step, totalSteps),
     viewUrl,
-    // Placeholders until Stage 4b Task 4 supplies the real data.
+    ...details,
     adminUrl: `${(process.env.EXPENSE_ADMIN_URL || "https://admin.biso.no").replace(TRAILING_SLASHES, "")}/expenses/${row.expense_id}`,
-    receipts: [],
-    hints: [],
-    history: [],
-    declaration: null,
-    fallbackNote: null,
-    missingAccount: false,
   };
 }
 
@@ -166,7 +167,10 @@ async function notifyStep(
   options: { recordEvent?: boolean } = {}
 ): Promise<DeliveryResult> {
   const { db } = await createAdminClient();
-  const data = cardDataFor(context, row, rawToken, totalSteps);
+  // Loaded for every notification (first step, next step, resend), so the
+  // next approver sees the changes made at earlier steps.
+  const details = await loadApprovalCardDetails(db, row.expense_id);
+  const data = cardDataFor(context, row, rawToken, totalSteps, details);
 
   let conversationId: string | null = null;
   let activityId: string | null = null;
@@ -764,6 +768,42 @@ interface StepDecisionInput {
   reason?: string;
   /** The id path only decides the current step of a pending expense. */
   requireCurrentStep: boolean;
+  /** Where the decision came from; a Teams click already updates its own card. */
+  source?: "teams" | "web";
+}
+
+/**
+ * Replaces the sent Teams card with the decision result when the step was
+ * decided somewhere else (the web page or the admin), so the approver cannot
+ * click a stale card. Best-effort: a failure is logged and never fails the
+ * decision.
+ */
+async function updateSentCard(
+  row: ExpenseApprovals,
+  input: StepDecisionInput,
+  refNumber: string
+): Promise<void> {
+  if (
+    input.source === "teams" ||
+    !row.teams_conversation_id ||
+    !row.teams_activity_id
+  ) {
+    return;
+  }
+  try {
+    await updateProactiveCard({
+      activityId: row.teams_activity_id,
+      card: buildDecisionResultCard({
+        decidedBy: input.actor.name,
+        decision: input.decision,
+        reimbursementNumber: refNumber,
+      }),
+      chatId: row.teams_conversation_id,
+      tenantId: process.env.TEAMS_BOT_APP_TENANT_ID || "",
+    });
+  } catch (error) {
+    console.error("[expense-approval] Teams card update failed:", error);
+  }
 }
 
 function decisionNote(
@@ -896,6 +936,7 @@ async function decideStep(
       note: decisionNote(row, input),
     },
   ]);
+  await updateSentCard(row, input, refNumber);
 
   if (input.decision === "rejected") {
     await db.updateRow("app", "expense", row.expense_id, {
@@ -969,6 +1010,7 @@ export async function decideApproval(params: {
   decision: "approved" | "rejected";
   decidedBy: string;
   reason?: string;
+  source?: "teams" | "web";
 }): Promise<DecisionResult> {
   const { db } = await createAdminClient();
   const tokenHash = hashToken(params.rawToken);
@@ -1004,6 +1046,7 @@ export async function decideApproval(params: {
     onBehalf: false,
     reason: params.reason,
     requireCurrentStep: false,
+    source: params.source,
   });
 }
 

@@ -62,6 +62,7 @@ export async function POST(req: NextRequest) {
     rawToken: token,
     decision,
     decidedBy,
+    source: "teams",
   });
 
   if (!result.ok) {
