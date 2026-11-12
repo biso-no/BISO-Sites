@@ -25,7 +25,7 @@ The client **secret** is not stored here — set it as `TEAMS_BOT_APP_PASSWORD`
 TEAMS_BOT_APP_ID=62b0ae22-d882-4516-ab5f-37de1b5f7de8
 TEAMS_BOT_APP_PASSWORD=<the client secret>
 TEAMS_BOT_APP_TENANT_ID=74a117b9-9343-4c86-b44d-398c88ba1ed8
-TEAMS_APP_ID=287d6b99-0b85-49d0-afa2-c75920bb5f9a   # catalog app id (verify after upload, see below)
+TEAMS_APP_ID=<catalog app id>   # the catalog `id`, NOT the manifest id (see below)
 ```
 
 The approver lookup reuses the existing `AZURE_GRAPH_*` app; the bot app above
@@ -50,8 +50,11 @@ catalog:
    ```
    az rest --method GET --url "https://graph.microsoft.com/v1.0/appCatalogs/teamsApps?\$filter=externalId eq '287d6b99-0b85-49d0-afa2-c75920bb5f9a'" --query "value[].id" -o tsv
    ```
-   Set `TEAMS_APP_ID` to that value (usually equals the manifest id for custom
-   line-of-business apps).
+   Set `TEAMS_APP_ID` to that `id`. An app uploaded to the org catalog gets its
+   own catalog id, different from the manifest id (`externalId`). With the
+   manifest id, installs fail with "The definition for app … was not found in
+   the org-wide catalog". The az CLI's default token lacks `AppCatalog.Read.All`,
+   so run the query in Graph Explorer as a Teams admin if `az rest` is refused.
 
 ## Icons
 
