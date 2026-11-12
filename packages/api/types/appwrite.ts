@@ -553,6 +553,17 @@ export enum AppVersionsPlatform {
   ANDROID = "android",
 }
 
+export enum EventRsvPsStatus {
+  GOING = "going",
+  MAYBE = "maybe",
+  NOT_GOING = "not_going",
+}
+
+export enum PageDraftsLocale {
+  NO = "no",
+  EN = "en",
+}
+
 export enum ExpenseTypeExamplesSource {
   STUDENT = "student",
   APPROVER = "approver",
@@ -1877,6 +1888,25 @@ export type AppVersions = Models.Row & {
   platform: AppVersionsPlatform;
   minimum_version: string | null;
   recommended_version: string | null;
+};
+
+export type EventRsvPs = Models.Row & {
+  event_id: string;
+  user_id: string;
+  status: EventRsvPsStatus;
+};
+
+export type M365TeamSync = Models.Row & {
+  team_ids: string[] | null;
+  synced_at: string | null;
+};
+
+export type PageDrafts = Models.Row & {
+  page_id: string;
+  locale: PageDraftsLocale;
+  draft_doc: string | null;
+  title: string | null;
+  description: string | null;
 };
 
 export type AuthTokens = Models.Row & {
