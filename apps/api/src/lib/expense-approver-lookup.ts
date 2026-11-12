@@ -1,6 +1,7 @@
 import { fastModel } from "@repo/ai/models";
 import type { GraphUserService } from "@repo/connectors/azure/users";
 import { CAMPUS_MAILBOX_SLUGS } from "@repo/shared/utils/expense-approvers";
+import { stripCampusPrefix } from "@repo/shared/utils/unit-names";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { clean } from "./receipt-scan";
@@ -15,18 +16,19 @@ export interface Candidate {
 }
 
 export const ROLE_MAILBOX_PREFIXES: Record<LookupRole, string[]> = {
-  finance: ["finance.", "financial.", "okonomi", "økonomi"],
+  finance: ["finance.", "financial.", "okonomi"],
   manager: ["manager.", "leder."],
   deputy: ["deputy.", "deputymanager.", "nestleder."],
   president: ["president."],
 };
 
-const CAMPUS_PREFIX = /^(?:osl|ber|trd|stv)\s+/i;
 const PART_SPLIT = /\s+-\s+/;
 const TOKEN_SPLIT = /[\s\p{P}]+/u;
 const MIN_TOKEN_LENGTH = 2;
 const MAX_CANDIDATES = 25;
-const SEARCH_LIMIT = 100;
+/** Graph's page maximum; the tenant has 150+ financ* and manag* mailboxes. */
+const SEARCH_LIMIT = 500;
+const WHITESPACE_RUN = /\s+/g;
 const MAX_REASON_LENGTH = 300;
 
 const FOLDS: Record<string, string> = { æ: "ae", ø: "o", å: "a" };
@@ -41,7 +43,7 @@ function fold(value: string): string {
 /** Lowercase tokens from a department name to match against mailbox names. */
 export function departmentMailboxHints(name: string): string[] {
   const hints = new Set<string>();
-  const parts = fold(name).replace(CAMPUS_PREFIX, "").split(PART_SPLIT);
+  const parts = fold(stripCampusPrefix(name)).split(PART_SPLIT);
   for (const part of parts) {
     const words = part
       .split(TOKEN_SPLIT)
@@ -91,8 +93,11 @@ function matchesMailbox(
   if (hints === null) {
     return true;
   }
+  // Only the middle segments name the unit; the role word and campus slug
+  // would let a short hint accept every mailbox.
+  const middle = segments.slice(1, -1);
   return hints.some((hint) =>
-    segments.some((segment) => segment.startsWith(hint))
+    middle.some((segment) => segment.startsWith(hint))
   );
 }
 
@@ -107,6 +112,10 @@ function hasPrefix(email: string, prefixes: string[]): boolean {
   return prefixes.some((prefix) => local.startsWith(prefix));
 }
 
+function normalizeName(name: string | null | undefined): string {
+  return (name ?? "").trim().replace(WHITESPACE_RUN, " ");
+}
+
 export async function findApproverCandidates(
   graph: Pick<GraphUserService, "searchUsers" | "findUsersByDepartment">,
   input: {
@@ -115,7 +124,8 @@ export async function findApproverCandidates(
     role: LookupRole;
   }
 ): Promise<Candidate[]> {
-  const { campusId, departmentName, role } = input;
+  const { campusId, role } = input;
+  const departmentName = normalizeName(input.departmentName);
   const prefixes = ROLE_MAILBOX_PREFIXES[role].map((p) => p.toLowerCase());
   const slugs = CAMPUS_MAILBOX_SLUGS[campusId] ?? [];
   const isDepartmentRole = role !== "president";
@@ -131,39 +141,51 @@ export async function findApproverCandidates(
       found.set(key, candidate);
     }
   };
+  const inDepartment = (user: GraphLookupUser): boolean =>
+    departmentName !== "" && normalizeName(user.department) === departmentName;
   const inMailboxSearch = (user: GraphLookupUser, prefix: string): boolean => {
     const email = emailOf(user);
     if (!localPart(email).startsWith(prefix)) {
       return false;
     }
-    const sameDepartment =
-      Boolean(departmentName) && user.department === departmentName;
-    return matchesMailbox(email, slugs, sameDepartment ? null : hints);
+    return matchesMailbox(email, slugs, inDepartment(user) ? null : hints);
   };
 
-  try {
-    if (departmentName) {
+  if (departmentName) {
+    try {
       for (const user of await graph.findUsersByDepartment(departmentName)) {
-        if (
-          user.department === departmentName &&
-          hasPrefix(emailOf(user), prefixes)
-        ) {
+        if (inDepartment(user) && hasPrefix(emailOf(user), prefixes)) {
           add(user);
         }
       }
+    } catch (error) {
+      console.error(
+        "[expense-approver-lookup] department lookup failed",
+        error
+      );
     }
-    // A hint-less department role would match every department's mailbox.
-    const canSearch = !isDepartmentRole || hints !== null;
-    for (const prefix of canSearch ? prefixes : []) {
-      for (const user of await graph.searchUsers(prefix, SEARCH_LIMIT)) {
+  }
+
+  // A department role without a name would match every department's mailbox.
+  if (!isDepartmentRole || hints !== null) {
+    const results = await Promise.allSettled(
+      prefixes.map((prefix) => graph.searchUsers(prefix, SEARCH_LIMIT))
+    );
+    results.forEach((result, index) => {
+      const prefix = prefixes[index] ?? "";
+      if (result.status === "rejected") {
+        console.error(
+          `[expense-approver-lookup] search "${prefix}" failed`,
+          result.reason
+        );
+        return;
+      }
+      for (const user of result.value) {
         if (inMailboxSearch(user, prefix)) {
           add(user);
         }
       }
-    }
-  } catch (error) {
-    console.error("[expense-approver-lookup] Graph lookup failed", error);
-    return [];
+    });
   }
   return [...found.values()].slice(0, MAX_CANDIDATES);
 }
@@ -186,8 +208,9 @@ export async function chooseApprover(input: {
   candidates: Candidate[];
   departmentName?: string | null;
   role: LookupRole;
+  abortSignal?: AbortSignal;
 }): Promise<{ email: string; confidence: number; reason: string } | null> {
-  const { campusName, candidates, departmentName, role } = input;
+  const { abortSignal, campusName, candidates, departmentName, role } = input;
   if (candidates.length === 0) {
     return null;
   }
@@ -209,6 +232,7 @@ export async function chooseApprover(input: {
     .join("\n");
   try {
     const { object } = await generateObject({
+      abortSignal,
       model: fastModel,
       prompt,
       reasoning: "low",
@@ -229,7 +253,7 @@ export async function chooseApprover(input: {
       reason: object.reason.slice(0, MAX_REASON_LENGTH),
     };
   } catch (error) {
-    console.warn("chooseApprover failed", error);
+    console.warn("[expense-approver-lookup] chooseApprover failed", error);
     return null;
   }
 }

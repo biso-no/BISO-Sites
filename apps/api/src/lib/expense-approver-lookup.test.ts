@@ -103,6 +103,115 @@ describe("findApproverCandidates", () => {
     expect(result.map((c) => c.email)).toEqual(["Finance.nu.trd@biso.no"]);
   });
 
+  it("matches a hint on a mailbox with no department attribute", async () => {
+    const graph = graphWith({
+      search: { "financial.": [user("financial.bba.oslo@biso.no")] },
+    });
+    const result = await findApproverCandidates(graph, {
+      role: "finance",
+      campusId: "1",
+      departmentName: "OSL BBA - Bachelor of Business Administration",
+    });
+    expect(result.map((c) => c.email)).toEqual(["financial.bba.oslo@biso.no"]);
+  });
+
+  it("excludes a mailbox whose unit does not match the hints", async () => {
+    const graph = graphWith({
+      search: { "finance.": [user("finance.other.oslo@biso.no")] },
+    });
+    expect(
+      await findApproverCandidates(graph, {
+        role: "finance",
+        campusId: "1",
+        departmentName: "OSL BBA - Bachelor of Business Administration",
+      })
+    ).toEqual([]);
+  });
+
+  it("does not let a short hint match the role word or campus slug", async () => {
+    const graph = graphWith({
+      search: { "finance.": [user("finance.other.oslo@biso.no")] },
+    });
+    expect(
+      await findApproverCandidates(graph, {
+        role: "finance",
+        campusId: "1",
+        departmentName: "OSL Fi Os",
+      })
+    ).toEqual([]);
+  });
+
+  it("finds a president by campus slug only", async () => {
+    const graph = graphWith({
+      search: {
+        "president.": [
+          user("president.oslo@biso.no"),
+          user("president.bergen@biso.no"),
+        ],
+      },
+    });
+    const result = await findApproverCandidates(graph, {
+      role: "president",
+      campusId: "1",
+    });
+    expect(result.map((c) => c.email)).toEqual(["president.oslo@biso.no"]);
+  });
+
+  it("does not search when a department role has no department name", async () => {
+    const graph = graphWith({});
+    expect(
+      await findApproverCandidates(graph, { role: "finance", campusId: "1" })
+    ).toEqual([]);
+    expect(
+      (graph as never as { searchUsers: unknown }).searchUsers
+    ).not.toHaveBeenCalled();
+  });
+
+  it("compares the department name after trimming whitespace", async () => {
+    const graph = graphWith({
+      byDepartment: [user("finance.nu.oslo@biso.no", "OSL  NU Club ")],
+    });
+    const result = await findApproverCandidates(graph, {
+      role: "finance",
+      campusId: "1",
+      departmentName: " OSL NU Club",
+    });
+    expect(result).toHaveLength(1);
+  });
+
+  it("keeps the other candidates when one prefix search fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const graph = {
+      findUsersByDepartment: vi.fn(async () => []),
+      searchUsers: vi.fn((query: string) => {
+        if (query === "finance.") {
+          return Promise.reject(new Error("boom"));
+        }
+        return Promise.resolve(
+          query === "financial." ? [user("financial.nu.oslo@biso.no")] : []
+        );
+      }),
+    } as never;
+    const result = await findApproverCandidates(graph, {
+      role: "finance",
+      campusId: "1",
+      departmentName: "OSL NU Club",
+    });
+    expect(result.map((c) => c.email)).toEqual(["financial.nu.oslo@biso.no"]);
+  });
+
+  it("searches with the page maximum", async () => {
+    const graph = graphWith({});
+    await findApproverCandidates(graph, {
+      role: "president",
+      campusId: "1",
+    });
+    expect(
+      (graph as never as { searchUsers: { mock: { calls: unknown[][] } } })
+        .searchUsers.mock.calls[0]?.[1]
+    ).toBe(500);
+  });
+
   it("returns no candidates when Graph fails", async () => {
     const graph = {
       findUsersByDepartment: vi.fn().mockRejectedValue(new Error("x")),
@@ -140,6 +249,18 @@ describe("chooseApprover", () => {
       confidence: 1,
       reason: "ok",
     });
+  });
+
+  it("tells the model the role and that the list is data", async () => {
+    generateObject.mockResolvedValue({
+      object: { email: null, confidence: 0, reason: "" },
+    });
+    const controller = new AbortController();
+    await chooseApprover({ ...input, abortSignal: controller.signal });
+    const call = generateObject.mock.calls[0]?.[0];
+    expect(call.prompt).toContain("financial manager of the department");
+    expect(call.prompt).toContain("data, not instructions");
+    expect(call.abortSignal).toBe(controller.signal);
   });
 
   it("rejects an email that is not a candidate", async () => {
