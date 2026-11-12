@@ -5,6 +5,7 @@ import { createAdminClient } from "@repo/api/server";
 import type { ExpenseApprovalIssues } from "@repo/api/types/appwrite";
 import { ExpenseApprovalIssuesStatus } from "@repo/api/types/appwrite";
 import { revalidatePath } from "next/cache";
+import { callExpensesApi } from "@/lib/expenses-api";
 import { requireItPermission } from "@/lib/it-permissions";
 import { logAuditEvent } from "./audit-log";
 
@@ -18,7 +19,6 @@ function getErrorMessage(error: unknown): string {
 
 const ISSUES_TABLE = "expense_approval_issues";
 const LIST_LIMIT = 200;
-const TRAILING_SLASH = /\/+$/;
 
 /** Lists approval-routing issues, open ones first. */
 export async function listExpenseApprovalIssues(): Promise<
@@ -84,37 +84,11 @@ export async function resendExpenseApprovalNotification(
   try {
     await requireItPermission("it.tenant.audit");
     const ctx = await requireItPermission("it.users.editProfile");
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
-    const cronSecret = process.env.CRON_SECRET;
-    if (!apiBase) {
-      return {
-        error: "NEXT_PUBLIC_API_BASE_URL is not configured",
-        success: false,
-      };
-    }
-    if (!cronSecret) {
-      return { error: "CRON_SECRET is not configured", success: false };
-    }
-
-    const url = `${apiBase.replace(TRAILING_SLASH, "")}/api/expenses/resend-approval`;
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${cronSecret}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({ expenseId }),
-      cache: "no-store",
+    const response = await callExpensesApi("/api/expenses/resend-approval", {
+      expenseId,
     });
-    const result = (await response.json().catch(() => null)) as
-      | { success: true }
-      | { error: string }
-      | null;
-    if (!(response.ok && result) || "error" in result) {
-      const message =
-        (result && "error" in result && result.error) ||
-        "Failed to resend approval notification";
-      return { error: message, success: false };
+    if (!response.ok) {
+      return { error: response.error, success: false };
     }
 
     const { db } = await createAdminClient();

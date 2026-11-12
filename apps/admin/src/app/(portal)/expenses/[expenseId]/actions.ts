@@ -20,8 +20,13 @@ import {
   maskBankAccount,
 } from "@/lib/expense-access";
 import { getExpenseViewer } from "@/lib/expense-viewer";
+import { callExpensesApi } from "@/lib/expenses-api";
 import { todayInOslo } from "@/lib/oslo-day";
-import type { ExpenseActionError, ExpenseActionResult } from "../action-result";
+import {
+  apiErrorCode,
+  type ExpenseActionError,
+  type ExpenseActionResult,
+} from "../action-result";
 import { loadReceiptEditOptions } from "./edit-options";
 import { planReceiptEdit, type ReceiptChanges, round2 } from "./receipt-edit";
 
@@ -29,6 +34,8 @@ const MAX_ROWS = 500;
 const BANK_ACCOUNT_SEPARATORS = /[\s.]/g;
 const BANK_ACCOUNT_FORMAT = /^\d{11}$/;
 const NON_DIGITS = /\D/g;
+const MAX_REASON_CHARS = 1000;
+const BISO_EMAIL = /^[^\s@]+@biso\.no$/i;
 
 interface Loaded {
   db: Awaited<ReturnType<typeof createAdminClient>>["db"];
@@ -226,6 +233,145 @@ export async function updateExpenseBankAccount(input: {
     ]);
     revalidatePath(`/expenses/${expense.$id}`);
     return { data: null };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+interface ApiActor {
+  email: string | null;
+  kind: "approver" | "admin";
+  name: string;
+}
+
+function apiActorOf(loaded: Loaded): ApiActor {
+  const { actorEmail, actorKind, actorName } = actorOf(loaded);
+  return {
+    email: actorEmail,
+    kind: actorKind,
+    name: actorName ?? actorEmail ?? "BISO admin",
+  };
+}
+
+/** Maps an api refusal to its code; only an unexpected one is logged. */
+function apiFailure(
+  scope: string,
+  message: string
+): { error: ExpenseActionError } {
+  const code = apiErrorCode(message);
+  if (code === "api_failed") {
+    console.error(`[${scope}]`, message);
+  }
+  return { error: code };
+}
+
+function revalidateExpense(expenseId: string): void {
+  revalidatePath(`/expenses/${expenseId}`);
+  revalidatePath("/expenses");
+}
+
+/**
+ * Approves or rejects the current step, as its approver or on their behalf.
+ * A step that was already decided differently reports `already_decided`.
+ */
+export async function decideExpenseStep(input: {
+  approvalId: string;
+  decision: "approved" | "rejected";
+  expenseId: string;
+  reason?: string;
+}): Promise<ExpenseActionResult<{ decision: "approved" | "rejected" }>> {
+  try {
+    const loaded = await loadForEdit(input.expenseId);
+    if (!loaded?.permissions.canDecide) {
+      return { error: "forbidden" };
+    }
+    if (input.approvalId !== loaded.permissions.currentStepId) {
+      return { error: "not_current_step" };
+    }
+    const reason = input.reason?.trim() ?? "";
+    if (
+      input.decision === "rejected" &&
+      (reason === "" || reason.length > MAX_REASON_CHARS)
+    ) {
+      return { error: "reason_required" };
+    }
+
+    const response = await callExpensesApi<{
+      result: { ok: true; decision: "approved" | "rejected" };
+    }>("/api/expenses/admin/decide", {
+      actor: apiActorOf(loaded),
+      approvalId: input.approvalId,
+      decision: input.decision,
+      onBehalf: loaded.permissions.decideAs === "on_behalf",
+      ...(input.decision === "rejected" ? { reason } : {}),
+    });
+    if (!response.ok) {
+      return apiFailure("expense-decide", response.error);
+    }
+    revalidateExpense(input.expenseId);
+    const stored = response.data.result.decision;
+    if (stored !== input.decision) {
+      return { error: "already_decided" };
+    }
+    return { data: { decision: stored } };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+/** Sends the current step to another @biso.no approver and remembers the choice. */
+export async function changeExpenseApprover(input: {
+  approvalId: string;
+  email: string;
+  expenseId: string;
+}): Promise<ExpenseActionResult<{ notified: boolean }>> {
+  try {
+    const loaded = await loadForEdit(input.expenseId);
+    if (!loaded?.permissions.canChangeApprover) {
+      return { error: "forbidden" };
+    }
+    if (input.approvalId !== loaded.permissions.currentStepId) {
+      return { error: "not_current_step" };
+    }
+    const email = input.email.trim().toLowerCase();
+    if (!BISO_EMAIL.test(email)) {
+      return { error: "invalid_email" };
+    }
+
+    const response = await callExpensesApi<{ result: { notified: boolean } }>(
+      "/api/expenses/admin/change-approver",
+      { actor: apiActorOf(loaded), approvalId: input.approvalId, email }
+    );
+    if (!response.ok) {
+      return apiFailure("expense-change-approver", response.error);
+    }
+    revalidateExpense(input.expenseId);
+    return { data: { notified: response.data.result.notified } };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+/** Retries the ledger booking of a failed expense. */
+export async function retryExpenseBooking(input: {
+  expenseId: string;
+}): Promise<ExpenseActionResult<{ status: string }>> {
+  try {
+    const loaded = await loadForEdit(input.expenseId);
+    if (!loaded?.permissions.canRetryBooking) {
+      return { error: "forbidden" };
+    }
+
+    const response = await callExpensesApi<{ result: { status: string } }>(
+      "/api/expenses/admin/retry-booking",
+      { actor: apiActorOf(loaded), expenseId: input.expenseId }
+    );
+    if (!response.ok) {
+      revalidateExpense(input.expenseId);
+      return apiFailure("expense-retry-booking", response.error);
+    }
+    revalidateExpense(input.expenseId);
+    return { data: { status: response.data.result.status } };
   } catch (error) {
     return failure(error);
   }

@@ -2,6 +2,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { MONO_STACK, STUDIO, StudioPanel } from "../../../_components/studio";
 import { normalizeLocale } from "../../../shop/_components/shop-studio-theme";
 import type { ExpenseDetailStep } from "../../expenses-data";
+import { ChangeApproverDialog } from "./change-approver-dialog";
 
 const STATUS_KEYS = ["pending", "approved", "rejected", "skipped"];
 
@@ -16,7 +17,15 @@ export function formatDateTime(iso: string, locale: string): string {
   ).format(new Date(iso));
 }
 
-export function ExpenseSteps({ steps }: { steps: ExpenseDetailStep[] }) {
+export function ExpenseSteps({
+  canChangeApprover = false,
+  expenseId,
+  steps,
+}: {
+  canChangeApprover?: boolean;
+  expenseId: string;
+  steps: ExpenseDetailStep[];
+}) {
   const t = useTranslations("adminPortal.expenses");
   const locale = useLocale();
   return (
@@ -48,6 +57,12 @@ export function ExpenseSteps({ steps }: { steps: ExpenseDetailStep[] }) {
                     >
                       {t("steps.current")}
                     </span>
+                  )}
+                  {s.isCurrent && canChangeApprover && (
+                    <ChangeApproverDialog
+                      approvalId={s.id}
+                      expenseId={expenseId}
+                    />
                   )}
                 </div>
                 {s.decidedAt && (

@@ -31,10 +31,13 @@ vi.mock("@repo/connectors/teams-bot", () => ({
   sendApprovalEmail: teams.sendApprovalEmail,
   sendProactiveCard: teams.sendProactiveCard,
 }));
+const graph = vi.hoisted(() => ({ getUser: vi.fn() }));
+vi.mock("./graph", () => ({ getGraphService: () => graph }));
 vi.mock("./expense-approver-resolution", () => resolution);
 vi.mock("@repo/shared/utils/expense-events", () => events);
 
 import {
+  changeStepApprover,
   createApprovalChain,
   decideApproval,
   decideApprovalStep,
@@ -888,5 +891,200 @@ describe("token decisions history", () => {
         note: null,
       },
     ]);
+  });
+});
+
+describe("changeStepApprover", () => {
+  const approval = {
+    $id: "approval-1",
+    approver_aad_id: null,
+    approver_email: "old@biso.no",
+    approver_role: "controller",
+    campus_id: "1",
+    department: null,
+    directory_key: "campus:1:controller",
+    expense_id: "expense-1",
+    status: "pending",
+    step: 1,
+  };
+  const ACTOR = { email: "it@biso.no", kind: "admin" as const, name: "IT" };
+
+  function setup(
+    options: { approval?: object; directoryRows?: object[] } = {}
+  ) {
+    const row = { ...approval, ...options.approval };
+    db.getRow.mockImplementation((_db: string, table: string) =>
+      Promise.resolve(
+        table === "expense_approvals"
+          ? row
+          : {
+              $id: "expense-1",
+              $sequence: 42,
+              campus: "1",
+              status: "pending",
+              userId: "user-1",
+            }
+      )
+    );
+    const rowsByTable: Record<string, object[]> = {
+      expense_approvals: [row],
+      expense_approvers: options.directoryRows ?? [],
+    };
+    db.listRows.mockImplementation((_db: string, table: string) =>
+      Promise.resolve({ rows: rowsByTable[table] ?? [] })
+    );
+    graph.getUser.mockReset().mockResolvedValue({
+      displayName: "New Person",
+      id: "aad-new",
+    });
+    return row;
+  }
+
+  it("changes the approver, saves the directory row as admin and re-sends", async () => {
+    setup();
+
+    const result = await changeStepApprover({
+      actor: ACTOR,
+      approvalId: "approval-1",
+      email: " New@BISO.no ",
+    });
+
+    expect(result).toEqual({ notified: true, ok: true });
+    const stepWrites = db.updateRow.mock.calls
+      .filter(([, table]) => table === "expense_approvals")
+      .map(([, , , data]) => data);
+    expect(stepWrites[0]).toEqual({
+      approver_aad_id: "aad-new",
+      approver_email: "new@biso.no",
+    });
+    const directoryCreate = db.createRow.mock.calls.find(
+      ([, table]) => table === "expense_approvers"
+    )?.[3];
+    expect(directoryCreate).toMatchObject({
+      active: true,
+      confirmed_at: null,
+      confidence: null,
+      display_name: "New Person",
+      aad_id: "aad-new",
+      email: "new@biso.no",
+      key: "campus:1:controller",
+      source: "admin",
+    });
+    expect(events.recordExpenseEvents).toHaveBeenCalledWith(db, [
+      {
+        action: "approver_resolved",
+        actorEmail: "it@biso.no",
+        actorKind: "admin",
+        actorName: "IT",
+        after: "new@biso.no",
+        before: "old@biso.no",
+        expenseId: "expense-1",
+        field: "approver_email",
+        note: "changed in admin",
+      },
+    ]);
+    expect(teams.sendApprovalEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "new@biso.no" })
+    );
+  });
+
+  it("overwrites an existing confirmed directory row", async () => {
+    setup({
+      directoryRows: [
+        {
+          $id: "entry-1",
+          email: "old@biso.no",
+          key: "campus:1:controller",
+          source: "confirmed",
+        },
+      ],
+    });
+
+    await changeStepApprover({
+      actor: ACTOR,
+      approvalId: "approval-1",
+      email: "new@biso.no",
+    });
+
+    const update = db.updateRow.mock.calls.find(
+      ([, table]) => table === "expense_approvers"
+    );
+    expect(update?.[2]).toBe("entry-1");
+    expect(update?.[3]).toMatchObject({
+      active: true,
+      confirmed_at: null,
+      email: "new@biso.no",
+      source: "admin",
+    });
+  });
+
+  it("builds the directory key from the row when it has none", async () => {
+    setup({ approval: { directory_key: null } });
+
+    await changeStepApprover({
+      actor: ACTOR,
+      approvalId: "approval-1",
+      email: "new@biso.no",
+    });
+
+    const created = db.createRow.mock.calls.find(
+      ([, table]) => table === "expense_approvers"
+    )?.[3];
+    expect(created?.key).toBe("campus:1:controller");
+  });
+
+  it("still changes the approver when Graph cannot find the person", async () => {
+    setup();
+    graph.getUser.mockRejectedValue(new Error("timeout"));
+
+    const result = await changeStepApprover({
+      actor: ACTOR,
+      approvalId: "approval-1",
+      email: "new@biso.no",
+    });
+
+    expect(result.ok).toBe(true);
+    const step = db.updateRow.mock.calls.find(
+      ([, table]) => table === "expense_approvals"
+    )?.[3];
+    expect(step).toEqual({
+      approver_aad_id: null,
+      approver_email: "new@biso.no",
+    });
+  });
+
+  it("reports notified false and records an issue when the notice fails", async () => {
+    setup();
+    teams.sendApprovalEmail.mockRejectedValue(new Error("mail down"));
+
+    const result = await changeStepApprover({
+      actor: ACTOR,
+      approvalId: "approval-1",
+      email: "new@biso.no",
+    });
+
+    expect(result).toEqual({ notified: false, ok: true });
+    expect(
+      db.createRow.mock.calls.some(
+        ([, table]) => table === "expense_approval_issues"
+      )
+    ).toBe(true);
+  });
+
+  it("change refuses a decided step", async () => {
+    setup({ approval: { status: "approved" }, directoryRows: [] });
+
+    const result = await changeStepApprover({
+      actor: ACTOR,
+      approvalId: "approval-1",
+      email: "new@biso.no",
+    });
+
+    expect(result).toEqual({
+      error: "This step is not waiting for a decision.",
+      ok: false,
+    });
+    expect(db.updateRow).not.toHaveBeenCalled();
+    expect(db.createRow).not.toHaveBeenCalled();
   });
 });

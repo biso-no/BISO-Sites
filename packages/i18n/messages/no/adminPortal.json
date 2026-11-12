@@ -1588,7 +1588,45 @@
       "invalid_account": "Det er ikke en aktiv utleggskonto.",
       "invalid_bank_account": "En norsk bankkonto har 11 siffer.",
       "supporting_receipt": "Et vedlegg har bare dato og beskrivelse.",
-      "failed": "Kunne ikke lagre. Prøv igjen."
+      "failed": "Kunne ikke lagre. Prøv igjen.",
+      "not_current_step": "Dette trinnet venter ikke lenger på en avgjørelse.",
+      "reason_required": "Skriv en begrunnelse på opptil 1 000 tegn.",
+      "invalid_email": "Bruk en e-postadresse som slutter på @biso.no.",
+      "already_decided": "Dette trinnet er allerede avgjort på en annen måte. Siden er oppdatert.",
+      "already_booked": "Dette utlegget er allerede bokført i Finago.",
+      "not_failed": "Bare mislykkede bokføringer kan forsøkes på nytt.",
+      "posting_disabled": "Bokføring til Finago er slått av.",
+      "api_failed": "Utleggstjenesten svarte ikke som forventet. Prøv igjen."
+    },
+    "decision": {
+      "title": "Avgjørelse",
+      "approve": "Godkjenn",
+      "reject": "Avslå",
+      "approveOnBehalf": "Godkjenn på vegne av {role}",
+      "rejectOnBehalf": "Avslå på vegne av {role}",
+      "onBehalfHint": "Du avgjør på vegne av {role}. Det logges i historikken.",
+      "rejectDescription": "Studenten ser begrunnelsen. Den logges også i historikken.",
+      "reason": "Begrunnelse",
+      "approved": "Godkjent",
+      "rejected": "Avslått"
+    },
+    "changeApprover": {
+      "button": "Bytt godkjenner",
+      "title": "Bytt godkjenner",
+      "description": "Den nye godkjenneren får en ny godkjenningslenke. Den gamle lenken slutter å virke.",
+      "email": "E-post (@biso.no)",
+      "directoryNote": "Dette endrer også den lagrede godkjenneren for fremtidige utlegg med denne rollen.",
+      "save": "Bytt og send",
+      "changed": "Godkjenner byttet og varslet",
+      "changedNoNotice": "Godkjenner byttet, men varselet kunne ikke sendes. Det ligger under godkjenningsproblemer."
+    },
+    "retry": {
+      "button": "Prøv bokføring på nytt",
+      "title": "Prøv bokføring på nytt",
+      "warning": "Sjekk i Finago at utlegget ikke allerede er bokført før du prøver på nytt. Bokføres det to ganger, får studenten betalt to ganger.",
+      "confirm": "Prøv på nytt",
+      "booked": "Bokført i Finago",
+      "failedAgain": "Bokføringen mislyktes igjen. Se årsaken ovenfor."
     }
   },
   "expensesSettings": {

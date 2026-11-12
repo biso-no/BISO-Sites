@@ -8,10 +8,12 @@ import { getExpenseViewer } from "@/lib/expense-viewer";
 import { PageHeader } from "../../_components/page-header";
 import { STUDIO, StudioPanel } from "../../_components/studio";
 import { getExpenseDetail } from "../expenses-data";
+import { DecisionPanel } from "./_components/decision-panel";
 import { ExpenseHeader, ExpenseHints } from "./_components/expense-header";
 import { ExpenseHistory } from "./_components/expense-history";
 import { ExpenseReceipts } from "./_components/expense-receipts";
 import { ExpenseSteps } from "./_components/expense-steps";
+import { RetryBookingButton } from "./_components/retry-booking-button";
 import { loadReceiptEditOptions } from "./edit-options";
 
 export default async function ExpenseDetailPage({
@@ -40,6 +42,8 @@ export default async function ExpenseDetailPage({
     ? await loadReceiptEditOptions((await createAdminClient()).db)
     : null;
 
+  const currentStep = detail.steps.find((step) => step.isCurrent);
+
   return (
     <div className="pb-12">
       <PageHeader description={detail.submitter.name} title={t("title")}>
@@ -62,7 +66,23 @@ export default async function ExpenseDetailPage({
           <p className="mt-1 whitespace-pre-wrap text-[13px]">
             {detail.bookingFailure ?? t("detail.bookingFailureNone")}
           </p>
+          {detail.permissions.canRetryBooking && (
+            <div className="mt-3">
+              <RetryBookingButton expenseId={detail.id} />
+            </div>
+          )}
         </StudioPanel>
+      )}
+      {detail.permissions.canDecide && currentStep && (
+        <DecisionPanel
+          approvalId={currentStep.id}
+          expenseId={detail.id}
+          onBehalfRole={
+            detail.permissions.decideAs === "on_behalf"
+              ? t(`roles.${currentStep.role}` as never).toLocaleLowerCase()
+              : null
+          }
+        />
       )}
       <ExpenseHints hints={detail.hints} />
       <ExpenseReceipts
@@ -70,7 +90,11 @@ export default async function ExpenseDetailPage({
         expenseId={detail.id}
         receipts={detail.receipts}
       />
-      <ExpenseSteps steps={detail.steps} />
+      <ExpenseSteps
+        canChangeApprover={detail.permissions.canChangeApprover}
+        expenseId={detail.id}
+        steps={detail.steps}
+      />
       <ExpenseHistory events={detail.events} />
     </div>
   );

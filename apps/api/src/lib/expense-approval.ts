@@ -21,15 +21,22 @@ import {
   sendApprovalEmail,
   sendProactiveCard,
 } from "@repo/connectors/teams-bot";
-import { getCampusApprovalPlan } from "@repo/shared/utils/expense-approvers";
+import {
+  directoryKey,
+  getCampusApprovalPlan,
+} from "@repo/shared/utils/expense-approvers";
 import { recordExpenseEvents } from "@repo/shared/utils/expense-events";
 import { reimbursementNumber } from "@repo/shared/utils/reimbursement-number";
-import { confirmDirectoryApprover } from "./expense-approver-directory";
+import {
+  confirmDirectoryApprover,
+  setAdminDirectoryApprover,
+} from "./expense-approver-directory";
 import {
   type ApproverResolutionIssue,
   type ResolvedApproverStep,
   resolveExpenseApprovers,
 } from "./expense-approver-resolution";
+import { getGraphService } from "./graph";
 
 const HTTP_NOT_FOUND = 404;
 const TOKEN_TTL_DAYS = 14;
@@ -615,6 +622,7 @@ const ROLE_NOUN: Record<ExpenseApprovalsApproverRole, string> = {
   national: "the national approver",
 };
 
+const GRAPH_LOOKUP_TIMEOUT_MS = 6000;
 const NOTE_SEPARATOR = " · ";
 const NOT_CURRENT_STEP_ERROR = "This step is not waiting for a decision.";
 
@@ -989,27 +997,159 @@ export async function resendApprovalNotification(
   if (!stepRow) {
     return { ok: false, error: "No pending approval step to notify." };
   }
+  await reissueAndNotify(stepRow);
+  return { ok: true };
+}
+
+/**
+ * Mints a fresh token for `stepRow` and notifies its approver. Loads the expense
+ * unless the caller already has it.
+ */
+async function reissueAndNotify(
+  stepRow: ExpenseApprovals,
+  loaded?: ExpenseSummaryRow
+): Promise<void> {
+  const { db } = await createAdminClient();
+  const expense =
+    loaded ??
+    (await db.getRow<ExpenseSummaryRow>("app", "expense", stepRow.expense_id, [
+      Query.select(EXPENSE_SUMMARY_SELECT),
+    ]));
+  await notifyPendingStep(
+    expense,
+    stepRow,
+    reimbursementNumber(expense.$sequence)
+  );
+}
+
+/** Looks the person up in Graph; null on any failure or after the timeout. */
+async function lookupGraphPerson(
+  email: string
+): Promise<{ aadId: string; displayName: string } | null> {
+  const signal = AbortSignal.timeout(GRAPH_LOOKUP_TIMEOUT_MS);
+  try {
+    const user = await Promise.race([
+      getGraphService().getUser(email),
+      new Promise<never>((_, reject) => {
+        signal.addEventListener("abort", () => reject(signal.reason), {
+          once: true,
+        });
+      }),
+    ]);
+    return user ? { aadId: user.id, displayName: user.displayName } : null;
+  } catch (error) {
+    console.warn("[expense-approval] Graph lookup failed:", error);
+    return null;
+  }
+}
+
+/** The directory key and scope a step's approver belongs to. */
+function directoryTarget(
+  row: ExpenseApprovals,
+  expenseCampus: string
+): { campusId: string; key: string; scope: "department" | "campus" } {
+  const campusId = row.campus_id ?? expenseCampus;
+  const scope =
+    row.directory_key?.startsWith("dept:") ||
+    (!row.directory_key && row.department)
+      ? "department"
+      : "campus";
+  return {
+    campusId,
+    scope,
+    key:
+      row.directory_key ??
+      directoryKey({
+        campusId,
+        departmentId: row.department,
+        role: row.approver_role,
+        scope,
+      }),
+  };
+}
+
+/**
+ * Replaces the approver of the current step, remembers the choice in the
+ * approver directory for future expenses, and sends the new approver a fresh
+ * approval link. Refuses a step that is not the current one.
+ */
+export async function changeStepApprover(params: {
+  approvalId: string;
+  email: string;
+  actor: ApprovalActor;
+}): Promise<{ ok: true; notified: boolean } | { ok: false; error: string }> {
+  const { db } = await createAdminClient();
+  let row: ExpenseApprovals;
+  try {
+    row = await db.getRow<ExpenseApprovals>(
+      "app",
+      "expense_approvals",
+      params.approvalId
+    );
+  } catch (error) {
+    if (appwriteErrorStatus(error) === HTTP_NOT_FOUND) {
+      return { ok: false, error: "This approval step does not exist." };
+    }
+    throw error;
+  }
   const expense = await db.getRow<ExpenseSummaryRow>(
     "app",
     "expense",
-    expenseId,
-    [
-      Query.select([
-        "$id",
-        "campus",
-        "department",
-        "total",
-        "description",
-        "userId",
-        "$sequence",
-        "departmentRel.Name",
-        "campusRel.name",
-      ]),
-    ]
+    row.expense_id,
+    [Query.select(EXPENSE_SUMMARY_SELECT)]
   );
-  const refNumber = reimbursementNumber(expense.$sequence);
-  await notifyPendingStep(expense, stepRow, refNumber);
-  return { ok: true };
+  if (
+    row.status !== ExpenseApprovalsStatus.PENDING ||
+    !(await isCurrentStep(db, row, expense))
+  ) {
+    return { ok: false, error: NOT_CURRENT_STEP_ERROR };
+  }
+
+  const email = params.email.trim().toLowerCase();
+  const person = await lookupGraphPerson(email);
+  await db.updateRow<ExpenseApprovals>("app", "expense_approvals", row.$id, {
+    approver_aad_id: person?.aadId ?? null,
+    approver_email: email,
+  } as Partial<ExpenseApprovals>);
+
+  const target = directoryTarget(row, expense.campus);
+  await setAdminDirectoryApprover(db, {
+    aadId: person?.aadId ?? null,
+    campusId: target.campusId,
+    departmentId: row.department,
+    displayName: person?.displayName ?? null,
+    email,
+    key: target.key,
+    role: row.approver_role,
+    scope: target.scope,
+  });
+
+  await recordExpenseEvents(db, [
+    {
+      action: "approver_resolved",
+      actorEmail: params.actor.email,
+      actorKind: params.actor.kind,
+      actorName: params.actor.name,
+      after: email,
+      before: row.approver_email,
+      expenseId: row.expense_id,
+      field: "approver_email",
+      note: "changed in admin",
+    },
+  ]);
+
+  const stepRow: ExpenseApprovals = {
+    ...row,
+    approver_aad_id: person?.aadId ?? null,
+    approver_email: email,
+  };
+  try {
+    await reissueAndNotify(stepRow, expense);
+  } catch (error) {
+    await recordNotificationIssue(expense, stepRow, error);
+    return { ok: true, notified: false };
+  }
+  return { ok: true, notified: true };
 }
 
 function buildContextFromExpense(

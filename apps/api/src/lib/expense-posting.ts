@@ -34,6 +34,7 @@ import {
 } from "@repo/shared/utils/expense-events";
 import { reimbursementNumber } from "@repo/shared/utils/reimbursement-number";
 import { PDFDocument } from "pdf-lib";
+import type { ApprovalActor } from "./expense-approval";
 import { assertApprovedExpenseChain } from "./expense-approval-chain";
 import { type BookedExampleInput, writeExamples } from "./expense-examples";
 import { loadAllCostTypes } from "./expense-types";
@@ -294,6 +295,13 @@ async function recordFailure(
 }
 
 const SUCCESS_WRITE_EXTRA_ATTEMPTS = 2;
+// Waits before the second and third success-write attempts.
+const SUCCESS_WRITE_BACKOFF_MS = [500, 2000];
+
+type Sleep = (ms: number) => Promise<void>;
+
+const defaultSleep: Sleep = (ms) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
 
 // Finago has accepted the transaction, so the only job left is to record that.
 // A failed write is retried; if it keeps failing the row stays `posting` (never
@@ -301,10 +309,14 @@ const SUCCESS_WRITE_EXTRA_ATTEMPTS = 2;
 async function writeSuccess(
   db: AdminDb,
   expenseId: string,
-  transactionId: string
+  transactionId: string,
+  sleep: Sleep
 ): Promise<void> {
   let lastError: unknown;
   for (let attempt = 0; attempt <= SUCCESS_WRITE_EXTRA_ATTEMPTS; attempt++) {
+    if (attempt > 0) {
+      await sleep(SUCCESS_WRITE_BACKOFF_MS[attempt - 1] ?? 0);
+    }
     try {
       await db.updateRow("app", "expense", expenseId, {
         ledger_transaction_id: transactionId,
@@ -313,7 +325,6 @@ async function writeSuccess(
       return;
     } catch (error) {
       lastError = error;
-      await Promise.resolve();
     }
   }
   const message =
@@ -442,13 +453,57 @@ async function writeBookedExamplesSafely(
 }
 
 /**
+ * Whether a stored claim or transaction id means this run must not post.
+ * Throws for a stale claim, after marking the expense failed.
+ */
+async function shouldSkipClaimedExpense(
+  db: AdminDb,
+  expense: {
+    $id: string;
+    $updatedAt: string;
+    ledger_transaction_id?: string | null;
+  }
+): Promise<boolean> {
+  const expenseId = expense.$id;
+  if (!expense.ledger_transaction_id) {
+    return false;
+  }
+  if (expense.ledger_transaction_id !== POSTING_CLAIM_MARKER) {
+    return true; // a real 24SO transaction id — already posted.
+  }
+  // A "posting" marker means a run claimed this row. While the claim is fresh,
+  // another run is actively posting, so skip. Once it's older than the lease, the
+  // claiming run crashed or timed out: surface the row as failed for manual review
+  // rather than leaving it stuck `approved` forever (and counted as posted) — we
+  // must NOT auto-repost, because the dead run may already have reached 24SO.
+  const claimAgeMs = Date.now() - new Date(expense.$updatedAt).getTime();
+  if (claimAgeMs < STALE_POSTING_LEASE_MS) {
+    return true;
+  }
+  await db.updateRow("app", "expense", expenseId, {
+    status: ExpensesStatus.FAILED,
+  });
+  const staleError = new Error(
+    `Stale posting claim on expense ${expenseId} (${Math.round(
+      claimAgeMs / 1000
+    )}s old) — marked failed for manual review.`
+  );
+  await recordFailureEvent(db, expenseId, staleError);
+  throw staleError;
+}
+
+/**
  * Posts a single approved expense to the ledger. Sets status to `success` on
  * success (storing the 24SO transaction id) or `failed` on error. Idempotent
  * and concurrency-safe: atomically claims the row via the `posting_lock` counter
  * before any 24SO call, so an already-posted/claimed expense is skipped even when
  * two dispatch runs overlap.
  */
-export async function postApprovedExpense(expenseId: string): Promise<void> {
+export async function postApprovedExpense(
+  expenseId: string,
+  options: { sleep?: Sleep } = {}
+): Promise<void> {
+  const sleep = options.sleep ?? defaultSleep;
   const { db, storage } = await createAdminClient();
 
   const expense = await db.getRow<ExpenseWithRels>(
@@ -476,29 +531,8 @@ export async function postApprovedExpense(expenseId: string): Promise<void> {
     ]
   );
 
-  if (expense.ledger_transaction_id) {
-    if (expense.ledger_transaction_id !== POSTING_CLAIM_MARKER) {
-      return; // a real 24SO transaction id — already posted.
-    }
-    // A "posting" marker means a run claimed this row. While the claim is fresh,
-    // another run is actively posting, so skip. Once it's older than the lease, the
-    // claiming run crashed or timed out: surface the row as failed for manual review
-    // rather than leaving it stuck `approved` forever (and counted as posted) — we
-    // must NOT auto-repost, because the dead run may already have reached 24SO.
-    const claimAgeMs = Date.now() - new Date(expense.$updatedAt).getTime();
-    if (claimAgeMs < STALE_POSTING_LEASE_MS) {
-      return;
-    }
-    await db.updateRow("app", "expense", expenseId, {
-      status: ExpensesStatus.FAILED,
-    });
-    const staleError = new Error(
-      `Stale posting claim on expense ${expenseId} (${Math.round(
-        claimAgeMs / 1000
-      )}s old) — marked failed for manual review.`
-    );
-    await recordFailureEvent(db, expenseId, staleError);
-    throw staleError;
+  if (await shouldSkipClaimedExpense(db, expense)) {
+    return;
   }
 
   try {
@@ -537,13 +571,13 @@ export async function postApprovedExpense(expenseId: string): Promise<void> {
     ledger_transaction_id: POSTING_CLAIM_MARKER,
   });
 
-  // One Oslo "today" per posting: used for date resolution, the closed-period
-  // retry limit and the voucher header date.
-  const today = todayInOslo();
   let posted: PostedExpenseTransaction;
   let receipts: ExpenseReceiptLine[];
   let builtShifts: DateShift[];
   try {
+    // One Oslo "today" per posting: used for date resolution, the closed-period
+    // retry limit and the voucher header date.
+    const today = todayInOslo();
     const profile = await db.getRow<Users>("app", "user", expense.userId);
     const options = await loadAllCostTypes(db);
     const ordered = sortedAttachments(expense.expenseAttachments ?? []);
@@ -619,7 +653,7 @@ export async function postApprovedExpense(expenseId: string): Promise<void> {
   }
 
   // Finago has the transaction. From here on nothing may mark the row failed.
-  await writeSuccess(db, expenseId, posted.transactionId);
+  await writeSuccess(db, expenseId, posted.transactionId, sleep);
 
   await recordBooking(db, expenseId, {
     lines: receipts,
@@ -633,4 +667,60 @@ export async function postApprovedExpense(expenseId: string): Promise<void> {
     expense.expenseAttachments ?? [],
     receipts
   );
+}
+
+type RetryResult = { ok: true; status: string } | { ok: false; error: string };
+
+/**
+ * Re-runs the booking of a failed expense. The failed row still holds its claim
+ * (the `posting` marker and a spent `posting_lock`) so nothing reposts by
+ * itself; a person has checked Finago and chose to retry, so the claim is
+ * released here and the normal posting run takes over. A stored real
+ * transaction id means it is already booked, and nothing is written.
+ */
+export async function retryExpenseBooking(params: {
+  expenseId: string;
+  actor: ApprovalActor;
+}): Promise<RetryResult> {
+  const { db } = await createAdminClient();
+  const { expenseId, actor } = params;
+  const expense = await db.getRow<Expenses>("app", "expense", expenseId, [
+    Query.select(["$id", "status", "ledger_transaction_id"]),
+  ]);
+  const stored = expense.ledger_transaction_id;
+  if (stored && stored !== POSTING_CLAIM_MARKER) {
+    return { ok: false, error: `Already booked as ${stored}.` };
+  }
+  if (expense.status !== ExpensesStatus.FAILED) {
+    return { ok: false, error: "Only failed bookings can be retried." };
+  }
+
+  await db.updateRow("app", "expense", expenseId, {
+    status: ExpensesStatus.APPROVED,
+    posting_lock: 0,
+    ledger_transaction_id: null,
+  });
+  await recordExpenseEvents(db, [
+    {
+      expenseId,
+      actorKind: actor.kind,
+      actorEmail: actor.email,
+      actorName: actor.name,
+      action: "booking_retried",
+      note: "retried from admin",
+    },
+  ]);
+
+  try {
+    await postApprovedExpense(expenseId);
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+  const after = await db.getRow<Expenses>("app", "expense", expenseId, [
+    Query.select(["$id", "status"]),
+  ]);
+  return { ok: true, status: after.status };
 }
