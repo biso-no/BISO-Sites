@@ -1,32 +1,72 @@
 import { Permission, Role } from "@repo/api";
 import { ExpensesStatus } from "@repo/api/types/appwrite";
+import { approvalSwitchFor } from "@repo/shared/utils/expense-approvers";
 import { DEFAULT_COST_TYPE_SLUG } from "@repo/shared/utils/expense-cost-types";
+import { receiptFileId } from "@repo/shared/utils/receipt-file-id";
 import { z } from "zod";
 
-const ExpenseAttachmentInputSchema = z.object({
-  amount: z.coerce.number().finite().default(0),
-  // Default to a valid slug (never ""), so an omitted cost type resolves to the
-  // "Other" GL account at posting time instead of failing the ledger post.
-  cost_type: z
-    .string()
-    .optional()
-    .transform((value) => value || DEFAULT_COST_TYPE_SLUG),
-  date: z.string().optional().default(""),
-  description: z.string().optional().default(""),
-  sort_order: z.coerce.number().int().nonnegative().optional().default(0),
-  type: z.string().optional().default("application/octet-stream"),
-  url: z.string().optional().default(""),
-});
+const COST_TYPE_TEXT_MAX = 120;
+const OCCASION_MAX = 1000;
+const EVENT_ID_MAX = 64;
+/** The `eventName` column's size on the expense. */
+const EVENT_NAME_MAX = 100;
+
+/**
+ * One receipt as a client sends it. Server-owned columns (`ai_*`,
+ * `ocr_amount`, `receipt_issues`, `file_hash`, `account_*`, `tax_code`,
+ * `type_source`) are not in the schema, so whatever a client sends for them is
+ * stripped here and never stored.
+ */
+const ExpenseAttachmentInputSchema = z
+  .object({
+    amount: z.coerce.number().finite().default(0),
+    cost_type: z.string().nullish(),
+    /**
+     * Sent by the web and app versions that know about AI types: present means
+     * the client only sends a type the student chose or accepted. Old app
+     * versions (2.2.15, 2.2.16) never send it.
+     */
+    cost_type_chosen: z.boolean().nullish(),
+    /** The student's own words when no listed type fits. */
+    cost_type_text: z.string().trim().max(COST_TYPE_TEXT_MAX).nullish(),
+    date: z.string().optional().default(""),
+    description: z.string().optional().default(""),
+    sort_order: z.coerce.number().int().nonnegative().optional().default(0),
+    type: z.string().optional().default("application/octet-stream"),
+    url: z.string().optional().default(""),
+  })
+  .transform(({ cost_type, ...attachment }) => ({
+    ...attachment,
+    // An old app's empty type has always meant "Other". A client that sends
+    // `cost_type_chosen` leaves an empty type empty, so the server decides it
+    // at submission instead of booking it silently to "Other".
+    cost_type: isLegacyAttachment(attachment)
+      ? cost_type || DEFAULT_COST_TYPE_SLUG
+      : (cost_type ?? ""),
+  }));
 
 const ExpensePayloadSchema = z.object({
   bank_account: z.string().min(1),
   campus: z.string().min(1),
   department: z.string().min(1),
   description: z.string().nullable().optional(),
-  eventName: z.string().nullable().optional(),
+  event_id: z.string().max(EVENT_ID_MAX).nullish(),
+  // Cut, not refused: an event title may be longer than the column, and an
+  // older client that sends one must still be able to save.
+  eventName: z
+    .string()
+    .nullable()
+    .optional()
+    .transform((name) =>
+      typeof name === "string" ? name.slice(0, EVENT_NAME_MAX) : name
+    ),
   expenseAttachments: z.array(ExpenseAttachmentInputSchema).optional(),
   expenseId: z.string().min(1).optional(),
+  occasion: z.string().trim().max(OCCASION_MAX).nullish(),
   prepayment_amount: z.coerce.number().finite().nullable().optional(),
+  // No default: an app that has no controller switch leaves it out, and a
+  // draft update then keeps the stored flag (see `mergeLegacyDraft`).
+  submitter_is_controller: z.boolean().optional(),
   submitter_is_financial_manager: z.boolean().optional().default(false),
   total: z.coerce.number().finite().default(0),
 });
@@ -37,6 +77,21 @@ export type ExpenseAttachmentInput = z.infer<
 
 export type ExpensePayload = z.infer<typeof ExpensePayloadSchema>;
 
+/**
+ * An attachment as the draft writes it: `cost_type_chosen` is never stored,
+ * and `cost_type_text` only when there is some.
+ */
+export interface ExpenseAttachmentRowInput {
+  amount: number;
+  cost_type: string;
+  cost_type_text?: string;
+  date: string;
+  description: string;
+  sort_order: number;
+  type: string;
+  url: string;
+}
+
 export interface ExpenseRowInput {
   bank_account: string;
   campus: string;
@@ -44,14 +99,34 @@ export interface ExpenseRowInput {
   department: string;
   departmentRel: string;
   description: string | null;
+  event_id?: string | null;
   eventName: string | null;
-  expenseAttachments: ExpenseAttachmentInput[];
+  expenseAttachments: ExpenseAttachmentRowInput[];
+  occasion?: string | null;
   prepayment_amount: number | null;
   status: ExpensesStatus;
+  submitter_is_controller: boolean;
   submitter_is_financial_manager: boolean;
   total: number;
   user: string;
   userId: string;
+}
+
+/** True for an attachment from an app version that predates AI types. */
+export function isLegacyAttachment(attachment: {
+  cost_type_chosen?: boolean | null;
+}): boolean {
+  return attachment.cost_type_chosen == null;
+}
+
+/**
+ * True for a payload from an app version that predates AI types: no
+ * attachment carries `cost_type_chosen`.
+ */
+export function isLegacyPayload(
+  payload: Pick<ExpensePayload, "expenseAttachments">
+): boolean {
+  return (payload.expenseAttachments ?? []).every(isLegacyAttachment);
 }
 
 export function parseExpensePayload(body: unknown): ExpensePayload | null {
@@ -59,6 +134,78 @@ export function parseExpensePayload(body: unknown): ExpensePayload | null {
   return parsed.success ? parsed.data : null;
 }
 
+/**
+ * Attachment rows are written new on every save, so an empty own text is
+ * simply left out.
+ */
+function toAttachmentRow(
+  attachment: ExpenseAttachmentInput
+): ExpenseAttachmentRowInput {
+  return {
+    amount: attachment.amount,
+    cost_type: attachment.cost_type,
+    ...(attachment.cost_type_text
+      ? { cost_type_text: attachment.cost_type_text }
+      : {}),
+    date: attachment.date,
+    description: attachment.description,
+    sort_order: attachment.sort_order,
+    type: attachment.type,
+    url: attachment.url,
+  };
+}
+
+/**
+ * The occasion and event the payload has. One it leaves out is not written,
+ * so an update keeps the stored value; a null (or empty) one is written as
+ * null, which clears it.
+ */
+function sentOccasionAndEvent(
+  data: ExpensePayload
+): Pick<ExpenseRowInput, "event_id" | "occasion"> {
+  const sent: Pick<ExpenseRowInput, "event_id" | "occasion"> = {};
+  if (data.event_id !== undefined) {
+    sent.event_id = data.event_id || null;
+  }
+  if (data.occasion !== undefined) {
+    sent.occasion = data.occasion || null;
+  }
+  return sent;
+}
+
+/**
+ * The submitter's two self-declarations, kept only when the department offers
+ * that switch. A controller flag that is still absent here reads as false:
+ * a draft update has already put the stored one in its place (see
+ * `mergeLegacyDraft`), so absent means nothing is stored.
+ */
+export function normalisedSwitches(
+  data: Pick<
+    ExpensePayload,
+    | "campus"
+    | "department"
+    | "submitter_is_controller"
+    | "submitter_is_financial_manager"
+  >
+): {
+  submitter_is_controller: boolean;
+  submitter_is_financial_manager: boolean;
+} {
+  const offered = approvalSwitchFor(data.campus, data.department);
+  return {
+    submitter_is_controller:
+      offered === "controller" && Boolean(data.submitter_is_controller),
+    submitter_is_financial_manager:
+      offered === "financial_manager" &&
+      Boolean(data.submitter_is_financial_manager),
+  };
+}
+
+/**
+ * The expense row to write. The AI-era columns (`occasion`, `event_id`,
+ * `cost_type_text`) are written only when the payload has them, so clients
+ * that never send them keep working against a schema without them.
+ */
 export function buildExpenseRowInput(
   data: ExpensePayload,
   userId: string,
@@ -72,14 +219,118 @@ export function buildExpenseRowInput(
     departmentRel: data.department,
     description: data.description || null,
     eventName: data.eventName || null,
-    expenseAttachments: data.expenseAttachments ?? [],
+    expenseAttachments: (data.expenseAttachments ?? []).map(toAttachmentRow),
+    ...sentOccasionAndEvent(data),
     prepayment_amount: data.prepayment_amount ?? 0,
     status,
-    submitter_is_financial_manager:
-      data.submitter_is_financial_manager ?? false,
+    ...normalisedSwitches(data),
     total: data.total,
     user: userId,
     userId,
+  };
+}
+
+/** The stored type of one attachment row, as the draft merge reads it. */
+export interface StoredAttachmentType {
+  cost_type?: string | null;
+  cost_type_text?: string | null;
+  url?: string | null;
+}
+
+/** One key per file, whether the url is a bare id or a full view URL. */
+export function attachmentFileKey(
+  url: string | null | undefined
+): string | null {
+  return receiptFileId(url) ?? (url?.trim() || null);
+}
+
+/**
+ * Puts back own type text an old app could not show.
+ *
+ * Old app versions (2.2.15, 2.2.16) load each receipt's stored `cost_type`
+ * and send it back, so the slug they send stands: an unchanged one is the
+ * same choice, a different one is the student's edit. They know nothing of
+ * `cost_type_text`, though, and for a receipt the web stored as own text
+ * (text, no slug) they send their category default instead. For that
+ * receipt the stored text comes back with an empty slug. A client that sends
+ * `cost_type_chosen` is taken as sent.
+ */
+export function mergeLegacyAttachmentTypes(
+  incoming: ExpenseAttachmentInput[],
+  existing: readonly StoredAttachmentType[]
+): ExpenseAttachmentInput[] {
+  const ownText = new Map<string, string>();
+  for (const row of existing) {
+    const key = attachmentFileKey(row.url);
+    const text = row.cost_type_text?.trim();
+    if (key && text && !row.cost_type && !ownText.has(key)) {
+      ownText.set(key, text);
+    }
+  }
+
+  return incoming.map((attachment) => {
+    const key = attachmentFileKey(attachment.url);
+    const text = key ? ownText.get(key) : undefined;
+    if (!(text && isLegacyAttachment(attachment))) {
+      return attachment;
+    }
+    return { ...attachment, cost_type: "", cost_type_text: text };
+  });
+}
+
+/** What the draft merge reads from the stored draft. */
+export interface StoredDraft {
+  campus?: string | null;
+  department?: string | null;
+  event_id?: string | null;
+  expenseAttachments?: readonly StoredAttachmentType[] | null;
+  occasion?: string | null;
+  submitter_is_controller?: boolean | null;
+}
+
+/**
+ * The payload to save over a stored draft. Old app versions know nothing of
+ * the student's own type text, the occasion or the matched event, so when an
+ * old app re-saves or submits a draft made on the web, its own text is put
+ * back (see `mergeLegacyAttachmentTypes`) and, unless the payload sends them,
+ * its `occasion` and `event_id` are kept. A client that sends `cost_type_chosen`
+ * is taken as sent: it clears those two by sending null, and a draft update
+ * that leaves them out keeps them (see `buildExpenseRowInput`).
+ *
+ * No app version has the controller switch, so a payload that leaves
+ * `submitter_is_controller` out keeps the stored flag, but only when its
+ * campus and department are the stored draft's: a flag declared for one
+ * department must not carry over to another. Dropping it within the same
+ * department would send a controller's own reimbursement, switched on from the
+ * web, to the controller.
+ */
+export function mergeLegacyDraft(
+  payload: ExpensePayload,
+  existing: StoredDraft
+): ExpensePayload {
+  const sameCampusAndDepartment =
+    payload.campus === existing.campus &&
+    payload.department === existing.department;
+  const merged: ExpensePayload = {
+    ...payload,
+    expenseAttachments: mergeLegacyAttachmentTypes(
+      payload.expenseAttachments ?? [],
+      existing.expenseAttachments ?? []
+    ),
+    submitter_is_controller:
+      payload.submitter_is_controller ??
+      (sameCampusAndDepartment ? existing.submitter_is_controller : null) ??
+      undefined,
+  };
+  if (!isLegacyPayload(payload)) {
+    return merged;
+  }
+  return {
+    ...merged,
+    event_id:
+      payload.event_id === undefined ? existing.event_id : payload.event_id,
+    occasion:
+      payload.occasion === undefined ? existing.occasion : payload.occasion,
   };
 }
 
@@ -94,46 +345,6 @@ export function buildExpenseRowInput(
  */
 export function buildExpenseRowPermissions(userId: string): string[] {
   return [Permission.read(Role.user(userId))];
-}
-
-const APPWRITE_FILE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,35}$/;
-
-const STORAGE_FILE_URL_RE =
-  /\/storage\/buckets\/[^/?#]+\/files\/([^/?#]+)\/(?:view|preview|download)(?:[/?#]|$)/;
-
-function decodeSegment(value: string): string {
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    // A stray "%" is not an encoding; take the segment as written.
-    return value;
-  }
-}
-
-/**
- * The `expenses` bucket file id one attachment `url` names, or null.
- *
- * Receipts uploaded through the web or `POST /api/expenses/attachments` store
- * a bare file id, but older rows stored the whole view URL. Both forms name
- * the same file, so both have to resolve to the same id: a reference check
- * that compared the raw strings would not see a legacy row pointing at the
- * file a newer draft names, and would delete a receipt that is still in use.
- */
-export function receiptFileId(url: string | null | undefined): string | null {
-  const value = url?.trim() ?? "";
-  if (!value) {
-    return null;
-  }
-  if (APPWRITE_FILE_ID_RE.test(value)) {
-    return value;
-  }
-
-  const fromUrl = STORAGE_FILE_URL_RE.exec(value)?.[1];
-  if (!fromUrl) {
-    return null;
-  }
-  const decoded = decodeSegment(fromUrl);
-  return APPWRITE_FILE_ID_RE.test(decoded) ? decoded : null;
 }
 
 /**

@@ -6,15 +6,17 @@ import {
   ExpensesStatus,
 } from "@repo/api/types/appwrite";
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
+import { receiptFileId } from "@repo/shared/utils/receipt-file-id";
 import { type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
 import {
   buildExpenseRowInput,
   buildExpenseRowPermissions,
+  type ExpensePayload,
   type ExpenseRowInput,
+  mergeLegacyDraft,
   parseExpensePayload,
-  receiptFileId,
   receiptFileIds,
 } from "@/lib/expense-payload";
 
@@ -33,16 +35,32 @@ const EXPENSES_BUCKET = "expenses";
  */
 const REFERENCE_PROBE_LIMIT = 5;
 
-async function assertDraftOwnership(
+/**
+ * The caller's own draft, with what `mergeLegacyDraft` keeps from it, or the
+ * response that refuses the update.
+ */
+async function loadOwnedDraft(
   db: AdminDb,
   expenseId: string,
   userId: string
-): Promise<NextResponse | null> {
+): Promise<Expenses | NextResponse> {
   const existingExpense = await db.getRow<Expenses>(
     "app",
     "expense",
     expenseId,
-    [Query.select(["$id", "status", "userId"])]
+    [
+      Query.select([
+        "$id",
+        "status",
+        "userId",
+        "occasion",
+        "event_id",
+        "submitter_is_controller",
+        "campus",
+        "department",
+        "expenseAttachments.*",
+      ]),
+    ]
   );
 
   if (existingExpense.userId !== userId) {
@@ -59,7 +77,7 @@ async function assertDraftOwnership(
     );
   }
 
-  return null;
+  return existingExpense;
 }
 
 export async function POST(req: NextRequest) {
@@ -90,15 +108,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const expenseBody = buildExpenseRowInput(
-      payload,
-      user.$id,
-      ExpensesStatus.DRAFT
-    );
-
     const draft = payload.expenseId
-      ? await updateDraftExpense(payload.expenseId, user.$id, expenseBody)
-      : await createDraftExpense(user.$id, expenseBody);
+      ? await updateDraftExpense(payload.expenseId, user.$id, payload)
+      : await createDraftExpense(
+          user.$id,
+          buildExpenseRowInput(payload, user.$id, ExpensesStatus.DRAFT)
+        );
 
     if (draft instanceof NextResponse) {
       return applyCorsHeaders(draft, origin);
@@ -138,18 +153,27 @@ async function createDraftExpense(
  * Expense rows are read-only to their submitter, so this ownership check is
  * the only thing between the caller and the row: the read and the write both
  * use the admin client.
+ *
+ * An old app re-saving a draft keeps the draft's own types, occasion, event
+ * and controller flag (see `mergeLegacyDraft`).
  */
 async function updateDraftExpense(
   expenseId: string,
   userId: string,
-  expenseBody: ExpenseRowInput
+  payload: ExpensePayload
 ) {
   const { db } = await createAdminClient();
-  const ownershipError = await assertDraftOwnership(db, expenseId, userId);
+  const existing = await loadOwnedDraft(db, expenseId, userId);
 
-  if (ownershipError) {
-    return ownershipError;
+  if (existing instanceof NextResponse) {
+    return existing;
   }
+
+  const expenseBody = buildExpenseRowInput(
+    mergeLegacyDraft(payload, existing),
+    userId,
+    ExpensesStatus.DRAFT
+  );
 
   return db.updateRow<DraftExpenseRow>(
     "app",

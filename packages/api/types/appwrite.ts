@@ -98,6 +98,7 @@ export enum ExpenseApprovalsApproverRole {
   MANAGER = "manager",
   DEPUTY = "deputy",
   CONTROLLER = "controller",
+  PRESIDENT = "president",
   NATIONAL = "national",
 }
 
@@ -227,6 +228,29 @@ export enum ChatsType {
 export enum ExpenseApprovalIssuesStatus {
   OPEN = "open",
   RESOLVED = "resolved",
+}
+
+export enum ExpenseEventsActorKind {
+  STUDENT = "student",
+  APPROVER = "approver",
+  ADMIN = "admin",
+  AI = "ai",
+  SYSTEM = "system",
+}
+
+export enum ExpenseEventsAction {
+  SUBMITTED = "submitted",
+  AI_CLASSIFIED = "ai_classified",
+  AI_ACCOUNT_CHOSEN = "ai_account_chosen",
+  EDITED = "edited",
+  APPROVED = "approved",
+  REJECTED = "rejected",
+  APPROVER_RESOLVED = "approver_resolved",
+  NOTIFIED = "notified",
+  BOOKED = "booked",
+  BOOKING_FAILED = "booking_failed",
+  DATE_SHIFTED = "date_shifted",
+  BOOKING_RETRIED = "booking_retried",
 }
 
 export enum TourProgressStatus {
@@ -395,6 +419,19 @@ export enum ApprovalRequestsStatus {
   CANCELLED = "cancelled",
 }
 
+export enum ExpenseAttachmentsTypeSource {
+  AI = "ai",
+  STUDENT = "student",
+  LEGACY_APP = "legacy_app",
+}
+
+export enum ExpenseAttachmentsAccountSource {
+  TYPE = "type",
+  AI_FREEFORM = "ai_freeform",
+  APPROVER = "approver",
+  ADMIN = "admin",
+}
+
 export enum JobInterviewsStatus {
   PROPOSED = "proposed",
   SCHEDULED = "scheduled",
@@ -514,6 +551,44 @@ export enum MembershipTextsSpot {
 export enum AppVersionsPlatform {
   IOS = "ios",
   ANDROID = "android",
+}
+
+export enum EventRsvPsStatus {
+  GOING = "going",
+  MAYBE = "maybe",
+  NOT_GOING = "not_going",
+}
+
+export enum PageDraftsLocale {
+  NO = "no",
+  EN = "en",
+}
+
+export enum ExpenseTypeExamplesSource {
+  STUDENT = "student",
+  APPROVER = "approver",
+  ADMIN = "admin",
+}
+
+export enum ExpenseApproversScope {
+  DEPARTMENT = "department",
+  CAMPUS = "campus",
+}
+
+export enum ExpenseApproversRole {
+  FINANCE = "finance",
+  MANAGER = "manager",
+  DEPUTY = "deputy",
+  CONTROLLER = "controller",
+  PRESIDENT = "president",
+  NATIONAL = "national",
+}
+
+export enum ExpenseApproversSource {
+  SEED = "seed",
+  AI = "ai",
+  ADMIN = "admin",
+  CONFIRMED = "confirmed",
 }
 
 export type News = Models.Row & {
@@ -640,8 +715,12 @@ export type Expenses = Models.Row & {
   campusRel: Campus;
   ledger_transaction_id: string | null;
   submitter_is_financial_manager: boolean;
+  submitter_is_controller: boolean;
   posting_lock: number;
   user: Users;
+  occasion: string | null;
+  event_id: string | null;
+  approver_hints: string | null;
 };
 
 export type ContentTemplates = Models.Row & {
@@ -823,6 +902,7 @@ export type ExpenseApprovals = Models.Row & {
   expense_id: string;
   step: number;
   approver_role: ExpenseApprovalsApproverRole;
+  directory_key: string | null;
   approver_email: string;
   approver_aad_id: string | null;
   status: ExpenseApprovalsStatus;
@@ -837,6 +917,8 @@ export type ExpenseApprovals = Models.Row & {
   campus_id: string | null;
   department: string | null;
   decision_lock: number;
+  decided_by_email: string | null;
+  on_behalf: boolean;
 };
 
 export type PaymentSettings = Models.Row & {
@@ -1076,6 +1158,19 @@ export type ExpenseApprovalIssues = Models.Row & {
   department: string | null;
 };
 
+export type ExpenseEvents = Models.Row & {
+  expense_id: string;
+  actor_kind: ExpenseEventsActorKind;
+  action: ExpenseEventsAction;
+  actor_email: string | null;
+  actor_name: string | null;
+  attachment_id: string | null;
+  field: string | null;
+  before: string | null;
+  after: string | null;
+  note: string | null;
+};
+
 export type LargeEvent = Models.Row & {
   slug: string;
   name: string;
@@ -1249,6 +1344,8 @@ export type ExpenseCostTypes = Models.Row & {
   campus_id: string | null;
   sort_order: number;
   active: boolean;
+  label_no: string | null;
+  ask_occasion: boolean;
 };
 
 export type ProductFavorites = Models.Row & {
@@ -1444,6 +1541,7 @@ export type BenefitPartners = Models.Row & {
 
 export type ExpenseAttachments = Models.Row & {
   date: string | null;
+  booked_date: string | null;
   url: string | null;
   amount: number | null;
   description: string | null;
@@ -1452,6 +1550,15 @@ export type ExpenseAttachments = Models.Row & {
   account_number: number | null;
   tax_code: number | null;
   sort_order: number;
+  expense_id: string | null;
+  cost_type_text: string | null;
+  type_source: ExpenseAttachmentsTypeSource | null;
+  ai_cost_type: string | null;
+  ai_confidence: number | null;
+  account_source: ExpenseAttachmentsAccountSource | null;
+  ocr_amount: number | null;
+  file_hash: string | null;
+  receipt_issues: string | null;
 };
 
 export type JobInterviews = Models.Row & {
@@ -1783,6 +1890,59 @@ export type AppVersions = Models.Row & {
   recommended_version: string | null;
 };
 
+export type EventRsvPs = Models.Row & {
+  event_id: string;
+  user_id: string;
+  status: EventRsvPsStatus;
+};
+
+export type M365TeamSync = Models.Row & {
+  team_ids: string[] | null;
+  synced_at: string | null;
+};
+
+export type PageDrafts = Models.Row & {
+  page_id: string;
+  locale: PageDraftsLocale;
+  draft_doc: string | null;
+  title: string | null;
+  description: string | null;
+};
+
 export type AuthTokens = Models.Row & {
   token: string;
+};
+
+export type ExpenseReceiptScans = Models.Row & {
+  file_hash: string;
+  result: string;
+  model: string | null;
+};
+
+export type ExpenseTypeExamples = Models.Row & {
+  vendor_key: string | null;
+  description: string | null;
+  amount: number | null;
+  ai_cost_type: string | null;
+  ai_confidence: number | null;
+  final_cost_type: string | null;
+  final_text: string | null;
+  account_number: number | null;
+  source: ExpenseTypeExamplesSource;
+};
+
+export type ExpenseApprovers = Models.Row & {
+  key: string;
+  scope: ExpenseApproversScope;
+  department_id: string | null;
+  campus_id: string;
+  role: ExpenseApproversRole;
+  email: string;
+  aad_id: string | null;
+  display_name: string | null;
+  source: ExpenseApproversSource;
+  confidence: number | null;
+  confirmed_at: string | null;
+  last_used_at: string | null;
+  active: boolean;
 };

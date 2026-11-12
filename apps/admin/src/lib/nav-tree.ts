@@ -15,10 +15,13 @@ import {
   Layers,
   LayoutDashboard,
   LineChart,
+  ListChecks,
   type LucideIcon,
   Megaphone,
   Newspaper,
+  Receipt,
   Settings,
+  Settings2,
   ShieldAlert,
   ShoppingCart,
   Smartphone,
@@ -87,6 +90,21 @@ export const NAV_TREE: NavNode[] = [
     "/shop/accounting",
     Calculator
   ),
+  {
+    children: [
+      leaf("expensesList", "portal.expenses", "/expenses", ListChecks),
+      leaf(
+        "expensesSettings",
+        "portal.expensesSettings",
+        "/expenses/settings",
+        Settings2
+      ),
+    ],
+    icon: Receipt,
+    id: "expenses",
+    kind: "group",
+    labelKey: "expenses",
+  },
   {
     children: [
       leaf("departments", "portal.departments", "/departments", Building2),

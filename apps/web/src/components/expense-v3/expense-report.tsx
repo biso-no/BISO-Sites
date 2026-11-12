@@ -1,6 +1,7 @@
 "use client";
 
 import type { Campus, Users } from "@repo/api/types/appwrite";
+import { approvalSwitchFor } from "@repo/shared/utils/expense-approvers";
 import { RECEIPT_FILE_ACCEPT } from "@repo/shared/utils/expense-attachments";
 import { ScrollArea } from "@repo/ui/components/ui/scroll-area";
 import {
@@ -24,7 +25,8 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useLocale, useTranslations } from "next-intl";
-import { useId, useRef, useState } from "react";
+import { type ReactNode, type Ref, useId, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { toast } from "sonner";
 
 import { v4 as uuid } from "uuid";
@@ -32,6 +34,7 @@ import { Pill } from "@/components/ui/pill";
 import { uploadExpenseAttachment } from "@/lib/actions/expense";
 import { apiClient } from "@/lib/api-client";
 import { DepartmentCombobox } from "./department-combobox";
+import { ExpenseTypeCombobox } from "./expense-type-combobox";
 import {
   fieldClass,
   fieldLabelClass,
@@ -43,16 +46,93 @@ import {
   selectTriggerClass,
 } from "./form-styles";
 import { ProfileCompletionBanner } from "./profile-completion-banner";
+import { ReceiptNotices } from "./receipt-notices";
+import {
+  isTypeMissing,
+  needsType,
+  occasionRequired,
+  submitGaps,
+  typeChoice,
+  visibleTypeState,
+} from "./receipt-types";
 import type { Receipt } from "./store";
+import { OCCASION_MAX_LENGTH } from "./summary-rules";
+import type { ExpenseTypeOption } from "./types";
 
 type UploadState = { id: string; phase: "uploading" | "analyzing" } | null;
 type UploadPhase = NonNullable<UploadState>["phase"];
 
-// Oslo: the only campus with the department financial-manager approval step.
-const OSLO_CAMPUS_ID = "1";
-// Ledelsen Oslo: the leadership unit has no separate financial manager — the
-// campus controller approves directly — so the toggle is irrelevant there.
-const LEDELSEN_OSLO_DEPARTMENT_ID = "2";
+type TypeSlot = "column" | "inline";
+const TYPE_SLOTS: TypeSlot[] = ["inline", "column"];
+
+/** A receipt's row, so a blocked submit can bring it into view. */
+function receiptRowId(receiptId: string): string {
+  return `expense-receipt-${receiptId}`;
+}
+
+/** The row has two pickers (column on wide screens, under the vendor else). */
+function typeTriggerId(receiptId: string, slot: TypeSlot): string {
+  return `expense-receipt-${receiptId}-type-${slot}`;
+}
+
+/**
+ * The row opens its receipt on click, but not for a click in its type picker:
+ * neither on the trigger nor in the list, which opens in a portal that React
+ * still bubbles through the row.
+ */
+function opensReceipt(event: React.MouseEvent<HTMLElement>): boolean {
+  const { currentTarget, target } = event;
+  if (!(target instanceof Element && currentTarget.contains(target))) {
+    return false;
+  }
+  // `data-row-control` marks a control whose clicks are its own.
+  return target.closest("[data-row-control]") === null;
+}
+
+interface RowTypeControlProps {
+  name: string;
+  onUpdate: (id: string, updates: Partial<Receipt>) => void;
+  receipt: Receipt;
+  slot: TypeSlot;
+  typeOptions: ExpenseTypeOption[];
+}
+
+function RowTypeControl({
+  name,
+  onUpdate,
+  receipt,
+  slot,
+  typeOptions,
+}: RowTypeControlProps) {
+  const t = useTranslations("expenses");
+  const locale = useLocale();
+
+  if (!needsType(receipt)) {
+    return null;
+  }
+
+  return (
+    <div
+      className={slot === "inline" ? "mt-1.5 xl:hidden" : undefined}
+      data-row-control=""
+    >
+      <ExpenseTypeCombobox
+        ariaLabel={t("composer.report.typeFor", { name })}
+        compact
+        disabled={receipt.status !== "ready"}
+        id={typeTriggerId(receipt.id, slot)}
+        locale={locale}
+        onChange={(next) => onUpdate(receipt.id, typeChoice(next))}
+        options={typeOptions}
+        state={visibleTypeState(receipt)}
+        value={{
+          costType: receipt.costType,
+          costTypeText: receipt.costTypeText,
+        }}
+      />
+    </div>
+  );
+}
 
 interface ReceiptRowProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
@@ -61,10 +141,11 @@ interface ReceiptRowProps {
   receipt: Receipt;
   selectedId: string | null;
   setUploadState: (state: UploadState) => void;
+  typeOptions: ExpenseTypeOption[];
   uploadState: UploadState;
 }
 
-function ReceiptRow({
+export function ReceiptRow({
   receipt,
   selectedId,
   onSelect,
@@ -72,12 +153,15 @@ function ReceiptRow({
   uploadState,
   setUploadState,
   fileInputRef,
+  typeOptions,
 }: ReceiptRowProps) {
   const t = useTranslations("expenses");
   const isForeign = receipt.currency && receipt.currency !== "NOK";
   const isAnalyzing =
     uploadState?.id === receipt.id && uploadState.phase === "analyzing";
   const isReady = receipt.status === "ready";
+  const name =
+    receipt.vendor || receipt.description || t("composer.report.processing");
 
   return (
     <motion.tr
@@ -86,23 +170,28 @@ function ReceiptRow({
         "group cursor-pointer transition-colors hover:bg-ink-muted/8",
         selectedId === receipt.id && "bg-action/10"
       )}
+      id={receiptRowId(receipt.id)}
       initial={{ opacity: 0 }}
       key={receipt.id}
       layout
-      onClick={() => onSelect(receipt.id)}
+      onClick={(event) => {
+        if (opensReceipt(event)) {
+          onSelect(receipt.id);
+        }
+      }}
     >
-      <td className="p-0" colSpan={3}>
+      <td className="p-0" colSpan={4}>
         <div className="flex w-full items-center px-0 py-4">
           <div className="w-full max-w-50 px-4 md:max-w-75 md:px-8">
-            <div className="flex items-center gap-3">
+            <div className="flex items-start gap-3">
               <span
                 aria-hidden="true"
                 className={cn(
-                  "size-2 shrink-0 rounded-biso-pill",
+                  "mt-1.5 size-2 shrink-0 rounded-biso-pill",
                   isReady ? "bg-success" : "animate-pulse bg-warning"
                 )}
               />
-              <div className="flex min-w-0 flex-col gap-0.5">
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 {/* The row is the mouse target; this is its keyboard stop. */}
                 <button
                   className={cn(
@@ -115,9 +204,7 @@ function ReceiptRow({
                   }}
                   type="button"
                 >
-                  {receipt.vendor ||
-                    receipt.description ||
-                    t("composer.report.processing")}
+                  {name}
                   <span className="sr-only">
                     {" "}
                     (
@@ -131,6 +218,14 @@ function ReceiptRow({
                 <div className="type-data block text-ink-muted text-xs md:hidden">
                   {receipt.date || "-"}
                 </div>
+                <RowTypeControl
+                  name={name}
+                  onUpdate={onUpdate}
+                  receipt={receipt}
+                  slot="inline"
+                  typeOptions={typeOptions}
+                />
+                <ReceiptNotices className="mt-1" compact receipt={receipt} />
               </div>
             </div>
             {receipt.status === "analyzing" && (
@@ -141,6 +236,15 @@ function ReceiptRow({
                 <div className="h-full w-full animate-pulse bg-action" />
               </div>
             )}
+          </div>
+          <div className="hidden w-44 shrink-0 px-4 xl:block">
+            <RowTypeControl
+              name={name}
+              onUpdate={onUpdate}
+              receipt={receipt}
+              slot="column"
+              typeOptions={typeOptions}
+            />
           </div>
           <div className="type-data hidden flex-1 px-4 text-ink-muted md:block">
             {receipt.date || "-"}
@@ -307,28 +411,232 @@ function StatementUploadIcon({ phase }: { phase: UploadPhase | null }) {
   return <Upload aria-hidden="true" className="size-3" />;
 }
 
+/**
+ * Once wanted, the occasion field stays for the session, so it can't vanish
+ * under the student's cursor when a type changes or the text is cleared.
+ */
+function useOccasionVisible(wanted: boolean): boolean {
+  const [shown, setShown] = useState(false);
+  if (wanted && !shown) {
+    setShown(true);
+  }
+  return wanted || shown;
+}
+
+function OccasionField({
+  error,
+  fieldRef,
+  fromAi,
+  onChange,
+  required,
+  value,
+}: {
+  error: boolean;
+  fieldRef: Ref<HTMLTextAreaElement>;
+  /** The text is the AI's suggestion, not yet changed by the student. */
+  fromAi: boolean;
+  onChange: (value: string) => void;
+  required: boolean;
+  value: string;
+}) {
+  const t = useTranslations("expenses");
+  const fieldId = useId();
+  const suggestedId = useId();
+  const errorId = useId();
+  const describedBy = [fromAi && suggestedId, error && errorId]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <div className="mt-6">
+      <label className={fieldLabelClass} htmlFor={fieldId}>
+        {t("composer.report.occasionLabel")}
+      </label>
+      <Textarea
+        aria-describedby={describedBy || undefined}
+        aria-invalid={error || undefined}
+        className={cn(
+          fieldClass,
+          "mt-2 min-h-[64px] resize-none",
+          error && "border-danger"
+        )}
+        id={fieldId}
+        maxLength={OCCASION_MAX_LENGTH}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={t("composer.report.occasionPlaceholder")}
+        ref={fieldRef}
+        required={required}
+        value={value}
+      />
+      {fromAi && (
+        <p className="type-body-sm mt-2 text-ink-muted" id={suggestedId}>
+          {t("composer.report.occasionSuggested")}
+        </p>
+      )}
+      {error && (
+        <p
+          className="type-body-sm mt-2 flex items-center gap-1.5 text-danger"
+          id={errorId}
+        >
+          <AlertTriangle aria-hidden="true" className="size-3.5 shrink-0" />
+          {t("composer.report.occasionError")}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Why the submit button won't send yet, in words, next to it. */
+function SubmitHints({ hints, id }: { hints: string[]; id: string }) {
+  if (hints.length === 0) {
+    return null;
+  }
+
+  return (
+    <ul className="type-body-sm mt-3 space-y-1 text-ink md:text-right" id={id}>
+      {hints.map((hint) => (
+        <li className="flex items-start gap-1.5 md:justify-end" key={hint}>
+          <AlertTriangle
+            aria-hidden="true"
+            className="mt-0.5 size-3.5 shrink-0 text-warning"
+          />
+          <span>{hint}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 interface ExpenseReportProps {
   campuses: Campus[];
   description: string;
+  /** The event suggestion or the chosen event, shown under the questions. */
+  eventMatch?: ReactNode;
   isGeneratingSummary: boolean;
   isSavingDraft: boolean;
   isSubmitting: boolean;
+  occasion: string;
+  /** Set when the API turned a submit away for a missing occasion. */
+  occasionError: boolean;
+  /** The occasion is the AI's suggestion, not yet changed by the student. */
+  occasionFromAi?: boolean;
   onAssign: (campusId: string, departmentId: string) => void;
   onDescriptionChange: (description: string) => void;
   onInsert: (afterId: string, receipt: Receipt) => void;
+  onOccasionChange: (occasion: string) => void;
   onProfileUpdate: (profile: Partial<Users>) => void;
   onSaveDraft: () => void;
   onSelect: (id: string) => void;
   onSubmit: () => void;
+  onSubmitterIsControllerChange: (value: boolean) => void;
   onSubmitterIsFinancialManagerChange: (value: boolean) => void;
   onUpdate: (id: string, updates: Partial<Receipt>) => void;
   receipts: Receipt[];
   selectedCampusId: string;
   selectedDepartmentId: string;
   selectedId: string | null;
+  submitterIsController: boolean;
   submitterIsFinancialManager: boolean;
   totalAmount: number;
+  typeOptions: ExpenseTypeOption[];
   userProfile: Partial<Users>;
+}
+
+interface ApprovalSwitchConfig {
+  checked: boolean;
+  hintKey: string;
+  id: string;
+  labelKey: string;
+  onChange: (value: boolean) => void;
+}
+
+/** National's controller switch: the general manager approves instead. */
+const NATIONAL_CAMPUS_ID = "5";
+
+function approvalSwitchConfig(
+  kind: ReturnType<typeof approvalSwitchFor>,
+  campusId: string,
+  state: {
+    controller: boolean;
+    financialManager: boolean;
+    onController: (value: boolean) => void;
+    onFinancialManager: (value: boolean) => void;
+  }
+): ApprovalSwitchConfig | null {
+  if (kind === "controller") {
+    const national = campusId === NATIONAL_CAMPUS_ID;
+    return {
+      checked: state.controller,
+      hintKey: national
+        ? "composer.report.nationalControllerHint"
+        : "composer.report.controllerHint",
+      id: "controller-toggle",
+      labelKey: national
+        ? "composer.report.nationalController"
+        : "composer.report.controller",
+      onChange: state.onController,
+    };
+  }
+  if (kind === "financial_manager") {
+    return {
+      checked: state.financialManager,
+      hintKey: "composer.report.financialManagerHint",
+      id: "financial-manager-toggle",
+      labelKey: "composer.report.financialManager",
+      onChange: state.onFinancialManager,
+    };
+  }
+  return null;
+}
+
+/** Brings the first receipt without a type into view and onto its picker. */
+function revealFirstMissingType(receipts: Receipt[]) {
+  const first = receipts.find(isTypeMissing);
+  if (!first) {
+    return;
+  }
+  document
+    .getElementById(receiptRowId(first.id))
+    ?.scrollIntoView({ block: "center" });
+  const trigger = TYPE_SLOTS.map((slot) =>
+    document.getElementById(typeTriggerId(first.id, slot))
+  ).find((element) => element && element.getClientRects().length > 0);
+  trigger?.focus({ preventScroll: true });
+}
+
+/**
+ * What pressing submit does. Nothing missing disables the button: it takes
+ * the student to the first receipt that still needs a type, then to the
+ * occasion, whose error shows from then on until it has an answer.
+ */
+function useSubmitGate(
+  receipts: Receipt[],
+  gaps: { occasionMissing: boolean; typesMissing: boolean },
+  onSubmit: () => void
+) {
+  const occasionRef = useRef<HTMLTextAreaElement>(null);
+  const [occasionAsked, setOccasionAsked] = useState(false);
+
+  const handleSubmit = () => {
+    if (gaps.typesMissing) {
+      revealFirstMissingType(receipts);
+      return;
+    }
+    if (gaps.occasionMissing) {
+      // The error is in place before focus lands, so it is read out with
+      // the field.
+      flushSync(() => setOccasionAsked(true));
+      occasionRef.current?.focus();
+      return;
+    }
+    onSubmit();
+  };
+
+  return {
+    handleSubmit,
+    occasionAsked: occasionAsked && gaps.occasionMissing,
+    occasionRef,
+  };
 }
 
 export function ExpenseReport({
@@ -351,13 +659,22 @@ export function ExpenseReport({
   description,
   onDescriptionChange,
   isGeneratingSummary,
+  submitterIsController,
+  onSubmitterIsControllerChange,
   submitterIsFinancialManager,
   onSubmitterIsFinancialManagerChange,
+  typeOptions,
+  occasion,
+  occasionError,
+  occasionFromAi = false,
+  onOccasionChange,
+  eventMatch,
 }: ExpenseReportProps) {
   const t = useTranslations("expenses");
   const locale = useLocale();
   const campusFieldId = useId();
   const departmentFieldId = useId();
+  const submitHintId = useId();
   const today = new Date().toLocaleDateString(locale, {
     year: "numeric",
     month: "long",
@@ -367,6 +684,18 @@ export function ExpenseReport({
   // Find departments for selected campus
   const selectedCampus = campuses.find((c) => c.$id === selectedCampusId);
   const departments = selectedCampus?.departments || [];
+
+  // Exactly one self-declaration switch, chosen by the department.
+  const approvalSwitch = approvalSwitchConfig(
+    approvalSwitchFor(selectedCampusId, selectedDepartmentId),
+    selectedCampusId,
+    {
+      controller: submitterIsController,
+      financialManager: submitterIsFinancialManager,
+      onController: onSubmitterIsControllerChange,
+      onFinancialManager: onSubmitterIsFinancialManagerChange,
+    }
+  );
   const hasReceiptsInProgress = receipts.some(
     (receipt) => receipt.status !== "ready"
   );
@@ -375,6 +704,19 @@ export function ExpenseReport({
       selectedCampusId && selectedDepartmentId && userProfile.bank_account
     ) && !hasReceiptsInProgress;
   const canSubmit = canSaveDraft && receipts.length > 0;
+  const askOccasion = occasionRequired(receipts, typeOptions);
+  // An occasion is sent whenever it has text, and the API may ask for one the
+  // types here don't: the field stays in view in both cases.
+  const showOccasion = useOccasionVisible(
+    askOccasion || occasionError || occasion.trim().length > 0
+  );
+  const gaps = submitGaps(receipts, typeOptions, occasion);
+  const submitHints = [
+    gaps.typesMissing && t("composer.report.submitHintTypes"),
+    gaps.occasionMissing && t("composer.report.submitHintOccasion"),
+  ].filter((hint): hint is string => Boolean(hint));
+
+  const submitGate = useSubmitGate(receipts, gaps, onSubmit);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadState, setUploadState] = useState<UploadState>(null);
@@ -629,40 +971,50 @@ export function ExpenseReport({
               />
             </div>
 
-            {selectedCampusId === OSLO_CAMPUS_ID &&
-              selectedDepartmentId !== LEDELSEN_OSLO_DEPARTMENT_ID && (
-                <div className="mt-4 flex items-start justify-between gap-4 rounded-biso-md border border-edge p-4">
-                  <div className="space-y-1">
-                    <label
-                      className="type-body-sm font-semibold text-ink"
-                      htmlFor="financial-manager-toggle"
-                    >
-                      {t("composer.report.financialManager")}
-                    </label>
-                    <p
-                      className="type-body-sm text-ink-muted"
-                      id="financial-manager-toggle-hint"
-                    >
-                      {t("composer.report.financialManagerHint")}
-                    </p>
-                  </div>
-                  {/* A native switch, as on the member portal: the shared one
-                      paints its "on" state in the sky blue, under the 3:1 a
-                      control's state needs against white. */}
-                  <input
-                    aria-checked={submitterIsFinancialManager}
-                    aria-describedby="financial-manager-toggle-hint"
-                    checked={submitterIsFinancialManager}
-                    className="mt-0.5 size-5 shrink-0 cursor-pointer accent-action focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-solid focus-visible:outline-offset-2"
-                    id="financial-manager-toggle"
-                    onChange={(e) =>
-                      onSubmitterIsFinancialManagerChange(e.target.checked)
-                    }
-                    role="switch"
-                    type="checkbox"
-                  />
+            {showOccasion && (
+              <OccasionField
+                error={occasionError || submitGate.occasionAsked}
+                fieldRef={submitGate.occasionRef}
+                fromAi={occasionFromAi}
+                onChange={onOccasionChange}
+                required={askOccasion}
+                value={occasion}
+              />
+            )}
+
+            {eventMatch}
+
+            {approvalSwitch && (
+              <div className="mt-4 flex items-start justify-between gap-4 rounded-biso-md border border-edge p-4">
+                <div className="space-y-1">
+                  <label
+                    className="type-body-sm font-semibold text-ink"
+                    htmlFor={approvalSwitch.id}
+                  >
+                    {t(approvalSwitch.labelKey)}
+                  </label>
+                  <p
+                    className="type-body-sm text-ink-muted"
+                    id={`${approvalSwitch.id}-hint`}
+                  >
+                    {t(approvalSwitch.hintKey)}
+                  </p>
                 </div>
-              )}
+                {/* A native switch, as on the member portal: the shared one
+                    paints its "on" state in the sky blue, under the 3:1 a
+                    control's state needs against white. */}
+                <input
+                  aria-checked={approvalSwitch.checked}
+                  aria-describedby={`${approvalSwitch.id}-hint`}
+                  checked={approvalSwitch.checked}
+                  className="mt-0.5 size-5 shrink-0 cursor-pointer accent-action focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-solid focus-visible:outline-offset-2"
+                  id={approvalSwitch.id}
+                  onChange={(e) => approvalSwitch.onChange(e.target.checked)}
+                  role="switch"
+                  type="checkbox"
+                />
+              </div>
+            )}
           </div>
 
           {/* Line Items */}
@@ -670,8 +1022,17 @@ export function ExpenseReport({
             <table className="type-body-sm w-full text-left">
               <thead className="sticky top-0 z-10 bg-surface-sunken text-ink-muted">
                 <tr>
-                  <th className="type-label px-4 py-3 md:px-8" scope="col">
+                  <th
+                    className="type-label px-4 py-3 md:px-8 xl:w-75"
+                    scope="col"
+                  >
                     {t("composer.report.itemColumn")}
+                  </th>
+                  <th
+                    className="type-label hidden px-4 py-3 xl:table-cell xl:w-44"
+                    scope="col"
+                  >
+                    {t("composer.report.typeColumn")}
                   </th>
                   <th
                     className="type-label hidden px-4 py-3 md:table-cell"
@@ -680,7 +1041,7 @@ export function ExpenseReport({
                     {t("detail.date")}
                   </th>
                   <th
-                    className="type-label px-4 py-3 text-right md:px-8"
+                    className="type-label px-4 py-3 text-right md:px-8 xl:w-[150px]"
                     scope="col"
                   >
                     {t("detail.amount")}
@@ -692,7 +1053,7 @@ export function ExpenseReport({
                   <tr>
                     <td
                       className="py-12 text-center text-ink-muted"
-                      colSpan={3}
+                      colSpan={4}
                     >
                       {t("composer.report.empty")}
                     </td>
@@ -707,6 +1068,7 @@ export function ExpenseReport({
                       receipt={receipt}
                       selectedId={selectedId}
                       setUploadState={setUploadState}
+                      typeOptions={typeOptions}
                       uploadState={uploadState}
                     />
                   ))
@@ -762,12 +1124,15 @@ export function ExpenseReport({
               </button>
               <button
                 aria-busy={isSubmitting}
+                aria-describedby={
+                  submitHints.length > 0 ? submitHintId : undefined
+                }
                 className={cn(
                   primaryActionClass,
                   "w-full md:w-auto md:min-w-50"
                 )}
                 disabled={isSavingDraft || isSubmitting || !canSubmit}
-                onClick={onSubmit}
+                onClick={submitGate.handleSubmit}
                 type="button"
               >
                 {isSubmitting ? (
@@ -789,6 +1154,7 @@ export function ExpenseReport({
                 )}
               </button>
             </div>
+            <SubmitHints hints={submitHints} id={submitHintId} />
           </div>
         </div>
       </div>

@@ -14,6 +14,10 @@ const benefitsEditor = {
   hasDepartmentMembership: false,
   roles: ["benefitseditor"],
 };
+const expenseApprover = {
+  hasDepartmentMembership: false,
+  roles: ["expenseapprover"],
+};
 const noAccess = { hasDepartmentMembership: false, roles: [] };
 
 function labels(nodes: ReturnType<typeof filterNavTree>) {
@@ -21,7 +25,7 @@ function labels(nodes: ReturnType<typeof filterNavTree>) {
 }
 
 describe("filterNavTree", () => {
-  test("global admin sees all 9 top-level entries", () => {
+  test("global admin sees all 10 top-level entries", () => {
     expect(labels(filterNavTree(globalAdmin))).toEqual([
       "overview",
       "inbox",
@@ -29,6 +33,7 @@ describe("filterNavTree", () => {
       "content",
       "shop",
       "shopAccounting",
+      "expenses",
       "organization",
       "analytics",
       "system",
@@ -49,6 +54,18 @@ describe("filterNavTree", () => {
     expect(last.children.map((c) => c.labelKey)).toEqual(["it", "activity"]);
     // analytics is globaladmin-only and must be gone
     expect(labels(nodes)).not.toContain("analytics");
+  });
+
+  test("campus admin sees the Expenses settings leaf", () => {
+    const expenses = filterNavTree(campusAdmin).find(
+      (n) => n.labelKey === "expenses"
+    );
+    if (expenses?.kind !== "group") {
+      throw new Error("expected expenses group");
+    }
+    expect(expenses.children.map((c) => c.labelKey)).toContain(
+      "expensesSettings"
+    );
   });
 
   test("department user sees general publishing surfaces but never jobs", () => {
@@ -166,5 +183,30 @@ describe("shop accounting navigation", () => {
 
     expect(campusPaths).toContain("/shop/accounting");
     expect(departmentPaths).not.toContain("/shop/accounting");
+  });
+});
+
+describe("expenses navigation", () => {
+  const paths = (input: typeof globalAdmin) =>
+    flattenNavTree(filterNavTree(input)).map((n) => n.path);
+
+  test("the expenses settings page shows for global and campus admins only", () => {
+    expect(paths(globalAdmin)).toContain("/expenses/settings");
+    expect(paths(campusAdmin)).toContain("/expenses/settings");
+    expect(paths(departmentUser)).not.toContain("/expenses/settings");
+  });
+
+  test("the group has two leaves for a global admin", () => {
+    const group = filterNavTree(globalAdmin).find(
+      (n) => n.labelKey === "expenses"
+    );
+    expect(
+      group?.kind === "group" && group.children.map((c) => c.path)
+    ).toEqual(["/expenses", "/expenses/settings"]);
+  });
+
+  test("approver role opens only the expenses nav", () => {
+    expect(paths(expenseApprover)).toEqual(["/expenses"]);
+    expect(getDefaultNavPath(expenseApprover)).toBe("/expenses");
   });
 });

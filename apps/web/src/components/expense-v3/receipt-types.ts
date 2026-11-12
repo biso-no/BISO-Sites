@@ -1,0 +1,192 @@
+import { AI_TYPE_CONFIDENCE_THRESHOLD } from "@repo/shared/utils/expense-cost-types";
+import type { ReceiptIssueCode } from "@repo/shared/utils/expense-hints";
+import { ApiError } from "@/lib/api-error";
+import type { Receipt } from "./store";
+import type { ExpenseTypeOption } from "./types";
+
+export type TypeState = "ai" | "needs_choice" | "chosen";
+
+type TypeFields = Pick<
+  Receipt,
+  "aiConfidence" | "aiCostType" | "costType" | "typeState"
+>;
+
+/** Maps the OCR answer onto a receipt's type state. */
+export function typeFromOcr(
+  data: {
+    costType?: string | null;
+    costTypeConfidence?: number;
+    documentType?: string | null;
+  },
+  options: ExpenseTypeOption[],
+  ocrEnabled: boolean
+): TypeFields {
+  if (data.documentType === "bank-statement") {
+    return { typeState: undefined };
+  }
+
+  if (!ocrEnabled) {
+    return { costType: undefined, typeState: "needs_choice" };
+  }
+
+  const slug = data.costType ?? null;
+  const confidence = data.costTypeConfidence ?? 0;
+  const known = slug !== null && options.some((option) => option.slug === slug);
+
+  if (known && confidence >= AI_TYPE_CONFIDENCE_THRESHOLD) {
+    return {
+      costType: slug,
+      typeState: "ai",
+      aiCostType: slug,
+      aiConfidence: confidence,
+    };
+  }
+
+  return {
+    costType: undefined,
+    typeState: "needs_choice",
+    aiCostType: slug,
+    aiConfidence: confidence,
+  };
+}
+
+/**
+ * Restores the type of a saved draft attachment: own text and an active type
+ * were chosen. A type finance has since deactivated asks again, since the
+ * server honours only active types and would book it as "other".
+ */
+export function typeFromAttachment(
+  att: { cost_type?: string | null; cost_type_text?: string | null },
+  options: ExpenseTypeOption[]
+): Pick<Receipt, "costType" | "costTypeText" | "typeState"> {
+  const text = att.cost_type_text?.trim();
+  if (text) {
+    return { costType: undefined, costTypeText: text, typeState: "chosen" };
+  }
+
+  const slug = att.cost_type;
+  if (slug && options.some((option) => option.slug === slug)) {
+    return { costType: slug, typeState: "chosen" };
+  }
+
+  return { costType: undefined, typeState: "needs_choice" };
+}
+
+/**
+ * A row with an amount of its own takes a type, a standalone bank statement
+ * included. A statement attached to a receipt backs up that receipt's amount
+ * and takes none.
+ */
+export function needsType(receipt: Receipt): boolean {
+  return receipt.amount > 0 && !receipt.parentId;
+}
+
+/** A receipt that needs a type and has neither a listed type nor own text. */
+export function isTypeMissing(receipt: Receipt): boolean {
+  return (
+    needsType(receipt) && !(receipt.costType || receipt.costTypeText?.trim())
+  );
+}
+
+export function missingTypes(receipts: Receipt[]): Receipt[] {
+  return receipts.filter(isTypeMissing);
+}
+
+/**
+ * The state the type picker shows. "Choose a type" appears only on a receipt
+ * that needs one: a reopened draft's bank statement carries `needs_choice`
+ * too, but it has no amount and needs no type.
+ */
+export function visibleTypeState(receipt: Receipt): TypeState | undefined {
+  if (isTypeMissing(receipt)) {
+    return "needs_choice";
+  }
+  return receipt.typeState === "needs_choice" ? undefined : receipt.typeState;
+}
+
+/** The receipt fields for a choice made in the type picker. */
+export function typeChoice(
+  next: { costType: string } | { costTypeText: string }
+): Pick<Receipt, "costType" | "costTypeText" | "typeState"> {
+  return "costType" in next
+    ? { costType: next.costType, costTypeText: undefined, typeState: "chosen" }
+    : {
+        costType: undefined,
+        costTypeText: next.costTypeText,
+        typeState: "chosen",
+      };
+}
+
+export type ReceiptNotice = ReceiptIssueCode | "possible_duplicate";
+
+/** The receipt-check and duplicate notices a receipt shows; none on a statement. */
+export function receiptNotices(receipt: Receipt): ReceiptNotice[] {
+  if (receipt.parentId || receipt.documentType === "bank-statement") {
+    return [];
+  }
+  const notices: ReceiptNotice[] = [...(receipt.receiptIssues ?? [])];
+  if (receipt.possibleDuplicate) {
+    notices.push("possible_duplicate");
+  }
+  return notices;
+}
+
+export function occasionRequired(
+  receipts: Receipt[],
+  options: ExpenseTypeOption[]
+): boolean {
+  return receipts.some(
+    (receipt) =>
+      needsType(receipt) &&
+      receipt.costType !== undefined &&
+      options.some(
+        (option) => option.slug === receipt.costType && option.askOccasion
+      )
+  );
+}
+
+/** What still keeps the report from being submitted, as far as types go. */
+export function submitGaps(
+  receipts: Receipt[],
+  options: ExpenseTypeOption[],
+  occasion: string
+): { occasionMissing: boolean; typesMissing: boolean } {
+  return {
+    occasionMissing:
+      occasionRequired(receipts, options) && occasion.trim().length === 0,
+    typesMissing: receipts.some(isTypeMissing),
+  };
+}
+
+export function attachmentTypeFields(receipt: Receipt): {
+  cost_type: string;
+  cost_type_chosen: true;
+  cost_type_text: string | null;
+} {
+  const text = receipt.costTypeText?.trim();
+  return {
+    cost_type: text ? "" : (receipt.costType ?? ""),
+    cost_type_text: text || null,
+    cost_type_chosen: true,
+  };
+}
+
+/** Tells a submit rejected for a missing occasion from every other failure. */
+export function submitErrorKind(error: unknown): "occasion" | "other" {
+  return error instanceof ApiError && error.body?.field === "occasion"
+    ? "occasion"
+    : "other";
+}
+
+/**
+ * The draft a submit saved before the api turned it away for a missing
+ * occasion. A report never saved before gets one then, and the next submit or
+ * save must update it rather than make a second draft.
+ */
+export function rejectedDraftId(error: unknown): string | null {
+  if (submitErrorKind(error) !== "occasion") {
+    return null;
+  }
+  const id = (error as ApiError).body?.expenseId;
+  return typeof id === "string" && id.length > 0 ? id : null;
+}

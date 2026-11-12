@@ -75,6 +75,7 @@
       "requiredFields": "Please fill in all required fields",
       "waitBeforeSubmitting": "Wait for receipt processing to finish before submitting",
       "submitted": "Expense submitted!",
+      "occasionRequired": "Add what the expense was for before submitting",
       "submitFailed": "Submission failed",
       "statementAdded": "Bank statement uploaded and added to the list",
       "statementUploaded": "Bank statement uploaded",
@@ -91,6 +92,10 @@
       "generatingSummary": "AI is writing a summary…",
       "financialManager": "I am the financial manager of this department",
       "financialManagerHint": "Turn this on so the approval is routed to your department manager instead of you.",
+      "controller": "I'm the campus financial controller",
+      "controllerHint": "Your campus president approves instead.",
+      "nationalController": "I'm the controller",
+      "nationalControllerHint": "The general manager approves instead.",
       "itemColumn": "Item description",
       "empty": "No receipts added yet",
       "processing": "Processing…",
@@ -108,7 +113,20 @@
       "saveDraft": "Save draft",
       "saving": "Saving…",
       "submit": "Submit expense",
-      "submitting": "Submitting…"
+      "submitting": "Submitting…",
+      "typeColumn": "Type",
+      "typeFor": "Type for {name}",
+      "occasionLabel": "What was the occasion, and who was it for?",
+      "occasionPlaceholder": "E.g. board meeting, six board members",
+      "occasionError": "Answer this before you submit",
+      "occasionSuggested": "Suggested from your receipts. Check it and change it if needed.",
+      "submitHintTypes": "Choose a type for every receipt",
+      "submitHintOccasion": "Fill in the occasion and who it was for",
+      "eventLabel": "Event",
+      "eventQuestion": "Was this for {event}?",
+      "eventYes": "Yes",
+      "eventNo": "No",
+      "removeEvent": "Remove the event {event}"
     },
     "preview": {
       "title": "Receipt details",
@@ -128,14 +146,7 @@
       "amount": "Amount (NOK)",
       "amountEstimated": "Amount (NOK, estimated)",
       "originalAmount": "Original ({currency})",
-      "costType": "Cost type",
-      "costTypePlaceholder": "Select cost type"
-    },
-    "costTypes": {
-      "travel": "Travel",
-      "social": "Social event",
-      "academic": "Academic event",
-      "other": "Other"
+      "costType": "Cost type"
     },
     "wallet": {
       "title": "Receipts",
@@ -176,6 +187,24 @@
         "zip": "0123",
         "city": "Oslo"
       }
+    },
+    "typePicker": {
+      "choose": "Choose a type",
+      "search": "Search types…",
+      "searchLabel": "Search expense types",
+      "empty": "No matching type",
+      "useOwn": "Use “{text}”",
+      "aiPicked": "Picked by AI",
+      "ownQuoted": "“{text}”"
+    },
+    "receiptNotices": {
+      "not_a_receipt": "Looks like an order confirmation, not a receipt",
+      "no_items": "No items on the receipt",
+      "unreadable": "Hard to read. A clearer photo helps",
+      "missing_seller": "No seller on the receipt",
+      "missing_date": "No date on the receipt",
+      "missing_total": "No total on the receipt",
+      "possible_duplicate": "Looks like a receipt already submitted"
     }
   }
 }

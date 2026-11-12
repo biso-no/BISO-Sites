@@ -23,6 +23,13 @@ async function getRoleLabel(
   if (ctx.roles.includes(ROLES.BENEFITS_EDITOR)) {
     return t("benefitsEditor");
   }
+  // A department member stays labelled by their department.
+  if (
+    ctx.roles.includes(ROLES.EXPENSE_APPROVER) &&
+    ctx.departmentNames.length === 0
+  ) {
+    return t("expenseApprover");
+  }
   return ctx.departmentNames[0] ?? t("member");
 }
 

@@ -1,8 +1,9 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import {
   buildExpenseTransactionInput,
   buildShopReversalTransactionInput,
   buildShopTransactionInput,
+  postWithClosedPeriodFallback,
 } from "./transactions";
 
 const NO_RECEIPTS_ERROR = /at least one receipt/i;
@@ -64,6 +65,72 @@ describe("buildExpenseTransactionInput", () => {
     expect(() =>
       buildExpenseTransactionInput({ ...base, receipts: [] })
     ).toThrow(NO_RECEIPTS_ERROR);
+  });
+
+  test("dates each debit line with its receipt date and credits 2400 once per date", () => {
+    const dimensions = [{ dimensionType: 2, value: "101" }];
+    const input = buildExpenseTransactionInput({
+      ...base,
+      dimensions,
+      invoiceNumber: "INV-7",
+      receipts: [
+        { accountNumber: 7140, amount: 100, date: "2026-08-14" },
+        { accountNumber: 7140, amount: 200, date: "2026-10-02" },
+        { accountNumber: 7140, amount: 50, date: "2026-08-14" },
+      ],
+    });
+    const credits = input.lines.filter((l) => l.amount < 0);
+    expect(credits.map((l) => [l.date, l.amount])).toEqual([
+      ["2026-08-14", -150],
+      ["2026-10-02", -200],
+    ]);
+    for (const credit of credits) {
+      expect(credit.invoice?.bankAccount).toBe("1234.56.78901");
+      expect(credit.invoice?.number).toBe("INV-7");
+      expect(credit.dimensions).toEqual(dimensions);
+    }
+    expect(input.lines.filter((l) => l.amount > 0).map((l) => l.date)).toEqual([
+      "2026-08-14",
+      "2026-10-02",
+      "2026-08-14",
+    ]);
+    expect(input.date).toBe("2026-10-02");
+  });
+
+  test("balances every date group to zero with øre amounts", () => {
+    const input = buildExpenseTransactionInput({
+      ...base,
+      receipts: [
+        { accountNumber: 7360, amount: 33.33, date: "2026-09-01" },
+        { accountNumber: 7360, amount: 33.33, date: "2026-09-01" },
+        { accountNumber: 7360, amount: 33.34, date: "2026-09-15" },
+      ],
+    });
+    const credits = input.lines.filter((l) => l.amount < 0);
+    expect(credits.map((l) => [l.date, l.amount])).toEqual([
+      ["2026-09-01", -66.66],
+      ["2026-09-15", -33.34],
+    ]);
+  });
+
+  test("credits a 0.1 + 0.2 group as exactly -0.3", () => {
+    const input = buildExpenseTransactionInput({
+      ...base,
+      receipts: [
+        { accountNumber: 7360, amount: 0.1, date: "2026-09-01" },
+        { accountNumber: 7360, amount: 0.2, date: "2026-09-01" },
+      ],
+    });
+    const credits = input.lines.filter((l) => l.amount < 0);
+    expect(credits.map((l) => l.amount)).toEqual([-0.3]);
+  });
+
+  test("never sends the internal ref to Finago", () => {
+    const input = buildExpenseTransactionInput({
+      ...base,
+      receipts: [{ accountNumber: 7140, amount: 10, ref: "att-1" }],
+    });
+    expect(JSON.stringify(input)).not.toContain("att-1");
   });
 });
 
@@ -186,5 +253,220 @@ describe("buildShopReversalTransactionInput", () => {
     expect(() =>
       buildShopReversalTransactionInput({ ...base, total: 300 })
     ).toThrow(UNBALANCED_VOUCHER_ERROR);
+  });
+});
+
+describe("postWithClosedPeriodFallback", () => {
+  const closed = new Error(
+    '[Finago] post expense transaction failed: {"message":"Period is locked (2026-09-12)"}'
+  );
+  const lockedFor = (date: string | undefined) =>
+    new Error(`[Finago] post failed: {"message":"Period is locked (${date})"}`);
+  const periods = [
+    { startingDate: "2026-09-01", endingDate: "2026-09-30" },
+    { startingDate: "2026-10-01", endingDate: "2026-10-31" },
+  ];
+
+  let warn: ReturnType<typeof spyOn>;
+  beforeEach(() => {
+    warn = spyOn(console, "warn").mockImplementation(() => undefined);
+  });
+  afterEach(() => {
+    warn.mockRestore();
+  });
+
+  test("skips a two-month closed period in one retry", async () => {
+    const twoMonth = [
+      { startingDate: "2024-01-01", endingDate: "2024-02-29" },
+      { startingDate: "2024-03-01", endingDate: "2024-04-30" },
+    ];
+    const seen: string[][] = [];
+    let calls = 0;
+    const result = await postWithClosedPeriodFallback({
+      receipts: [
+        { accountNumber: 7140, amount: 10, date: "2024-03-10", ref: "x" },
+      ],
+      periods: twoMonth,
+      post: (posted) => {
+        seen.push(posted.map((r) => r.date ?? ""));
+        calls += 1;
+        return calls === 1
+          ? Promise.reject(lockedFor("2024-03-10"))
+          : Promise.resolve("tx-2");
+      },
+    });
+    expect(seen).toEqual([["2024-03-10"], ["2024-05-01"]]);
+    expect(result.shifts).toHaveLength(1);
+    expect(result.shifts[0]).toMatchObject({
+      from: "2024-03-10",
+      to: "2024-05-01",
+    });
+  });
+
+  test("merges shifted lines into the next group's date", async () => {
+    const seen: string[][] = [];
+    let calls = 0;
+    const receipts = [
+      { accountNumber: 7140, amount: 10, date: "2026-09-12", ref: "a" },
+      { accountNumber: 7140, amount: 15, date: "2026-09-20", ref: "c" },
+      { accountNumber: 7140, amount: 20, date: "2026-10-01", ref: "b" },
+    ];
+    const result = await postWithClosedPeriodFallback({
+      receipts,
+      periods,
+      post: (posted) => {
+        seen.push(posted.map((r) => r.date ?? ""));
+        calls += 1;
+        return calls === 1 ? Promise.reject(closed) : Promise.resolve("tx-1");
+      },
+    });
+    expect(seen).toEqual([
+      ["2026-09-12", "2026-09-20", "2026-10-01"],
+      ["2026-10-01", "2026-10-01", "2026-10-01"],
+    ]);
+    expect(result).toEqual({
+      transactionId: "tx-1",
+      shifts: [
+        {
+          ref: "a",
+          from: "2026-09-12",
+          to: "2026-10-01",
+          reason: "closed_period",
+          finagoMessage: closed.message,
+        },
+        {
+          ref: "c",
+          from: "2026-09-20",
+          to: "2026-10-01",
+          reason: "closed_period",
+          finagoMessage: closed.message,
+        },
+      ],
+    });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]?.[0]).toContain(closed.message);
+    // Caller's objects are untouched.
+    expect(receipts[0].date).toBe("2026-09-12");
+  });
+
+  test("does not retry an unrelated error", async () => {
+    let calls = 0;
+    const failure = new Error(
+      '[Finago] post expense transaction failed: {"message":"Account 9999 does not exist"}'
+    );
+    await expect(
+      postWithClosedPeriodFallback({
+        receipts: [{ accountNumber: 9999, amount: 10, date: "2026-10-03" }],
+        periods,
+        post: () => {
+          calls += 1;
+          return Promise.reject(failure);
+        },
+      })
+    ).rejects.toBe(failure);
+    expect(calls).toBe(1);
+  });
+
+  test("gives up after maxShifts", async () => {
+    let calls = 0;
+    await expect(
+      postWithClosedPeriodFallback({
+        receipts: [{ accountNumber: 7140, amount: 10, date: "2026-01-05" }],
+        periods: [],
+        maxShifts: 3,
+        post: (posted) => {
+          calls += 1;
+          return Promise.reject(lockedFor(posted[0]?.date));
+        },
+      })
+    ).rejects.toThrow("Period is locked");
+    expect(calls).toBe(4);
+    expect(warn).toHaveBeenCalledTimes(3);
+  });
+
+  test("does not retry a closed-period message that names no date", async () => {
+    for (const text of [
+      "Period is locked",
+      "Service locked for maintenance period",
+    ]) {
+      let calls = 0;
+      const failure = new Error(text);
+      await expect(
+        postWithClosedPeriodFallback({
+          receipts: [{ accountNumber: 7140, amount: 10, date: "2026-09-12" }],
+          periods,
+          post: () => {
+            calls += 1;
+            return Promise.reject(failure);
+          },
+        })
+      ).rejects.toBe(failure);
+      expect(calls).toBe(1);
+    }
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  test("rethrows when the named date's period holds no line", async () => {
+    let calls = 0;
+    const failure = lockedFor("2026-10-10");
+    await expect(
+      postWithClosedPeriodFallback({
+        receipts: [{ accountNumber: 7140, amount: 10, date: "2026-09-12" }],
+        periods,
+        post: () => {
+          calls += 1;
+          return Promise.reject(failure);
+        },
+      })
+    ).rejects.toBe(failure);
+    expect(calls).toBe(1);
+  });
+
+  test("moves only the lines in the period Finago names", async () => {
+    const seen: string[][] = [];
+    let calls = 0;
+    await postWithClosedPeriodFallback({
+      receipts: [
+        { accountNumber: 7140, amount: 10, date: "2026-09-12" },
+        { accountNumber: 7140, amount: 10, date: "2026-10-05" },
+      ],
+      periods: [
+        ...periods,
+        { startingDate: "2026-11-01", endingDate: "2026-11-30" },
+      ],
+      post: (posted) => {
+        seen.push(posted.map((r) => r.date ?? ""));
+        calls += 1;
+        return calls === 1
+          ? Promise.reject(lockedFor("2026-10-05"))
+          : Promise.resolve("tx-1");
+      },
+    });
+    expect(seen).toEqual([
+      ["2026-09-12", "2026-10-05"],
+      ["2026-09-12", "2026-11-01"],
+    ]);
+  });
+
+  test("never moves a line past the period holding today", async () => {
+    const seen: string[] = [];
+    const thisYear = [
+      ...periods,
+      { startingDate: "2026-11-01", endingDate: "2026-11-30" },
+    ];
+    await expect(
+      postWithClosedPeriodFallback({
+        receipts: [{ accountNumber: 7140, amount: 10, date: "2026-10-05" }],
+        periods: thisYear,
+        today: "2026-11-11",
+        post: (posted) => {
+          seen.push(posted[0]?.date ?? "");
+          return Promise.reject(lockedFor(posted[0]?.date));
+        },
+      })
+    ).rejects.toThrow("Period is locked (2026-11-01)");
+    expect(seen).toEqual(["2026-10-05", "2026-11-01"]);
+    expect(seen.every((date) => date <= "2026-11-30")).toBe(true);
+    expect(warn).toHaveBeenCalledTimes(1);
   });
 });

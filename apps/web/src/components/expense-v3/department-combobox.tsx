@@ -83,8 +83,9 @@ export function DepartmentCombobox({
         )}
       >
         <Command className="bg-surface-raised text-ink">
+          {/* 16px on phones: iOS zooms into a smaller input on focus. */}
           <CommandInput
-            className="placeholder:text-ink-muted"
+            className="text-base placeholder:text-ink-muted md:text-sm"
             placeholder={t("search")}
           />
           <CommandList>

@@ -1,27 +1,111 @@
-// Resolves the ordered expense approval chain, looking up department approvers
-// in Microsoft Graph from BISO's curated user→department mapping.
+// Resolves the ordered expense approval chain into concrete approvers.
 //
-// Department step (Oslo): search users whose `department` matches the expense
-// department, then match the financial manager / manager / deputy by email
-// prefix. Controller + national steps carry fixed mailboxes. When no department
-// approver can be found, the step is dropped (falling back to the campus
-// controller) and a remediation issue is returned for the admin app.
+// The approval plan (packages/shared/utils/expense-approvers.ts) lists the
+// steps. Each step is resolved in this order:
+//   1. the approver directory (`expense_approvers`), which admins can edit;
+//   2. for department steps and the president, a Microsoft 365 lookup where the
+//      AI picks among mailbox candidates (only answers with confidence >= 0.8
+//      count, and a confident answer is saved to the directory). Graph and the
+//      model share one 8 s deadline per lookup. A key the lookup found nobody
+//      for (or ran out of time on) is not looked up again for an hour; a
+//      Graph or model error is retried next time. A key an admin deactivated
+//      is never looked up, and its step is dropped with an issue;
+//   3. for the controller and national steps, the seeded default mailbox.
+// Steps resolve concurrently; order and numbering follow the plan. A department
+// step nobody can fill is dropped with an issue, so the controller step that
+// follows still approves. A president nobody can fill falls back to
+// the national approver with an issue, never to the controller. A National
+// controller nobody holds (no active row, no default) falls back to the general
+// manager (the national role) the same way.
 
-import type { GraphUser } from "@repo/connectors/azure/users";
+import { createAdminClient } from "@repo/api/server";
+import type { GraphUserService } from "@repo/connectors/azure/users";
 import {
   type ApproverRole,
+  DEFAULT_DIRECTORY_EMAILS,
+  directoryKey,
   getCampusApprovalPlan,
-  getCampusEmailSlug,
-  pickApproverByRole,
-  ROLE_EMAIL_PREFIXES,
 } from "@repo/shared/utils/expense-approvers";
+import {
+  findDirectoryApprover,
+  hasInactiveDirectoryRow,
+  saveDirectoryApprover,
+  touchDirectoryApprover,
+} from "./expense-approver-directory";
+import {
+  type Candidate,
+  chooseApprover,
+  findApproverCandidates,
+  type LookupOutcome,
+  type LookupRole,
+} from "./expense-approver-lookup";
 import { getGraphService } from "./graph";
 
+type Db = Awaited<ReturnType<typeof createAdminClient>>["db"];
+type Graph = Pick<GraphUserService, "searchUsers" | "findUsersByDepartment">;
+
+const MIN_CONFIDENCE = 0.8;
+/**
+ * One deadline for each AI lookup, Graph and the model together. Resolution
+ * runs inside submit, and the old app gives up after 20 s.
+ */
+const LOOKUP_TIMEOUT_MS = 8000;
+/** Reads "The deputy entry is deactivated in the directory". */
+const deactivatedReason = (...names: string[]): string =>
+  names.length === 1
+    ? `The ${names[0]} entry is deactivated in the directory`
+    : `The ${names.join(" and ")} entries are deactivated in the directory`;
+/** How long a key the lookup found nobody for is left alone. */
+const MISS_TTL_MS = 60 * 60 * 1000;
+const NATIONAL_CAMPUS_ID = "5";
+
+/**
+ * Directory key → when the AI lookup last found nobody for it. Kept in this
+ * process only, so a restart forgets it.
+ */
+const lookupMisses = new Map<string, number>();
+
+/** Forgets every remembered miss. */
+export function forgetLookupMisses(): void {
+  lookupMisses.clear();
+}
+
+/** True while a miss for this key is less than an hour old. */
+function missedRecently(key: string, now: number): boolean {
+  const missedAt = lookupMisses.get(key);
+  if (missedAt === undefined) {
+    return false;
+  }
+  if (now - missedAt < MISS_TTL_MS) {
+    return true;
+  }
+  lookupMisses.delete(key);
+  return false;
+}
+
+/** Rejects with the signal's reason once it aborts. */
+function aborted(signal: AbortSignal): Promise<never> {
+  return new Promise((_resolve, reject) => {
+    if (signal.aborted) {
+      reject(signal.reason);
+      return;
+    }
+    signal.addEventListener("abort", () => reject(signal.reason), {
+      once: true,
+    });
+  });
+}
+
 export interface ResolvedApproverStep {
-  /** Azure AD object id, when the approver was resolved via Graph. */
+  /** Azure AD object id, when known. */
   aadId: string | null;
+  /** Directory key this approver is stored under. */
+  directoryKey: string;
   email: string;
+  /** The role this step approves in place of, when it is a fallback. */
+  fallbackFor?: ApproverRole;
   role: ApproverRole;
+  source: "directory" | "ai" | "default";
   step: number;
 }
 
@@ -33,130 +117,433 @@ export interface ApproverResolutionIssue {
 }
 
 export interface ApproverResolution {
-  issue: ApproverResolutionIssue | null;
+  issues: ApproverResolutionIssue[];
   steps: ResolvedApproverStep[];
 }
 
 interface ResolveInput {
   campusId: string;
-  /** Department id ($id) stored on the expense — drives the Ledelsen Oslo special-case. */
+  campusName: string;
+  /** Department id ($id) stored on the expense. */
   departmentId: string | null;
   departmentName: string | null;
-  // Self-declared by the submitter (Oslo only), and honored as declared. It can't
-  // be verified server-side: members submit reimbursements from personal email
-  // accounts, so there is no identity link back to the department finance mailbox.
+  // Self-declared by the submitter, and honored as declared. They can't be
+  // verified server-side: members submit from personal email accounts.
+  submitterIsController: boolean;
   submitterIsFinancialManager: boolean;
 }
 
-type Candidate = GraphUser & { email?: string };
-
-function toCandidate(user: GraphUser): Candidate {
-  return { ...user, email: user.mail ?? user.userPrincipalName };
+export interface ResolveDeps {
+  candidates?: typeof findApproverCandidates;
+  choose?: typeof chooseApprover;
+  db?: Db;
+  graph?: Graph;
+  /** Overrides the 8 s deadline of each AI lookup. */
+  lookupTimeoutMs?: number;
+  /** The clock the miss cache reads. */
+  now?: () => number;
 }
 
-/**
- * Looks up the department approver (finance → or manager → deputy) for the
- * given role. Returns the matched Graph user or null.
- */
-function resolveDepartmentApprover(
-  candidates: Candidate[],
-  role: "finance" | "manager",
-  campusSlug: string
-): { user: Candidate; role: ApproverRole } | null {
-  if (role === "finance") {
-    const match = pickApproverByRole(
-      candidates,
-      ROLE_EMAIL_PREFIXES.finance,
-      campusSlug
-    );
-    return match ? { user: match, role: "finance" } : null;
-  }
+type Found = Omit<ResolvedApproverStep, "step">;
 
-  const manager = pickApproverByRole(
-    candidates,
-    ROLE_EMAIL_PREFIXES.manager,
-    campusSlug
-  );
-  if (manager) {
-    return { user: manager, role: "manager" };
-  }
+/** A found approver plus the bookkeeping to run only if it is the one used. */
+interface Lookup {
+  commit: () => Promise<void> | void;
+  found: Found;
+}
 
-  const deputy = pickApproverByRole(
-    candidates,
-    ROLE_EMAIL_PREFIXES.deputy,
-    campusSlug
-  );
-  return deputy ? { user: deputy, role: "deputy" } : null;
+interface StepOutcome {
+  found: Found | null;
+  issues: ApproverResolutionIssue[];
 }
 
 export async function resolveExpenseApprovers(
-  input: ResolveInput
+  input: ResolveInput,
+  deps: ResolveDeps = {}
 ): Promise<ApproverResolution> {
   const plan = getCampusApprovalPlan({
     campusId: input.campusId,
     departmentId: input.departmentId ?? undefined,
     submitterIsFinancialManager: input.submitterIsFinancialManager,
+    submitterIsController: input.submitterIsController,
   });
 
-  const steps: ResolvedApproverStep[] = [];
-  let issue: ApproverResolutionIssue | null = null;
-  let departmentCandidates: Candidate[] | null = null;
+  let db = deps.db;
+  const getDb = async (): Promise<Db> => {
+    if (!db) {
+      db = (await createAdminClient()).db;
+    }
+    return db;
+  };
+  // Graph is only needed by the AI path; missing config there means "not found".
+  let graph = deps.graph;
+  const getGraph = (): Graph => {
+    graph ??= getGraphService();
+    return graph;
+  };
+  const findCandidates = deps.candidates ?? findApproverCandidates;
+  const choose = deps.choose ?? chooseApprover;
+  const timeoutMs = deps.lookupTimeoutMs ?? LOOKUP_TIMEOUT_MS;
+  const now = deps.now ?? Date.now;
+  const department = input.departmentName ?? "(none)";
 
-  const loadCandidates = async (): Promise<Candidate[]> => {
-    if (departmentCandidates) {
-      return departmentCandidates;
+  const fromDirectory = async (
+    key: string,
+    role: ApproverRole
+  ): Promise<Lookup | null> => {
+    const store = await getDb();
+    const row = await findDirectoryApprover(store, key);
+    if (!row) {
+      return null;
     }
-    if (!input.departmentName) {
-      departmentCandidates = [];
-      return departmentCandidates;
-    }
-    const users = await getGraphService().findUsersByDepartment(
-      input.departmentName
-    );
-    departmentCandidates = users.map(toCandidate);
-    return departmentCandidates;
+    lookupMisses.delete(key);
+    return {
+      found: {
+        aadId: row.aadId,
+        directoryKey: key,
+        email: row.email,
+        role,
+        source: "directory",
+      },
+      commit: () => {
+        touchDirectoryApprover(store, key).catch((error: unknown) =>
+          console.error("[expense-approver-resolution] touch failed", error)
+        );
+      },
+    };
   };
 
-  const campusSlug = getCampusEmailSlug(input.campusId) ?? "";
+  /** Keys an admin deactivated; their steps explain themselves in the issue. */
+  const deactivatedKeys = new Set<string>();
 
-  for (const planStep of plan) {
-    if (planStep.kind === "fixed" && planStep.email) {
-      steps.push({
-        step: steps.length + 1,
-        role: planStep.role,
-        email: planStep.email,
-        aadId: null,
-      });
-      continue;
-    }
-
-    // Department step (role is finance or manager).
-    const departmentRole = planStep.role === "manager" ? "manager" : "finance";
-    const candidates = await loadCandidates();
-    const resolved = resolveDepartmentApprover(
-      candidates,
-      departmentRole,
-      campusSlug
-    );
-
-    if (resolved?.user.email) {
-      steps.push({
-        step: steps.length + 1,
-        role: resolved.role,
-        email: resolved.user.email,
-        aadId: resolved.user.id,
-      });
-    } else {
-      issue = {
+  /**
+   * Graph candidates and the model's choice for one role, inside one
+   * deadline. The outcome says why nobody was found: the deadline passed
+   * (`timeout`), Graph or the model broke (`failed`), or neither did and
+   * nobody fits (`empty`).
+   */
+  const askAi = async (
+    role: LookupRole
+  ): Promise<
+    | { outcome: Exclude<LookupOutcome, "found"> }
+    | {
+        outcome: "found";
+        candidates: Candidate[];
+        choice: NonNullable<Awaited<ReturnType<typeof chooseApprover>>>;
+      }
+  > => {
+    const signal = AbortSignal.timeout(timeoutMs);
+    const lookup = async () => {
+      const candidates = await findCandidates(getGraph(), {
+        role,
         campusId: input.campusId,
-        department: input.departmentName ?? "(none)",
-        roleSought: departmentRole,
-        reason: input.departmentName
-          ? `No ${departmentRole} mailbox found among users in department "${input.departmentName}".`
-          : "Expense has no department set.",
+        departmentName: input.departmentName,
+      });
+      const choice = await choose({
+        role,
+        campusName: input.campusName,
+        departmentName: input.departmentName,
+        candidates,
+        abortSignal: signal,
+      });
+      return { candidates, choice };
+    };
+    try {
+      const { candidates, choice } = await Promise.race([
+        lookup(),
+        aborted(signal),
+      ]);
+      return choice
+        ? { outcome: "found", candidates, choice }
+        : { outcome: "empty" };
+    } catch (error) {
+      console.error(
+        `[expense-approver-resolution] ${role} lookup failed`,
+        error
+      );
+      return { outcome: signal.aborted ? "timeout" : "failed" };
+    }
+  };
+
+  /**
+   * Asks the AI for one role, unless the key is deactivated or it found
+   * nobody for it in the last hour. Only an empty result or a timeout is
+   * remembered (a low-confidence answer counts as empty); an error is not,
+   * and a find clears it.
+   */
+  const fromAi = async (
+    key: string,
+    role: LookupRole,
+    scope: "department" | "campus"
+  ): Promise<Lookup | null> => {
+    if (await hasInactiveDirectoryRow(await getDb(), key)) {
+      deactivatedKeys.add(key);
+      return null;
+    }
+    if (missedRecently(key, now())) {
+      return null;
+    }
+    const answer = await askAi(role);
+    if (answer.outcome === "failed") {
+      return null;
+    }
+    if (
+      answer.outcome !== "found" ||
+      answer.choice.confidence < MIN_CONFIDENCE
+    ) {
+      lookupMisses.set(key, now());
+      return null;
+    }
+    lookupMisses.delete(key);
+    const { candidates, choice } = answer;
+    const { confidence, email } = choice;
+    const match = candidates.find(
+      (c) => c.email.toLowerCase() === email.toLowerCase()
+    );
+    return {
+      found: {
+        aadId: match?.aadId ?? null,
+        directoryKey: key,
+        email,
+        role,
+        source: "ai",
+      },
+      commit: async () =>
+        saveDirectoryApprover(await getDb(), {
+          key,
+          scope,
+          campusId: input.campusId,
+          departmentId: scope === "department" ? input.departmentId : null,
+          role,
+          email,
+          aadId: match?.aadId ?? null,
+          displayName: match?.displayName ?? null,
+          source: "ai",
+          confidence,
+        }),
+    };
+  };
+
+  const departmentKey = (role: ApproverRole) =>
+    directoryKey({
+      scope: "department",
+      campusId: input.campusId,
+      departmentId: input.departmentId,
+      role,
+    });
+  const campusKey = (campusId: string, role: ApproverRole) =>
+    directoryKey({ scope: "campus", campusId, role });
+
+  /** Directory first; the AI only with a department name to search by. */
+  const departmentLookup = async (
+    role: "finance" | "manager" | "deputy"
+  ): Promise<Lookup | null> => {
+    const key = departmentKey(role);
+    return (
+      (await fromDirectory(key, role)) ??
+      (input.departmentName ? await fromAi(key, role, "department") : null)
+    );
+  };
+
+  /**
+   * Manager first: the directory's manager, then a confident AI manager, then
+   * the directory's deputy, then a confident AI deputy. Without a manager in
+   * the directory, the AI manager and the deputy are looked up at once.
+   */
+  const managerOrDeputy = async (): Promise<Lookup | null> => {
+    const managerKey = departmentKey("manager");
+    const inDirectory = await fromDirectory(managerKey, "manager");
+    if (inDirectory) {
+      return inDirectory;
+    }
+    const [aiManager, deputy] = await Promise.all([
+      input.departmentName
+        ? fromAi(managerKey, "manager", "department")
+        : Promise.resolve(null),
+      departmentLookup("deputy"),
+    ]);
+    return aiManager ?? deputy;
+  };
+
+  const resolveDepartment = async (
+    role: "finance" | "manager"
+  ): Promise<StepOutcome> => {
+    if (!input.departmentId) {
+      return {
+        found: null,
+        issues: [
+          {
+            campusId: input.campusId,
+            department,
+            roleSought: role,
+            reason: "Expense has no department set.",
+          },
+        ],
       };
     }
-  }
+    const picked =
+      role === "manager"
+        ? await managerOrDeputy()
+        : await departmentLookup("finance");
+    if (picked) {
+      await picked.commit();
+      return { found: picked.found, issues: [] };
+    }
+    const sought: ApproverRole[] =
+      role === "manager" ? ["manager", "deputy"] : [role];
+    const deactivated = sought.filter((r) =>
+      deactivatedKeys.has(departmentKey(r))
+    );
+    let why = deactivatedReason(...deactivated);
+    if (deactivated.length === 0) {
+      why = input.departmentName
+        ? `No ${role} approver in the directory or found by the lookup for department "${input.departmentName}".`
+        : `No ${role} approver in the directory, and the expense has no department name to search by.`;
+    }
+    return {
+      found: null,
+      issues: [
+        { campusId: input.campusId, department, roleSought: role, reason: why },
+      ],
+    };
+  };
 
-  return { steps, issue };
+  const seedDefault = async (
+    role: "controller" | "national",
+    campusId: string
+  ): Promise<Found | null> => {
+    const key = campusKey(campusId, role);
+    const existing = await fromDirectory(key, role);
+    if (existing) {
+      await existing.commit();
+      return existing.found;
+    }
+    const email = DEFAULT_DIRECTORY_EMAILS[campusId]?.[role];
+    if (!email) {
+      return null;
+    }
+    if (await hasInactiveDirectoryRow(await getDb(), key)) {
+      // A campus always needs one: the default stands in, and the issue says so.
+      deactivatedKeys.add(key);
+    }
+    await saveDirectoryApprover(await getDb(), {
+      key,
+      scope: "campus",
+      campusId,
+      role,
+      email,
+      source: "seed",
+    });
+    return { aadId: null, directoryKey: key, email, role, source: "default" };
+  };
+
+  /**
+   * A controller step nobody holds (National has no seeded controller) goes to
+   * the general manager, marked as standing in for the controller.
+   */
+  const generalManagerForController = async (): Promise<StepOutcome> => {
+    const key = campusKey(input.campusId, "controller");
+    const deactivated = await hasInactiveDirectoryRow(await getDb(), key);
+    const general = await seedDefault("national", NATIONAL_CAMPUS_ID);
+    const sentTo = general
+      ? `sent to the general manager (${general.email})`
+      : "and no general manager is configured";
+    const reason = deactivated
+      ? `${deactivatedReason("controller")}; ${sentTo}`
+      : `No National controller in the approver directory; ${sentTo}`;
+    return {
+      found: general
+        ? { ...general, fallbackFor: "controller", source: "default" }
+        : null,
+      issues: [
+        {
+          campusId: input.campusId,
+          department,
+          roleSought: "controller",
+          reason,
+        },
+      ],
+    };
+  };
+
+  const resolveDirectory = async (
+    role: "controller" | "president" | "national"
+  ): Promise<StepOutcome> => {
+    if (role !== "president") {
+      const found = await seedDefault(role, input.campusId);
+      if (!found && role === "controller") {
+        return generalManagerForController();
+      }
+      const deactivated = deactivatedKeys.has(campusKey(input.campusId, role));
+      return {
+        found,
+        issues:
+          found && deactivated
+            ? [
+                {
+                  campusId: input.campusId,
+                  department,
+                  roleSought: role,
+                  reason: `${deactivatedReason(
+                    role === "controller"
+                      ? "campus controller"
+                      : "general manager"
+                  )}; sent to the default ${found.email}`,
+                },
+              ]
+            : [],
+      };
+    }
+    const key = campusKey(input.campusId, "president");
+    const lookup =
+      (await fromDirectory(key, "president")) ??
+      (await fromAi(key, "president", "campus"));
+    if (lookup) {
+      await lookup.commit();
+      return { found: lookup.found, issues: [] };
+    }
+    const national = await seedDefault("national", NATIONAL_CAMPUS_ID);
+    const presidentReason = (nationalEmail: string | null): string => {
+      if (deactivatedKeys.has(key)) {
+        return `${deactivatedReason("president")}; sent to the general manager${
+          nationalEmail ? ` (${nationalEmail})` : ""
+        }`;
+      }
+      return nationalEmail
+        ? `No president approver found for campus ${input.campusId}; sent to the general manager (${nationalEmail}).`
+        : `No president approver found for campus ${input.campusId}, and no general manager is configured.`;
+    };
+    return {
+      // Shown as a fallback, wherever the national mailbox came from.
+      found: national
+        ? { ...national, fallbackFor: "president", source: "default" }
+        : null,
+      issues: [
+        {
+          campusId: input.campusId,
+          department,
+          roleSought: "president",
+          reason: presidentReason(national?.email ?? null),
+        },
+      ],
+    };
+  };
+
+  const outcomes = await Promise.all(
+    plan.map((planStep) =>
+      planStep.kind === "directory"
+        ? resolveDirectory(planStep.role)
+        : resolveDepartment(planStep.role)
+    )
+  );
+
+  const steps: ResolvedApproverStep[] = [];
+  const issues: ApproverResolutionIssue[] = [];
+  for (const outcome of outcomes) {
+    issues.push(...outcome.issues);
+    if (outcome.found) {
+      steps.push({ ...outcome.found, step: steps.length + 1 });
+    }
+  }
+  return { steps, issues };
 }

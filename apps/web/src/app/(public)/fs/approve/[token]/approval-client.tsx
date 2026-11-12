@@ -20,12 +20,14 @@ interface ApprovalReceipt {
   type: string;
 }
 
-interface ApprovalContext {
+export interface ApprovalContext {
+  adminUrl: string;
   campusLabel: string;
   currency: string;
   departmentLabel: string;
   description: string;
   expired: boolean;
+  missingAccount: boolean;
   receipts: ApprovalReceipt[];
   reimbursementNumber: string;
   status: "pending" | "approved" | "rejected";
@@ -34,6 +36,24 @@ interface ApprovalContext {
 }
 
 type Decision = "approved" | "rejected";
+
+/**
+ * An `account_missing` answer means the page's context was stale: it moves to
+ * the missing-account state (Approve hidden, note and admin link shown) and
+ * the note carries the message, so no separate error is set.
+ */
+export function afterDecisionRefused(
+  context: ApprovalContext | null,
+  code: string | undefined
+): { context: ApprovalContext | null; accountMissing: boolean } {
+  if (code !== "account_missing") {
+    return { accountMissing: false, context };
+  }
+  return {
+    accountMissing: true,
+    context: context ? { ...context, missingAccount: true } : context,
+  };
+}
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
@@ -112,7 +132,11 @@ export function ApprovalClient({
       });
       const data = await res.json();
       if (!(res.ok && data.success)) {
-        setError(data.error ?? t("decisionFailed"));
+        const refused = afterDecisionRefused(context, data.code);
+        setContext(refused.context);
+        setError(
+          refused.accountMissing ? null : (data.error ?? t("decisionFailed"))
+        );
         return;
       }
       setOutcome(decision);
@@ -145,7 +169,7 @@ export function ApprovalClient({
   );
 }
 
-function ApprovalBody({
+export function ApprovalBody({
   context,
   decide,
   error,
@@ -292,23 +316,39 @@ function ApprovalBody({
             {error}
           </p>
         ) : null}
+        {context.missingAccount ? (
+          <p className="type-body-sm text-ink">
+            {t("accountMissing")}{" "}
+            <a
+              className={`inline-flex items-center gap-1 rounded-biso-sm text-ink-accent underline underline-offset-4 hover:no-underline ${focusRing}`}
+              href={context.adminUrl}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              {t("openInAdmin")}
+              <ExternalLink aria-hidden="true" className="size-3.5" />
+            </a>
+          </p>
+        ) : null}
         <div className="flex flex-wrap gap-3">
-          <button
-            className={cn(
-              intent === "reject"
-                ? statusPanelSecondaryAction
-                : statusPanelPrimaryAction,
-              "flex-1 justify-center disabled:cursor-not-allowed disabled:opacity-50"
-            )}
-            disabled={submitting}
-            onClick={() => decide("approved")}
-            type="button"
-          >
-            {submitting ? (
-              <Loader2 aria-hidden="true" className="size-4 animate-spin" />
-            ) : null}
-            {t("approve")}
-          </button>
+          {context.missingAccount ? null : (
+            <button
+              className={cn(
+                intent === "reject"
+                  ? statusPanelSecondaryAction
+                  : statusPanelPrimaryAction,
+                "flex-1 justify-center disabled:cursor-not-allowed disabled:opacity-50"
+              )}
+              disabled={submitting}
+              onClick={() => decide("approved")}
+              type="button"
+            >
+              {submitting ? (
+                <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+              ) : null}
+              {t("approve")}
+            </button>
+          )}
           <button
             className={cn(dangerFilled, "flex-1")}
             disabled={submitting}

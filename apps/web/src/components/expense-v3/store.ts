@@ -1,5 +1,8 @@
 import type { Campus, Users } from "@repo/api/types/appwrite";
+import type { ReceiptIssueCode } from "@repo/shared/utils/expense-hints";
 import { create } from "zustand";
+import { submitGaps, type TypeState } from "./receipt-types";
+import type { ExpenseTypeOption } from "./types";
 
 type ReceiptStatus =
   | "uploading"
@@ -10,6 +13,8 @@ type ReceiptStatus =
   | "editing";
 
 export interface Receipt {
+  aiConfidence?: number;
+  aiCostType?: string | null;
   amount: number;
   bankStatementId?: string;
   bankStatementName?: string;
@@ -17,7 +22,8 @@ export interface Receipt {
   category?: string; // Potential AI category
   city?: string;
   confidence: number;
-  costType?: string; // User-selected cost type (maps to a GL account)
+  costType?: string; // Chosen or AI-suggested cost type slug
+  costTypeText?: string; // The student's own type wording ("Other")
   country?: string;
   currency: string;
   date: string;
@@ -35,9 +41,12 @@ export interface Receipt {
   // Multi-currency support
   originalAmount?: number;
   parentId?: string; // For grouping (e.g. bank statement attached to receipt)
+  possibleDuplicate?: boolean;
   progress: number;
   purchaseContext?: string;
+  receiptIssues?: ReceiptIssueCode[];
   status: ReceiptStatus;
+  typeState?: TypeState;
   vendor?: string; // Explicitly track vendor
 }
 
@@ -56,10 +65,22 @@ interface ExpenseStore {
 
   // Assignment
   description: string;
+  // Set once the student changes the description away from the AI's text.
+  descriptionEditedByStudent: boolean;
+  eventId: string | null;
+  eventName: string;
   expenseId: string | null;
   insertReceiptAfter: (afterId: string, receipt: Receipt) => void;
   isGeneratingSummary: boolean;
   isReadyToSubmit: () => boolean;
+  // The last description the AI wrote; the student's edits are told apart by it.
+  lastAiDescription: string;
+  occasion: string;
+  // Set when the API rejects a submit for a missing occasion.
+  occasionError: boolean;
+  // Set while the occasion is the AI's suggestion the student hasn't changed.
+  occasionFromAi: boolean;
+  occasionTouched: boolean;
   // Phase management
   phase: ExpensePhase;
 
@@ -79,6 +100,8 @@ interface ExpenseStore {
 
   // Selection
   selectedReceiptId: string | null;
+  setAiDescription: (description: string) => void;
+  setAiOccasion: (occasion: string) => void;
   setAiSummary: (summary: string) => void;
   setAssignment: (data: {
     campusId: string;
@@ -88,16 +111,26 @@ interface ExpenseStore {
   }) => void;
   setCampuses: (campuses: Campus[]) => void;
   setDescription: (description: string) => void;
+  setEvent: (eventId: string | null, eventName: string) => void;
   setExpenseId: (id: string | null) => void;
   setIsGeneratingSummary: (generating: boolean) => void;
+  setOccasion: (occasion: string) => void;
+  setOccasionError: (value: boolean) => void;
+  setOccasionTouched: (value: boolean) => void;
   setPhase: (phase: ExpensePhase) => void;
   setProfile: (profile: Partial<Users>) => void;
   setSelectedReceiptId: (id: string | null) => void;
   setSubmissionError: (error: string | null) => void;
+  setSubmitterIsController: (value: boolean) => void;
   setSubmitterIsFinancialManager: (value: boolean) => void;
+  setTypeOptions: (options: ExpenseTypeOption[]) => void;
 
   // Submission
   submissionError: string | null;
+
+  // Drift/Ledelsen: submitter is the campus financial controller (routes
+  // approval to the campus president instead).
+  submitterIsController: boolean;
 
   // Oslo-only: submitter is the department financial manager (routes approval
   // to the department manager instead of the financial manager).
@@ -105,6 +138,9 @@ interface ExpenseStore {
 
   // Computed values
   totalAmount: () => number;
+
+  // Active cost types (names only) for the type picker
+  typeOptions: ExpenseTypeOption[];
   updateReceipt: (id: string, updates: Partial<Receipt>) => void;
 }
 
@@ -115,15 +151,25 @@ const initialState = {
   aiSummary: "",
   isGeneratingSummary: false,
   description: "",
+  descriptionEditedByStudent: false,
+  lastAiDescription: "",
+  occasion: "",
+  occasionTouched: false,
+  occasionError: false,
+  occasionFromAi: false,
+  eventId: null as string | null,
+  eventName: "",
   selectedCampusId: "",
   selectedCampusName: "",
   selectedDepartmentId: "",
   selectedDepartmentName: "",
   profile: {} as Partial<Users>,
   campuses: [] as Campus[],
+  typeOptions: [] as ExpenseTypeOption[],
   submissionError: null,
   expenseId: null,
   submitterIsFinancialManager: false,
+  submitterIsController: false,
 };
 
 export const useExpenseStore = create<ExpenseStore>((set, get) => ({
@@ -167,30 +213,65 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => ({
   setAiSummary: (aiSummary) => set({ aiSummary }),
   setIsGeneratingSummary: (isGeneratingSummary) => set({ isGeneratingSummary }),
 
-  setDescription: (description) => set({ description }),
+  // Typing in the textarea, and a reopened draft's text: the student's own
+  // unless it is exactly what the AI wrote.
+  setDescription: (description) =>
+    set((state) => ({
+      description,
+      descriptionEditedByStudent: description !== state.lastAiDescription,
+    })),
 
-  setAssignment: (data) =>
+  setAiDescription: (description) =>
     set({
-      selectedCampusId: data.campusId,
-      selectedCampusName: data.campusName,
-      selectedDepartmentId: data.departmentId,
-      selectedDepartmentName: data.departmentName,
+      description,
+      descriptionEditedByStudent: false,
+      lastAiDescription: description,
+    }),
+
+  // The student's own text (typed, or a reopened draft's): no longer the AI's.
+  setOccasion: (occasion) =>
+    set({ occasion, occasionError: false, occasionFromAi: false }),
+  setAiOccasion: (occasion) =>
+    set({ occasion, occasionError: false, occasionFromAi: true }),
+  setOccasionTouched: (occasionTouched) => set({ occasionTouched }),
+  setOccasionError: (occasionError) => set({ occasionError }),
+  setEvent: (eventId, eventName) => set({ eventId, eventName }),
+
+  // Another department offers another switch, so a change clears both.
+  setAssignment: (data) =>
+    set((state) => {
+      const changed =
+        state.selectedCampusId !== data.campusId ||
+        state.selectedDepartmentId !== data.departmentId;
+      return {
+        selectedCampusId: data.campusId,
+        selectedCampusName: data.campusName,
+        selectedDepartmentId: data.departmentId,
+        selectedDepartmentName: data.departmentName,
+        ...(changed
+          ? { submitterIsController: false, submitterIsFinancialManager: false }
+          : {}),
+      };
     }),
 
   setProfile: (profile) => set({ profile }),
   setCampuses: (campuses) => set({ campuses }),
+  setTypeOptions: (typeOptions) => set({ typeOptions }),
 
   totalAmount: () => get().receipts.reduce((sum, r) => sum + r.amount, 0),
 
   isReadyToSubmit: () => {
     const state = get();
+    const gaps = submitGaps(state.receipts, state.typeOptions, state.occasion);
     return (
       state.allReceiptsReady() &&
       state.receipts.length > 0 &&
       state.description.trim().length > 0 &&
       state.selectedCampusId !== "" &&
       state.selectedDepartmentId !== "" &&
-      state.profile.bank_account !== undefined
+      state.profile.bank_account !== undefined &&
+      !gaps.typesMissing &&
+      !gaps.occasionMissing
     );
   },
 
@@ -200,6 +281,9 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => ({
 
   setSubmissionError: (submissionError) => set({ submissionError }),
   setExpenseId: (expenseId) => set({ expenseId }),
+
+  setSubmitterIsController: (submitterIsController) =>
+    set({ submitterIsController }),
 
   setSubmitterIsFinancialManager: (submitterIsFinancialManager) =>
     set({ submitterIsFinancialManager }),

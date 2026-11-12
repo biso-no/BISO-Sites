@@ -141,3 +141,34 @@ export function formatOsloDate(
       }).format(date)
     : null;
 }
+
+const osloDayFormatter = new Intl.DateTimeFormat("en-CA", {
+  day: "2-digit",
+  month: "2-digit",
+  timeZone: OSLO_TIME_ZONE,
+  year: "numeric",
+});
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** The Oslo calendar day (`YYYY-MM-DD`) of an instant. Throws if ICU formats it differently. */
+export function formatOsloDay(date: Date): string {
+  const formatted = osloDayFormatter.format(date);
+  if (!ISO_DAY.test(formatted)) {
+    throw new Error(`Unexpected Oslo date format: "${formatted}"`);
+  }
+  return formatted;
+}
+
+/** Today's Oslo calendar day (`YYYY-MM-DD`). */
+export function todayInOslo(now: Date = new Date()): string {
+  return formatOsloDay(now);
+}
+
+/** The Oslo calendar day of an Appwrite datetime string, or null. */
+export function receiptDateInOslo(
+  value: string | null | undefined
+): string | null {
+  const date = toValidDate(value);
+  return date ? formatOsloDay(date) : null;
+}

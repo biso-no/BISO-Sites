@@ -7,7 +7,7 @@ import type {
   Users,
 } from "@repo/api/types/appwrite";
 import { trackEvent } from "@repo/shared/utils/analytics";
-import { defaultCostTypeSlugForCategory } from "@repo/shared/utils/expense-cost-types";
+import type { ReceiptIssueCode } from "@repo/shared/utils/expense-hints";
 import {
   Select,
   SelectContent,
@@ -18,13 +18,14 @@ import {
 import { cn } from "@repo/ui/lib/utils";
 import { ArrowLeft, ArrowRight, Check, FileText, Wallet } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { v4 as uuid } from "uuid";
 import { uploadExpenseAttachment } from "@/lib/actions/expense";
 import { apiClient } from "@/lib/api-client";
 import { DepartmentCombobox } from "./department-combobox";
+import { EVENT_NAME_MAX, EventMatch, useNearbyEvent } from "./event-match";
 import { ExpenseReport } from "./expense-report";
 import {
   fieldLabelClass,
@@ -35,8 +36,113 @@ import {
   selectTriggerClass,
 } from "./form-styles";
 import { GenerativeReceiptPreview } from "./generative-receipt-preview";
+import {
+  attachmentTypeFields,
+  missingTypes,
+  occasionRequired,
+  rejectedDraftId,
+  submitErrorKind,
+  typeFromAttachment,
+  typeFromOcr,
+} from "./receipt-types";
 import { ReceiptWallet } from "./receipt-wallet";
 import { type Receipt, useExpenseStore } from "./store";
+import {
+  prefilledOccasion,
+  receiptCostTypeText,
+  shouldPrefillOccasion,
+  shouldRegenerate,
+  summaryKey,
+  summaryLocale,
+} from "./summary-rules";
+import type { ExpenseTypeOption } from "./types";
+
+/**
+ * How long the inputs rest before the description is written again: the
+ * occasion, the event and a receipt's text are typed a key at a time.
+ */
+const SUMMARY_SETTLE_MS = 800;
+
+type ExpenseState = ReturnType<typeof useExpenseStore.getState>;
+
+interface SummaryAnswer {
+  occasionSuggestion?: string | null;
+  success: boolean;
+  summary: string;
+}
+
+function summaryAssignment(state: ExpenseState) {
+  return {
+    campusId: state.selectedCampusId,
+    campusName: state.selectedCampusName,
+    departmentId: state.selectedDepartmentId,
+    departmentName: state.selectedDepartmentName,
+  };
+}
+
+/** Identifies everything the description is written from, as the store holds it. */
+function currentSummaryKey(state: ExpenseState, locale: string): string {
+  return summaryKey({
+    assignment: summaryAssignment(state),
+    eventName: state.eventName,
+    locale,
+    occasion: state.occasion,
+    options: state.typeOptions,
+    receipts: state.receipts,
+  });
+}
+
+function requestSummary(
+  state: ExpenseState,
+  locale: string
+): Promise<SummaryAnswer> {
+  return apiClient.fetch<SummaryAnswer>("/api/expenses/summary", {
+    method: "POST",
+    body: {
+      assignment: summaryAssignment(state),
+      eventName: state.eventName.trim() || undefined,
+      locale: summaryLocale(locale),
+      occasion: state.occasion.trim() || undefined,
+      receipts: state.receipts.map((receipt) => ({
+        amount: receipt.amount,
+        category: receipt.category,
+        city: receipt.city,
+        costType: receiptCostTypeText(receipt, state.typeOptions, locale),
+        country: receipt.country,
+        currency: receipt.currency,
+        date: receipt.date,
+        description: receipt.description,
+        documentType: receipt.documentType,
+        purchaseContext: receipt.purchaseContext,
+        vendor: receipt.vendor,
+      })),
+    },
+  });
+}
+
+/**
+ * Applies the AI's answer to the store as it is now: the student may have
+ * typed while the AI was writing.
+ */
+function applySummary(data: SummaryAnswer) {
+  const latest = useExpenseStore.getState();
+  if (!latest.descriptionEditedByStudent) {
+    latest.setAiDescription(data.summary);
+  }
+  const suggestion = prefilledOccasion(data.occasionSuggestion);
+  if (
+    shouldPrefillOccasion({
+      occasion: latest.occasion,
+      shown:
+        latest.occasionError ||
+        occasionRequired(latest.receipts, latest.typeOptions),
+      suggestion,
+      touched: latest.occasionTouched,
+    })
+  ) {
+    latest.setAiOccasion(suggestion);
+  }
+}
 
 interface OcrData {
   address?: null | string;
@@ -52,13 +158,18 @@ interface OcrData {
     | "other"
     | null;
   city?: null | string;
+  costType?: null | string;
+  costTypeConfidence?: number;
   country?: null | string;
   currency?: null | string;
   date?: null | string;
   description?: null | string;
   documentType?: "receipt" | "bank-statement" | null;
   exchangeRate?: null | number;
+  ocrAmount?: null | number;
+  possibleDuplicate?: boolean;
   purchaseContext?: null | string;
+  receiptIssues?: ReceiptIssueCode[];
   vendor?: null | string;
 }
 
@@ -130,7 +241,8 @@ function buildAccountingDescription(data: OcrData, fileName: string): string {
 
 function buildReceiptFromOcr(
   data: OcrData,
-  fileName: string
+  fileName: string,
+  typeOptions: ExpenseTypeOption[]
 ): Partial<Receipt> {
   const isNok = data.currency === "NOK" || !data.currency;
   const amount = isNok
@@ -153,6 +265,9 @@ function buildReceiptFromOcr(
     country: data.country ?? undefined,
     category: data.category ?? undefined,
     purchaseContext: data.purchaseContext ?? undefined,
+    receiptIssues: data.receiptIssues ?? [],
+    possibleDuplicate: data.possibleDuplicate ?? false,
+    ...typeFromOcr(data, typeOptions, true),
   };
 }
 
@@ -286,6 +401,7 @@ interface ExpenseSplitViewProps {
   initialProfile: Partial<Users>;
   /** When false the AI/OCR receipt scan is skipped; manual entry still works. */
   ocrEnabled?: boolean;
+  typeOptions: ExpenseTypeOption[];
 }
 
 type InitialExpenseDraft = Pick<
@@ -295,7 +411,11 @@ type InitialExpenseDraft = Pick<
   | "campus"
   | "department"
   | "description"
+  | "eventName"
+  | "event_id"
   | "expenseAttachments"
+  | "occasion"
+  | "submitter_is_controller"
   | "submitter_is_financial_manager"
   | "total"
 >;
@@ -317,7 +437,8 @@ function buildStorageViewUrl(fileId: string): string {
 }
 
 function buildReceiptFromAttachment(
-  attachment: ExpenseAttachments
+  attachment: ExpenseAttachments,
+  typeOptions: ExpenseTypeOption[]
 ): Receipt | null {
   if (!attachment.url) {
     return null;
@@ -338,9 +459,8 @@ function buildReceiptFromAttachment(
       : "",
     confidence: 1,
     currency: "NOK",
-    // Restore the saved cost type so resuming a draft keeps the chosen GL
-    // mapping instead of falling back to the default on the next save/submit.
-    costType: attachment.cost_type ?? undefined,
+    // Restore the saved type: anything stored on a draft counts as chosen.
+    ...typeFromAttachment(attachment, typeOptions),
   };
 }
 
@@ -349,14 +469,22 @@ export function ExpenseSplitView({
   initialDraft,
   initialProfile,
   ocrEnabled = true,
+  typeOptions,
 }: ExpenseSplitViewProps) {
   const router = useRouter();
   const t = useTranslations("expenses");
+  const locale = useLocale();
   const store = useExpenseStore();
   const [mobileView, setMobileView] = useState<"wallet" | "report">("wallet");
-  const [lastSummarizedReceipts, setLastSummarizedReceipts] =
-    useState<string>("");
+  // The inputs the description was last asked for, recorded as each request
+  // starts, and a count of requests so only the latest answer is applied.
+  const lastSummaryKeyRef = useRef("");
+  const summaryRequestRef = useRef(0);
   const skipNextSummaryRef = useRef(Boolean(initialDraft));
+  const nearbyEvent = useNearbyEvent(
+    store.selectedDepartmentId,
+    store.receipts
+  );
 
   const handleAssign = useCallback(
     (campusId: string, departmentId: string) => {
@@ -375,105 +503,93 @@ export function ExpenseSplitView({
     [store]
   );
 
-  // Auto-generate summary when receipts are ready
-  useEffect(() => {
-    const allReady = store.allReceiptsReady();
-    const currentIds = store.receipts
-      .map((receipt) => ({
-        amount: receipt.amount,
-        category: receipt.category,
-        city: receipt.city,
-        country: receipt.country,
-        currency: receipt.currency,
-        date: receipt.date,
-        description: receipt.description,
-        documentType: receipt.documentType,
-        id: receipt.id,
-        purchaseContext: receipt.purchaseContext,
-        vendor: receipt.vendor,
-      }))
-      .sort((a, b) => a.id.localeCompare(b.id));
-    const summaryKey = JSON.stringify({
-      assignment: {
-        campusId: store.selectedCampusId,
-        campusName: store.selectedCampusName,
-        departmentId: store.selectedDepartmentId,
-        departmentName: store.selectedDepartmentName,
-      },
-      receipts: currentIds,
-    });
-
-    if (
-      allReady &&
-      store.receipts.length > 0 &&
+  // Write the description when receipts are ready and typed, and again when
+  // a type, the occasion or the event changes, unless the student edited it.
+  // The inputs must rest for a moment first, so typing sends one request.
+  const summaryInputsKey = currentSummaryKey(store, locale);
+  const summaryAllowed = Boolean(
+    store.receipts.length > 0 &&
       store.selectedCampusId &&
-      store.selectedDepartmentId &&
-      summaryKey !== lastSummarizedReceipts
+      store.selectedDepartmentId
+  );
+  const allReceiptsReady = store.allReceiptsReady();
+  const missingTypeCount = missingTypes(store.receipts).length;
+  const { descriptionEditedByStudent } = store;
+  useEffect(() => {
+    if (
+      !(
+        summaryAllowed &&
+        shouldRegenerate({
+          allReady: allReceiptsReady,
+          descriptionEditedByStudent,
+          key: summaryInputsKey,
+          lastKey: lastSummaryKeyRef.current,
+          missingTypes: missingTypeCount,
+        })
+      )
     ) {
-      if (skipNextSummaryRef.current) {
-        skipNextSummaryRef.current = false;
-        setLastSummarizedReceipts(summaryKey);
+      return;
+    }
+
+    // A reopened draft keeps its saved description.
+    if (skipNextSummaryRef.current) {
+      skipNextSummaryRef.current = false;
+      lastSummaryKeyRef.current = summaryInputsKey;
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      const state = useExpenseStore.getState();
+      // Changed since this render: the next render waits again.
+      if (currentSummaryKey(state, locale) !== summaryInputsKey) {
         return;
       }
+      // Recorded as the request starts, so it is sent once.
+      lastSummaryKeyRef.current = summaryInputsKey;
+      summaryRequestRef.current += 1;
+      const request = summaryRequestRef.current;
+      const isLatest = () => request === summaryRequestRef.current;
 
-      const generate = async () => {
-        store.setIsGeneratingSummary(true);
-        try {
-          const data = await apiClient.fetch<{
-            success: boolean;
-            summary: string;
-          }>("/api/expenses/summary", {
-            method: "POST",
-            body: {
-              assignment: {
-                campusId: store.selectedCampusId,
-                campusName: store.selectedCampusName,
-                departmentId: store.selectedDepartmentId,
-                departmentName: store.selectedDepartmentName,
-              },
-              receipts: store.receipts.map((receipt) => ({
-                amount: receipt.amount,
-                category: receipt.category,
-                city: receipt.city,
-                country: receipt.country,
-                currency: receipt.currency,
-                date: receipt.date,
-                description: receipt.description,
-                documentType: receipt.documentType,
-                purchaseContext: receipt.purchaseContext,
-                vendor: receipt.vendor,
-              })),
-            },
-          });
-          if (data.success) {
-            store.setDescription(data.summary);
+      state.setIsGeneratingSummary(true);
+      requestSummary(state, locale)
+        .then((data) => {
+          if (isLatest() && data.success) {
+            applySummary(data);
           }
-        } catch (e) {
-          console.error("Failed to generate summary", e);
-        } finally {
-          store.setIsGeneratingSummary(false);
-          setLastSummarizedReceipts(summaryKey);
-        }
-      };
-      generate();
-    }
+        })
+        .catch((error: unknown) => {
+          console.error("Failed to generate summary", error);
+        })
+        .finally(() => {
+          if (isLatest()) {
+            useExpenseStore.getState().setIsGeneratingSummary(false);
+          }
+        });
+    }, SUMMARY_SETTLE_MS);
+    return () => clearTimeout(timer);
   }, [
-    store.receipts,
-    store.selectedCampusId,
-    store.selectedCampusName,
-    store.selectedDepartmentId,
-    store.selectedDepartmentName,
-    lastSummarizedReceipts,
-    store.allReceiptsReady,
-    store.setDescription,
-    store.setIsGeneratingSummary,
+    allReceiptsReady,
+    descriptionEditedByStudent,
+    locale,
+    missingTypeCount,
+    summaryAllowed,
+    summaryInputsKey,
   ]);
+
+  // An answer that arrives after the form is gone is not applied.
+  useEffect(
+    () => () => {
+      summaryRequestRef.current += 1;
+    },
+    []
+  );
 
   // Initialize store and hydrate draft data when the user continues a saved draft.
   useEffect(() => {
     store.reset();
     store.setCampuses(campuses);
     store.setProfile(initialProfile);
+    store.setTypeOptions(typeOptions);
 
     if (!initialDraft) {
       skipNextSummaryRef.current = false;
@@ -495,12 +611,19 @@ export function ExpenseSplitView({
       departmentName: department?.Name ?? "",
     });
     store.setDescription(initialDraft.description ?? "");
+    store.setOccasion(initialDraft.occasion ?? "");
+    // A saved occasion is the student's: a later AI suggestion must not replace it.
+    store.setOccasionTouched(Boolean(initialDraft.occasion?.trim()));
+    store.setEvent(initialDraft.event_id ?? null, initialDraft.eventName ?? "");
     store.setSubmitterIsFinancialManager(
       Boolean(initialDraft.submitter_is_financial_manager)
     );
+    store.setSubmitterIsController(
+      Boolean(initialDraft.submitter_is_controller)
+    );
 
     for (const receipt of initialDraft.expenseAttachments
-      .map(buildReceiptFromAttachment)
+      .map((attachment) => buildReceiptFromAttachment(attachment, typeOptions))
       .filter((receipt): receipt is Receipt => receipt !== null)) {
       store.addReceipt(receipt);
     }
@@ -513,9 +636,15 @@ export function ExpenseSplitView({
     store.setAssignment,
     store.setCampuses,
     store.setDescription,
+    store.setEvent,
+    store.setOccasion,
+    store.setOccasionTouched,
     store.setExpenseId,
     store.setProfile,
+    store.setSubmitterIsController,
     store.setSubmitterIsFinancialManager,
+    store.setTypeOptions,
+    typeOptions,
   ]);
 
   // Process File Logic
@@ -571,7 +700,11 @@ export function ExpenseSplitView({
         // Kill switch: when receipt scanning is disabled, the file is still
         // attached but skips OCR — the user fills in the details manually.
         if (!ocrEnabled) {
-          store.updateReceipt(tempId, { progress: 100, status: "ready" });
+          store.updateReceipt(tempId, {
+            progress: 100,
+            status: "ready",
+            ...typeFromOcr({}, typeOptions, false),
+          });
           return null;
         }
 
@@ -602,7 +735,11 @@ export function ExpenseSplitView({
         // Simulate "thinking" time for the user to appreciate the UI
         await new Promise((resolve) => setTimeout(resolve, 1500));
 
-        const receiptUpdates = buildReceiptFromOcr(ocrResult.data, file.name);
+        const receiptUpdates = buildReceiptFromOcr(
+          ocrResult.data,
+          file.name,
+          typeOptions
+        );
         store.updateReceipt(tempId, receiptUpdates);
         return { id: tempId, ocrData: ocrResult.data };
       } catch (error) {
@@ -615,7 +752,7 @@ export function ExpenseSplitView({
         return null;
       }
     },
-    [store, ocrEnabled, t]
+    [store, ocrEnabled, t, typeOptions]
   );
 
   const reconcileBatch = useCallback(
@@ -715,16 +852,18 @@ export function ExpenseSplitView({
     description: store.description,
     total: store.totalAmount(),
     prepayment_amount: 0,
-    eventName: "",
+    occasion: store.occasion.trim() || null,
+    event_id: store.eventId,
+    eventName: store.eventName,
     submitter_is_financial_manager: store.submitterIsFinancialManager,
+    submitter_is_controller: store.submitterIsController,
     expenseAttachments: store.receipts.map((receipt, index) => ({
       date: receipt.date,
       url: receipt.fileId,
       amount: receipt.amount,
       description: receipt.description,
       type: receipt.fileType,
-      cost_type:
-        receipt.costType ?? defaultCostTypeSlugForCategory(receipt.category),
+      ...attachmentTypeFields(receipt),
       sort_order: index,
     })),
   });
@@ -806,7 +945,18 @@ export function ExpenseSplitView({
       }
     } catch (error) {
       console.error(error);
-      toast.error(t("composer.toast.submitFailed"));
+      if (submitErrorKind(error) === "occasion") {
+        // The api saved the report as a draft before asking: the next submit
+        // or save updates that draft instead of making another.
+        const savedDraftId = rejectedDraftId(error);
+        if (savedDraftId) {
+          store.setExpenseId(savedDraftId);
+        }
+        store.setOccasionError(true);
+        toast.error(t("composer.toast.occasionRequired"));
+      } else {
+        toast.error(t("composer.toast.submitFailed"));
+      }
       store.setPhase("draft");
     }
   };
@@ -902,6 +1052,7 @@ export function ExpenseSplitView({
                 receipt={
                   store.receipts.find((r) => r.id === store.selectedReceiptId)!
                 }
+                typeOptions={store.typeOptions}
               />
             )}
           </div>
@@ -909,18 +1060,37 @@ export function ExpenseSplitView({
           <ExpenseReport
             campuses={store.campuses}
             description={store.description}
+            eventMatch={
+              <EventMatch
+                eventName={store.eventName}
+                onAccept={(event) =>
+                  store.setEvent(event.id, event.title.slice(0, EVENT_NAME_MAX))
+                }
+                onDismiss={nearbyEvent.dismiss}
+                onRemove={() => store.setEvent(null, "")}
+                suggestion={nearbyEvent.suggestion}
+              />
+            }
             isGeneratingSummary={store.isGeneratingSummary}
             isSavingDraft={store.phase === "saving"}
             isSubmitting={store.phase === "submitting"}
+            occasion={store.occasion}
+            occasionError={store.occasionError}
+            occasionFromAi={store.occasionFromAi}
             onAssign={handleAssign}
             onDescriptionChange={store.setDescription}
             onInsert={(afterId, receipt) =>
               store.insertReceiptAfter(afterId, receipt)
             }
+            onOccasionChange={(occasion) => {
+              store.setOccasion(occasion);
+              store.setOccasionTouched(true);
+            }}
             onProfileUpdate={store.setProfile}
             onSaveDraft={handleSaveDraft}
             onSelect={store.setSelectedReceiptId}
             onSubmit={handleSubmit}
+            onSubmitterIsControllerChange={store.setSubmitterIsController}
             onSubmitterIsFinancialManagerChange={
               store.setSubmitterIsFinancialManager
             }
@@ -929,8 +1099,10 @@ export function ExpenseSplitView({
             selectedCampusId={store.selectedCampusId}
             selectedDepartmentId={store.selectedDepartmentId}
             selectedId={store.selectedReceiptId}
+            submitterIsController={store.submitterIsController}
             submitterIsFinancialManager={store.submitterIsFinancialManager}
             totalAmount={store.totalAmount()}
+            typeOptions={store.typeOptions}
             userProfile={store.profile}
           />
         )}

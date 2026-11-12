@@ -1,47 +1,36 @@
 "use client";
 
 import { RECEIPT_FILE_ACCEPT } from "@repo/shared/utils/expense-attachments";
-import {
-  DEFAULT_EXPENSE_COST_TYPES,
-  defaultCostTypeSlugForCategory,
-} from "@repo/shared/utils/expense-cost-types";
 import { Input } from "@repo/ui/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@repo/ui/components/ui/select";
 import { Textarea } from "@repo/ui/components/ui/textarea";
 import { cn } from "@repo/ui/lib/utils";
 import { AlertTriangle, Check, Loader2, Sparkles, Upload } from "lucide-react";
 import { motion } from "motion/react";
 import Image from "next/image";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { v4 as uuid } from "uuid";
 import { Pill } from "@/components/ui/pill";
 import { uploadExpenseAttachment } from "@/lib/actions/expense";
 import { apiClient } from "@/lib/api-client";
+import { ExpenseTypeCombobox } from "./expense-type-combobox";
 import {
   fieldClass,
   fieldLabelClass,
   focusRingClass,
   secondaryActionClass,
-  selectContentClass,
-  selectItemClass,
-  selectTriggerClass,
 } from "./form-styles";
+import { ReceiptNotices } from "./receipt-notices";
+import { needsType, typeChoice, visibleTypeState } from "./receipt-types";
 import type { Receipt } from "./store";
-
-type CostTypeSlug = (typeof DEFAULT_EXPENSE_COST_TYPES)[number]["slug"];
+import type { ExpenseTypeOption } from "./types";
 
 interface GenerativeReceiptPreviewProps {
   onInsert?: (afterId: string, receipt: Receipt) => void;
   onUpdate: (updates: Partial<Receipt>) => void;
   receipt: Receipt;
+  typeOptions: ExpenseTypeOption[];
 }
 
 type UploadPhase = "uploading" | "analyzing" | null;
@@ -137,6 +126,7 @@ export function GenerativeReceiptPreview({
   receipt,
   onUpdate,
   onInsert,
+  typeOptions,
 }: GenerativeReceiptPreviewProps) {
   const t = useTranslations("expenses");
   // If we are in "analyzing" or "processing" state, show the generative UI
@@ -208,6 +198,8 @@ export function GenerativeReceiptPreview({
         </div>
 
         <div className="space-y-6">
+          {isProcessing ? null : <ReceiptNotices receipt={receipt} />}
+
           <Field
             isLoading={isProcessing}
             label={t("composer.preview.vendor")}
@@ -237,6 +229,7 @@ export function GenerativeReceiptPreview({
             isProcessing={isProcessing}
             onUpdate={onUpdate}
             receipt={receipt}
+            typeOptions={typeOptions}
           />
 
           <DescriptionField
@@ -470,55 +463,47 @@ interface CostTypeFieldProps {
   isProcessing: boolean;
   onUpdate: (updates: Partial<Receipt>) => void;
   receipt: Receipt;
+  typeOptions: ExpenseTypeOption[];
 }
 
 function CostTypeField({
   receipt,
   isProcessing,
   onUpdate,
+  typeOptions,
 }: CostTypeFieldProps) {
   const t = useTranslations("expenses");
-  const fieldId = useId();
-  const costTypeLabels: Record<CostTypeSlug, string> = {
-    travel: t("composer.costTypes.travel"),
-    social: t("composer.costTypes.social"),
-    academic: t("composer.costTypes.academic"),
-    other: t("composer.costTypes.other"),
-  };
-  // Default from the AI category, but the user can override per receipt — this
-  // decides which GL account the line is booked to when posted to the ledger.
-  const value =
-    receipt.costType ?? defaultCostTypeSlugForCategory(receipt.category);
+  const locale = useLocale();
+  const label = t("composer.preview.costType");
+
+  // The same rule as the receipt list: a statement attached to a receipt, or
+  // a row with no amount, takes no type. While the scan runs the amount isn't
+  // known yet, so the placeholder stays.
+  if (!(isProcessing || needsType(receipt))) {
+    return null;
+  }
 
   return (
     <div className="space-y-2">
-      <label className={fieldLabelClass} htmlFor={fieldId}>
-        {t("composer.preview.costType")}
-      </label>
+      {/* The picker names itself with this label and the chosen type; a
+          <label for> would replace that name, so this one is visual only. */}
+      <p aria-hidden="true" className={fieldLabelClass}>
+        {label}
+      </p>
       {isProcessing ? (
         <div className="h-10 w-full animate-pulse rounded-biso-sm bg-surface-sunken" />
       ) : (
-        <Select
-          onValueChange={(costType) => onUpdate({ costType })}
-          value={value}
-        >
-          <SelectTrigger className={selectTriggerClass} id={fieldId}>
-            <SelectValue
-              placeholder={t("composer.preview.costTypePlaceholder")}
-            />
-          </SelectTrigger>
-          <SelectContent className={selectContentClass}>
-            {DEFAULT_EXPENSE_COST_TYPES.map((costType) => (
-              <SelectItem
-                className={selectItemClass}
-                key={costType.slug}
-                value={costType.slug}
-              >
-                {costTypeLabels[costType.slug]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <ExpenseTypeCombobox
+          ariaLabel={label}
+          locale={locale}
+          onChange={(next) => onUpdate(typeChoice(next))}
+          options={typeOptions}
+          state={visibleTypeState(receipt)}
+          value={{
+            costType: receipt.costType,
+            costTypeText: receipt.costTypeText,
+          }}
+        />
       )}
     </div>
   );

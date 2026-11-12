@@ -1233,6 +1233,13 @@
                     "default": false
                 },
                 {
+                    "key": "submitter_is_controller",
+                    "type": "boolean",
+                    "required": false,
+                    "array": false,
+                    "default": false
+                },
+                {
                     "key": "posting_lock",
                     "type": "integer",
                     "required": false,
@@ -1252,6 +1259,33 @@
                     "twoWayKey": "expenses",
                     "onDelete": "setNull",
                     "side": "child"
+                },
+                {
+                    "key": "occasion",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 1000,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "event_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "approver_hints",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 4000,
+                    "default": null,
+                    "encrypt": false
                 }
             ],
             "indexes": [
@@ -1283,6 +1317,28 @@
                     "status": "available",
                     "columns": [
                         "userId"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "idx_campus",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "campus"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "idx_department",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "department"
                     ],
                     "orders": [
                         "ASC"
@@ -3091,15 +3147,25 @@
                         "manager",
                         "deputy",
                         "controller",
+                        "president",
                         "national"
                     ]
+                },
+                {
+                    "key": "directory_key",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 120,
+                    "default": null,
+                    "encrypt": false
                 },
                 {
                     "key": "approver_email",
                     "type": "string",
                     "required": true,
                     "array": false,
-                    "size": 100,
+                    "size": 320,
                     "default": null,
                     "encrypt": false
                 },
@@ -3220,6 +3286,22 @@
                     "default": 0,
                     "min": 0,
                     "max": 1000000
+                },
+                {
+                    "key": "decided_by_email",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 320,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "on_behalf",
+                    "type": "boolean",
+                    "required": false,
+                    "array": false,
+                    "default": false
                 }
             ],
             "indexes": [
@@ -3255,6 +3337,17 @@
                     ],
                     "orders": [
                         "ASC",
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "idx_approver_email",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "approver_email"
+                    ],
+                    "orders": [
                         "ASC"
                     ]
                 }
@@ -5528,6 +5621,140 @@
             ]
         },
         {
+            "$id": "expense_events",
+            "$permissions": [
+                "read(\"team:sg-app-dept-operationsunit\")"
+            ],
+            "databaseId": "app",
+            "name": "Expense Events",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "expense_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "actor_kind",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "student",
+                        "approver",
+                        "admin",
+                        "ai",
+                        "system"
+                    ]
+                },
+                {
+                    "key": "action",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "submitted",
+                        "ai_classified",
+                        "ai_account_chosen",
+                        "edited",
+                        "approved",
+                        "rejected",
+                        "approver_resolved",
+                        "notified",
+                        "booked",
+                        "booking_failed",
+                        "date_shifted",
+                        "booking_retried"
+                    ]
+                },
+                {
+                    "key": "actor_email",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 320,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "actor_name",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 256,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "attachment_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "field",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "before",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 2000,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "after",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 2000,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "note",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 2000,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "idx_expense_id",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "expense_id"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                }
+            ]
+        },
+        {
             "$id": "large_event",
             "$permissions": [
                 "read(\"any\")"
@@ -7139,6 +7366,22 @@
                     "required": false,
                     "array": false,
                     "default": true
+                },
+                {
+                    "key": "label_no",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 120,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "ask_occasion",
+                    "type": "boolean",
+                    "required": false,
+                    "array": false,
+                    "default": false
                 }
             ],
             "indexes": [
@@ -9080,6 +9323,14 @@
                     "format": ""
                 },
                 {
+                    "key": "booked_date",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
                     "key": "url",
                     "type": "string",
                     "required": false,
@@ -9150,9 +9401,135 @@
                     "default": 0,
                     "min": 0,
                     "max": 9999
+                },
+                {
+                    "key": "expense_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "cost_type_text",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 120,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "type_source",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "ai",
+                        "student",
+                        "legacy_app"
+                    ]
+                },
+                {
+                    "key": "ai_cost_type",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 40,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "ai_confidence",
+                    "type": "double",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "min": -9.223372036854776e+18,
+                    "max": 9.223372036854776e+18
+                },
+                {
+                    "key": "account_source",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "type",
+                        "ai_freeform",
+                        "approver",
+                        "admin"
+                    ]
+                },
+                {
+                    "key": "ocr_amount",
+                    "type": "double",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "min": -9.223372036854776e+18,
+                    "max": 9.223372036854776e+18
+                },
+                {
+                    "key": "file_hash",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "receipt_issues",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 500,
+                    "default": null,
+                    "encrypt": false
                 }
             ],
-            "indexes": []
+            "indexes": [
+                {
+                    "key": "idx_file_hash",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "file_hash"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "idx_expense_id",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "expense_id"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "idx_date_amount",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "date",
+                        "amount"
+                    ],
+                    "orders": [
+                        "ASC",
+                        "ASC"
+                    ]
+                }
+            ]
         },
         {
             "$id": "job_interviews",
@@ -12657,6 +13034,345 @@
                 }
             ],
             "indexes": []
+        },
+        {
+            "$id": "expense_receipt_scans",
+            "$permissions": [
+                "read(\"team:sg-app-dept-operationsunit\")"
+            ],
+            "databaseId": "app",
+            "name": "Expense Receipt Scans",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "file_hash",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "result",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 8000,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "model",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "idx_file_hash",
+                    "type": "unique",
+                    "status": "available",
+                    "columns": [
+                        "file_hash"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                }
+            ]
+        },
+        {
+            "$id": "expense_type_examples",
+            "$permissions": [
+                "read(\"team:sg-app-dept-operationsunit\")"
+            ],
+            "databaseId": "app",
+            "name": "Expense Type Examples",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "vendor_key",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 120,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "description",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 255,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "amount",
+                    "type": "double",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "min": -9.223372036854776e+18,
+                    "max": 9.223372036854776e+18
+                },
+                {
+                    "key": "ai_cost_type",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 40,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "ai_confidence",
+                    "type": "double",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "min": -9.223372036854776e+18,
+                    "max": 9.223372036854776e+18
+                },
+                {
+                    "key": "final_cost_type",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 40,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "final_text",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 120,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "account_number",
+                    "type": "integer",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "min": 0,
+                    "max": 99999999
+                },
+                {
+                    "key": "source",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "student",
+                        "approver",
+                        "admin"
+                    ]
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "idx_vendor_key",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "vendor_key"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                }
+            ]
+        },
+        {
+            "$id": "expense_approvers",
+            "$permissions": [
+                "read(\"team:sg-app-dept-operationsunit\")"
+            ],
+            "databaseId": "app",
+            "name": "Expense Approvers",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "key",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 120,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "scope",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "department",
+                        "campus"
+                    ]
+                },
+                {
+                    "key": "department_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "campus_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 10,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "role",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "finance",
+                        "manager",
+                        "deputy",
+                        "controller",
+                        "president",
+                        "national"
+                    ]
+                },
+                {
+                    "key": "email",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 320,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "aad_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "display_name",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 256,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "source",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "seed",
+                        "ai",
+                        "admin",
+                        "confirmed"
+                    ]
+                },
+                {
+                    "key": "confidence",
+                    "type": "double",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "min": -9.223372036854776e+18,
+                    "max": 9.223372036854776e+18
+                },
+                {
+                    "key": "confirmed_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "last_used_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "active",
+                    "type": "boolean",
+                    "required": false,
+                    "array": false,
+                    "default": true
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "idx_key",
+                    "type": "unique",
+                    "status": "available",
+                    "columns": [
+                        "key"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "idx_email",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "email"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "idx_campus_role",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "campus_id",
+                        "role"
+                    ],
+                    "orders": [
+                        "ASC",
+                        "ASC"
+                    ]
+                }
+            ]
         }
     ],
     "buckets": [

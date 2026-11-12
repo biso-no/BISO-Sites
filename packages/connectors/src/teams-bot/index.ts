@@ -6,6 +6,7 @@
 export {
   authenticateBotRequest,
   sendProactiveCard,
+  updateProactiveCard,
 } from "./bot";
 export {
   type ApprovalCardData,

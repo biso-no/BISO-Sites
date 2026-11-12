@@ -1,14 +1,3 @@
-import { createAuthenticatedClient } from "@/lib/auth";
-import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
-import { createApprovalChain } from "@/lib/expense-approval";
-import {
-  buildExpenseRowInput,
-  buildExpenseRowPermissions,
-  type ExpensePayload,
-  type ExpenseRowInput,
-  parseExpensePayload,
-} from "@/lib/expense-payload";
-import { generateExpensePdf } from "@/lib/pdf/expense-pdf";
 import { ID, type Models, Query } from "@repo/api";
 import { appwriteErrorStatus, orNullIfNotFound } from "@repo/api/errors";
 import { InputFile } from "@repo/api/file";
@@ -17,6 +6,25 @@ import type { Users } from "@repo/api/types/appwrite";
 import { type Expenses, ExpensesStatus } from "@repo/api/types/appwrite";
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { type NextRequest, NextResponse } from "next/server";
+import { createAuthenticatedClient } from "@/lib/auth";
+import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
+import { createApprovalChain } from "@/lib/expense-approval";
+import {
+  buildExpenseRowInput,
+  buildExpenseRowPermissions,
+  type ExpensePayload,
+  type ExpenseRowInput,
+  mergeLegacyDraft,
+  parseExpensePayload,
+} from "@/lib/expense-payload";
+import {
+  enrichSubmission,
+  OccasionRequiredError,
+} from "@/lib/expense-submission";
+import { generateExpensePdf } from "@/lib/pdf/expense-pdf";
+
+// Receipts the OCR route never scanned are read by the AI at submission.
+export const maxDuration = 300;
 
 export type CreateExpenseData = Models.Row &
   ExpenseRowInput & {
@@ -41,6 +49,7 @@ interface Submission {
   profile: CompleteProfile;
   reimbursementNumber: string;
   submitterId: string;
+  submitterIsController: boolean;
   submitterIsFinancialManager: boolean;
 }
 
@@ -66,6 +75,8 @@ const SUBMITTED_EXPENSE_COLUMNS = [
   "user.*",
   "userId",
   "eventName",
+  "occasion",
+  "event_id",
   "departmentRel.*",
   "campusRel.*",
   "expenseAttachments.*",
@@ -192,14 +203,25 @@ async function readExpensePayload(req: NextRequest): Promise<ExpensePayload> {
   return payload;
 }
 
-async function assertOwnedDraft(
+/** The caller's own draft, with what `mergeLegacyDraft` keeps from it. */
+async function loadOwnedDraft(
   db: AdminClient["db"],
   expenseId: string,
   userId: string
-): Promise<void> {
+): Promise<Expenses> {
   const existingExpense = await orNullIfNotFound(
     db.getRow<Expenses>("app", "expense", expenseId, [
-      Query.select(["$id", "status", "userId"]),
+      Query.select([
+        "$id",
+        "status",
+        "userId",
+        "occasion",
+        "event_id",
+        "submitter_is_controller",
+        "campus",
+        "department",
+        "expenseAttachments.*",
+      ]),
     ])
   );
 
@@ -215,39 +237,52 @@ async function assertOwnedDraft(
       "Only draft expenses can be submitted"
     );
   }
+  return existingExpense;
 }
 
+/** The draft as saved: the row, the row data written and the payload behind it. */
+interface SavedDraft {
+  draft: CreateExpenseData;
+  row: ExpenseRowInput;
+  saved: ExpensePayload;
+}
+
+/**
+ * Saves the payload over the draft and returns it as saved: when an old app
+ * submits a draft made on the web, the draft's own type text, occasion, event
+ * and controller flag are kept (see `mergeLegacyDraft`).
+ */
 async function saveDraftBeforeSubmission(
   adminDb: AdminClient["db"],
   payload: ExpensePayload,
   userId: string
-): Promise<CreateExpenseData> {
+): Promise<SavedDraft> {
   const { expenseId } = payload;
-  const expenseBody = buildExpenseRowInput(
-    payload,
-    userId,
-    ExpensesStatus.DRAFT
-  );
 
   if (!expenseId) {
-    return adminDb.createRow<CreateExpenseData>(
+    const row = buildExpenseRowInput(payload, userId, ExpensesStatus.DRAFT);
+    const draft = await adminDb.createRow<CreateExpenseData>(
       "app",
       "expense",
       ID.unique(),
-      expenseBody,
+      row,
       buildExpenseRowPermissions(userId)
     );
+    return { draft, row, saved: payload };
   }
 
   // Expense rows are read-only to their submitter: ownership is checked here
   // and the write goes through the admin client.
-  await assertOwnedDraft(adminDb, expenseId, userId);
-  return adminDb.updateRow<CreateExpenseData>(
+  const existing = await loadOwnedDraft(adminDb, expenseId, userId);
+  const saved = mergeLegacyDraft(payload, existing);
+  const row = buildExpenseRowInput(saved, userId, ExpensesStatus.DRAFT);
+  const draft = await adminDb.updateRow<CreateExpenseData>(
     "app",
     "expense",
     expenseId,
-    expenseBody
+    row
   );
+  return { draft, row, saved };
 }
 
 /**
@@ -260,6 +295,8 @@ async function submitForApproval({
   expense,
   profile,
   reimbursementNumber,
+  submitterId,
+  submitterIsController,
   submitterIsFinancialManager,
 }: Submission): Promise<void> {
   // Exactly-once chain creation. The `expense_approvals` table has a UNIQUE
@@ -274,9 +311,11 @@ async function submitForApproval({
       campusId: expense.campus,
       departmentId: expense.department ?? null,
       departmentName: expense.departmentRel?.Name ?? null,
+      submitterIsController,
       submitterIsFinancialManager,
       reimbursementNumber,
       submitterName: profile.name,
+      submitterUserId: submitterId,
       departmentLabel: expense.departmentRel?.Name ?? expense.department,
       campusLabel: expense.campusRel?.name ?? expense.campus,
       total: expense.total,
@@ -392,6 +431,47 @@ async function submitByEmail(
   });
 }
 
+/**
+ * Settles types, accounts and approver hints on the saved draft. A missing
+ * occasion is the student's to fix, so it is answered as a 400 the client can
+ * point at the field. The draft is saved by then, so the answer names it: a
+ * client that had never saved the report updates that draft next time instead
+ * of making a second one.
+ */
+async function enrichOrReject(
+  admin: AdminClient,
+  expense: Expenses,
+  payload: ExpensePayload,
+  profileName: string
+): Promise<void> {
+  try {
+    await enrichSubmission(admin, expense, payload, profileName);
+  } catch (error) {
+    if (error instanceof OccasionRequiredError) {
+      throw new SubmitRejection(HTTP_BAD_REQUEST, "Occasion is required", {
+        expenseId: expense.$id,
+        field: "occasion",
+      });
+    }
+    throw error;
+  }
+}
+
+/** Server-owned booking details never go back to the student. */
+function studentView(expense: Expenses): Expenses {
+  return {
+    ...expense,
+    expenseAttachments: (expense.expenseAttachments ?? []).map(
+      (attachment) => ({
+        ...attachment,
+        account_number: null,
+        account_source: null,
+        tax_code: null,
+      })
+    ),
+  };
+}
+
 /** Saves the payload as a draft, then hands it to the active submission flow. */
 async function submitExpense(req: NextRequest) {
   if (!(await isFeatureEnabled("expenses_module"))) {
@@ -405,19 +485,28 @@ async function submitExpense(req: NextRequest) {
   const payload = await readExpensePayload(req);
   const admin = await createAdminClient();
 
-  const draft = await saveDraftBeforeSubmission(admin.db, payload, userId);
-  const expense = await db.getRow<Expenses>("app", "expense", draft.$id, [
-    Query.select(SUBMITTED_EXPENSE_COLUMNS),
-  ]);
+  const { draft, row, saved } = await saveDraftBeforeSubmission(
+    admin.db,
+    payload,
+    userId
+  );
+  const readExpense = () =>
+    db.getRow<Expenses>("app", "expense", draft.$id, [
+      Query.select(SUBMITTED_EXPENSE_COLUMNS),
+    ]);
 
+  await enrichOrReject(admin, await readExpense(), saved, profile.name);
+  // Read again so both flows see the types and accounts enrichment stored.
+  const expense = await readExpense();
+
+  // Routed as stored, so the chain, the row and the history note agree.
   const submission: Submission = {
     expense,
     profile,
     reimbursementNumber: generateReimbursementNumber(expense.$sequence),
     submitterId: userId,
-    submitterIsFinancialManager: Boolean(
-      payload.submitter_is_financial_manager
-    ),
+    submitterIsController: row.submitter_is_controller,
+    submitterIsFinancialManager: row.submitter_is_financial_manager,
   };
 
   if (await isFeatureEnabled("expenses_ledger_posting")) {
@@ -428,7 +517,7 @@ async function submitExpense(req: NextRequest) {
 
   return {
     success: true,
-    fetchedExpense: expense,
+    fetchedExpense: studentView(expense),
     reimbursementNumber: submission.reimbursementNumber,
   };
 }

@@ -34,6 +34,13 @@ export {
 } from "./company";
 // Department list (SOAP — includes inactive departments)
 export { getAllDepartmentsSoap, type SoapDepartment } from "./departments";
+// Fiscal year locks (SOAP — IsLocked per year)
+export {
+  type FiscalYearLock,
+  type GetFiscalYearsResult,
+  getFiscalYearLocks,
+  parseFiscalYears,
+} from "./fiscal-years";
 // Invoice management
 export { postMembershipInvoice } from "./invoice";
 // Membership invoices (read side — campus per member)
@@ -60,25 +67,37 @@ export { mergeMembershipRow, parsePrice } from "./membership-sync-merge";
 export { getMembershipProducts, getProducts } from "./products";
 // Finago REST API
 export {
+  type BookingDateReason,
   type BuildExpenseTransactionParams,
   type BuildShopTransactionParams,
   buildExpenseTransactionInput,
   buildShopReversalTransactionInput,
   buildShopTransactionInput,
   CAMPUS_DIMENSION_TYPE,
+  type DateShift,
   DEPARTMENT_DIMENSION_TYPE,
   type DimensionElement,
   type ExpenseReceiptLine,
+  type FiscalPeriod,
   getDepartments,
+  isClosedPeriodError,
   type LedgerAccount,
   listAccounts,
+  listFiscalPeriods,
   listTaxes,
+  nextPeriodStart,
   type PostExpenseTransactionParams,
+  type PostedExpenseTransaction,
+  periodContaining,
   postExpenseTransaction,
   postLedgerTransaction,
+  postWithClosedPeriodFallback,
+  type ResolvedBookingDate,
+  resolveBookingDate,
   type ShopLedgerLine,
   type ShopTransactionInput,
   type TaxCode,
+  toFiscalPeriods,
   type UploadDocumentResult,
   uploadDocument,
 } from "./rest";

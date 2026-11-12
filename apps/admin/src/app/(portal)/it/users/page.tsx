@@ -35,7 +35,6 @@ export default async function ItUsersPage({ searchParams }: ItUsersPageProps) {
         labels={{
           audit: t("tabs.audit"),
           dataHealth: t("tabs.dataHealth"),
-          expenseApprovals: t("tabs.expenseApprovals"),
           users: t("tabs.users"),
         }}
         showTenantTools={permissions["it.tenant.audit"]}

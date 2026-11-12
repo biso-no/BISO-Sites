@@ -54,11 +54,15 @@ export async function POST(req: NextRequest) {
     decision: body.decision,
     decidedBy: body.decidedBy || "Web approver",
     reason: body.reason,
+    source: "web",
   });
 
   if (!result.ok) {
     return applyCorsHeaders(
-      NextResponse.json({ error: result.error }, { status: 400 }),
+      NextResponse.json(
+        { code: result.code, error: result.error },
+        { status: 400 }
+      ),
       origin
     );
   }

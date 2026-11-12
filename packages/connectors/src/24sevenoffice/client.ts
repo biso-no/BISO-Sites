@@ -32,6 +32,8 @@ export const WSDL_URLS = {
     "https://api.24sevenoffice.com/Economy/InvoiceOrder/V001/InvoiceService.asmx?wsdl",
   product:
     "https://api.24sevenoffice.com/Logistics/Product/V001/ProductService.asmx?wsdl",
+  transaction:
+    "https://api.24sevenoffice.com/Economy/Accounting/V001/TransactionService.asmx?wsdl",
 } as const;
 
 export type ServiceName = keyof typeof WSDL_URLS;

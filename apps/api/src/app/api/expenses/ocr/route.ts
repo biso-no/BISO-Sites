@@ -1,140 +1,30 @@
-import { balancedModel } from "@repo/ai/models";
+import { MODEL_IDS } from "@repo/ai/models";
 import { appwriteErrorStatus } from "@repo/api/errors";
+import { createAdminClient } from "@repo/api/server";
+import type { CostTypeOption } from "@repo/shared/utils/expense-cost-types";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
-import { generateObject } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
+import { findPossibleDuplicate } from "@/lib/expense-duplicates";
+import { selectExamples } from "@/lib/expense-examples";
+import { loadActiveCostTypes } from "@/lib/expense-types";
+import {
+  amountReadInNok,
+  CLASSIFY_TIMEOUT_MS,
+  type Classification,
+  classifyReceipt,
+  convertAmountToNok,
+  type ExtractedReceipt,
+  extractReceipt,
+  findScan,
+  type ScanPurpose,
+  type StoredScan,
+  saveScan,
+  sha256Hex,
+} from "@/lib/receipt-scan";
 
 export const maxDuration = 300; // 5 minutes for AI processing
-
-// Response schema for AI extraction
-const ExpenseDataSchema = z.object({
-  address: z
-    .string()
-    .nullable()
-    .describe("Full street address or visible location text, if present"),
-  category: z
-    .enum([
-      "meal",
-      "travel",
-      "accommodation",
-      "supplies",
-      "event-materials",
-      "fee",
-      "other",
-    ])
-    .nullable()
-    .describe("Accounting-friendly expense category"),
-  city: z.string().nullable().describe("City visible or strongly implied"),
-  country: z
-    .string()
-    .nullable()
-    .describe("Country visible or strongly implied"),
-  documentType: z
-    .enum(["receipt", "bank-statement"])
-    .describe(
-      "Type of document: 'receipt' for purchase receipts/invoices, 'bank-statement' for bank transaction records showing account debits/credits"
-    ),
-  description: z
-    .string()
-    .nullable()
-    .describe("Brief description of what was purchased"),
-  amount: z
-    .number()
-    .nullable()
-    .describe("Total amount in the original currency"),
-  currency: z
-    .string()
-    .nullable()
-    .describe("Currency code (NOK, USD, EUR, etc.)"),
-  date: z.string().nullable().describe("Date of purchase in YYYY-MM-DD format"),
-  purchaseContext: z
-    .string()
-    .nullable()
-    .describe(
-      "Short accounting-friendly context such as 'Lunch receipt, Stockholm' or 'Office supplies'"
-    ),
-  vendor: z.string().nullable().describe("Name of the store or vendor"),
-});
-async function getNorgesBankRate(
-  date: string,
-  currency: string
-): Promise<number | null> {
-  // Use a 7-day lookback window to handle weekends and Norwegian public holidays
-  const lookback = new Date(date);
-  lookback.setDate(lookback.getDate() - 7);
-  const startPeriod = lookback.toISOString().split("T")[0];
-
-  const response = await fetch(
-    `https://data.norges-bank.no/api/data/EXR/B.${currency}.NOK.SP00.A?format=sdmx-json&startPeriod=${startPeriod}&endPeriod=${date}&locale=en`
-  );
-
-  if (!response.ok) {
-    return null;
-  }
-
-  const data = await response.json();
-  const series = data?.dataSets?.[0]?.series as
-    | Record<string, { observations: Record<string, number[]> }>
-    | undefined;
-  if (!series) {
-    return null;
-  }
-
-  const seriesKey = Object.keys(series)[0];
-  if (!seriesKey) {
-    return null;
-  }
-
-  const observations = series[seriesKey]?.observations;
-  if (!observations) {
-    return null;
-  }
-
-  // Take the observation with the highest index (most recent within the window)
-  const obsKeys = Object.keys(observations).sort(
-    (a, b) => Number(b) - Number(a)
-  );
-  if (obsKeys.length === 0) {
-    return null;
-  }
-
-  const rate = observations[obsKeys[0]]?.[0];
-  return typeof rate === "number" && rate > 0 ? rate : null;
-}
-
-async function getHistoricalRate(
-  date: string,
-  currency: string
-): Promise<number | null> {
-  if (currency === "NOK") {
-    return 1;
-  }
-
-  try {
-    // Norges Bank publishes direct NOK rates — more accurate than ECB cross-rates
-    const nbRate = await getNorgesBankRate(date, currency);
-    if (nbRate) {
-      return nbRate;
-    }
-  } catch {
-    // fall through to Frankfurter
-  }
-
-  try {
-    const response = await fetch(
-      `https://api.frankfurter.app/${date}?from=${currency}&to=NOK`
-    );
-    const data = await response.json();
-    return data.rates?.NOK || null;
-  } catch (error) {
-    console.error("Error fetching exchange rate:", error);
-    return null;
-  }
-}
-type ExpenseData = z.infer<typeof ExpenseDataSchema>;
 
 const ALLOWED_TYPES = [
   "image/jpeg",
@@ -143,7 +33,6 @@ const ALLOWED_TYPES = [
   "application/pdf",
 ];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 const HTTP_UNAUTHORIZED = 401;
 const HTTP_INTERNAL_ERROR = 500;
@@ -197,99 +86,9 @@ async function validateAndPrepareFile(
   };
 }
 
-function parseExpenseData(
-  preparedFile: Extract<FileValidationResult, { ok: true }>,
-  purpose: Purpose
-): Promise<ExpenseData> {
-  if (preparedFile.isPdf) {
-    return extractExpenseDataFromPdf(preparedFile.buffer, purpose);
-  }
+type PreparedFile = Extract<FileValidationResult, { ok: true }>;
 
-  return extractExpenseDataFromImage(
-    preparedFile.buffer,
-    preparedFile.mimeType,
-    purpose
-  );
-}
-
-async function convertAmountToNok(expenseData: ExpenseData) {
-  const currency =
-    typeof expenseData.currency === "string" ? expenseData.currency : null;
-  const date = typeof expenseData.date === "string" ? expenseData.date : null;
-  const hasForeignCurrency = currency && currency !== "NOK";
-  const hasValidDate = !!date && DATE_REGEX.test(date);
-  const amount =
-    typeof expenseData.amount === "number" ? expenseData.amount : null;
-  const canConvert =
-    hasForeignCurrency &&
-    hasValidDate &&
-    amount !== null &&
-    Boolean(date && currency);
-
-  if (!canConvert) {
-    return { amountInNok: null, exchangeRate: null };
-  }
-
-  const exchangeRate = await getHistoricalRate(date, currency);
-
-  if (!exchangeRate) {
-    return { amountInNok: null, exchangeRate: null };
-  }
-
-  const amountInNok = Number((amount * exchangeRate).toFixed(2));
-  return { amountInNok, exchangeRate };
-}
-
-// Used when the caller knows the file is a purchase receipt
-const RECEIPT_PROMPT = `Extract expense information from this receipt/invoice.
-If a field cannot be determined, return null for that field.
-For dates, convert to YYYY-MM-DD format.
-For descriptions, summarize the main purchase(s) in one brief accounting-friendly line.
-For amounts, find the total/sum ("Totalt", "Sum", "Total", etc.).
-For currency, default to NOK if it appears to be a Norwegian receipt.
-For location fields, extract visible address, city, and country when present. Use explicit evidence only.
-For category, choose one of: meal, travel, accommodation, supplies, event-materials, fee, other.
-For purchaseContext, prefer purpose-like text over vendor names. Examples: "Lunch receipt, Stockholm", "Train ticket", "Event supplies".
-Set documentType to "receipt".`;
-
-// Used when the caller explicitly knows the file is a bank statement
-const BANK_STATEMENT_PROMPT = `This is a bank statement. Extract the single debit/charge transaction amount.
-If a field cannot be determined, return null for that field.
-For dates, find the transaction date and convert to YYYY-MM-DD format.
-For amounts, find the NOK debit charge amount (the money that was withdrawn).
-Currency should almost always be NOK on a Norwegian bank statement.
-For description, use the merchant/payee name from the transaction.
-For location fields, extract visible city/country only when present.
-For category, use the most likely category if obvious, otherwise other.
-For purchaseContext, summarize the transaction purpose if clear, otherwise use the merchant/payee name.
-Ignore account totals, running balances, and unrelated transactions.
-Set documentType to "bank-statement".`;
-
-// Used when the document type is unknown — AI classifies freely
-const AUTO_PROMPT = `Extract expense information from this document.
-First determine the document type: set documentType to "bank-statement" if this is a bank account statement or transaction record, or "receipt" if it is a purchase receipt or invoice.
-If a field cannot be determined, return null for that field.
-For dates, convert to YYYY-MM-DD format.
-For amounts: if a receipt, find the purchase total ("Totalt", "Sum", "Total", etc.); if a bank statement, find the debit/charge amount (money withdrawn).
-For currency, default to NOK if it appears to be Norwegian.
-For vendor, use the merchant or payee name.
-For location fields, extract visible address, city, and country when present. Use explicit evidence only.
-For category, choose one of: meal, travel, accommodation, supplies, event-materials, fee, other.
-For purchaseContext, prefer purpose-like text over vendor names. Examples: "Lunch receipt, Stockholm", "Train ticket", "Event supplies".`;
-
-type Purpose = "receipt" | "bank-statement" | "auto";
-
-function purposeToPrompt(purpose: Purpose): string {
-  if (purpose === "bank-statement") {
-    return BANK_STATEMENT_PROMPT;
-  }
-  if (purpose === "receipt") {
-    return RECEIPT_PROMPT;
-  }
-  return AUTO_PROMPT;
-}
-
-function purposeFromSearchParam(value: string | null): Purpose {
+function purposeFromSearchParam(value: string | null): ScanPurpose {
   if (value === "bank-statement") {
     return "bank-statement";
   }
@@ -299,53 +98,186 @@ function purposeFromSearchParam(value: string | null): Purpose {
   return "auto";
 }
 
-/**
- * Use OpenAI Vision to extract structured expense data directly from image
- */
-async function extractExpenseDataFromImage(
-  imageBuffer: Buffer,
-  mimeType: string,
-  purpose: Purpose
-): Promise<ExpenseData> {
-  const { object } = await generateObject({
-    model: balancedModel,
-    schema: ExpenseDataSchema,
-    messages: [
-      {
-        role: "user",
-        content: [
-          { type: "text", text: purposeToPrompt(purpose) },
-          { type: "file", data: imageBuffer, mediaType: mimeType },
-        ],
-      },
-    ],
-  });
+type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
 
-  return object;
+const SCAN_MODEL = `${MODEL_IDS.balanced}+${MODEL_IDS.fast}`;
+
+interface UploadScan {
+  possibleDuplicate: boolean;
+  scan: StoredScan;
+}
+
+/** The admin database, or null: the scan then goes on without storing. */
+async function adminDb(): Promise<AdminDb | null> {
+  try {
+    return (await createAdminClient()).db;
+  } catch (error) {
+    console.error("[expenses/ocr] Scan bookkeeping failed:", error);
+    return null;
+  }
+}
+
+/** The active types, or none when they can't be read. */
+async function activeTypes(db: AdminDb | null): Promise<CostTypeOption[]> {
+  if (!db) {
+    return [];
+  }
+  try {
+    return await loadActiveCostTypes(db);
+  } catch (error) {
+    console.error("[expenses/ocr] Could not load expense types:", error);
+    return [];
+  }
 }
 
 /**
- * Extract text from PDF and use AI to parse it
+ * The AI's type for a receipt, within `CLASSIFY_TIMEOUT_MS`. A classification
+ * the limit stopped is null, so the stored scan counts as not classified and
+ * the submission can still classify it.
  */
-async function extractExpenseDataFromPdf(
-  buffer: Buffer,
-  purpose: Purpose
-): Promise<ExpenseData> {
-  const { object } = await generateObject({
-    model: balancedModel,
-    schema: ExpenseDataSchema,
-    messages: [
-      {
-        role: "user",
-        content: [
-          { type: "text", text: purposeToPrompt(purpose) },
-          { type: "file", data: buffer, mediaType: "application/pdf" },
-        ],
-      },
-    ],
-  });
+async function classifyIfReceipt(
+  db: AdminDb,
+  receipt: ExtractedReceipt,
+  types: CostTypeOption[]
+): Promise<Classification | null> {
+  if (receipt.documentType !== "receipt" || types.length === 0) {
+    return null;
+  }
+  try {
+    const examples = await selectExamples(db, {
+      types,
+      vendor: receipt.vendor,
+    });
+    const abortSignal = AbortSignal.timeout(CLASSIFY_TIMEOUT_MS);
+    const classification = await classifyReceipt({
+      abortSignal,
+      examples,
+      receipt,
+      types,
+    });
+    return abortSignal.aborted ? null : classification;
+  } catch (error) {
+    console.error("[expenses/ocr] Classification failed:", error);
+    return null;
+  }
+}
 
-  return object;
+async function lookupDuplicate(
+  db: AdminDb,
+  fileHash: string,
+  scan: StoredScan
+): Promise<boolean> {
+  if (scan.receipt.documentType !== "receipt") {
+    return false;
+  }
+  const duplicate = await findPossibleDuplicate(db, {
+    amount: amountReadInNok(scan),
+    date: scan.receipt.date,
+    fileHash,
+  });
+  return duplicate !== null;
+}
+
+/** A receipt the AI already gave a type (or found none for), as stored. */
+function isTypedReceipt(scan: StoredScan): boolean {
+  return (
+    scan.receipt.documentType === "receipt" && scan.classification !== null
+  );
+}
+
+/**
+ * A stored classification may predate a deactivated type: its slug is only
+ * answered while it is still active.
+ */
+function withActiveType(scan: StoredScan, types: CostTypeOption[]): StoredScan {
+  const slug = scan.classification?.costType;
+  if (!slug || types.some((type) => type.slug === slug)) {
+    return scan;
+  }
+  return {
+    ...scan,
+    classification: scan.classification
+      ? { ...scan.classification, confidence: 0, costType: null }
+      : null,
+  };
+}
+
+async function reuseScan(
+  db: AdminDb,
+  fileHash: string,
+  stored: StoredScan
+): Promise<UploadScan> {
+  const scan = withActiveType(stored, await activeTypes(db));
+  try {
+    return {
+      possibleDuplicate: await lookupDuplicate(db, fileHash, scan),
+      scan,
+    };
+  } catch (error) {
+    console.error("[expenses/ocr] Duplicate lookup failed:", error);
+    return { possibleDuplicate: false, scan };
+  }
+}
+
+/** Classifies and stores a new scan, and looks for a duplicate meanwhile. */
+async function scanExtras(
+  db: AdminDb,
+  fileHash: string,
+  scan: StoredScan,
+  types: CostTypeOption[]
+): Promise<UploadScan> {
+  const classifyAndStore = async () => {
+    const classification = await classifyIfReceipt(db, scan.receipt, types);
+    await saveScan(db, fileHash, { ...scan, classification }, SCAN_MODEL);
+    return classification;
+  };
+  // Independent steps: a throw in one must not discard the other's result.
+  const [stored, duplicate] = await Promise.allSettled([
+    classifyAndStore(),
+    lookupDuplicate(db, fileHash, scan),
+  ]);
+  if (stored.status === "rejected") {
+    console.error("[expenses/ocr] Scan bookkeeping failed:", stored.reason);
+  }
+  return {
+    possibleDuplicate: duplicate.status === "fulfilled" && duplicate.value,
+    scan: {
+      ...scan,
+      classification: stored.status === "fulfilled" ? stored.value : null,
+    },
+  };
+}
+
+/**
+ * Reads an upload. Unless it is sent as a bank statement, a file whose stored
+ * scan is a receipt the AI already classified is answered from that scan,
+ * without the model; the duplicate lookup still runs. Anything else is read
+ * again while the active types load, and the first scan stored for the file
+ * stays.
+ */
+async function scanUpload(
+  file: PreparedFile,
+  purpose: ScanPurpose
+): Promise<UploadScan> {
+  const db = await adminDb();
+  const fileHash = sha256Hex(file.buffer);
+  if (db && purpose !== "bank-statement") {
+    const stored = await findScan(db, fileHash);
+    if (stored && isTypedReceipt(stored)) {
+      return reuseScan(db, fileHash, stored);
+    }
+  }
+
+  const [receipt, types] = await Promise.all([
+    extractReceipt({ buffer: file.buffer, mimeType: file.mimeType, purpose }),
+    purpose === "bank-statement" ? [] : activeTypes(db),
+  ]);
+  const converted = await convertAmountToNok(receipt);
+  const scan: StoredScan = { ...converted, classification: null, receipt };
+  if (!db) {
+    return { possibleDuplicate: false, scan };
+  }
+  return scanExtras(db, fileHash, scan, types);
 }
 
 export async function POST(req: NextRequest) {
@@ -393,16 +325,20 @@ export async function POST(req: NextRequest) {
       return applyCorsHeaders(preparedFile.response, origin);
     }
 
-    const expenseData = await parseExpenseData(preparedFile, purpose);
-    const { amountInNok, exchangeRate } = await convertAmountToNok(expenseData);
+    const { possibleDuplicate, scan } = await scanUpload(preparedFile, purpose);
+    const { amountInNok, classification, exchangeRate, receipt } = scan;
 
     return applyCorsHeaders(
       NextResponse.json({
         success: true,
         data: {
-          ...expenseData,
+          ...receipt,
           amountInNok,
           exchangeRate,
+          costType: classification?.costType ?? null,
+          costTypeConfidence: classification?.confidence ?? 0,
+          ocrAmount: amountReadInNok(scan),
+          possibleDuplicate,
         },
         method: preparedFile.isPdf ? "pdf" : "vision",
       }),

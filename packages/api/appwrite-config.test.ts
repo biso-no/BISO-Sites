@@ -3,9 +3,13 @@ import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 
 interface AppwriteColumn {
+  default?: unknown;
+  elements?: string[];
   key: string;
   onDelete?: string;
   relatedTable?: string;
+  required?: boolean;
+  size?: number;
   twoWay?: boolean;
   twoWayKey?: string;
   type: string;
@@ -224,5 +228,184 @@ describe("appwrite bucket permissions", () => {
     );
 
     expect(mediaBucket?.maximumFileSize).toBe(MEDIA_MAX_FILE_SIZE_BYTES);
+  });
+});
+
+describe("expense booking history", () => {
+  test("expense_events is server-written and readable only by the Operations Unit", () => {
+    const table = loadConfig().tables.find((t) => t.$id === "expense_events");
+    expect(table).toBeDefined();
+    expect(table?.$permissions).toEqual([
+      'read("team:sg-app-dept-operationsunit")',
+    ]);
+    expect(table?.columns?.map((c) => c.key)).toEqual(
+      expect.arrayContaining(["expense_id", "actor_kind", "action", "note"])
+    );
+    expect(table?.indexes?.some((i) => i.columns?.[0] === "expense_id")).toBe(
+      true
+    );
+  });
+
+  test("expense_attachments records the date each line was booked on", () => {
+    const table = loadConfig().tables.find(
+      (t) => t.$id === "expense_attachments"
+    );
+    const column = table?.columns?.find((c) => c.key === "booked_date");
+    expect(column?.type).toBe("datetime");
+  });
+});
+
+describe("expense AI schema", () => {
+  const OPS_READ = ['read("team:sg-app-dept-operationsunit")'];
+  const findTable = (id: string) =>
+    loadConfig().tables.find((t) => t.$id === id);
+  const columnKeys = (id: string) => findTable(id)?.columns?.map((c) => c.key);
+
+  test("expense_receipt_scans is server-only with a unique file_hash index", () => {
+    const table = findTable("expense_receipt_scans");
+    expect(table).toBeDefined();
+    expect(table?.$permissions).toEqual(OPS_READ);
+    expect(columnKeys("expense_receipt_scans")).toEqual(
+      expect.arrayContaining(["file_hash", "result", "model"])
+    );
+    expect(
+      table?.indexes?.some(
+        (i) => i.type === "unique" && i.columns?.[0] === "file_hash"
+      )
+    ).toBe(true);
+  });
+
+  test("expense_type_examples is server-only and indexed by vendor_key", () => {
+    const table = findTable("expense_type_examples");
+    expect(table).toBeDefined();
+    expect(table?.$permissions).toEqual(OPS_READ);
+    expect(columnKeys("expense_type_examples")).toEqual(
+      expect.arrayContaining([
+        "vendor_key",
+        "ai_cost_type",
+        "final_cost_type",
+        "account_number",
+        "source",
+      ])
+    );
+    expect(table?.indexes?.some((i) => i.columns?.[0] === "vendor_key")).toBe(
+      true
+    );
+  });
+
+  test("expense_attachments carries the AI classification fields", () => {
+    expect(columnKeys("expense_attachments")).toEqual(
+      expect.arrayContaining([
+        "file_hash",
+        "expense_id",
+        "ai_cost_type",
+        "type_source",
+        "account_source",
+        "receipt_issues",
+      ])
+    );
+    expect(
+      findTable("expense_attachments")?.indexes?.some(
+        (i) => i.columns?.[0] === "file_hash"
+      )
+    ).toBe(true);
+  });
+
+  test("expense carries occasion, event and approver hints", () => {
+    expect(columnKeys("expense")).toEqual(
+      expect.arrayContaining(["occasion", "event_id", "approver_hints"])
+    );
+  });
+
+  test("expense_cost_types has a Norwegian label and an occasion flag", () => {
+    expect(columnKeys("expense_cost_types")).toEqual(
+      expect.arrayContaining(["label_no", "ask_occasion"])
+    );
+  });
+});
+
+describe("approver directory schema", () => {
+  const findTable = (id: string) =>
+    loadConfig().tables.find((t) => t.$id === id);
+  const findColumn = (table: string, key: string) =>
+    findTable(table)?.columns?.find((c) => c.key === key);
+
+  test("expense_approvers is server-only with a unique key index", () => {
+    const table = findTable("expense_approvers");
+    expect(table).toBeDefined();
+    expect(table?.$permissions).toEqual([
+      'read("team:sg-app-dept-operationsunit")',
+    ]);
+    expect(
+      table?.indexes?.some(
+        (i) => i.type === "unique" && i.columns?.[0] === "key"
+      )
+    ).toBe(true);
+  });
+
+  test("expense_approvals.approver_role includes president", () => {
+    expect(
+      findColumn("expense_approvals", "approver_role")?.elements
+    ).toContain("president");
+  });
+
+  test("expense_approvals records the directory key", () => {
+    expect(findColumn("expense_approvals", "directory_key")).toBeDefined();
+  });
+
+  test("expense_approvals.approver_email holds any email address", () => {
+    expect(findColumn("expense_approvals", "approver_email")?.size).toBe(320);
+  });
+
+  test("expense records controller submissions", () => {
+    expect(findColumn("expense", "submitter_is_controller")?.type).toBe(
+      "boolean"
+    );
+  });
+});
+
+describe("admin expenses schema", () => {
+  const findTable = (id: string) =>
+    loadConfig().tables.find((t) => t.$id === id);
+  const findColumn = (table: string, key: string) =>
+    findTable(table)?.columns?.find((c) => c.key === key);
+  const hasKeyIndex = (table: string, key: string, columns: string[]) =>
+    findTable(table)?.indexes?.some(
+      (i) =>
+        i.key === key &&
+        i.type === "key" &&
+        JSON.stringify(i.columns) === JSON.stringify(columns)
+    ) ?? false;
+
+  test("expense_approvals records who decided and on whose behalf", () => {
+    const email = findColumn("expense_approvals", "decided_by_email");
+    expect(email?.type).toBe("string");
+    expect(email?.size).toBe(320);
+    expect(email?.required).toBe(false);
+    const onBehalf = findColumn("expense_approvals", "on_behalf");
+    expect(onBehalf?.type).toBe("boolean");
+    expect(onBehalf?.required).toBe(false);
+    expect(onBehalf?.default).toBe(false);
+    expect(
+      hasKeyIndex("expense_approvals", "idx_approver_email", ["approver_email"])
+    ).toBe(true);
+  });
+
+  test("expense has campus and department list indexes", () => {
+    expect(hasKeyIndex("expense", "idx_campus", ["campus"])).toBe(true);
+    expect(hasKeyIndex("expense", "idx_department", ["department"])).toBe(true);
+  });
+
+  test("expense_approvers has email and campus-role indexes", () => {
+    expect(hasKeyIndex("expense_approvers", "idx_email", ["email"])).toBe(true);
+    expect(
+      hasKeyIndex("expense_approvers", "idx_campus_role", ["campus_id", "role"])
+    ).toBe(true);
+  });
+
+  test("expense_events.action includes booking_retried", () => {
+    expect(findColumn("expense_events", "action")?.elements).toContain(
+      "booking_retried"
+    );
   });
 });

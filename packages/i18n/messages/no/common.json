@@ -325,6 +325,8 @@
     "noteLabel": "Kommentar til innsenderen",
     "approve": "Godkjenn",
     "reject": "Avslå",
+    "accountMissing": "En kvittering mangler konto. Sett den i admin før du godkjenner.",
+    "openInAdmin": "Åpne i admin",
     "decided": {
       "approved": "Refusjon {number} er godkjent",
       "rejected": "Refusjon {number} er avslått"

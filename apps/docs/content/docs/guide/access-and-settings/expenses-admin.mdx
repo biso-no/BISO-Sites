@@ -1,0 +1,123 @@
+---
+title: Review and decide reimbursements
+description: How finance staff, campus controllers, approvers and global admins find a reimbursement in the admin, check its receipts, fix what is wrong, approve or reject it, change the approver, and retry a booking that failed.
+who: "Global admins (National + Operations Unit), campus controllers, approvers on a step, and campus leaders (read only)"
+covers:
+  - apps/admin/src/app/(portal)/expenses/**
+  - apps/admin/src/lib/expense-access.ts
+  - apps/admin/src/lib/expense-viewer.ts
+  - apps/admin/src/lib/expenses-api.ts
+  - apps/admin/src/app/api/expenses/[expenseId]/files/**
+  - apps/api/src/app/api/expenses/admin/**
+  - apps/api/src/lib/expense-card-details.ts
+  - apps/api/src/lib/expense-approval.ts
+  - packages/connectors/src/teams-bot/cards.ts
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- Open **Utlegg** (Expenses) in the sidebar. The page lists the reimbursements you may see. Opening one shows its receipts, its approval steps and its history.
+- What you may do depends on who you are:
+
+| You are | You see | You can do |
+|---|---|---|
+| Global admin | Every reimbursement | Everything below, on any step |
+| Campus controller (the active controller in the approver directory) | Reimbursements on your campus | Edit, approve or reject on behalf of any step, change a department step's approver, retry a failed booking. Never on a reimbursement the student said they sent as the controller. |
+| Campus leader (Ledelsen) | Reimbursements on your campus | Read only |
+| Approver on a step, with a Microsoft account | Reimbursements where you are an approver | Edit, approve or reject while your step is the current one |
+| Role mailbox with no teams | Only **Utlegg** | The same as an approver |
+
+- Nobody can act on their own reimbursement, whatever their role.
+- Only the current step can be decided, edited by its approver, or have its approver changed. A reimbursement is decided one step at a time.
+- Deciding, changing the approver and retrying need **Direct ledger posting (24SO + Teams approval)** to be on. See [System settings](/guide/access-and-settings/system-settings#switch-a-feature-flag).
+</BeforeYouStart>
+
+## Steps
+
+<Steps>
+<Step title="Find the reimbursement">
+
+The list has three views: **Alle** (All), **Venter på meg** (Waiting on me) and **Trenger oppfølging** (Needs attention). You can search by number or description and filter by **Status**, **Campus** and **Avdeling** (Department). The status is **Innsendt** (Submitted), **Venter på godkjenning** (Waiting for approval), **Godkjent** (Approved), **Bokført** (Booked), **Avslått** (Rejected) or **Bokføring feilet** (Booking failed).
+
+**Trenger oppfølging** shows reimbursements whose booking failed and those with an open approval issue. Open issues are listed above the table. See [Fix expense approval issues](/guide/access-and-settings/expense-approvals).
+
+</Step>
+<Step title="Check the receipts">
+
+Choose a reimbursement. Each receipt shows its date, description, amount, type and account. Choose **Åpne** (Open) to see the file in a new tab. A note from the AI and **Ting å sjekke** (Things to check) tell you what the AI was unsure about.
+
+The full bank account is shown only to those who can edit it. Everyone else sees the last four digits.
+
+</Step>
+<Step title="Fix what is wrong">
+
+If you may edit, choose **Rediger** (Edit) on a receipt. You can change the type, the account, the date, the description and the amount. Choosing a type fills in the type's account. Choosing an account fills in that account's tax code. Global admins and the controller can also choose **Rediger bankkonto** (Edit bank account): 11 digits, and spaces and dots are ignored. The number must also pass the Norwegian check digit test, so a mistyped digit is refused.
+
+Every change is saved in **Historikk** (History) with the old and new value.
+
+A reimbursement that is approved but not yet booked can't be edited, because booking may start at any moment. One whose booking failed can be edited by global admins and the controller, so they can fix the cause before retrying.
+
+</Step>
+<Step title="Approve or reject">
+
+When it's your turn, the **Avgjørelse** (Decision) box shows **Godkjenn** (Approve) and **Avslå** (Reject). Rejecting asks for **Begrunnelse** (Reason), which the student sees.
+
+A global admin or the controller who isn't the approver on the step sees **Godkjenn på vegne av** (Approve on behalf of) and **Avslå på vegne av** (Reject on behalf of), with the role's name. The step is recorded as decided on behalf of that role, and the history says so.
+
+The decision goes through the same chain as an approval in Teams. The next step's approver is told, and the last approval starts the booking.
+
+</Step>
+<Step title="Change the approver">
+
+Choose **Bytt godkjenner** (Change approver) and type the new person's address. It must end in `@biso.no`, and it can't be the student who submitted. Choose **Bytt og send** (Change and send).
+
+The new approver gets a fresh approval link and the old link stops working. The change also updates the saved approver for later reimbursements with the same role, so check you mean it. Global admins can change any step. The controller can change department steps only, not the controller or president step.
+
+</Step>
+<Step title="Retry a failed booking">
+
+A reimbursement with **Bokføring feilet** (Booking failed) shows the error from 24SevenOffice and **Prøv bokføring på nytt** (Retry booking).
+
+Open 24SevenOffice first and check that the reimbursement isn't already there. If it is booked twice, the student is paid twice. The admin refuses to retry when it already has a booking recorded for the reimbursement, but it can't see 24SevenOffice itself.
+
+Choose **Prøv på nytt** (Retry). You see **Bokført i Finago** (Booked in Finago) when it works, **Bokføringen mislyktes igjen** (The booking failed again) when it doesn't, and **Bokføringen pågår** (The booking is in progress) when another run holds it. In that case check 24SevenOffice before you do anything else.
+
+</Step>
+</Steps>
+
+<WhatHappensNext>
+
+## What happens next
+
+- After a decision, the reimbursement moves to the next step, or to booking after the last approval. Booking runs on its own, without anyone starting it.
+- A successful booking shows **Bokført** (Booked) and the transaction number in 24SevenOffice.
+- A failed booking is never retried by itself, because 24SevenOffice may already have it.
+- Edits, decisions, approver changes and retries are written to the reimbursement's history with your name.
+- After a decision made in the admin, the next approver gets the Teams card and the email, and a rejection notifies the student.
+- When a step is decided in the admin or on the web approval page, the Teams card that was sent to that step's approver changes to show who decided and what. The buttons go away. This happens after the reimbursement has moved on, so a slow Teams never holds it up. A decision made in Teams already updates its own card. If the card can't be updated within 5 seconds, it stays as it was, and the decision still stands.
+</WhatHappensNext>
+
+## What the approver sees in Teams and email
+
+The approval card in Teams, and the email, give the approver what they need to decide without opening the admin. The card is in English.
+
+- **Receipts.** A table with the date, description, type, account and amount of each receipt. The card shows up to 15 receipts and the email up to 30, then **and N more**. A receipt without a type shows the student's own text in quotes.
+- **Notes for the approver.** The things the AI or the system flagged, such as a missing account, an amount that differs from what the receipt reads, an old receipt or a possible duplicate. These are the same as **Ting å sjekke** (Things to check) in the admin. A note about one receipt starts with that receipt's description, or its type when it has none, cut to 40 characters.
+- **The submitter's declaration.** A line when the student said they are the campus controller or the department's financial manager.
+- **The national note.** It shows when the general manager approves in someone else's place. On National, when the controller can't be found or is the one who submitted, it reads **The controller could not be found or is the submitter; the general manager decides instead.** On the four campuses it shows when the general manager approves a reimbursement. For a controller's own reimbursement it reads **The campus president could not be found or is the submitter; the general manager decides instead.** Otherwise, when the general manager stands in for a controller who submitted, it reads **The general manager decides in place of the usual approver.**
+- **Recent history.** The latest 6 history lines. If the card gets too large for Teams, the history goes first, then the receipts are cut to 5, and as a last resort the card shows only the number of receipts.
+- **Buttons.** **Approve**, **Reject**, **Open in admin** and **View receipts**. When a receipt has no account, or the receipts couldn't be read, **Approve** is replaced by **Set the account in admin**, which opens the reimbursement. Set the account on the receipt, then approve in the admin. The email has the same buttons.
+- **The approval page.** The email's link opens a page on the website. When a receipt has no account, the page has no **Godkjenn** (Approve) button. It shows **En kvittering mangler konto. Sett den i admin før du godkjenner.** (A receipt has no account yet. Set it in admin before approving.) with the link **Åpne i admin** (Open in admin). **Avslå** (Reject) stays. An old card or link that still tries to approve is refused with the same sentence.
+
+## What the student sees
+
+The student sees the status and, after a rejection, your reason. They never see the history or who edited what.
+
+## Common mistakes
+
+- Retrying a booking without checking 24SevenOffice first.
+- Approving on behalf of a role when the real approver is available. The history shows it, but the approver isn't told.
+- Changing the approver to fix a one-off absence. The saved approver for the role changes too.
+- Looking for a reimbursement on another campus as a campus leader or controller. You see your own campus only.

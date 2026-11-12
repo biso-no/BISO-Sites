@@ -1,17 +1,18 @@
 "use client";
 
-import type { ExpenseApprovalIssues } from "@repo/api/types/appwrite";
 import { ExpenseApprovalIssuesStatus } from "@repo/api/types/appwrite";
 import { Button } from "@repo/ui/components/ui/button";
 import { CheckCircle2, RefreshCw, ShieldAlert } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
+import type { ExpenseActionError } from "../action-result";
 import {
+  type ExpenseApprovalIssueRow,
   resendExpenseApprovalNotification,
   resolveExpenseApprovalIssue,
-} from "../../../_actions/expense-approval-issues";
-import { EmptyState } from "../../../_components/empty-state";
+} from "../issues-actions";
 
 // Issues recorded when an approver couldn't be notified can be recovered by
 // resending; they are tagged with this reason prefix (see expense-approval.ts).
@@ -24,8 +25,6 @@ interface Labels {
   columnReason: string;
   columnRole: string;
   columnStatus: string;
-  empty: string;
-  emptyDescription: string;
   resend: string;
   resendError: string;
   resendSuccess: string;
@@ -34,10 +33,11 @@ interface Labels {
   resolveSuccess: string;
   statusOpen: string;
   statusResolved: string;
+  title: string;
 }
 
 interface Props {
-  issues: ExpenseApprovalIssues[];
+  issues: ExpenseApprovalIssueRow[];
   labels: Labels;
 }
 
@@ -56,38 +56,33 @@ function formatDate(value: string): string {
   });
 }
 
-export function ExpenseApprovalIssuesClient({ issues, labels }: Props) {
-  if (issues.length === 0) {
-    return (
-      <EmptyState
-        description={labels.emptyDescription}
-        icon={<CheckCircle2 size={28} />}
-        title={labels.empty}
-      />
-    );
-  }
-
+export function ApprovalIssuesPanel({ issues, labels }: Props) {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-border">
-      <table className="w-full text-left text-sm">
-        <thead className="bg-muted/50 text-muted-foreground">
-          <tr>
-            <th className="px-4 py-3 font-medium">{labels.columnDepartment}</th>
-            <th className="px-4 py-3 font-medium">{labels.columnCampus}</th>
-            <th className="px-4 py-3 font-medium">{labels.columnRole}</th>
-            <th className="px-4 py-3 font-medium">{labels.columnReason}</th>
-            <th className="px-4 py-3 font-medium">{labels.columnCreated}</th>
-            <th className="px-4 py-3 font-medium">{labels.columnStatus}</th>
-            <th className="px-4 py-3" />
-          </tr>
-        </thead>
-        <tbody>
-          {issues.map((issue) => (
-            <IssueRow issue={issue} key={issue.$id} labels={labels} />
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <section className="mb-6">
+      <h2 className="mb-2 font-medium text-sm">{labels.title}</h2>
+      <div className="overflow-x-auto rounded-2xl border border-border">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-muted/50 text-muted-foreground">
+            <tr>
+              <th className="px-4 py-3 font-medium">
+                {labels.columnDepartment}
+              </th>
+              <th className="px-4 py-3 font-medium">{labels.columnCampus}</th>
+              <th className="px-4 py-3 font-medium">{labels.columnRole}</th>
+              <th className="px-4 py-3 font-medium">{labels.columnReason}</th>
+              <th className="px-4 py-3 font-medium">{labels.columnCreated}</th>
+              <th className="px-4 py-3 font-medium">{labels.columnStatus}</th>
+              <th className="px-4 py-3" />
+            </tr>
+          </thead>
+          <tbody>
+            {issues.map((issue) => (
+              <IssueRow issue={issue} key={issue.$id} labels={labels} />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 
@@ -95,14 +90,21 @@ function IssueRow({
   issue,
   labels,
 }: {
-  issue: ExpenseApprovalIssues;
+  issue: ExpenseApprovalIssueRow;
   labels: Labels;
 }) {
   const [resolved, setResolved] = useState(
     issue.status === ExpenseApprovalIssuesStatus.RESOLVED
   );
   const [pending, startTransition] = useTransition();
+  const te = useTranslations("adminPortal.expenses.errors");
+  // A code without its own message gets the action's generic one.
+  const failureMessage = (
+    code: ExpenseActionError | undefined,
+    fallback: string
+  ) => (!code || code === "failed" ? fallback : te(code));
   const canResend =
+    issue.canAct &&
     Boolean(issue.expense_id) &&
     Boolean(issue.reason?.startsWith(NOTIFICATION_FAILURE_PREFIX));
 
@@ -113,25 +115,19 @@ function IssueRow({
         setResolved(true);
         toast.success(labels.resolveSuccess);
       } else {
-        toast.error(result.error ?? labels.resolveError);
+        toast.error(failureMessage(result.error, labels.resolveError));
       }
     });
   };
 
   const onResend = () => {
-    if (!issue.expense_id) {
-      return;
-    }
     startTransition(async () => {
-      const result = await resendExpenseApprovalNotification(
-        issue.$id,
-        issue.expense_id as string
-      );
+      const result = await resendExpenseApprovalNotification(issue.$id);
       if (result.success) {
         setResolved(true);
         toast.success(labels.resendSuccess);
       } else {
-        toast.error(result.error ?? labels.resendError);
+        toast.error(failureMessage(result.error, labels.resendError));
       }
     });
   };
@@ -157,7 +153,7 @@ function IssueRow({
         )}
       </td>
       <td className="px-4 py-3 text-right">
-        {resolved ? null : (
+        {resolved || !issue.canAct ? null : (
           <div className="flex justify-end gap-2">
             {canResend && (
               <Button

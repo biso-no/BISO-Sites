@@ -44,6 +44,13 @@ vi.mock("@/lib/expense-approval", () => ({
   createApprovalChain: vi.fn(async () => undefined),
 }));
 
+const enrichment = vi.hoisted(() => {
+  class OccasionRequiredError extends Error {}
+  return { enrichSubmission: vi.fn(), OccasionRequiredError };
+});
+
+vi.mock("@/lib/expense-submission", () => enrichment);
+
 vi.mock("@/lib/pdf/expense-pdf", () => ({
   generateExpensePdf: vi.fn(async () => new Uint8Array([1, 2, 3])),
 }));
@@ -56,6 +63,40 @@ vi.mock("@repo/api/file", () => ({
 
 import { createApprovalChain } from "@/lib/expense-approval";
 import { POST } from "./route";
+
+const PROFILE = {
+  $id: "submitter-1",
+  address: "Street 1",
+  bank_account: "1234.56.78901",
+  city: "Oslo",
+  email: "ada@example.com",
+  name: "Ada Lovelace",
+  phone: "12345678",
+  zip: "0001",
+};
+
+const SAVED_EXPENSE = {
+  $id: "expense-1",
+  $sequence: 42,
+  bank_account: "1234.56.78901",
+  campus: "1",
+  campusRel: { name: "Oslo" },
+  department: "dept-1",
+  departmentRel: { Name: "Operations Unit" },
+  description: "Travel",
+  expenseAttachments: [],
+  prepayment_amount: null,
+  status: ExpensesStatus.DRAFT,
+  total: 100,
+  userId: "submitter-1",
+};
+
+const SUBMIT_BODY = {
+  bank_account: "1234.56.78901",
+  campus: "1",
+  department: "dept-1",
+  total: 100,
+};
 
 function submitRequest(body: Record<string, unknown>) {
   return new Request("https://api.example/expenses/submit", {
@@ -78,32 +119,16 @@ describe("expense submit route", () => {
     storage.createFile.mockReset();
 
     account.get.mockResolvedValue({ $id: "submitter-1" });
+    vi.mocked(isFeatureEnabled).mockImplementation(
+      async (key: string) => key !== "expenses_ledger_posting"
+    );
+    vi.mocked(createApprovalChain).mockClear();
+    enrichment.enrichSubmission.mockReset();
+    enrichment.enrichSubmission.mockResolvedValue(undefined);
+    // The profile, then the saved draft (read before and after enrichment).
     sessionDb.getRow
-      .mockResolvedValueOnce({
-        $id: "submitter-1",
-        address: "Street 1",
-        bank_account: "1234.56.78901",
-        city: "Oslo",
-        email: "ada@example.com",
-        name: "Ada Lovelace",
-        phone: "12345678",
-        zip: "0001",
-      })
-      .mockResolvedValueOnce({
-        $id: "expense-1",
-        $sequence: 42,
-        bank_account: "1234.56.78901",
-        campus: "1",
-        campusRel: { name: "Oslo" },
-        department: "dept-1",
-        departmentRel: { Name: "Operations Unit" },
-        description: "Travel",
-        expenseAttachments: [],
-        prepayment_amount: null,
-        status: ExpensesStatus.DRAFT,
-        total: 100,
-        userId: "submitter-1",
-      });
+      .mockResolvedValueOnce(PROFILE)
+      .mockResolvedValue(SAVED_EXPENSE);
     adminDb.createRow.mockResolvedValue({ $id: "expense-1" });
     adminDb.updateRow.mockResolvedValue({});
     storage.createFile.mockResolvedValue({ $id: "pdf-1" });
@@ -166,6 +191,59 @@ describe("expense submit route", () => {
       expect.objectContaining({ status: ExpensesStatus.DRAFT, total: 100 })
     );
     expect(sessionDb.updateRow).not.toHaveBeenCalled();
+  });
+
+  it("keeps a web draft's own type text and occasion when an old app submits it", async () => {
+    adminDb.getRow.mockResolvedValue({
+      $id: "expense-1",
+      event_id: "event-1",
+      expenseAttachments: [
+        {
+          $id: "att-1",
+          cost_type: "",
+          cost_type_text: "Flowers",
+          url: "file-1",
+        },
+      ],
+      occasion: "Board meeting",
+      status: ExpensesStatus.DRAFT,
+      userId: "submitter-1",
+    });
+
+    const response = await POST(
+      submitRequest({
+        ...SUBMIT_BODY,
+        expenseAttachments: [
+          { amount: 100, cost_type: "social", url: "file-1" },
+        ],
+        expenseId: "expense-1",
+      })
+    );
+
+    expect(response.status).toBe(200);
+    const [, , , select] = adminDb.getRow.mock.calls[0] ?? [];
+    for (const column of ["expenseAttachments.*", "occasion", "event_id"]) {
+      expect(select?.[0]).toContain(column);
+    }
+    const saved = adminDb.updateRow.mock.calls.find(
+      ([, table]) => table === "expense"
+    )?.[3];
+    expect(saved).toMatchObject({
+      event_id: "event-1",
+      expenseAttachments: [
+        expect.objectContaining({ cost_type: "", cost_type_text: "Flowers" }),
+      ],
+      occasion: "Board meeting",
+    });
+    // Enrichment decides from the merged payload, not the app's default slug.
+    const [, , enrichedPayload] =
+      enrichment.enrichSubmission.mock.calls[0] ?? [];
+    expect(enrichedPayload).toMatchObject({
+      expenseAttachments: [
+        expect.objectContaining({ cost_type: "", cost_type_text: "Flowers" }),
+      ],
+      occasion: "Board meeting",
+    });
   });
 
   it("refuses to submit an expense that belongs to someone else", async () => {
@@ -359,5 +437,316 @@ describe("expense submit route", () => {
       missingFields: "phone",
     });
     expect(adminDb.createRow).not.toHaveBeenCalled();
+  });
+  it("reads the occasion and event with the expense it enriches", async () => {
+    vi.mocked(isFeatureEnabled)
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(true);
+    sessionDb.getRow.mockReset();
+    sessionDb.getRow
+      .mockResolvedValueOnce(PROFILE)
+      .mockResolvedValueOnce(SAVED_EXPENSE)
+      .mockResolvedValueOnce(SAVED_EXPENSE);
+
+    const response = await POST(submitRequest(SUBMIT_BODY));
+
+    expect(response.status).toBe(200);
+    // The enrichment read is the second getRow; without these columns a new
+    // client that omits the occasion would lose the stored one.
+    const [, , , select] = sessionDb.getRow.mock.calls[1] ?? [];
+    for (const column of ["occasion", "event_id"]) {
+      expect(select?.[0]).toContain(column);
+    }
+  });
+
+  it("calls enrichSubmission before the approval chain", async () => {
+    vi.mocked(isFeatureEnabled)
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(true);
+    sessionDb.getRow.mockReset();
+    sessionDb.getRow
+      .mockResolvedValueOnce(PROFILE)
+      .mockResolvedValueOnce(SAVED_EXPENSE)
+      .mockResolvedValueOnce({ ...SAVED_EXPENSE, description: "Enriched" });
+
+    const response = await POST(
+      submitRequest({ ...SUBMIT_BODY, occasion: "Board meeting" })
+    );
+
+    expect(response.status).toBe(200);
+    expect(enrichment.enrichSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({ db: adminDb, storage }),
+      expect.objectContaining({ $id: "expense-1", description: "Travel" }),
+      expect.objectContaining({ occasion: "Board meeting", total: 100 }),
+      "Ada Lovelace"
+    );
+    const enrichedAt =
+      enrichment.enrichSubmission.mock.invocationCallOrder[0] ?? 0;
+    expect(enrichedAt).toBeLessThan(
+      vi.mocked(createApprovalChain).mock.invocationCallOrder[0] ?? 0
+    );
+    // The approval chain sees the expense as stored after enrichment.
+    expect(sessionDb.getRow).toHaveBeenCalledTimes(3);
+    expect(sessionDb.getRow.mock.invocationCallOrder[2] ?? 0).toBeGreaterThan(
+      enrichedAt
+    );
+    expect(createApprovalChain).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: "Enriched",
+        expenseId: "expense-1",
+      })
+    );
+  });
+
+  it("treats a missing controller flag as false", async () => {
+    vi.mocked(isFeatureEnabled).mockResolvedValue(true);
+
+    // Drift Campus Oslo offers the controller switch, so a missing flag is
+    // what decides here.
+    await POST(submitRequest({ ...SUBMIT_BODY, department: "1" }));
+
+    expect(adminDb.createRow).toHaveBeenCalledWith(
+      "app",
+      "expense",
+      expect.any(String),
+      expect.objectContaining({ submitter_is_controller: false }),
+      expect.anything()
+    );
+    expect(createApprovalChain).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        submitterIsController: false,
+        submitterIsFinancialManager: false,
+      })
+    );
+  });
+
+  it("routes a web draft's controller switch to the president when an old app submits it", async () => {
+    vi.mocked(isFeatureEnabled).mockResolvedValue(true);
+    // Saved on the web with the switch on, on Ledelsen Oslo.
+    adminDb.getRow.mockResolvedValue({
+      $id: "expense-1",
+      campus: "1",
+      department: "2",
+      expenseAttachments: [{ $id: "att-1", cost_type: "social", url: "f1" }],
+      status: ExpensesStatus.DRAFT,
+      submitter_is_controller: true,
+      userId: "submitter-1",
+    });
+
+    // An old app: no cost_type_chosen and no controller flag.
+    const response = await POST(
+      submitRequest({
+        ...SUBMIT_BODY,
+        department: "2",
+        expenseAttachments: [{ amount: 100, cost_type: "social", url: "f1" }],
+        expenseId: "expense-1",
+        submitter_is_financial_manager: false,
+      })
+    );
+
+    expect(response.status).toBe(200);
+    const [, , , select] = adminDb.getRow.mock.calls[0] ?? [];
+    expect(select?.[0]).toContain("submitter_is_controller");
+    const saved = adminDb.updateRow.mock.calls.find(
+      ([, table]) => table === "expense"
+    )?.[3];
+    expect(saved).toMatchObject({ submitter_is_controller: true });
+    // The history note is written from the same merged payload.
+    const [, , enrichedPayload] =
+      enrichment.enrichSubmission.mock.calls[0] ?? [];
+    expect(enrichedPayload).toMatchObject({ submitter_is_controller: true });
+    // The president, never the controller who submitted it.
+    expect(createApprovalChain).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        submitterIsController: true,
+        submitterIsFinancialManager: false,
+      })
+    );
+  });
+
+  it("drops a web draft's controller flag when the department changed", async () => {
+    vi.mocked(isFeatureEnabled).mockResolvedValue(true);
+    // Saved on the web with the switch on, on Ledelsen Oslo (department 2).
+    adminDb.getRow.mockResolvedValue({
+      $id: "expense-1",
+      campus: "1",
+      department: "2",
+      expenseAttachments: [],
+      status: ExpensesStatus.DRAFT,
+      submitter_is_controller: true,
+      userId: "submitter-1",
+    });
+
+    // An old app moves it to Drift Campus Oslo (department 1), which also
+    // offers the controller switch, and sends no flag.
+    const response = await POST(
+      submitRequest({
+        ...SUBMIT_BODY,
+        department: "1",
+        expenseId: "expense-1",
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(createApprovalChain).toHaveBeenLastCalledWith(
+      expect.objectContaining({ submitterIsController: false })
+    );
+  });
+
+  it("stores and routes the financial-manager flag on Ledelsen Oslo as false", async () => {
+    vi.mocked(isFeatureEnabled).mockResolvedValue(true);
+
+    await POST(
+      submitRequest({
+        ...SUBMIT_BODY,
+        department: "2",
+        submitter_is_financial_manager: true,
+      })
+    );
+
+    expect(adminDb.createRow).toHaveBeenCalledWith(
+      "app",
+      "expense",
+      expect.any(String),
+      expect.objectContaining({
+        submitter_is_controller: false,
+        submitter_is_financial_manager: false,
+      }),
+      expect.anything()
+    );
+    expect(createApprovalChain).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        submitterIsController: false,
+        submitterIsFinancialManager: false,
+      })
+    );
+  });
+
+  it("stores and routes the controller flag on an ordinary Oslo department as false", async () => {
+    vi.mocked(isFeatureEnabled).mockResolvedValue(true);
+
+    await POST(
+      submitRequest({
+        ...SUBMIT_BODY,
+        department: "dept-1",
+        submitter_is_controller: true,
+      })
+    );
+
+    expect(adminDb.createRow).toHaveBeenCalledWith(
+      "app",
+      "expense",
+      expect.any(String),
+      expect.objectContaining({
+        submitter_is_controller: false,
+        submitter_is_financial_manager: false,
+      }),
+      expect.anything()
+    );
+    expect(createApprovalChain).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        submitterIsController: false,
+        submitterIsFinancialManager: false,
+      })
+    );
+  });
+
+  it("routes a declared controller switch the department offers", async () => {
+    vi.mocked(isFeatureEnabled).mockResolvedValue(true);
+
+    await POST(
+      submitRequest({
+        ...SUBMIT_BODY,
+        department: "1",
+        submitter_is_controller: true,
+      })
+    );
+    expect(createApprovalChain).toHaveBeenLastCalledWith(
+      expect.objectContaining({ submitterIsController: true })
+    );
+  });
+
+  it("stores a switch the department does not offer as false", async () => {
+    vi.mocked(isFeatureEnabled).mockResolvedValue(true);
+
+    await POST(
+      submitRequest({
+        ...SUBMIT_BODY,
+        campus: "2",
+        submitter_is_controller: true,
+        submitter_is_financial_manager: true,
+      })
+    );
+
+    expect(adminDb.createRow).toHaveBeenCalledWith(
+      "app",
+      "expense",
+      expect.any(String),
+      expect.objectContaining({
+        submitter_is_controller: false,
+        submitter_is_financial_manager: false,
+      }),
+      expect.anything()
+    );
+    expect(createApprovalChain).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        submitterIsController: false,
+        submitterIsFinancialManager: false,
+      })
+    );
+  });
+
+  it("answers 400 with the occasion field when a type asks for one", async () => {
+    enrichment.enrichSubmission.mockRejectedValueOnce(
+      new enrichment.OccasionRequiredError("Occasion is required")
+    );
+
+    const response = await POST(submitRequest(SUBMIT_BODY));
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Occasion is required",
+      // The draft saved before the check, so the client can update it.
+      expenseId: "expense-1",
+      field: "occasion",
+      success: false,
+    });
+    expect(adminDb.createRow).toHaveBeenCalledTimes(1);
+    expect(createApprovalChain).not.toHaveBeenCalled();
+    expect(messaging.createEmail).not.toHaveBeenCalled();
+  });
+
+  it("never returns account numbers to the student", async () => {
+    sessionDb.getRow.mockReset();
+    sessionDb.getRow.mockResolvedValueOnce(PROFILE).mockResolvedValue({
+      ...SAVED_EXPENSE,
+      expenseAttachments: [
+        {
+          $id: "att-1",
+          account_number: 7310,
+          account_source: "ai_freeform",
+          amount: 100,
+          cost_type: "social",
+          tax_code: 1,
+          url: "file-1",
+        },
+      ],
+    });
+
+    const response = await POST(submitRequest(SUBMIT_BODY));
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.fetchedExpense.expenseAttachments).toEqual([
+      {
+        $id: "att-1",
+        account_number: null,
+        account_source: null,
+        amount: 100,
+        cost_type: "social",
+        tax_code: null,
+        url: "file-1",
+      },
+    ]);
   });
 });
