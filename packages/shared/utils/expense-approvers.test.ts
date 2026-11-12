@@ -1,81 +1,185 @@
 import { describe, expect, it } from "vitest";
 import {
+  approvalSwitchFor,
+  CAMPUS_MAILBOX_SLUGS,
+  DEFAULT_DIRECTORY_EMAILS,
+  directoryKey,
   getCampusApprovalPlan,
   NATIONAL_APPROVER_EMAIL,
   pickApproverByRole,
   ROLE_EMAIL_PREFIXES,
 } from "./expense-approvers";
 
+const controller = { kind: "directory", role: "controller" } as const;
+const president = { kind: "directory", role: "president" } as const;
+
 describe("getCampusApprovalPlan", () => {
-  it("plans Oslo as department finance + campus controller", () => {
-    const plan = getCampusApprovalPlan({ campusId: "1" });
-    expect(plan).toEqual([
-      { kind: "department", role: "finance" },
-      { kind: "fixed", role: "controller", email: "controller.oslo@biso.no" },
-    ]);
-  });
-
-  it("asks for the department manager when the submitter is the financial manager", () => {
-    const plan = getCampusApprovalPlan({
-      campusId: "1",
-      submitterIsFinancialManager: true,
-    });
-    expect(plan[0]).toEqual({ kind: "department", role: "manager" });
-  });
-
-  it("plans Ledelsen Oslo (department 2) as controller-only", () => {
-    expect(getCampusApprovalPlan({ campusId: "1", departmentId: "2" })).toEqual(
-      [{ kind: "fixed", role: "controller", email: "controller.oslo@biso.no" }]
+  it("Oslo OSL switch off: department finance then controller", () => {
+    expect(getCampusApprovalPlan({ campusId: "1", departmentId: "7" })).toEqual(
+      [{ kind: "department", role: "finance" }, controller]
     );
   });
 
-  it("ignores the finance-manager toggle for Ledelsen Oslo", () => {
+  it("Oslo OSL switch on: department manager then controller", () => {
+    expect(
+      getCampusApprovalPlan({
+        campusId: "1",
+        departmentId: "7",
+        submitterIsFinancialManager: true,
+      })
+    ).toEqual([{ kind: "department", role: "manager" }, controller]);
+  });
+
+  it.each(["1", "2"])("Oslo department %s switch off: controller", (id) => {
+    expect(getCampusApprovalPlan({ campusId: "1", departmentId: id })).toEqual([
+      controller,
+    ]);
+  });
+
+  it.each(["1", "2"])("Oslo department %s switch on: president", (id) => {
+    expect(
+      getCampusApprovalPlan({
+        campusId: "1",
+        departmentId: id,
+        submitterIsController: true,
+      })
+    ).toEqual([president]);
+  });
+
+  it("Bergen Ledelsen (301) off and on", () => {
+    expect(
+      getCampusApprovalPlan({ campusId: "2", departmentId: "301" })
+    ).toEqual([controller]);
+    expect(
+      getCampusApprovalPlan({
+        campusId: "2",
+        departmentId: "301",
+        submitterIsController: true,
+      })
+    ).toEqual([president]);
+  });
+
+  it("Trondheim Drift (600) on: president", () => {
+    expect(
+      getCampusApprovalPlan({
+        campusId: "3",
+        departmentId: "600",
+        submitterIsController: true,
+      })
+    ).toEqual([president]);
+  });
+
+  it("Stavanger other department: controller only", () => {
+    expect(
+      getCampusApprovalPlan({ campusId: "4", departmentId: "810" })
+    ).toEqual([controller]);
+    expect(getCampusApprovalPlan({ campusId: "4" })).toEqual([controller]);
+  });
+
+  it("national: national only", () => {
+    expect(getCampusApprovalPlan({ campusId: "5" })).toEqual([
+      { kind: "directory", role: "national" },
+    ]);
+  });
+
+  it("ignores a switch that does not apply", () => {
     expect(
       getCampusApprovalPlan({
         campusId: "1",
         departmentId: "2",
         submitterIsFinancialManager: true,
       })
-    ).toEqual([
-      { kind: "fixed", role: "controller", email: "controller.oslo@biso.no" },
-    ]);
+    ).toEqual([controller]);
+    expect(
+      getCampusApprovalPlan({
+        campusId: "1",
+        departmentId: "101",
+        submitterIsController: true,
+      })
+    ).toEqual([{ kind: "department", role: "finance" }, controller]);
+    expect(
+      getCampusApprovalPlan({
+        campusId: "2",
+        departmentId: "302",
+        submitterIsController: true,
+      })
+    ).toEqual([controller]);
   });
 
-  it("keeps the department step for other Oslo departments", () => {
-    expect(getCampusApprovalPlan({ campusId: "1", departmentId: "7" })).toEqual(
-      [
-        { kind: "department", role: "finance" },
-        { kind: "fixed", role: "controller", email: "controller.oslo@biso.no" },
-      ]
-    );
-  });
-
-  it("plans other campuses as controller-only", () => {
-    expect(getCampusApprovalPlan({ campusId: "2" })).toEqual([
-      { kind: "fixed", role: "controller", email: "controller.bergen@biso.no" },
-    ]);
-    expect(getCampusApprovalPlan({ campusId: "4" })[0]).toMatchObject({
-      email: "controller.stavanger@biso.no",
+  it("routes a controller's own expense to the president only", () => {
+    const plan = getCampusApprovalPlan({
+      campusId: "1",
+      departmentId: "1",
+      submitterIsController: true,
     });
-  });
-
-  it("plans national as the fixed national approver", () => {
-    expect(getCampusApprovalPlan({ campusId: "5" })).toEqual([
-      { kind: "fixed", role: "national", email: NATIONAL_APPROVER_EMAIL },
-    ]);
-  });
-
-  it("sends national reimbursements to the national manager mailbox", () => {
-    expect(NATIONAL_APPROVER_EMAIL).toBe("manager@biso.no");
-    expect(getCampusApprovalPlan({ campusId: "5" })[0]?.email).toBe(
-      "manager@biso.no"
-    );
+    expect(plan).toHaveLength(1);
+    expect(plan.some((step) => step.role === "controller")).toBe(false);
   });
 
   it("throws on an unknown campus", () => {
     expect(() => getCampusApprovalPlan({ campusId: "99" })).toThrow(
       "Unknown campus"
     );
+  });
+});
+
+describe("approvalSwitchFor", () => {
+  it("offers the financial manager switch to Oslo departments", () => {
+    expect(approvalSwitchFor("1", "7")).toBe("financial_manager");
+    expect(approvalSwitchFor("1", null)).toBe("financial_manager");
+  });
+
+  it("offers the controller switch to Drift and Ledelsen", () => {
+    for (const [campus, dept] of [
+      ["1", "1"],
+      ["1", "2"],
+      ["2", "300"],
+      ["2", "301"],
+      ["3", "600"],
+      ["3", "601"],
+      ["4", "800"],
+      ["4", "801"],
+    ] as const) {
+      expect(approvalSwitchFor(campus, dept)).toBe("controller");
+    }
+  });
+
+  it("offers nothing elsewhere", () => {
+    expect(approvalSwitchFor("2", "302")).toBeNull();
+    expect(approvalSwitchFor("5", "9")).toBeNull();
+    expect(approvalSwitchFor("3", undefined)).toBeNull();
+  });
+});
+
+describe("directoryKey", () => {
+  it("formats department and campus keys", () => {
+    expect(
+      directoryKey({
+        scope: "department",
+        campusId: "1",
+        departmentId: "7",
+        role: "finance",
+      })
+    ).toBe("dept:7:finance");
+    expect(
+      directoryKey({ scope: "campus", campusId: "2", role: "president" })
+    ).toBe("campus:2:president");
+  });
+});
+
+describe("directory defaults", () => {
+  it("has default controllers, the national manager and no presidents", () => {
+    expect(DEFAULT_DIRECTORY_EMAILS["1"]?.controller).toBe(
+      "controller.oslo@biso.no"
+    );
+    expect(DEFAULT_DIRECTORY_EMAILS["4"]?.controller).toBe(
+      "controller.stavanger@biso.no"
+    );
+    expect(DEFAULT_DIRECTORY_EMAILS["5"]?.national).toBe(
+      NATIONAL_APPROVER_EMAIL
+    );
+    expect(NATIONAL_APPROVER_EMAIL).toBe("manager@biso.no");
+    expect(CAMPUS_MAILBOX_SLUGS["3"]).toEqual(["trondheim", "trd"]);
   });
 });
 

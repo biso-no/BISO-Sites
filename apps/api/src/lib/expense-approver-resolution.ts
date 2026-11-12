@@ -10,6 +10,7 @@
 import type { GraphUser } from "@repo/connectors/azure/users";
 import {
   type ApproverRole,
+  DEFAULT_DIRECTORY_EMAILS,
   getCampusApprovalPlan,
   getCampusEmailSlug,
   pickApproverByRole,
@@ -120,18 +121,26 @@ export async function resolveExpenseApprovers(
   const campusSlug = getCampusEmailSlug(input.campusId) ?? "";
 
   for (const planStep of plan) {
-    if (planStep.kind === "fixed" && planStep.email) {
-      steps.push({
-        step: steps.length + 1,
-        role: planStep.role,
-        email: planStep.email,
-        aadId: null,
-      });
+    if (planStep.kind === "directory") {
+      // Interim: defaults only; the approver directory lookup arrives later.
+      const role = planStep.role;
+      const email =
+        role === "president"
+          ? undefined
+          : DEFAULT_DIRECTORY_EMAILS[input.campusId]?.[role];
+      if (email) {
+        steps.push({
+          step: steps.length + 1,
+          role,
+          email,
+          aadId: null,
+        });
+      }
       continue;
     }
 
     // Department step (role is finance or manager).
-    const departmentRole = planStep.role === "manager" ? "manager" : "finance";
+    const departmentRole = planStep.role;
     const candidates = await loadCandidates();
     const resolved = resolveDepartmentApprover(
       candidates,

@@ -27,25 +27,29 @@ export type ApproverRole =
   | "manager"
   | "deputy"
   | "controller"
+  | "president"
   | "national";
 
 /** Department-level role a step initially asks for (Oslo only). */
 export type DepartmentApproverRole = "finance" | "manager";
 
-export interface ApprovalStepPlan {
-  /** Present for fixed steps (controller / national). */
-  email?: string;
-  /** "department" steps are resolved via Graph; "fixed" carry a known email. */
-  kind: "department" | "fixed";
-  role: ApproverRole;
-}
+/** Roles looked up in the approver directory (per campus or department). */
+export type DirectoryApproverRole = "controller" | "president" | "national";
+
+export type ApprovalSwitch = "financial_manager" | "controller";
+
+export type ApprovalStepPlan =
+  | { kind: "department"; role: DepartmentApproverRole }
+  | { kind: "directory"; role: DirectoryApproverRole };
 
 export interface ApprovalPlanInput {
   /** Campus id as stored on the expense ("1".."5"). */
   campusId: string;
-  /** Department id ($id) as stored on the expense — used to special-case Ledelsen Oslo. */
-  departmentId?: string;
-  /** True when the submitter is the department financial manager (Oslo only). */
+  /** Department id ($id, equal to the Finago id) stored on the expense. */
+  departmentId?: string | null;
+  /** The submitter declared they are the campus controller. */
+  submitterIsController?: boolean;
+  /** The submitter declared they are the department financial manager. */
   submitterIsFinancialManager?: boolean;
 }
 
@@ -54,12 +58,14 @@ export const NATIONAL_APPROVER_EMAIL = `manager@${EXPENSE_APPROVER_DOMAIN}`;
 
 const OSLO_CAMPUS_ID = "1";
 const NATIONAL_CAMPUS_ID = "5";
-/**
- * Ledelsen Oslo (the campus leadership unit) has no separate department
- * financial manager, so its reimbursements skip the department step and go
- * straight to the campus controller.
- */
-const LEDELSEN_OSLO_DEPARTMENT_ID = "2";
+
+/** Drift Campus and Ledelsen per campus (Finago department ids). */
+const CAMPUS_LEADERSHIP_DEPARTMENTS: Record<string, readonly string[]> = {
+  "1": ["1", "2"],
+  "2": ["300", "301"],
+  "3": ["600", "601"],
+  "4": ["800", "801"],
+};
 
 /** Campus id → email slug used in role mailboxes. */
 const CAMPUS_EMAIL_SLUGS: Record<string, string> = {
@@ -67,6 +73,26 @@ const CAMPUS_EMAIL_SLUGS: Record<string, string> = {
   "2": "bergen",
   "3": "trondheim",
   "4": "stavanger",
+};
+
+/** Campus id → every mailbox slug a campus is known by. */
+export const CAMPUS_MAILBOX_SLUGS: Record<string, string[]> = {
+  "1": ["oslo"],
+  "2": ["bergen"],
+  "3": ["trondheim", "trd"],
+  "4": ["stavanger"],
+};
+
+/** Fallback approvers used until the directory has an entry. */
+export const DEFAULT_DIRECTORY_EMAILS: Record<
+  string,
+  Partial<Record<"controller" | "national", string>>
+> = {
+  "1": { controller: "controller.oslo@biso.no" },
+  "2": { controller: "controller.bergen@biso.no" },
+  "3": { controller: "controller.trondheim@biso.no" },
+  "4": { controller: "controller.stavanger@biso.no" },
+  "5": { national: NATIONAL_APPROVER_EMAIL },
 };
 
 /** Email local-part prefixes used to identify role mailboxes. */
@@ -80,52 +106,71 @@ export function getCampusEmailSlug(campusId: string): string | undefined {
   return CAMPUS_EMAIL_SLUGS[campusId];
 }
 
-function controllerEmail(campusId: string): string {
-  const slug = CAMPUS_EMAIL_SLUGS[campusId];
-  return `controller.${slug}@${EXPENSE_APPROVER_DOMAIN}`;
+/** Which self-declaration switch the submit form offers for a department. */
+export function approvalSwitchFor(
+  campusId: string,
+  departmentId: string | null | undefined
+): ApprovalSwitch | null {
+  if (CAMPUS_LEADERSHIP_DEPARTMENTS[campusId]?.includes(departmentId ?? "")) {
+    return "controller";
+  }
+  return campusId === OSLO_CAMPUS_ID ? "financial_manager" : null;
+}
+
+export function directoryKey(input: {
+  scope: "department" | "campus";
+  campusId: string;
+  departmentId?: string | null;
+  role: ApproverRole;
+}): string {
+  if (input.scope === "department") {
+    return `dept:${input.departmentId ?? ""}:${input.role}`;
+  }
+  return `campus:${input.campusId}:${input.role}`;
 }
 
 /**
- * Builds the ordered approval plan for a campus. Department steps still need a
- * Graph lookup to resolve the actual approver; fixed steps already carry their
- * email. Throws on an unknown campus.
+ * Builds the ordered approval plan. A switch the department does not offer is
+ * treated as off. With the controller switch on there is never a controller
+ * step: the expense goes to the president instead. Throws on an unknown campus.
  */
 export function getCampusApprovalPlan(
   input: ApprovalPlanInput
 ): ApprovalStepPlan[] {
-  const { campusId, departmentId, submitterIsFinancialManager = false } = input;
+  const { campusId, departmentId } = input;
 
   if (campusId === NATIONAL_CAMPUS_ID) {
-    return [
-      { kind: "fixed", role: "national", email: NATIONAL_APPROVER_EMAIL },
-    ];
+    return [{ kind: "directory", role: "national" }];
   }
-
-  const slug = CAMPUS_EMAIL_SLUGS[campusId];
-  if (!slug) {
+  if (!CAMPUS_EMAIL_SLUGS[campusId]) {
     throw new Error(`Unknown campus id "${campusId}" for expense approval`);
   }
 
-  if (campusId === OSLO_CAMPUS_ID) {
-    // Ledelsen Oslo has no separate department financial manager — the campus
-    // controller is the sole approver, so skip the department step entirely.
-    if (departmentId === LEDELSEN_OSLO_DEPARTMENT_ID) {
-      return [
-        { kind: "fixed", role: "controller", email: controllerEmail(campusId) },
-      ];
-    }
+  const offered = approvalSwitchFor(campusId, departmentId);
+  const controllerStep: ApprovalStepPlan = {
+    kind: "directory",
+    role: "controller",
+  };
+
+  if (offered === "controller") {
     return [
-      {
-        kind: "department",
-        role: submitterIsFinancialManager ? "manager" : "finance",
-      },
-      { kind: "fixed", role: "controller", email: controllerEmail(campusId) },
+      input.submitterIsController
+        ? { kind: "directory", role: "president" }
+        : controllerStep,
     ];
   }
 
-  return [
-    { kind: "fixed", role: "controller", email: controllerEmail(campusId) },
-  ];
+  if (offered === "financial_manager") {
+    return [
+      {
+        kind: "department",
+        role: input.submitterIsFinancialManager ? "manager" : "finance",
+      },
+      controllerStep,
+    ];
+  }
+
+  return [controllerStep];
 }
 
 /**
