@@ -319,3 +319,39 @@ describe("expense AI schema", () => {
     );
   });
 });
+
+describe("approver directory schema", () => {
+  const findTable = (id: string) =>
+    loadConfig().tables.find((t) => t.$id === id);
+  const findColumn = (table: string, key: string) =>
+    findTable(table)?.columns?.find((c) => c.key === key);
+
+  test("expense_approvers is server-only with a unique key index", () => {
+    const table = findTable("expense_approvers");
+    expect(table).toBeDefined();
+    expect(table?.$permissions).toEqual([
+      'read("team:sg-app-dept-operationsunit")',
+    ]);
+    expect(
+      table?.indexes?.some(
+        (i) => i.type === "unique" && i.columns?.[0] === "key"
+      )
+    ).toBe(true);
+  });
+
+  test("expense_approvals.approver_role includes president", () => {
+    expect(
+      findColumn("expense_approvals", "approver_role")?.elements
+    ).toContain("president");
+  });
+
+  test("expense_approvals records the directory key", () => {
+    expect(findColumn("expense_approvals", "directory_key")).toBeDefined();
+  });
+
+  test("expense records controller submissions", () => {
+    expect(findColumn("expense", "submitter_is_controller")?.type).toBe(
+      "boolean"
+    );
+  });
+});

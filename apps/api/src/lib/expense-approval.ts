@@ -3,6 +3,7 @@
 // chain or rejecting). Shared by the Teams bot endpoint and the web approval
 // page so both decision channels converge on the same idempotent logic.
 
+import { createHash, randomBytes } from "node:crypto";
 import { ID, type Models, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import {
@@ -19,7 +20,6 @@ import {
   sendApprovalEmail,
   sendProactiveCard,
 } from "@repo/connectors/teams-bot";
-import { createHash, randomBytes } from "node:crypto";
 import { resolveExpenseApprovers } from "./expense-approver-resolution";
 
 const TOKEN_TTL_DAYS = 14;
@@ -221,6 +221,7 @@ export async function createApprovalChain(
         approver_role: step.role as ExpenseApprovalsApproverRole,
         approver_email: step.email,
         approver_aad_id: step.aadId,
+        directory_key: null,
         status: ExpenseApprovalsStatus.PENDING,
         decided_by: null,
         decided_at: null,

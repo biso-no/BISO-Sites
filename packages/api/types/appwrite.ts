@@ -98,6 +98,7 @@ export enum ExpenseApprovalsApproverRole {
   MANAGER = "manager",
   DEPUTY = "deputy",
   CONTROLLER = "controller",
+  PRESIDENT = "president",
   NATIONAL = "national",
 }
 
@@ -557,6 +558,27 @@ export enum ExpenseTypeExamplesSource {
   ADMIN = "admin",
 }
 
+export enum ExpenseApproversScope {
+  DEPARTMENT = "department",
+  CAMPUS = "campus",
+}
+
+export enum ExpenseApproversRole {
+  FINANCE = "finance",
+  MANAGER = "manager",
+  DEPUTY = "deputy",
+  CONTROLLER = "controller",
+  PRESIDENT = "president",
+  NATIONAL = "national",
+}
+
+export enum ExpenseApproversSource {
+  SEED = "seed",
+  AI = "ai",
+  ADMIN = "admin",
+  CONFIRMED = "confirmed",
+}
+
 export type News = Models.Row & {
   slug: string | null;
   status: NewsStatus;
@@ -681,6 +703,7 @@ export type Expenses = Models.Row & {
   campusRel: Campus;
   ledger_transaction_id: string | null;
   submitter_is_financial_manager: boolean;
+  submitter_is_controller: boolean;
   posting_lock: number;
   user: Users;
   occasion: string | null;
@@ -867,6 +890,7 @@ export type ExpenseApprovals = Models.Row & {
   expense_id: string;
   step: number;
   approver_role: ExpenseApprovalsApproverRole;
+  directory_key: string | null;
   approver_email: string;
   approver_aad_id: string | null;
   status: ExpenseApprovalsStatus;
@@ -1872,4 +1896,20 @@ export type ExpenseTypeExamples = Models.Row & {
   final_text: string | null;
   account_number: number | null;
   source: ExpenseTypeExamplesSource;
+};
+
+export type ExpenseApprovers = Models.Row & {
+  key: string;
+  scope: ExpenseApproversScope;
+  department_id: string | null;
+  campus_id: string;
+  role: ExpenseApproversRole;
+  email: string;
+  aad_id: string | null;
+  display_name: string | null;
+  source: ExpenseApproversSource;
+  confidence: number | null;
+  confirmed_at: string | null;
+  last_used_at: string | null;
+  active: boolean;
 };
