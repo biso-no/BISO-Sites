@@ -6,6 +6,8 @@ covers:
   - apps/admin/src/app/(portal)/expenses/**
   - apps/admin/src/lib/expense-access.ts
   - apps/admin/src/lib/expense-viewer.ts
+  - apps/admin/src/lib/expenses-api.ts
+  - apps/admin/src/app/api/expenses/[expenseId]/files/**
   - apps/api/src/app/api/expenses/admin/**
 ---
 
@@ -34,7 +36,7 @@ covers:
 <Steps>
 <Step title="Find the reimbursement">
 
-The list has three views: **Alle** (All), **Venter på meg** (Waiting on me) and **Trenger oppfølging** (Needs attention). You can search by number or description and filter by **Status**, **Campus** and **Avdeling** (Department). The status is **Venter på godkjenning** (Waiting for approval), **Godkjent** (Approved), **Bokført** (Booked), **Avslått** (Rejected) or **Bokføring feilet** (Booking failed).
+The list has three views: **Alle** (All), **Venter på meg** (Waiting on me) and **Trenger oppfølging** (Needs attention). You can search by number or description and filter by **Status**, **Campus** and **Avdeling** (Department). The status is **Innsendt** (Submitted), **Venter på godkjenning** (Waiting for approval), **Godkjent** (Approved), **Bokført** (Booked), **Avslått** (Rejected) or **Bokføring feilet** (Booking failed).
 
 **Trenger oppfølging** shows reimbursements whose booking failed and those with an open approval issue. Open issues are listed above the table. See [Fix expense approval issues](/guide/access-and-settings/expense-approvals).
 
@@ -48,7 +50,7 @@ The full bank account is shown only to those who can edit it. Everyone else sees
 </Step>
 <Step title="Fix what is wrong">
 
-If you may edit, choose **Rediger** (Edit) on a receipt. You can change the type, the account, the date, the description and the amount. Choosing a type fills in the type's account. Choosing an account fills in that account's tax code. Global admins and the controller can also choose **Rediger bankkonto** (Edit bank account): 11 digits, and spaces and dots are ignored.
+If you may edit, choose **Rediger** (Edit) on a receipt. You can change the type, the account, the date, the description and the amount. Choosing a type fills in the type's account. Choosing an account fills in that account's tax code. Global admins and the controller can also choose **Rediger bankkonto** (Edit bank account): 11 digits, and spaces and dots are ignored. The number must also pass the Norwegian check digit test, so a mistyped digit is refused.
 
 Every change is saved in **Historikk** (History) with the old and new value.
 
@@ -90,7 +92,7 @@ Choose **Prøv på nytt** (Retry). You see **Bokført i Finago** (Booked in Fina
 - A successful booking shows **Bokført** (Booked) and the transaction number in 24SevenOffice.
 - A failed booking is never retried by itself, because 24SevenOffice may already have it.
 - Edits, decisions, approver changes and retries are written to the reimbursement's history with your name.
-- The admin doesn't send a Teams card or an email after a decision made in the admin.
+- After a decision made in the admin, the next approver gets the Teams card and the email, and a rejection notifies the student. Only the decided step's own Teams card is not updated yet, so it can still show the buttons.
 </WhatHappensNext>
 
 ## What the student sees

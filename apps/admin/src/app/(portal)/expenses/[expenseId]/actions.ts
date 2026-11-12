@@ -8,6 +8,10 @@ import type {
   Expenses,
 } from "@repo/api/types/appwrite";
 import {
+  isValidNorwegianBankAccount,
+  normalizeBankAccount,
+} from "@repo/shared/utils/bank-account";
+import {
   type ExpenseEventInput,
   recordExpenseEvents,
 } from "@repo/shared/utils/expense-events";
@@ -31,8 +35,6 @@ import { loadReceiptEditOptions } from "./edit-options";
 import { planReceiptEdit, type ReceiptChanges, round2 } from "./receipt-edit";
 
 const MAX_ROWS = 500;
-const BANK_ACCOUNT_SEPARATORS = /[\s.]/g;
-const BANK_ACCOUNT_FORMAT = /^\d{11}$/;
 const NON_DIGITS = /\D/g;
 const MAX_REASON_CHARS = 1000;
 const BISO_EMAIL = /^[^\s@]+@biso\.no$/i;
@@ -209,8 +211,8 @@ export async function updateExpenseBankAccount(input: {
     if (!loaded?.permissions.canEditBankAccount) {
       return { error: "forbidden" };
     }
-    const digits = input.bankAccount.replace(BANK_ACCOUNT_SEPARATORS, "");
-    if (!BANK_ACCOUNT_FORMAT.test(digits)) {
+    const digits = normalizeBankAccount(input.bankAccount);
+    if (!isValidNorwegianBankAccount(digits)) {
       return { error: "invalid_bank_account" };
     }
     const { db, expense } = loaded;
@@ -249,7 +251,8 @@ function apiActorOf(loaded: Loaded): ApiActor {
   return {
     email: actorEmail,
     kind: actorKind,
-    name: actorName ?? actorEmail ?? "BISO admin",
+    // `||`, not `??`: an empty name must not reach the api's `min(1)`.
+    name: actorName?.trim() || actorEmail || "BISO admin",
   };
 }
 

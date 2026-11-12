@@ -309,6 +309,22 @@ describe("notification history", () => {
     expect(notifiedEvents()).toEqual([]);
   });
 
+  it("notes Teams alone when the card was delivered but the email failed", async () => {
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [STEP],
+    });
+    teams.ensureBotChatForUser.mockResolvedValue("chat-1");
+    teams.sendProactiveCard.mockResolvedValue("activity-1");
+    teams.sendApprovalEmail.mockRejectedValue(new Error("smtp down"));
+
+    await createApprovalChain(CONTEXT);
+
+    expect(notifiedEvents()).toEqual([
+      expect.objectContaining({ note: "teams" }),
+    ]);
+  });
+
   it("notes Teams as well when the card was delivered", async () => {
     resolution.resolveExpenseApprovers.mockResolvedValue({
       issues: [],
@@ -916,6 +932,7 @@ describe("changeStepApprover", () => {
     options: {
       approval?: object;
       directoryRows?: object[];
+      missingSubmitter?: boolean;
       pending?: object[];
     } = {}
   ) {
@@ -925,7 +942,9 @@ describe("changeStepApprover", () => {
         return Promise.resolve(row);
       }
       if (table === "user") {
-        return Promise.resolve({ email: " Student@Biso.no " });
+        return options.missingSubmitter
+          ? Promise.reject(Object.assign(new Error("not found"), { code: 404 }))
+          : Promise.resolve({ email: " Student@Biso.no " });
       }
       return Promise.resolve({
         $id: "expense-1",
@@ -1079,6 +1098,33 @@ describe("changeStepApprover", () => {
         ([, table]) => table === "expense_approval_issues"
       )
     ).toBe(true);
+  });
+
+  it("continues when the submitter row is missing", async () => {
+    setup({ missingSubmitter: true });
+
+    const result = await changeStepApprover({
+      actor: ACTOR,
+      approvalId: "approval-1",
+      email: "new@biso.no",
+    });
+
+    expect(result).toMatchObject({ ok: true });
+  });
+
+  it("refuses the current approver and writes nothing", async () => {
+    setup();
+
+    const result = await changeStepApprover({
+      actor: ACTOR,
+      approvalId: "approval-1",
+      email: " OLD@biso.no ",
+    });
+
+    expect(result).toMatchObject({ code: "same_approver", ok: false });
+    expect(db.updateRow).not.toHaveBeenCalled();
+    expect(db.createRow).not.toHaveBeenCalled();
+    expect(events.recordExpenseEvents).not.toHaveBeenCalled();
   });
 
   it("change refuses a decided step", async () => {

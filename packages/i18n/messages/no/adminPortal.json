@@ -1509,7 +1509,8 @@
       "resolveError": "Kunne ikke markere avviket som løst",
       "resend": "Send varsel på nytt",
       "resendSuccess": "Godkjenningsvarsel sendt på nytt",
-      "resendError": "Kunne ikke sende godkjenningsvarselet på nytt"
+      "resendError": "Kunne ikke sende godkjenningsvarselet på nytt",
+      "loadError": "Kunne ikke laste godkjenningsavvikene. Last siden på nytt og prøv igjen."
     },
     "hintsText": {
       "amount_differs": "Oppgitt beløp er {entered}, men kvitteringen viser {read}.",
@@ -1546,7 +1547,8 @@
       "rejectedOnBehalf": "Avslått på vegne av {role}. {reason}",
       "approverResolved": "Fant godkjenner: {email}",
       "notified": "Varslet {email}",
-      "booked": "Bokført i regnskapet",
+      "booked": "Bokført i regnskapet (transaksjon {id})",
+      "bookedPlain": "Bokført i regnskapet",
       "bookingFailed": "Bokføring feilet: {note}",
       "dateShifted": "Bokføringsdato flyttet fra {from} til {to}. {note}",
       "bookingRetried": "Bokføring prøvd på nytt",
@@ -1579,7 +1581,7 @@
       "invalid_description": "Beskrivelsen må være 1 til 255 tegn.",
       "invalid_type": "Den utleggstypen er ikke tilgjengelig.",
       "invalid_account": "Det er ikke en aktiv utleggskonto.",
-      "invalid_bank_account": "En norsk bankkonto har 11 siffer.",
+      "invalid_bank_account": "Dette er ikke et gyldig norsk kontonummer. Sjekk sifrene.",
       "supporting_receipt": "Et vedlegg har bare dato og beskrivelse.",
       "failed": "Kunne ikke lagre. Prøv igjen.",
       "not_current_step": "Dette trinnet venter ikke lenger på en avgjørelse.",
@@ -1592,6 +1594,7 @@
       "api_failed": "Utleggstjenesten svarte ikke som forventet. Prøv igjen.",
       "in_progress": "Dette trinnet behandles allerede. Prøv igjen om et øyeblikk.",
       "self_approver": "Studenten som leverte utlegget kan ikke være godkjenner.",
+      "same_approver": "Den personen er allerede godkjenner for dette trinnet.",
       "retry_in_progress": "Noen andre prøver allerede denne bokføringen på nytt.",
       "booking_failed": "Bokføringen mislyktes igjen.",
       "status_write_failed": "Finago har bokføringen, men lagring av status feilet. Ikke prøv på nytt; kontakt IT."
@@ -1626,6 +1629,7 @@
       "confirm": "Prøv på nytt",
       "booked": "Bokført i Finago",
       "failedAgain": "Bokføringen mislyktes igjen.",
+      "apiFailed": "Bokføringstjenesten svarte ikke. Sjekk i Finago om utlegget ble bokført før du prøver på nytt.",
       "inProgress": "Bokføringen pågår. Sjekk Finago før du gjør noe mer."
     },
     "onBehalfRoles": {

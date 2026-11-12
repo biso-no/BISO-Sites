@@ -107,6 +107,15 @@ describe("buildExpenseListQueries", () => {
     expect(queries).toContain(Query.equal("status", "pending"));
   });
 
+  test("mine adds its ids to the approver side of the visibility query", () => {
+    const queries = buildExpenseListQueries(
+      viewer({ isGlobalAdmin: false }),
+      filters({ view: "mine" }),
+      { ...noIds, approverExpenseIds: ["old"], mineExpenseIds: ["new"] }
+    );
+    expect(queries).toContain(Query.equal("$id", ["old", "new"]));
+  });
+
   test("digits q matches the reimbursement sequence", () => {
     const queries = buildExpenseListQueries(
       viewer(),
@@ -245,6 +254,60 @@ describe("listExpenses", () => {
       flags: { approverIssue: true, failed: false, hints: 2 },
       reference: "10007",
     });
+  });
+
+  test("an approver with over 100 approval rows still sees a new pending expense in mine", async () => {
+    const old = Array.from({ length: 100 }, (_, i) => ({
+      expense_id: `o${i}`,
+    }));
+    const calls: { table: string; queries: string[] }[] = [];
+    db.listRows.mockImplementation(
+      (_d: string, table: string, queries: string[]) => {
+        calls.push({ table, queries });
+        if (table === "expense") {
+          return { rows: [], total: 0 };
+        }
+        if (table !== "expense_approvals") {
+          return { rows: [] };
+        }
+        if (queries.includes(Query.equal("status", "pending"))) {
+          return { rows: [{ expense_id: "new1" }] };
+        }
+        if (
+          queries.some((q) => q.includes("expense_id") && q.includes("new1"))
+        ) {
+          return {
+            rows: [
+              {
+                approver_email: "A@biso.no ",
+                approver_role: "manager",
+                expense_id: "new1",
+                status: "pending",
+                step: 1,
+              },
+            ],
+          };
+        }
+        // The capped lookup: newest-first would include new1, the cap hides it.
+        return { rows: old };
+      }
+    );
+    await listExpenses(
+      viewer({ isGlobalAdmin: false }),
+      filters({ view: "mine" })
+    );
+    const expenseQueries = calls.find((c) => c.table === "expense")?.queries;
+    expect(expenseQueries).toContain(
+      Query.equal("$id", [...old.map((o) => o.expense_id), "new1"])
+    );
+    const viewerStepCalls = calls.filter(
+      (c) =>
+        c.table === "expense_approvals" &&
+        c.queries.includes(Query.equal("approver_email", ["a@biso.no"]))
+    );
+    for (const call of viewerStepCalls) {
+      expect(call.queries).toContain(Query.orderDesc("$createdAt"));
+    }
   });
 
   test("falls back to description search when the sequence query throws", async () => {

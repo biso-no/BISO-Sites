@@ -3,9 +3,11 @@
 import { ExpenseApprovalIssuesStatus } from "@repo/api/types/appwrite";
 import { Button } from "@repo/ui/components/ui/button";
 import { CheckCircle2, RefreshCw, ShieldAlert } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
+import type { ExpenseActionError } from "../action-result";
 import {
   type ExpenseApprovalIssueRow,
   resendExpenseApprovalNotification,
@@ -95,6 +97,12 @@ function IssueRow({
     issue.status === ExpenseApprovalIssuesStatus.RESOLVED
   );
   const [pending, startTransition] = useTransition();
+  const te = useTranslations("adminPortal.expenses.errors");
+  // A code without its own message gets the action's generic one.
+  const failureMessage = (
+    code: ExpenseActionError | undefined,
+    fallback: string
+  ) => (!code || code === "failed" ? fallback : te(code));
   const canResend =
     issue.canAct &&
     Boolean(issue.expense_id) &&
@@ -107,7 +115,7 @@ function IssueRow({
         setResolved(true);
         toast.success(labels.resolveSuccess);
       } else {
-        toast.error(result.error ?? labels.resolveError);
+        toast.error(failureMessage(result.error, labels.resolveError));
       }
     });
   };
@@ -119,7 +127,7 @@ function IssueRow({
         setResolved(true);
         toast.success(labels.resendSuccess);
       } else {
-        toast.error(result.error ?? labels.resendError);
+        toast.error(failureMessage(result.error, labels.resendError));
       }
     });
   };

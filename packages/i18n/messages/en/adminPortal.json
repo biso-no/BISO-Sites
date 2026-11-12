@@ -1509,7 +1509,8 @@
       "resolveError": "Could not mark the issue as resolved",
       "resend": "Resend notification",
       "resendSuccess": "Approval notification re-sent",
-      "resendError": "Could not resend the approval notification"
+      "resendError": "Could not resend the approval notification",
+      "loadError": "Could not load the approval issues. Reload the page to try again."
     },
     "hintsText": {
       "amount_differs": "Entered amount is {entered}, but the receipt reads {read}.",
@@ -1546,7 +1547,8 @@
       "rejectedOnBehalf": "Rejected on behalf of {role}. {reason}",
       "approverResolved": "Approver found: {email}",
       "notified": "Notified {email}",
-      "booked": "Booked in the ledger",
+      "booked": "Booked in the ledger (transaction {id})",
+      "bookedPlain": "Booked in the ledger",
       "bookingFailed": "Booking failed: {note}",
       "dateShifted": "Posting date moved from {from} to {to}. {note}",
       "bookingRetried": "Booking retried",
@@ -1579,7 +1581,7 @@
       "invalid_description": "The description must be 1 to 255 characters.",
       "invalid_type": "That expense type is not available.",
       "invalid_account": "That is not an active expense account.",
-      "invalid_bank_account": "A Norwegian bank account has 11 digits.",
+      "invalid_bank_account": "That is not a valid Norwegian bank account number. Check the digits.",
       "supporting_receipt": "A supporting statement only has a date and a description.",
       "failed": "Could not save. Try again.",
       "not_current_step": "This step is no longer waiting for a decision.",
@@ -1592,6 +1594,7 @@
       "api_failed": "The expense service did not respond as expected. Try again.",
       "in_progress": "This step is already being processed. Try again in a moment.",
       "self_approver": "The student who submitted the expense cannot be its approver.",
+      "same_approver": "That person is already the approver for this step.",
       "retry_in_progress": "Someone else is already retrying this booking.",
       "booking_failed": "The booking failed again.",
       "status_write_failed": "Finago has the booking, but saving the status failed. Do not retry; contact IT."
@@ -1626,6 +1629,7 @@
       "confirm": "Retry booking",
       "booked": "Booked in Finago",
       "failedAgain": "The booking failed again.",
+      "apiFailed": "The booking service did not answer. Check in Finago whether the expense was booked before you retry.",
       "inProgress": "Booking is in progress. Check Finago before doing anything else."
     },
     "onBehalfRoles": {

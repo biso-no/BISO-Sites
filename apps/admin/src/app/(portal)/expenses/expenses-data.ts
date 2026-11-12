@@ -120,6 +120,20 @@ function isSequenceQuery(q: string): boolean {
   return SEQUENCE_QUERY.test(q) && Number(q) - SEQUENCE_OFFSET > 0;
 }
 
+/**
+ * Expenses the viewer is an approver on. In the `mine` view the ids waiting on
+ * them are added: they come from the viewer's own email, so they are visible
+ * by definition, and the capped approver lookup can never drop them.
+ */
+function visibleApproverIds(
+  filters: ExpenseListFilters,
+  ids: ExpenseListIds
+): string[] {
+  return filters.view === "mine"
+    ? [...new Set([...ids.approverExpenseIds, ...ids.mineExpenseIds])]
+    : ids.approverExpenseIds;
+}
+
 /** The `expense` list queries, or `null` when the result is provably empty. */
 export function buildExpenseListQueries(
   viewer: ExpenseViewer,
@@ -135,7 +149,7 @@ export function buildExpenseListQueries(
     Query.orderDesc("$createdAt"),
     Query.select(SELECT),
     ...paginationQueries(filters),
-    ...expenseVisibilityQueries(viewer, ids.approverExpenseIds),
+    ...expenseVisibilityQueries(viewer, visibleApproverIds(filters, ids)),
   ];
   if (filters.view === "mine") {
     queries.push(
@@ -185,6 +199,7 @@ async function listViewerSteps(
     [
       Query.equal("approver_email", viewer.emails),
       ...(pending ? [Query.equal("status", "pending")] : []),
+      Query.orderDesc("$createdAt"),
       Query.select(["expense_id"]),
       Query.limit(LOOKUP_LIMIT),
     ]
@@ -255,7 +270,10 @@ async function listMineExpenseIds(
       ExpensesStatus.PENDING,
       steps.filter((s) => s.expense_id === id)
     );
-    return current && viewer.emails.includes(current.approver_email);
+    return (
+      current &&
+      viewer.emails.includes(current.approver_email.trim().toLowerCase())
+    );
   });
 }
 
@@ -498,7 +516,7 @@ async function loadDetailParts(db: Db, expenseId: string, failed: boolean) {
     ]),
     db.listRows<ExpenseEvents>("app", "expense_events", [
       Query.equal("expense_id", expenseId),
-      Query.orderAsc("$createdAt"),
+      Query.orderDesc("$createdAt"),
       Query.limit(EVENT_LIMIT),
     ]),
     failed
@@ -512,7 +530,8 @@ async function loadDetailParts(db: Db, expenseId: string, failed: boolean) {
   ]);
   return {
     approvals: approvals.rows,
-    events: events.rows,
+    // Newest-first so a long history keeps its latest events; shown oldest-first.
+    events: [...events.rows].reverse(),
     failureNote: lastFailure.rows[0]?.note ?? null,
   };
 }

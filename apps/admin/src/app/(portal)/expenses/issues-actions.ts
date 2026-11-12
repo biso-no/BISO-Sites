@@ -16,10 +16,17 @@ import {
 import { getExpenseViewer } from "@/lib/expense-viewer";
 import { callExpensesApi } from "@/lib/expenses-api";
 import { logAuditEvent } from "../_actions/audit-log";
+import { apiErrorCode, type ExpenseActionError } from "./action-result";
 
 type ActionResult<T> =
   | { data: T; error?: never }
-  | { data?: never; error: string };
+  | { data?: never; error: ExpenseActionError };
+
+/** The result of resolving or re-sending an issue; the error is a code to translate. */
+export interface IssueActionResult {
+  error?: ExpenseActionError;
+  success: boolean;
+}
 
 export type ExpenseApprovalIssueRow = ExpenseApprovalIssues & {
   /** Whether the viewer may resolve or re-send this issue. */
@@ -28,52 +35,43 @@ export type ExpenseApprovalIssueRow = ExpenseApprovalIssues & {
 
 const ISSUES_TABLE = "expense_approval_issues";
 const LIST_LIMIT = 200;
-const FORBIDDEN = "You do not have access to this approval issue.";
 
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "Unknown error";
+function failed(error: unknown): { error: ExpenseActionError } {
+  console.error("[expense-issues]", error);
+  return { error: "failed" };
 }
 
-/** Lists approval-routing issues the viewer can see, open ones first. */
+/** Lists the open approval-routing issues the viewer can see, newest first. */
 export async function listExpenseApprovalIssues(): Promise<
   ActionResult<ExpenseApprovalIssueRow[]>
 > {
   try {
     const viewer = await getExpenseViewer();
     if (!viewer) {
-      return { error: FORBIDDEN };
+      return { error: "forbidden" };
     }
     const scope = issueCampusScope(viewer);
     if (scope?.length === 0) {
-      return { error: FORBIDDEN };
+      return { error: "forbidden" };
     }
     const { db } = await createAdminClient();
     const result = await db.listRows<ExpenseApprovalIssues>(
       "app",
       ISSUES_TABLE,
       [
+        Query.equal("status", ExpenseApprovalIssuesStatus.OPEN),
         ...(scope ? [Query.equal("campus_id", scope)] : []),
         Query.orderDesc("$createdAt"),
         Query.limit(LIST_LIMIT),
       ]
     );
-    // Open issues first, then most recent.
-    const rows = result.rows
-      .map((row) => ({
-        ...row,
-        canAct: canActOnApprovalIssue(viewer, row.campus_id),
-      }))
-      .sort((a, b) => {
-        const aOpen = a.status !== ExpenseApprovalIssuesStatus.RESOLVED;
-        const bOpen = b.status !== ExpenseApprovalIssuesStatus.RESOLVED;
-        if (aOpen !== bOpen) {
-          return aOpen ? -1 : 1;
-        }
-        return b.$createdAt.localeCompare(a.$createdAt);
-      });
+    const rows = result.rows.map((row) => ({
+      ...row,
+      canAct: canActOnApprovalIssue(viewer, row.campus_id),
+    }));
     return { data: rows };
   } catch (error) {
-    return { error: getErrorMessage(error) };
+    return failed(error);
   }
 }
 
@@ -121,16 +119,16 @@ async function markResolved(
 /** Marks an issue resolved after the user→department mapping has been fixed. */
 export async function resolveExpenseApprovalIssue(
   id: string
-): Promise<{ error?: string; success: boolean }> {
+): Promise<IssueActionResult> {
   try {
     const loaded = await loadActionableIssue(id);
     if (!loaded) {
-      return { error: FORBIDDEN, success: false };
+      return { error: "forbidden", success: false };
     }
     await markResolved(loaded, "expense.approvalIssue.resolve");
     return { success: true };
   } catch (error) {
-    return { error: getErrorMessage(error), success: false };
+    return { ...failed(error), success: false };
   }
 }
 
@@ -143,25 +141,25 @@ export async function resolveExpenseApprovalIssue(
  */
 export async function resendExpenseApprovalNotification(
   issueId: string
-): Promise<{ error?: string; success: boolean }> {
+): Promise<IssueActionResult> {
   try {
     const loaded = await loadActionableIssue(issueId);
     if (!loaded) {
-      return { error: FORBIDDEN, success: false };
+      return { error: "forbidden", success: false };
     }
     const expenseId = loaded.issue.expense_id;
     if (!expenseId) {
-      return { error: "This issue has no expense to resend.", success: false };
+      return { error: "not_found", success: false };
     }
     const response = await callExpensesApi("/api/expenses/resend-approval", {
       expenseId,
     });
     if (!response.ok) {
-      return { error: response.error, success: false };
+      return { error: apiErrorCode(response.code), success: false };
     }
     await markResolved(loaded, "expense.approvalIssue.resend");
     return { success: true };
   } catch (error) {
-    return { error: getErrorMessage(error), success: false };
+    return { ...failed(error), success: false };
   }
 }

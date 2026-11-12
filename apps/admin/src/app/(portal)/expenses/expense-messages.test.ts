@@ -73,4 +73,11 @@ describe("approver and retry warnings", () => {
     expect(en.retry.failedAgain).toBe("The booking failed again.");
     expect(no.retry.failedAgain).toBe("Bokføringen mislyktes igjen.");
   });
+
+  test("an unanswered retry tells the person to check Finago first", () => {
+    expect(en.retry.apiFailed).toBe(
+      "The booking service did not answer. Check in Finago whether the expense was booked before you retry."
+    );
+    expect(no.retry.apiFailed).toContain("Finago");
+  });
 });

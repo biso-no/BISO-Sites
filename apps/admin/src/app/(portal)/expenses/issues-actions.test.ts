@@ -1,4 +1,13 @@
-import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  afterAll,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  spyOn,
+  test,
+} from "bun:test";
+import { Query } from "@repo/api";
 
 const db = {
   getRow: mock(),
@@ -123,9 +132,48 @@ describe("issue actions", () => {
     expect(queries.join("|")).toContain("oslo");
   });
 
+  test("listing filters to open issues in the query, before the limit", async () => {
+    getExpenseViewer.mockResolvedValue(viewer({ isGlobalAdmin: true }));
+    await listExpenseApprovalIssues();
+    const queries = db.listRows.mock.calls[0]?.[2] as string[];
+    expect(queries).toContain(Query.equal("status", "open"));
+  });
+
+  test("a failed resend is an error code, not the server's text", async () => {
+    getExpenseViewer.mockResolvedValue(viewer({ isGlobalAdmin: true }));
+    callExpensesApi.mockResolvedValue(
+      Response.json(
+        { code: "in_progress", error: "Raw server words" },
+        { status: 409 }
+      )
+    );
+    expect(await resendExpenseApprovalNotification("i1")).toEqual({
+      error: "in_progress",
+      success: false,
+    });
+    callExpensesApi.mockResolvedValue(
+      Response.json({ error: "Raw server words" }, { status: 500 })
+    );
+    expect(await resendExpenseApprovalNotification("i1")).toEqual({
+      error: "api_failed",
+      success: false,
+    });
+  });
+
+  test("an unexpected failure is the generic code, not the exception text", async () => {
+    getExpenseViewer.mockResolvedValue(viewer({ isGlobalAdmin: true }));
+    db.updateRow.mockRejectedValue(new Error("db exploded"));
+    const spy = spyOn(console, "error").mockImplementation(() => undefined);
+    expect(await resolveExpenseApprovalIssue("i1")).toEqual({
+      error: "failed",
+      success: false,
+    });
+    spy.mockRestore();
+  });
+
   test("listing refuses a viewer with no campus access", async () => {
     const result = await listExpenseApprovalIssues();
-    expect(result.error).toBeDefined();
+    expect(result.error).toBe("forbidden");
     expect(db.listRows).not.toHaveBeenCalled();
   });
 });

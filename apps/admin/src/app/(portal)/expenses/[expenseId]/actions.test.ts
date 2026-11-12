@@ -225,7 +225,7 @@ describe("updateExpenseBankAccount", () => {
 
   test("refuses an approver who is not an actor", async () => {
     const result = await updateExpenseBankAccount({
-      bankAccount: "98765432109",
+      bankAccount: "98765432103",
       expenseId: "ex1",
     });
     expect(result).toHaveProperty("error");
@@ -241,19 +241,29 @@ describe("updateExpenseBankAccount", () => {
     expect(result).toEqual({ error: "invalid_bank_account" });
   });
 
+  test("rejects 11 digits with a wrong check digit", async () => {
+    getExpenseViewer.mockResolvedValue(admin());
+    const result = await updateExpenseBankAccount({
+      bankAccount: "1234.56.78904",
+      expenseId: "ex1",
+    });
+    expect(result).toEqual({ error: "invalid_bank_account" });
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+
   test("stores digits and logs masked values as admin", async () => {
     getExpenseViewer.mockResolvedValue(admin());
     const result = await updateExpenseBankAccount({
-      bankAccount: "9876.54.32109",
+      bankAccount: "9876.54.32103",
       expenseId: "ex1",
     });
     expect(result).toEqual({ data: null });
     expect(db.updateRow).toHaveBeenCalledWith("app", "expense", "ex1", {
-      bank_account: "98765432109",
+      bank_account: "98765432103",
     });
     expect(db.createRow.mock.calls[0]?.[3]).toMatchObject({
       actor_kind: "admin",
-      after: "•••• 2109",
+      after: "•••• 2103",
       before: "•••• 8903",
       field: "bank_account",
     });
@@ -316,6 +326,17 @@ describe("decideExpenseStep", () => {
       decision: "approved",
       onBehalf: false,
     });
+  });
+
+  test("an empty viewer name falls back to the email", async () => {
+    getExpenseViewer.mockResolvedValue(viewer({ name: "  " }));
+    fetchMock.mockResolvedValue(decidedOk("approved"));
+    await decideExpenseStep({
+      approvalId: "s1",
+      decision: "approved",
+      expenseId: "ex1",
+    });
+    expect(apiBody().actor.name).toBe("fin@example.com");
   });
 
   test("sends on-behalf for a global admin", async () => {
@@ -535,6 +556,25 @@ describe("retryExpenseBooking", () => {
 });
 
 describe("changeExpenseApprover api codes", () => {
+  test("maps same_approver", async () => {
+    getExpenseViewer.mockResolvedValue(
+      viewer({ emails: ["boss@example.com"], isGlobalAdmin: true })
+    );
+    fetchMock.mockResolvedValue(
+      Response.json(
+        { code: "same_approver", error: "Already the approver" },
+        { status: 400 }
+      )
+    );
+    expect(
+      await changeExpenseApprover({
+        approvalId: "s1",
+        email: "old@biso.no",
+        expenseId: "ex1",
+      })
+    ).toEqual({ error: "same_approver" });
+  });
+
   test("maps self_approver", async () => {
     getExpenseViewer.mockResolvedValue(
       viewer({ emails: ["boss@example.com"], isGlobalAdmin: true })

@@ -7,6 +7,15 @@ import {
 import { getExpenseViewer } from "@/lib/expense-viewer";
 
 const EXPENSES_BUCKET = "expenses";
+/** Types a browser may render in the page. Anything else is a download. */
+const INLINE_MIME_TYPES: ReadonlySet<string> = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+  "application/pdf",
+]);
 
 /**
  * Streams one receipt of an expense. Route handlers sit outside the portal
@@ -37,11 +46,15 @@ export async function GET(
       storage.getFile(EXPENSES_BUCKET, fileId),
       storage.getFileView(EXPENSES_BUCKET, fileId),
     ]);
+    // A receipt is student-supplied, so never let the browser interpret an
+    // unexpected type (an HTML or SVG file would run on the admin origin).
+    const inline = INLINE_MIME_TYPES.has(file.mimeType?.toLowerCase() ?? "");
     return new NextResponse(bytes, {
       headers: {
         "Cache-Control": "private, no-store",
-        "Content-Disposition": "inline",
-        "Content-Type": file.mimeType || "application/octet-stream",
+        "Content-Disposition": inline ? "inline" : "attachment",
+        "Content-Type": inline ? file.mimeType : "application/octet-stream",
+        "X-Content-Type-Options": "nosniff",
       },
       status: 200,
     });

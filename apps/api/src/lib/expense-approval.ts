@@ -188,7 +188,9 @@ async function notifyStep(
       actorKind: "system",
       after: row.approver_email.toLowerCase(),
       expenseId: row.expense_id,
-      note: teamsDelivered ? "teams,email" : "email",
+      note: [teamsDelivered && "teams", emailDelivered && "email"]
+        .filter(Boolean)
+        .join(","),
     },
   ]);
 }
@@ -506,7 +508,8 @@ export type ApprovalErrorCode =
   | "not_found"
   | "not_current_step"
   | "in_progress"
-  | "self_approver";
+  | "self_approver"
+  | "same_approver";
 
 export type DecisionResult =
   | { ok: false; error: string; code: ApprovalErrorCode }
@@ -1157,8 +1160,23 @@ export async function changeStepApprover(params: {
   }
 
   const email = params.email.trim().toLowerCase();
-  const submitter = await db.getRow<Users>("app", "user", expense.userId);
-  if (submitter.email?.trim().toLowerCase() === email) {
+  if (row.approver_email.trim().toLowerCase() === email) {
+    return {
+      ok: false,
+      code: "same_approver",
+      error: "This person is already the approver for the step.",
+    };
+  }
+  const submitter = await db
+    .getRow<Users>("app", "user", expense.userId)
+    .catch((error: unknown) => {
+      // A missing submitter row only means there is no email to compare.
+      if (appwriteErrorStatus(error) === HTTP_NOT_FOUND) {
+        return null;
+      }
+      throw error;
+    });
+  if (submitter?.email?.trim().toLowerCase() === email) {
     return {
       ok: false,
       code: "self_approver",

@@ -100,6 +100,7 @@ Both functions are in `packages/shared/utils/team-roles.ts`, and the API uses th
 | `hr` | `sg-app-dept-hr`, from the Microsoft group `SG-App-Dept-HR`. No other group gives HR. |
 | `benefitseditor` | People whose email is in `BENEFITS_EDITOR_EMAILS`, and only if that email is on their Microsoft identity. No team is involved. |
 | `department` | Anyone with at least one department team. It counts as a role in the menu rules. |
+| `expenseapprover` | Anyone whose Microsoft identity email matches the `approver_email` of an approval row or the email of an active `expense_approvers` directory row. This is how approver mailboxes, which sit in no team, get in. The role opens only Expenses. |
 
 Two more rules:
 
@@ -149,7 +150,7 @@ The admin has no middleware. Each layout, page, server action and route handler 
 
 | Check | Where it's used | What it does |
 |---|---|---|
-| `requireAdminAccess()` | The `(portal)` and `(editor)` layouts | No session: sends the person to sign in. Signed in, but in no campus or department team and not a benefits editor: shows the 401 page. |
+| `requireAdminAccess()` | The `(portal)` and `(editor)` layouts | No session: sends the person to sign in. Signed in, but in no campus or department team, not a benefits editor and not an expense approver: shows the 401 page. |
 | `requireNavAccess(navKey)` | The top of each page | Global admins always pass. Anyone else needs a role listed for that key in `NAV_ACCESS` in `roles.ts`, or gets a 404. |
 | `requireAuth()` | Server actions | Sends the person to sign in if there's no session. It checks no role, so the action must check scope itself. |
 | `requireApiAuth()`, `requireApiGlobalAdmin()`, `requireApiAccountingAdmin()` | Route handlers (`apps/admin/src/lib/api-auth.ts`) | Answer 401 or 403 instead of redirecting. |

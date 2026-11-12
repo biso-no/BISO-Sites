@@ -17,6 +17,67 @@ const event = (over: Partial<ExpenseDetailEvent>): ExpenseDetailEvent => ({
   ...over,
 });
 
+describe("describeEvent booked and approver changes", () => {
+  test("booked shows the transaction id from the note", () => {
+    expect(
+      describeEvent(
+        event({ action: "booked", actorKind: "system", note: "tx-55" })
+      )
+    ).toEqual({ key: "booked", values: { id: "tx-55" } });
+  });
+
+  test("booked keeps just the id when a status warning follows", () => {
+    expect(
+      describeEvent(
+        event({
+          action: "booked",
+          note: "tx-55 (status write failed: x)",
+        })
+      )
+    ).toEqual({ key: "booked", values: { id: "tx-55" } });
+  });
+
+  test("booked without a note has no id to show", () => {
+    expect(describeEvent(event({ action: "booked" }))).toEqual({
+      key: "bookedPlain",
+      values: {},
+    });
+  });
+
+  test.each([
+    "admin",
+    "approver",
+  ])("an approver change by %s reads as a change from A to B", (actorKind) => {
+    expect(
+      describeEvent(
+        event({
+          action: "approver_resolved",
+          actorKind,
+          after: "b@biso.no",
+          before: "a@biso.no",
+          field: "approver_email",
+          note: "changed in admin",
+        })
+      )
+    ).toEqual({
+      key: "edited.approver_email",
+      values: { after: "b@biso.no", before: "a@biso.no" },
+    });
+  });
+
+  test("the system's own approver resolution stays 'approver found'", () => {
+    expect(
+      describeEvent(
+        event({
+          action: "approver_resolved",
+          actorKind: "system",
+          after: "b@biso.no",
+        })
+      )
+    ).toEqual({ key: "approverResolved", values: { email: "b@biso.no" } });
+  });
+});
+
 describe("describeEvent", () => {
   test("edited amount carries before and after", () => {
     expect(

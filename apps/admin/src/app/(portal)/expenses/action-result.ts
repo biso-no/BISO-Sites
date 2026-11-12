@@ -20,6 +20,7 @@ export type ExpenseActionError =
   | "posting_disabled"
   | "in_progress"
   | "self_approver"
+  | "same_approver"
   | "retry_in_progress"
   | "booking_failed"
   | "status_write_failed"
@@ -41,6 +42,7 @@ const API_CODES: Record<string, ExpenseActionError> = {
   not_found: "not_found",
   posting_disabled: "posting_disabled",
   retry_in_progress: "retry_in_progress",
+  same_approver: "same_approver",
   self_approver: "self_approver",
   status_write_failed: "status_write_failed",
 };

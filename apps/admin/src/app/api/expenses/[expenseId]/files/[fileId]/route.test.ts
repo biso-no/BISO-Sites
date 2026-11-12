@@ -72,7 +72,29 @@ describe("receipt file route", () => {
     expect(res.headers.get("Content-Type")).toBe("application/pdf");
     expect(res.headers.get("Cache-Control")).toBe("private, no-store");
     expect(res.headers.get("Content-Disposition")).toBe("inline");
+    expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
     expect(storage.getFileView).toHaveBeenCalledWith("expenses", "f1");
     expect((await res.arrayBuffer()).byteLength).toBe(3);
+  });
+
+  test("serves an image inline", async () => {
+    storage.getFile.mockResolvedValue({ mimeType: "image/png" });
+    const res = await call("f1");
+    expect(res.headers.get("Content-Type")).toBe("image/png");
+    expect(res.headers.get("Content-Disposition")).toBe("inline");
+  });
+
+  test.each([
+    "text/html",
+    "image/svg+xml",
+    "application/octet-stream",
+    "",
+  ])("serves %p as a download, never inline", async (mimeType) => {
+    storage.getFile.mockResolvedValue({ mimeType });
+    const res = await call("f1");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("application/octet-stream");
+    expect(res.headers.get("Content-Disposition")).toBe("attachment");
+    expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
   });
 });

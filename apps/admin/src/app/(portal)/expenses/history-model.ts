@@ -39,6 +39,8 @@ const ROLE_PHRASES: Record<string, string> = {
 };
 
 const ON_BEHALF_NOTE = /^On behalf of (.+?)(?: · Reason: ([\s\S]*))?$/;
+/** The ledger transaction id leads the note; a status-write warning may follow it. */
+const TRANSACTION_ID = /^\S+/;
 const REASON_NOTE = /^Reason: ([\s\S]*)$/;
 
 function parseDecisionNote(note: string | null): {
@@ -106,11 +108,19 @@ export function describeEvent(
     case "rejected":
       return describeDecision("rejected", event.note, labels);
     case "approver_resolved":
-      return { key: "approverResolved", values: { email: event.after ?? "" } };
+      // A person swapping the approver is an edit; the resolver's pick is not.
+      return event.field === "approver_email" &&
+        (event.actorKind === "admin" || event.actorKind === "approver")
+        ? describeEdit(event)
+        : { key: "approverResolved", values: { email: event.after ?? "" } };
     case "notified":
       return { key: "notified", values: { email: event.after ?? "" } };
-    case "booked":
-      return { key: "booked", values: { id: event.after ?? "" } };
+    case "booked": {
+      const id = TRANSACTION_ID.exec(event.note?.trim() ?? "")?.[0];
+      return id
+        ? { key: "booked", values: { id } }
+        : { key: "bookedPlain", values: {} };
+    }
     case "booking_failed":
       return { key: "bookingFailed", values: { note: event.note ?? "" } };
     case "date_shifted":

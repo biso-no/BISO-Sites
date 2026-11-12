@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import type { ExpenseActionError } from "../../action-result";
 import { retryExpenseBooking } from "../actions";
 
 /** Retries a failed ledger booking after a warning about double payment. */
@@ -24,16 +25,25 @@ export function RetryBookingButton({ expenseId }: { expenseId: string }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
+  const retryErrorMessage = (result: {
+    error: ExpenseActionError;
+    message?: string;
+  }): string => {
+    if (result.error === "booking_failed" && result.message) {
+      return `${t("failedAgain")} ${result.message}`;
+    }
+    // An unanswered call may still have booked: say so, not "Try again".
+    return result.error === "api_failed"
+      ? t("apiFailed")
+      : te(`errors.${result.error}`);
+  };
+
   const retry = () =>
     startTransition(async () => {
       const result = await retryExpenseBooking({ expenseId });
       setOpen(false);
       if ("error" in result) {
-        toast.error(
-          result.error === "booking_failed" && result.message
-            ? `${t("failedAgain")} ${result.message}`
-            : te(`errors.${result.error}`)
-        );
+        toast.error(retryErrorMessage(result));
       } else if (result.data.status === "success") {
         toast.success(t("booked"));
       } else if (result.data.status === "failed") {

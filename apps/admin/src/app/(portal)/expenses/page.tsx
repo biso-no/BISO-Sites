@@ -1,10 +1,6 @@
 import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
-import {
-  type Campus,
-  type Departments,
-  ExpenseApprovalIssuesStatus,
-} from "@repo/api/types/appwrite";
+import type { Campus, Departments } from "@repo/api/types/appwrite";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { getUserAuthContext } from "@/lib/authorization";
@@ -103,13 +99,16 @@ export default async function ExpensesPage({
       listDepartmentOptions(filters.campusId),
       filters.view === "attention" ? listExpenseApprovalIssues() : null,
     ]);
-  const openIssues = (issues?.data ?? []).filter(
-    (issue) => issue.status !== ExpenseApprovalIssuesStatus.RESOLVED
-  );
+  const openIssues = issues?.data ?? [];
 
   return (
     <div className="pb-12">
       <PageHeader description={t("description")} title={t("title")} />
+      {issues?.error && (
+        <p className="mb-4 text-[13px] text-destructive" role="alert">
+          {t("issues.loadError")}
+        </p>
+      )}
       {openIssues.length > 0 && (
         <ApprovalIssuesPanel
           issues={openIssues}
