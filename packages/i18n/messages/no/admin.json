@@ -252,6 +252,7 @@
     "globalAdmin": "Global administrator",
     "campusAdmin": "Campusadministrator",
     "member": "Medlem",
-    "benefitsEditor": "Fordelsansvarlig"
+    "benefitsEditor": "Fordelsansvarlig",
+    "expenseApprover": "Godkjenner"
   }
 }

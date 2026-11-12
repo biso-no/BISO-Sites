@@ -3,6 +3,7 @@ import {
   NATIONAL_CAMPUS_ID,
 } from "@repo/shared/utils/benefit-catalog";
 import { BENEFIT_ERRORS } from "./benefits/benefit-errors";
+import { MICROSOFT_PROVIDER } from "./microsoft-identity";
 import { ROLES } from "./roles";
 
 /** Every campus id a benefit can belong to: the four campuses plus national. */
@@ -35,8 +36,6 @@ export function isBenefitEditorEmail(
   }
   return parseBenefitEditorEmails(configured).has(email.trim().toLowerCase());
 }
-
-const MICROSOFT_PROVIDER = "microsoft";
 
 /**
  * True when some Microsoft OAuth identity carries a configured editor email.

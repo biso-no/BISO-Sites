@@ -14,6 +14,10 @@ const benefitsEditor = {
   hasDepartmentMembership: false,
   roles: ["benefitseditor"],
 };
+const expenseApprover = {
+  hasDepartmentMembership: false,
+  roles: ["expenseapprover"],
+};
 const noAccess = { hasDepartmentMembership: false, roles: [] };
 
 function labels(nodes: ReturnType<typeof filterNavTree>) {
@@ -29,8 +33,7 @@ describe("filterNavTree", () => {
       "content",
       "shop",
       "shopAccounting",
-      // One visible child flattens the expenses group to its leaf.
-      "expensesSettings",
+      "expenses",
       "organization",
       "analytics",
       "system",
@@ -179,5 +182,19 @@ describe("expenses navigation", () => {
     expect(paths(globalAdmin)).toContain("/expenses/settings");
     expect(paths(campusAdmin)).not.toContain("/expenses/settings");
     expect(paths(departmentUser)).not.toContain("/expenses/settings");
+  });
+
+  test("the group has two leaves for a global admin", () => {
+    const group = filterNavTree(globalAdmin).find(
+      (n) => n.labelKey === "expenses"
+    );
+    expect(
+      group?.kind === "group" && group.children.map((c) => c.path)
+    ).toEqual(["/expenses", "/expenses/settings"]);
+  });
+
+  test("approver role opens only the expenses nav", () => {
+    expect(paths(expenseApprover)).toEqual(["/expenses"]);
+    expect(getDefaultNavPath(expenseApprover)).toBe("/expenses");
   });
 });

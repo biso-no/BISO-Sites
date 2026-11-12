@@ -15,6 +15,7 @@ import {
   Layers,
   LayoutDashboard,
   LineChart,
+  ListChecks,
   type LucideIcon,
   Megaphone,
   Newspaper,
@@ -91,6 +92,7 @@ export const NAV_TREE: NavNode[] = [
   ),
   {
     children: [
+      leaf("expensesList", "portal.expenses", "/expenses", ListChecks),
       leaf(
         "expensesSettings",
         "portal.expensesSettings",

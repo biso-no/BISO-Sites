@@ -23,6 +23,9 @@ async function getRoleLabel(
   if (ctx.roles.includes(ROLES.BENEFITS_EDITOR)) {
     return t("benefitsEditor");
   }
+  if (ctx.roles.includes(ROLES.EXPENSE_APPROVER)) {
+    return t("expenseApprover");
+  }
   return ctx.departmentNames[0] ?? t("member");
 }
 

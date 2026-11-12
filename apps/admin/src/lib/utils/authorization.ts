@@ -10,7 +10,7 @@ import type { UserAuthContext } from "../authorization";
  * Matches no rows, so callers fail closed (empty list) instead of returning
  * everything when the scope lookup is partial.
  */
-const NO_MATCH_FILTER = Query.equal("$id", "__no_scope_resolved__");
+export const NO_MATCH_FILTER = Query.equal("$id", "__no_scope_resolved__");
 
 /**
  * Check if user is a global admin based on context (team membership only)

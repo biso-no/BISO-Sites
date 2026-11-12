@@ -18,6 +18,7 @@ import {
 } from "./benefit-access";
 import { CAMPUS_ID_TO_NAME, CAMPUS_NAME_TO_ID } from "./campus-constants";
 import { matchDepartmentIdsByKey } from "./department-name-match";
+import { microsoftIdentityEmails } from "./microsoft-identity";
 
 const CAMPUS_CTX_COOKIE = "admin_campus_ctx";
 
@@ -45,15 +46,51 @@ export interface UserAuthContext {
  * Fail-closed check that the session's account has a Microsoft identity with
  * a configured benefits-editor email.
  */
-async function hasMicrosoftEditorIdentity(account: {
+interface IdentityAccount {
   listIdentities: () => Promise<{
     identities: { provider: string; providerEmail?: string | null }[];
   }>;
-}): Promise<boolean> {
+}
+
+/** The account's identities, or null when they cannot be read (fail closed). */
+async function loadIdentities(
+  account: IdentityAccount
+): Promise<
+  Awaited<ReturnType<IdentityAccount["listIdentities"]>>["identities"] | null
+> {
   try {
     const { identities } = await account.listIdentities();
-    return hasVerifiedBenefitEditorIdentity(identities);
+    return identities;
   } catch {
+    return null;
+  }
+}
+
+/**
+ * True when the Microsoft identity emails appear on any expense approval or
+ * in an active expense_approvers row. Never throws: a failed lookup leaves the
+ * role out (the user then gets no access through this path).
+ */
+async function hasExpenseApproverGrant(emails: string[]): Promise<boolean> {
+  if (emails.length === 0) {
+    return false;
+  }
+  try {
+    const { db } = await createAdminClient();
+    const [approvals, approvers] = await Promise.all([
+      db.listRows("app", "expense_approvals", [
+        Query.equal("approver_email", emails),
+        Query.limit(1),
+      ]),
+      db.listRows("app", "expense_approvers", [
+        Query.equal("email", emails),
+        Query.equal("active", true),
+        Query.limit(1),
+      ]),
+    ]);
+    return approvals.rows.length > 0 || approvers.rows.length > 0;
+  } catch (error) {
+    console.error("[expense-access] approver lookup failed", error);
     return false;
   }
 }
@@ -178,12 +215,29 @@ export const getUserAuthContext = cache(
       );
       const { managedCampuses } = parsed;
       const roles = [...parsed.roles];
-      if (
+      const needsBenefitCheck =
         isBenefitEditorEmail(user.email) &&
-        !roles.includes(ROLES.BENEFITS_EDITOR) &&
-        (await hasMicrosoftEditorIdentity(account))
-      ) {
-        roles.push(ROLES.BENEFITS_EDITOR);
+        !roles.includes(ROLES.BENEFITS_EDITOR);
+      const needsApproverCheck = !(
+        roles.includes(ROLES.GLOBAL_ADMIN) || roles.includes(ROLES.CAMPUS_ADMIN)
+      );
+      if (needsBenefitCheck || needsApproverCheck) {
+        // One identities read serves both checks.
+        const identities = await loadIdentities(account);
+        if (
+          needsBenefitCheck &&
+          identities &&
+          hasVerifiedBenefitEditorIdentity(identities)
+        ) {
+          roles.push(ROLES.BENEFITS_EDITOR);
+        }
+        if (
+          needsApproverCheck &&
+          identities &&
+          (await hasExpenseApproverGrant(microsoftIdentityEmails(identities)))
+        ) {
+          roles.push(ROLES.EXPENSE_APPROVER);
+        }
       }
 
       const managedCampusIds = managedCampuses
@@ -366,7 +420,8 @@ export async function requireAdminAccess(): Promise<UserAuthContext> {
   const hasTeam =
     ctx.campusTeamIds.length > 0 ||
     ctx.departmentTeamIds.length > 0 ||
-    ctx.roles.includes(ROLES.BENEFITS_EDITOR);
+    ctx.roles.includes(ROLES.BENEFITS_EDITOR) ||
+    ctx.roles.includes(ROLES.EXPENSE_APPROVER);
   if (!hasTeam) {
     unauthorized();
   }

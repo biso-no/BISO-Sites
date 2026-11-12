@@ -1,5 +1,6 @@
 import {
   afterAll,
+  afterEach,
   beforeEach,
   describe,
   expect,
@@ -552,5 +553,90 @@ describe("department teams resolve to department rows", () => {
     const ctx = await getUserAuthContext();
 
     expect(ctx?.resolvedDepartmentIds).toEqual(["2"]);
+  });
+});
+
+describe("expense approver role", () => {
+  const identities = [
+    { provider: "microsoft", providerEmail: "Finance.NU.Oslo@biso.no" },
+  ];
+  let consoleError: ReturnType<typeof spyOn>;
+
+  afterEach(() => consoleError.mockRestore());
+
+  const approverLookups = () =>
+    db.listRows.mock.calls.filter((c) => String(c[1]).startsWith("expense_"));
+
+  beforeEach(() => {
+    consoleError = spyOn(console, "error").mockImplementation(() => undefined);
+    account.get.mockReset();
+    account.listIdentities.mockReset();
+    teams.list.mockReset();
+    db.listRows.mockReset();
+    memberOf([]);
+    account.get.mockResolvedValue({
+      $id: "role-1",
+      email: "finance.nu.oslo@biso.no",
+      name: "Finance",
+    });
+    account.listIdentities.mockResolvedValue({ identities });
+    db.listRows.mockResolvedValue({ rows: [], total: 0 });
+  });
+
+  test("grants the approver role from a Microsoft identity email", async () => {
+    db.listRows.mockImplementation(async (_db: string, table: string) => ({
+      rows: table === "expense_approvals" ? [{ $id: "a1" }] : [],
+      total: 0,
+    }));
+    expect((await getUserRolesForClient()).roles).toContain("expenseapprover");
+    const call = db.listRows.mock.calls.find(
+      (c) => c[1] === "expense_approvals"
+    );
+    expect(call?.[2].join()).toContain("finance.nu.oslo@biso.no");
+    const ctx = await requireAdminAccess();
+    expect(ctx.roles).toContain("expenseapprover");
+  });
+
+  test("grants it from an active expense_approvers row", async () => {
+    db.listRows.mockImplementation(async (_db: string, table: string) => ({
+      rows: table === "expense_approvers" ? [{ $id: "r1" }] : [],
+      total: 0,
+    }));
+    expect((await getUserRolesForClient()).roles).toContain("expenseapprover");
+  });
+
+  test("ignores the bare account email", async () => {
+    account.listIdentities.mockResolvedValue({ identities: [] });
+    db.listRows.mockResolvedValue({ rows: [{ $id: "a1" }], total: 1 });
+    expect((await getUserRolesForClient()).roles).not.toContain(
+      "expenseapprover"
+    );
+    expect(approverLookups()).toHaveLength(0);
+    await expect(requireAdminAccess()).rejects.toThrow("NEXT_UNAUTHORIZED");
+  });
+
+  test("no match leaves the role out", async () => {
+    expect((await getUserRolesForClient()).roles).not.toContain(
+      "expenseapprover"
+    );
+  });
+
+  test("a failed lookup leaves the role out and does not throw", async () => {
+    db.listRows.mockRejectedValue(new Error("down"));
+    expect((await getUserRolesForClient()).roles).not.toContain(
+      "expenseapprover"
+    );
+    expect(consoleError).toHaveBeenCalled();
+  });
+
+  test("global admins skip the lookup", async () => {
+    memberOf([
+      { $id: "sg-app-campus-national", name: "National" },
+      { $id: "sg-app-dept-operationsunit", name: "Operations Unit" },
+    ]);
+    db.listRows.mockResolvedValue({ rows: [{ $id: "a1" }], total: 1 });
+    const { roles } = await getUserRolesForClient();
+    expect(roles).not.toContain("expenseapprover");
+    expect(approverLookups()).toHaveLength(0);
   });
 });

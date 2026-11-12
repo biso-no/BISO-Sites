@@ -252,6 +252,7 @@
     "globalAdmin": "Global Admin",
     "campusAdmin": "Campus Admin",
     "member": "Member",
-    "benefitsEditor": "Benefits manager"
+    "benefitsEditor": "Benefits manager",
+    "expenseApprover": "Approver"
   }
 }

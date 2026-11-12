@@ -21,6 +21,7 @@ export const ROLES = {
   HR_ADMIN: "hradmin", // sg-app-campus-national + an HR team id
   HR: "hr", // Membership in sg-app-dept-hr
   BENEFITS_EDITOR: "benefitseditor", // Email allow-list (BENEFITS_EDITOR_EMAILS)
+  EXPENSE_APPROVER: "expenseapprover", // Microsoft identity email named on an expense approval or in expense_approvers
 } as const;
 
 // Pseudo-role for any user with at least one recorded sg-app-dept-* team id
@@ -80,6 +81,12 @@ export const NAV_ACCESS = {
   "portal.shopAccounting": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   // Expense types and their ledger accounts: global admins (finance) only.
   "portal.expensesSettings": [ROLES.GLOBAL_ADMIN],
+  // The expense list: admins plus anyone named as an approver.
+  "portal.expenses": [
+    ROLES.GLOBAL_ADMIN,
+    ROLES.CAMPUS_ADMIN,
+    ROLES.EXPENSE_APPROVER,
+  ],
   "portal.benefits": [
     ROLES.GLOBAL_ADMIN,
     ROLES.CAMPUS_ADMIN,

@@ -127,3 +127,13 @@ describe("portal.jobs gates the overview's vacancy card and stats", () => {
     expect(hasNavAccess("portal.jobs", [], true)).toBe(false);
   });
 });
+
+describe("expense approver navigation", () => {
+  test("approver role opens only the expenses nav", () => {
+    const roles = [ROLES.EXPENSE_APPROVER];
+    expect(hasNavAccess("portal.expenses", roles, false)).toBe(true);
+    expect(hasNavAccess("portal.dashboard", roles, false)).toBe(false);
+    expect(hasNavAccess("portal.pages", roles, false)).toBe(false);
+    expect(hasNavAccess("portal.expensesSettings", roles, false)).toBe(false);
+  });
+});
