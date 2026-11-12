@@ -6,8 +6,11 @@ import {
   normalizeLocale,
 } from "../../../shop/_components/shop-studio-theme";
 import type { ExpenseDetailReceipt } from "../../expenses-data";
+import { type ReceiptEditOptions, ReceiptEditor } from "./receipt-editor";
 
 interface Props {
+  /** Present only when the viewer may edit receipts. */
+  editOptions: ReceiptEditOptions | null;
   expenseId: string;
   receipts: ExpenseDetailReceipt[];
 }
@@ -24,17 +27,17 @@ const COLUMNS = [
 ] as const;
 
 /** The type column: the student's own words in quotes, else the type label. */
-function typeText(r: ExpenseDetailReceipt): string | null {
+function typeText(r: ExpenseDetailReceipt, none: string): string {
   if (r.isSupporting) {
     return "";
   }
   if (r.costTypeText) {
     return `“${r.costTypeText}”`;
   }
-  return r.costTypeLabel ?? r.costType;
+  return r.costTypeLabel ?? r.costType ?? none;
 }
 
-export function ExpenseReceipts({ expenseId, receipts }: Props) {
+export function ExpenseReceipts({ editOptions, expenseId, receipts }: Props) {
   const t = useTranslations("adminPortal.expenses");
   const locale = normalizeLocale(useLocale());
   const date = (iso: string | null) => (iso ? fmtDate(iso, locale) : t("none"));
@@ -63,6 +66,11 @@ export function ExpenseReceipts({ expenseId, receipts }: Props) {
                     {t(`receipts.${c}`)}
                   </th>
                 ))}
+                {editOptions && (
+                  <th className="px-3 py-2" scope="col">
+                    <span className="sr-only">{t("edit.edit")}</span>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -106,7 +114,7 @@ export function ExpenseReceipts({ expenseId, receipts }: Props) {
                   <td className="px-3 py-2">
                     {r.amount === null ? t("none") : fmtNOK(r.amount)}
                   </td>
-                  <td className="px-3 py-2">{typeText(r) ?? t("none")}</td>
+                  <td className="px-3 py-2">{typeText(r, t("none"))}</td>
                   <td className="px-3 py-2">
                     {r.accountNumber === null ? (
                       t("none")
@@ -135,6 +143,15 @@ export function ExpenseReceipts({ expenseId, receipts }: Props) {
                     ))}
                   </td>
                   <td className="px-3 py-2">{date(r.bookedDate)}</td>
+                  {editOptions && (
+                    <td className="px-3 py-2 text-right">
+                      <ReceiptEditor
+                        expenseId={expenseId}
+                        options={editOptions}
+                        receipt={r}
+                      />
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

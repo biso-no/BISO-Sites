@@ -4,6 +4,7 @@ import { MONO_STACK, STUDIO, StudioPanel } from "../../../_components/studio";
 import { fmtNOK } from "../../../shop/_components/shop-studio-theme";
 import { ExpenseStatusBadge } from "../../_components/expense-status-badge";
 import type { ExpenseDetail } from "../../expenses-data";
+import { BankAccountEditor } from "./bank-account-editor";
 
 function Field({
   label,
@@ -29,6 +30,7 @@ function Field({
 
 export function ExpenseHeader({ detail }: { detail: ExpenseDetail }) {
   const t = useTranslations("adminPortal.expenses.detail");
+  const te = useTranslations("adminPortal.expenses");
   return (
     <StudioPanel className="mt-6 p-5">
       <div className="flex flex-wrap items-center gap-3">
@@ -52,8 +54,18 @@ export function ExpenseHeader({ detail }: { detail: ExpenseDetail }) {
         <Field label={t("total")}>{fmtNOK(detail.total)}</Field>
         <Field label={t("bankAccount")}>
           <span style={{ fontFamily: MONO_STACK }}>{detail.bankAccount}</span>
+          {detail.permissions.canEditBankAccount && (
+            <BankAccountEditor
+              bankAccount={detail.bankAccount}
+              expenseId={detail.id}
+            />
+          )}
         </Field>
-        {detail.event && <Field label={t("event")}>{detail.event.title}</Field>}
+        {detail.event && (
+          <Field label={t("event")}>
+            {detail.event.title ?? te("eventTitleUnavailable")}
+          </Field>
+        )}
         {detail.ledgerTransactionId && (
           <Field label={t("ledgerTransaction")}>
             <span style={{ fontFamily: MONO_STACK }}>

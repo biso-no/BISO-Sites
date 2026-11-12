@@ -1536,6 +1536,7 @@
       "aiAccountChosen": "AI chose account {account}",
       "edited": {
         "amount": "Changed amount from {before} to {after}",
+        "total": "Changed total from {before} to {after}",
         "account_number": "Changed account from {before} to {after}",
         "cost_type": "Changed type from {before} to {after}",
         "cost_type_text": "Changed type text from \"{before}\" to \"{after}\"",
@@ -1556,8 +1557,25 @@
       "bookingFailed": "Booking failed: {note}",
       "dateShifted": "Posting date moved from {from} to {to}. {note}",
       "bookingRetried": "Booking retried",
-      "unknown": "Unknown event ({action})"
-    }
+      "unknown": "Unknown event ({action})",
+      "reason": "Reason"
+    },
+    "edit": {
+      "edit": "Edit",
+      "receiptTitle": "Edit receipt",
+      "type": "Type",
+      "account": "Account",
+      "chooseAccount": "Choose account",
+      "searchAccount": "Search by number or name",
+      "noAccountFound": "No matching account",
+      "save": "Save",
+      "saved": "Saved",
+      "saveError": "Could not save",
+      "bankTitle": "Edit bank account",
+      "bankAccount": "Bank account",
+      "bankHint": "11 digits. Spaces and dots are ignored."
+    },
+    "eventTitleUnavailable": "Event (title unavailable)"
   },
   "expensesSettings": {
     "title": "Expense settings",

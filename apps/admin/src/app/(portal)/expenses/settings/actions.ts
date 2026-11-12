@@ -14,6 +14,7 @@ import { getUserAuthContext, type UserAuthContext } from "@/lib/authorization";
 import { syncLedgerAccounts } from "@/lib/finago/ledger-accounts-sync";
 import { ROLES } from "@/lib/roles";
 import { logAuditEvent } from "../../_actions/audit-log";
+import type { ActionResult } from "../action-result";
 import {
   EXPENSE_ACCOUNT_MAX,
   EXPENSE_ACCOUNT_MIN,
@@ -28,8 +29,6 @@ const PAGE_PATH = "/expenses/settings";
 const TYPES_TABLE = "expense_cost_types";
 const LEDGER_ACCOUNTS_TABLE = "ledger_accounts";
 const MAX_ROWS = 500;
-
-export type ActionResult<T> = { data: T } | { error: string };
 
 type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
 

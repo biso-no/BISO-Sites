@@ -400,7 +400,8 @@ export interface ExpenseDetail {
   campus: { id: string; name: string };
   department: { id: string; name: string };
   description: string;
-  event: { id: string; title: string } | null;
+  /** `title` is null when the event row no longer carries its name. */
+  event: { id: string; title: string | null } | null;
   events: ExpenseDetailEvent[];
   hints: ApproverHint[];
   id: string;
@@ -446,7 +447,7 @@ const DETAIL_SELECT = [
   "expenseAttachments.*",
 ];
 
-function isNotFound(error: unknown): boolean {
+export function isNotFound(error: unknown): boolean {
   return (
     typeof error === "object" &&
     error !== null &&
@@ -637,7 +638,7 @@ export async function getExpenseDetail(
     event: expense.event_id
       ? {
           id: expense.event_id,
-          title: expense.eventName ?? expense.event_id,
+          title: expense.eventName ?? null,
         }
       : null,
     events: parts.events.map((e) => ({

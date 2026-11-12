@@ -1,3 +1,4 @@
+import { createAdminClient } from "@repo/api/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
@@ -11,6 +12,7 @@ import { ExpenseHeader, ExpenseHints } from "./_components/expense-header";
 import { ExpenseHistory } from "./_components/expense-history";
 import { ExpenseReceipts } from "./_components/expense-receipts";
 import { ExpenseSteps } from "./_components/expense-steps";
+import { loadReceiptEditOptions } from "./edit-options";
 
 export default async function ExpenseDetailPage({
   params,
@@ -33,6 +35,10 @@ export default async function ExpenseDetailPage({
   if (!detail) {
     notFound();
   }
+
+  const editOptions = detail.permissions.canEdit
+    ? await loadReceiptEditOptions((await createAdminClient()).db)
+    : null;
 
   return (
     <div className="pb-12">
@@ -59,7 +65,11 @@ export default async function ExpenseDetailPage({
         </StudioPanel>
       )}
       <ExpenseHints hints={detail.hints} />
-      <ExpenseReceipts expenseId={detail.id} receipts={detail.receipts} />
+      <ExpenseReceipts
+        editOptions={editOptions}
+        expenseId={detail.id}
+        receipts={detail.receipts}
+      />
       <ExpenseSteps steps={detail.steps} />
       <ExpenseHistory events={detail.events} />
     </div>

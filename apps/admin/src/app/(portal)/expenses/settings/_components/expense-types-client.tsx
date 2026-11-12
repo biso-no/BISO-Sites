@@ -1,20 +1,9 @@
 "use client";
 
-import {
-  Command,
-  CommandEmpty,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@repo/ui/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@repo/ui/components/ui/popover";
 import { type CSSProperties, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { STUDIO, studioSurface } from "../../../_components/studio";
+import { LedgerAccountPicker } from "../../_components/ledger-account-picker";
 import {
   getExpenseTypesView,
   saveExpenseType,
@@ -105,58 +94,6 @@ function taxCodeInput(draft: Draft): number | null {
   return value === "" ? null : Number(value);
 }
 
-function AccountPicker({
-  accounts,
-  labels,
-  onChange,
-  value,
-}: {
-  accounts: ExpenseAccountOption[];
-  labels: ExpenseTypesLabels;
-  onChange: (accountNumber: number) => void;
-  value: number | null;
-}) {
-  const [open, setOpen] = useState(false);
-  const selected = accounts.find((option) => option.accountNumber === value);
-  const text = selected
-    ? `${selected.accountNumber} ${selected.name}`
-    : (value?.toString() ?? labels.chooseAccount);
-
-  return (
-    <Popover onOpenChange={setOpen} open={open}>
-      <PopoverTrigger asChild>
-        <button
-          aria-label={labels.account}
-          style={{ ...inputStyle, textAlign: "left" }}
-          type="button"
-        >
-          {text}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-72 p-0">
-        <Command>
-          <CommandInput placeholder={labels.searchAccount} />
-          <CommandList>
-            <CommandEmpty>{labels.noAccountFound}</CommandEmpty>
-            {accounts.map((option) => (
-              <CommandItem
-                key={option.accountNumber}
-                onSelect={() => {
-                  onChange(option.accountNumber);
-                  setOpen(false);
-                }}
-                value={`${option.accountNumber} ${option.name}`}
-              >
-                {option.accountNumber} {option.name}
-              </CommandItem>
-            ))}
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
 function TypeRow({
   accounts,
   labels,
@@ -198,7 +135,7 @@ function TypeRow({
         />
       </td>
       <td className="py-2 pr-2 align-top">
-        <AccountPicker
+        <LedgerAccountPicker
           accounts={accounts}
           labels={labels}
           onChange={(accountNumber) => {

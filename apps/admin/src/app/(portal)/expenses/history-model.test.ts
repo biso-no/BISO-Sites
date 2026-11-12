@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { ExpenseDetailEvent } from "./expenses-data";
-import { describeEvent } from "./history-model";
+import { describeEvent, type HistoryLabels } from "./history-model";
 
 const event = (over: Partial<ExpenseDetailEvent>): ExpenseDetailEvent => ({
   action: "edited",
@@ -118,5 +118,75 @@ describe("describeEvent", () => {
       key: "unknown",
       values: { action: "teleported" },
     });
+  });
+});
+
+describe("describeEvent with labels", () => {
+  const labels: HistoryLabels = {
+    reason: "Årsak",
+    roles: {
+      controller: "Controller",
+      deputy: "Nestleder",
+      finance: "Økonomi",
+      manager: "Leder",
+      national: "Nasjonal",
+      president: "President",
+    },
+  };
+
+  test("maps every known on-behalf phrase to the role label", () => {
+    const phrases = {
+      "the campus controller": "Controller",
+      "the campus president": "President",
+      "the deputy manager": "Nestleder",
+      "the department manager": "Leder",
+      "the financial manager": "Økonomi",
+      "the national approver": "Nasjonal",
+    };
+    for (const [phrase, label] of Object.entries(phrases)) {
+      expect(
+        describeEvent(
+          event({ action: "approved", note: `On behalf of ${phrase}` }),
+          labels
+        )
+      ).toEqual({
+        key: "approvedOnBehalf",
+        values: { reason: "", role: label },
+      });
+    }
+  });
+
+  test("translates the reason word", () => {
+    expect(
+      describeEvent(
+        event({
+          action: "rejected",
+          note: "On behalf of the financial manager · Reason: Too high",
+        }),
+        labels
+      )
+    ).toEqual({
+      key: "rejectedOnBehalf",
+      values: { reason: "Årsak: Too high", role: "Økonomi" },
+    });
+    expect(
+      describeEvent(
+        event({ action: "rejected", note: "Reason: No receipt" }),
+        labels
+      ).values
+    ).toEqual({ reason: "Årsak: No receipt" });
+  });
+
+  test("unknown text passes through unchanged", () => {
+    expect(
+      describeEvent(
+        event({ action: "approved", note: "On behalf of the janitor" }),
+        labels
+      ).values.role
+    ).toBe("the janitor");
+  });
+
+  test("edited total has its own key", () => {
+    expect(describeEvent(event({ field: "total" })).key).toBe("edited.total");
   });
 });

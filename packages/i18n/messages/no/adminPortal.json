@@ -1536,6 +1536,7 @@
       "aiAccountChosen": "AI valgte konto {account}",
       "edited": {
         "amount": "Endret beløp fra {before} til {after}",
+        "total": "Endret sum fra {before} til {after}",
         "account_number": "Endret konto fra {before} til {after}",
         "cost_type": "Endret type fra {before} til {after}",
         "cost_type_text": "Endret typetekst fra «{before}» til «{after}»",
@@ -1556,8 +1557,25 @@
       "bookingFailed": "Bokføring feilet: {note}",
       "dateShifted": "Bokføringsdato flyttet fra {from} til {to}. {note}",
       "bookingRetried": "Bokføring prøvd på nytt",
-      "unknown": "Ukjent hendelse ({action})"
-    }
+      "unknown": "Ukjent hendelse ({action})",
+      "reason": "Årsak"
+    },
+    "edit": {
+      "edit": "Rediger",
+      "receiptTitle": "Rediger kvittering",
+      "type": "Type",
+      "account": "Konto",
+      "chooseAccount": "Velg konto",
+      "searchAccount": "Søk på nummer eller navn",
+      "noAccountFound": "Ingen treff på konto",
+      "save": "Lagre",
+      "saved": "Lagret",
+      "saveError": "Kunne ikke lagre",
+      "bankTitle": "Rediger bankkonto",
+      "bankAccount": "Bankkonto",
+      "bankHint": "11 siffer. Mellomrom og punktum ignoreres."
+    },
+    "eventTitleUnavailable": "Arrangement (tittel mangler)"
   },
   "expensesSettings": {
     "title": "Innstillinger for utlegg",

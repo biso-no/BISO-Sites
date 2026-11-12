@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
 
 mock.module("server-only", () => ({}));
 const storage = {
@@ -13,6 +13,8 @@ mock.module("@/lib/expense-viewer", () => ({ getExpenseViewer }));
 const getExpenseDetail = mock();
 mock.module("@/app/(portal)/expenses/expenses-data", () => ({
   getExpenseDetail,
+  isNotFound: (error: unknown) =>
+    (error as { code?: unknown } | null)?.code === 404,
 }));
 
 const { GET } = await import("./route");
@@ -48,6 +50,20 @@ describe("receipt file route", () => {
   test("404 when nobody is signed in", async () => {
     getExpenseViewer.mockResolvedValue(null);
     expect((await call("f1")).status).toBe(404);
+  });
+
+  test("404 when the file is gone from storage", async () => {
+    storage.getFile.mockRejectedValue(
+      Object.assign(new Error("File not found"), { code: 404 })
+    );
+    expect((await call("f1")).status).toBe(404);
+  });
+
+  test("500 for other storage failures", async () => {
+    storage.getFile.mockRejectedValue(new Error("boom"));
+    const spy = spyOn(console, "error").mockImplementation(() => undefined);
+    expect((await call("f1")).status).toBe(500);
+    spy.mockRestore();
   });
 
   test("streams the file inline and uncached", async () => {

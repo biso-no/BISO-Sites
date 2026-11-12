@@ -1,6 +1,9 @@
 import { createAdminClient } from "@repo/api/server";
 import { NextResponse } from "next/server";
-import { getExpenseDetail } from "@/app/(portal)/expenses/expenses-data";
+import {
+  getExpenseDetail,
+  isNotFound,
+} from "@/app/(portal)/expenses/expenses-data";
 import { getExpenseViewer } from "@/lib/expense-viewer";
 
 const EXPENSES_BUCKET = "expenses";
@@ -43,6 +46,10 @@ export async function GET(
       status: 200,
     });
   } catch (error) {
+    if (isNotFound(error)) {
+      // The row points at a file that is gone from storage.
+      return notFound();
+    }
     console.error("[expense-file] failed to serve receipt", error);
     return NextResponse.json(
       { error: "Failed to load receipt" },
