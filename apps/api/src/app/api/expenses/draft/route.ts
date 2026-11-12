@@ -6,6 +6,7 @@ import {
   ExpensesStatus,
 } from "@repo/api/types/appwrite";
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
+import { receiptFileId } from "@repo/shared/utils/receipt-file-id";
 import { type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
@@ -16,7 +17,6 @@ import {
   type ExpenseRowInput,
   mergeLegacyDraft,
   parseExpensePayload,
-  receiptFileId,
   receiptFileIds,
 } from "@/lib/expense-payload";
 

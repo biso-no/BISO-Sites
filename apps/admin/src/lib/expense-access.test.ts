@@ -7,6 +7,7 @@ import {
   type ExpenseViewer,
   expensePermissions,
   expenseVisibilityQueries,
+  maskBankAccount,
 } from "./expense-access";
 import { NO_MATCH_FILTER } from "./utils/authorization";
 
@@ -356,5 +357,17 @@ describe("expenseVisibilityQueries", () => {
 
   test("no grants matches nothing", () => {
     expect(expenseVisibilityQueries(viewer(), [])).toEqual([NO_MATCH_FILTER]);
+  });
+});
+
+describe("maskBankAccount", () => {
+  test("keeps the last four digits", () => {
+    expect(maskBankAccount("12345678903")).toBe("•••• 8903");
+    expect(maskBankAccount("1234.56.78903")).toBe("•••• 8903");
+  });
+
+  test("short or missing numbers show no digits", () => {
+    expect(maskBankAccount("12")).toBe("••••");
+    expect(maskBankAccount(null)).toBe("••••");
   });
 });

@@ -3,13 +3,17 @@ import { Query } from "@repo/api";
 import type { ExpenseViewer } from "@/lib/expense-access";
 
 mock.module("server-only", () => ({}));
-const db = { listRows: mock() };
+const db = { getRow: mock(), listRows: mock() };
 mock.module("@repo/api/server", () => ({
   createAdminClient: mock(async () => ({ db })),
 }));
 
-const { buildExpenseListQueries, listExpenses, resolveExpenseListFilters } =
-  await import("./expenses-data");
+const {
+  buildExpenseListQueries,
+  getExpenseDetail,
+  listExpenses,
+  resolveExpenseListFilters,
+} = await import("./expenses-data");
 
 const viewer = (over: Partial<ExpenseViewer> = {}): ExpenseViewer => ({
   accountEmail: null,
@@ -268,5 +272,21 @@ describe("listExpenses", () => {
     expect(seen).toHaveLength(2);
     expect(seen[1]).toContain(Query.search("description", "10042"));
     expect(errorSpy).toHaveBeenCalled();
+  });
+});
+
+describe("getExpenseDetail", () => {
+  test("returns null for a draft", async () => {
+    db.getRow.mockResolvedValue({
+      $id: "ex1",
+      status: "draft",
+      userId: "u1",
+    });
+    expect(await getExpenseDetail(viewer(), "ex1")).toBeNull();
+  });
+
+  test("returns null when the expense is missing", async () => {
+    db.getRow.mockRejectedValue(Object.assign(new Error("nf"), { code: 404 }));
+    expect(await getExpenseDetail(viewer(), "ex1")).toBeNull();
   });
 });

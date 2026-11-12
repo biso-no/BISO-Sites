@@ -1,20 +1,33 @@
 import "server-only";
 
-import { Query } from "@repo/api";
+import { type Models, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import {
   type ExpenseApprovalIssues,
   type ExpenseApprovals,
+  type ExpenseAttachments,
+  type ExpenseCostTypes,
+  type ExpenseEvents,
   type Expenses,
   ExpensesStatus,
+  type LedgerAccounts,
 } from "@repo/api/types/appwrite";
-import { parseApproverHints } from "@repo/shared/utils/expense-hints";
+import { costTypeLabel } from "@repo/shared/utils/expense-cost-types";
+import {
+  type ApproverHint,
+  parseApproverHints,
+  parseReceiptIssues,
+} from "@repo/shared/utils/expense-hints";
+import { receiptFileId } from "@repo/shared/utils/receipt-file-id";
 import { reimbursementNumber } from "@repo/shared/utils/reimbursement-number";
 import {
   currentPendingStep,
   type ExpenseAccessStep,
+  type ExpensePermissions,
   type ExpenseViewer,
+  expensePermissions,
   expenseVisibilityQueries,
+  maskBankAccount,
 } from "@/lib/expense-access";
 import {
   emptyResult,
@@ -325,5 +338,357 @@ export async function listExpenses(
     }),
     size: filters.size,
     total,
+  };
+}
+
+export interface ExpenseDetailReceipt {
+  accountName: string | null;
+  accountNumber: number | null;
+  accountSource: string | null;
+  aiConfidence: number | null;
+  aiCostType: string | null;
+  amount: number | null;
+  bookedDate: string | null;
+  costType: string | null;
+  costTypeLabel: string | null;
+  costTypeText: string | null;
+  date: string | null;
+  description: string | null;
+  fileId: string | null;
+  id: string;
+  isSupporting: boolean;
+  receiptIssues: string[];
+}
+
+export interface ExpenseDetailStep {
+  approverEmail: string;
+  decidedAt: string | null;
+  decidedBy: string | null;
+  decidedByEmail: string | null;
+  id: string;
+  isCurrent: boolean;
+  onBehalf: boolean;
+  reason: string | null;
+  role: string;
+  status: string;
+  step: number;
+}
+
+export type ExpenseDetailEvent = Omit<
+  ExpenseEvents,
+  | keyof Models.Row
+  | "action"
+  | "expense_id"
+  | "actor_email"
+  | "actor_kind"
+  | "actor_name"
+  | "attachment_id"
+> & {
+  /** An `ExpenseEventsAction` value, as a string so unknown ones can be shown. */
+  action: string;
+  actorEmail: string | null;
+  actorKind: string;
+  actorName: string | null;
+  at: string;
+  attachmentId: string | null;
+  id: string;
+};
+
+export interface ExpenseDetail {
+  bankAccount: string;
+  bookingFailure: string | null;
+  campus: { id: string; name: string };
+  department: { id: string; name: string };
+  description: string;
+  event: { id: string; title: string } | null;
+  events: ExpenseDetailEvent[];
+  hints: ApproverHint[];
+  id: string;
+  ledgerTransactionId: string | null;
+  occasion: string;
+  permissions: ExpensePermissions;
+  presidentFallback: boolean;
+  receipts: ExpenseDetailReceipt[];
+  reference: string;
+  status: string;
+  steps: ExpenseDetailStep[];
+  submitter: { email: string; name: string };
+  switches: { controller: boolean; financialManager: boolean };
+  total: number;
+}
+
+const EVENT_LIMIT = 200;
+const RECEIPT_LIMIT = 100;
+const POSTING_MARKER = "posting";
+const NATIONAL_CAMPUS_ID = "5";
+
+const DETAIL_SELECT = [
+  "$id",
+  "$sequence",
+  "status",
+  "total",
+  "campus",
+  "department",
+  "bank_account",
+  "description",
+  "occasion",
+  "event_id",
+  "eventName",
+  "approver_hints",
+  "userId",
+  "ledger_transaction_id",
+  "submitter_is_financial_manager",
+  "submitter_is_controller",
+  "user.name",
+  "user.email",
+  "departmentRel.Name",
+  "campusRel.name",
+  "expenseAttachments.*",
+];
+
+function isNotFound(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { code?: unknown }).code === 404
+  );
+}
+
+function toReceipt(row: ExpenseAttachments): ExpenseDetailReceipt {
+  return {
+    accountName: null,
+    accountNumber: row.account_number,
+    accountSource: row.account_source,
+    aiConfidence: row.ai_confidence,
+    aiCostType: row.ai_cost_type,
+    amount: row.amount,
+    bookedDate: row.booked_date,
+    costType: row.cost_type,
+    costTypeLabel: null,
+    costTypeText: row.cost_type_text,
+    date: row.date,
+    description: row.description,
+    fileId: receiptFileId(row.url),
+    id: row.$id,
+    isSupporting: (row.amount ?? 0) <= 0,
+    receiptIssues: parseReceiptIssues(row.receipt_issues),
+  };
+}
+
+async function loadDetailParts(db: Db, expenseId: string, failed: boolean) {
+  const [approvals, events, lastFailure] = await Promise.all([
+    db.listRows<ExpenseApprovals>("app", "expense_approvals", [
+      Query.equal("expense_id", expenseId),
+      Query.orderAsc("step"),
+      Query.select([
+        "$id",
+        "step",
+        "approver_role",
+        "approver_email",
+        "status",
+        "decided_by",
+        "decided_by_email",
+        "decided_at",
+        "on_behalf",
+        "reason",
+      ]),
+      Query.limit(STEPS_PER_EXPENSE_CAP * 3),
+    ]),
+    db.listRows<ExpenseEvents>("app", "expense_events", [
+      Query.equal("expense_id", expenseId),
+      Query.orderAsc("$createdAt"),
+      Query.limit(EVENT_LIMIT),
+    ]),
+    failed
+      ? db.listRows<ExpenseEvents>("app", "expense_events", [
+          Query.equal("expense_id", expenseId),
+          Query.equal("action", "booking_failed"),
+          Query.orderDesc("$createdAt"),
+          Query.limit(1),
+        ])
+      : Promise.resolve({ rows: [] as ExpenseEvents[] }),
+  ]);
+  return {
+    approvals: approvals.rows,
+    events: events.rows,
+    failureNote: lastFailure.rows[0]?.note ?? null,
+  };
+}
+
+/** Fills in the cost type labels and account names the receipts point at. */
+async function withReceiptLabels(
+  db: Db,
+  receipts: ExpenseDetailReceipt[],
+  locale: string
+): Promise<ExpenseDetailReceipt[]> {
+  const slugs = [
+    ...new Set(receipts.map((r) => r.costType).filter((v): v is string => !!v)),
+  ];
+  const numbers = [
+    ...new Set(
+      receipts
+        .map((r) => r.accountNumber)
+        .filter((v): v is number => v !== null)
+    ),
+  ];
+  const [types, accounts] = await Promise.all([
+    slugs.length > 0
+      ? db.listRows<ExpenseCostTypes>("app", "expense_cost_types", [
+          Query.equal("slug", slugs),
+          Query.select(["slug", "label", "label_no"]),
+          Query.limit(LOOKUP_LIMIT),
+        ])
+      : { rows: [] as ExpenseCostTypes[] },
+    numbers.length > 0
+      ? db.listRows<LedgerAccounts>("app", "ledger_accounts", [
+          Query.equal("account_number", numbers),
+          Query.select(["account_number", "name"]),
+          Query.limit(LOOKUP_LIMIT),
+        ])
+      : { rows: [] as LedgerAccounts[] },
+  ]);
+  return receipts.map((r) => {
+    const type = types.rows.find((t) => t.slug === r.costType);
+    return {
+      ...r,
+      accountName:
+        accounts.rows.find((a) => a.account_number === r.accountNumber)?.name ??
+        null,
+      costTypeLabel: type
+        ? costTypeLabel({ label: type.label, labelNo: type.label_no }, locale)
+        : null,
+    };
+  });
+}
+
+/**
+ * One expense for the detail page, or null when it is missing, a draft or not
+ * the viewer's to see.
+ */
+export async function getExpenseDetail(
+  viewer: ExpenseViewer,
+  expenseId: string,
+  locale = "en"
+): Promise<ExpenseDetail | null> {
+  const { db } = await createAdminClient();
+  let expense: Expenses;
+  try {
+    expense = await db.getRow<Expenses>("app", "expense", expenseId, [
+      Query.select(DETAIL_SELECT),
+    ]);
+  } catch (error) {
+    if (isNotFound(error)) {
+      return null;
+    }
+    throw error;
+  }
+  if (expense.status === ExpensesStatus.DRAFT) {
+    return null;
+  }
+
+  const parts = await loadDetailParts(
+    db,
+    expense.$id,
+    expense.status === ExpensesStatus.FAILED
+  );
+  const accessSteps = parts.approvals.map((a) => ({
+    $id: a.$id,
+    approver_email: a.approver_email,
+    approver_role: a.approver_role,
+    status: a.status,
+    step: a.step,
+  }));
+  const permissions = expensePermissions(
+    viewer,
+    {
+      campus: expense.campus,
+      status: expense.status,
+      submitter_is_controller: expense.submitter_is_controller,
+      submitter_is_financial_manager: expense.submitter_is_financial_manager,
+      userId: expense.userId,
+    },
+    accessSteps
+  );
+  if (!permissions.canView) {
+    return null;
+  }
+
+  const receipts = await withReceiptLabels(
+    db,
+    (expense.expenseAttachments ?? [])
+      .slice(0, RECEIPT_LIMIT)
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map(toReceipt),
+    locale
+  );
+  const bankAccount = expense.bank_account ?? "";
+  return {
+    bankAccount: permissions.canEditBankAccount
+      ? bankAccount
+      : maskBankAccount(bankAccount),
+    bookingFailure:
+      expense.status === ExpensesStatus.FAILED ? parts.failureNote : null,
+    campus: { id: expense.campus, name: expense.campusRel?.name ?? "" },
+    department: {
+      id: expense.department,
+      name: expense.departmentRel?.Name ?? "",
+    },
+    description: expense.description ?? "",
+    event: expense.event_id
+      ? {
+          id: expense.event_id,
+          title: expense.eventName ?? expense.event_id,
+        }
+      : null,
+    events: parts.events.map((e) => ({
+      action: e.action,
+      actorEmail: e.actor_email,
+      actorKind: e.actor_kind,
+      actorName: e.actor_name,
+      after: e.after,
+      at: e.$createdAt,
+      attachmentId: e.attachment_id,
+      before: e.before,
+      field: e.field,
+      id: e.$id,
+      note: e.note,
+    })),
+    hints: parseApproverHints(expense.approver_hints),
+    id: expense.$id,
+    ledgerTransactionId:
+      expense.ledger_transaction_id &&
+      expense.ledger_transaction_id !== POSTING_MARKER
+        ? expense.ledger_transaction_id
+        : null,
+    occasion: expense.occasion ?? "",
+    permissions,
+    presidentFallback:
+      expense.campus !== NATIONAL_CAMPUS_ID &&
+      parts.approvals.some((a) => a.approver_role === "national"),
+    receipts,
+    reference: reimbursementNumber(expense.$sequence),
+    status: expense.status,
+    steps: parts.approvals.map((a) => ({
+      approverEmail: a.approver_email,
+      decidedAt: a.decided_at,
+      decidedBy: a.decided_by,
+      decidedByEmail: a.decided_by_email,
+      id: a.$id,
+      isCurrent: a.$id === permissions.currentStepId,
+      onBehalf: a.on_behalf === true,
+      reason: a.reason,
+      role: a.approver_role,
+      status: a.status,
+      step: a.step,
+    })),
+    submitter: {
+      email: expense.user?.email ?? "",
+      name: expense.user?.name ?? "",
+    },
+    switches: {
+      controller: expense.submitter_is_controller,
+      financialManager: expense.submitter_is_financial_manager,
+    },
+    total: expense.total,
   };
 }

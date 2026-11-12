@@ -185,3 +185,9 @@ export function expenseVisibilityQueries(
   }
   return [sides.length === 1 ? (sides[0] as string) : Query.or(sides)];
 }
+
+/** `"•••• 8903"`: a bank account number reduced to its last four digits. */
+export function maskBankAccount(account: string | null | undefined): string {
+  const digits = (account ?? "").replace(/\D/g, "");
+  return digits.length >= 4 ? `•••• ${digits.slice(-4)}` : "••••";
+}

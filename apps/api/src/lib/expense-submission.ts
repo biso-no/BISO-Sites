@@ -13,6 +13,7 @@ import {
 } from "@repo/shared/utils/expense-events";
 import type { ApproverHint } from "@repo/shared/utils/expense-hints";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
+import { receiptFileId } from "@repo/shared/utils/receipt-file-id";
 import { generateObject } from "ai";
 import { z } from "zod";
 import {
@@ -26,7 +27,6 @@ import {
   isLegacyAttachment,
   isLegacyPayload,
   normalisedSwitches,
-  receiptFileId,
 } from "./expense-payload";
 import {
   activeCostTypes,
