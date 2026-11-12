@@ -6,8 +6,6 @@ import {
   directoryKey,
   getCampusApprovalPlan,
   NATIONAL_APPROVER_EMAIL,
-  pickApproverByRole,
-  ROLE_EMAIL_PREFIXES,
 } from "./expense-approvers";
 
 const controller = { kind: "directory", role: "controller" } as const;
@@ -197,62 +195,5 @@ describe("directory defaults", () => {
     );
     expect(NATIONAL_APPROVER_EMAIL).toBe("manager@biso.no");
     expect(CAMPUS_MAILBOX_SLUGS["3"]).toEqual(["trondheim", "trd"]);
-  });
-});
-
-describe("pickApproverByRole", () => {
-  const oslo = [
-    { id: "1", email: "finance.nu.oslo@biso.no" },
-    { id: "2", email: "manager.nu.oslo@biso.no" },
-    { id: "3", email: "ola.nordmann@biso.no" },
-  ];
-
-  it("matches the financial manager by the 'financ' prefix", () => {
-    expect(
-      pickApproverByRole(oslo, ROLE_EMAIL_PREFIXES.finance, "oslo")?.id
-    ).toBe("1");
-  });
-
-  it("matches 'financial' as well as 'finance'", () => {
-    const candidates = [{ id: "x", email: "financial.kd.oslo@biso.no" }];
-    expect(
-      pickApproverByRole(candidates, ROLE_EMAIL_PREFIXES.finance, "oslo")?.id
-    ).toBe("x");
-  });
-
-  it("matches the manager and deputy prefixes", () => {
-    expect(
-      pickApproverByRole(oslo, ROLE_EMAIL_PREFIXES.manager, "oslo")?.id
-    ).toBe("2");
-    const withDeputy = [{ id: "d", email: "deputy.nu.oslo@biso.no" }];
-    expect(
-      pickApproverByRole(withDeputy, ROLE_EMAIL_PREFIXES.deputy, "oslo")?.id
-    ).toBe("d");
-  });
-
-  it("returns null when no candidate matches", () => {
-    expect(
-      pickApproverByRole(oslo, ROLE_EMAIL_PREFIXES.deputy, "oslo")
-    ).toBeNull();
-  });
-
-  it("disambiguates multiple campuses by the campus slug", () => {
-    const multi = [
-      { id: "oslo", email: "finance.nu.oslo@biso.no" },
-      { id: "bergen", email: "finance.nu.bergen@biso.no" },
-    ];
-    expect(
-      pickApproverByRole(multi, ROLE_EMAIL_PREFIXES.finance, "bergen")?.id
-    ).toBe("bergen");
-  });
-
-  it("returns null when the match stays ambiguous", () => {
-    const ambiguous = [
-      { id: "a", email: "finance.one@biso.no" },
-      { id: "b", email: "finance.two@biso.no" },
-    ];
-    expect(
-      pickApproverByRole(ambiguous, ROLE_EMAIL_PREFIXES.finance, "oslo")
-    ).toBeNull();
   });
 });

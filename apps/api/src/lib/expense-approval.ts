@@ -178,14 +178,17 @@ export async function createApprovalChain(
 ): Promise<CreateChainResult> {
   const { db } = await createAdminClient();
 
-  const { steps, issues } = await resolveExpenseApprovers({
-    campusId: context.campusId,
-    campusName: context.campusLabel,
-    departmentId: context.departmentId,
-    departmentName: context.departmentName,
-    submitterIsController: context.submitterIsController ?? false,
-    submitterIsFinancialManager: context.submitterIsFinancialManager,
-  });
+  const { steps, issues } = await resolveExpenseApprovers(
+    {
+      campusId: context.campusId,
+      campusName: context.campusLabel,
+      departmentId: context.departmentId,
+      departmentName: context.departmentName,
+      submitterIsController: context.submitterIsController ?? false,
+      submitterIsFinancialManager: context.submitterIsFinancialManager,
+    },
+    { db }
+  );
 
   for (const issue of issues) {
     await db.createRow("app", "expense_approval_issues", ID.unique(), {

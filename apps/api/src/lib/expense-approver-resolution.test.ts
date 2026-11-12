@@ -11,7 +11,8 @@ vi.mock("./expense-approver-directory", () => ({
   touchDirectoryApprover: directory.touch,
 }));
 vi.mock("@repo/api/server", () => ({ createAdminClient: vi.fn() }));
-vi.mock("./graph", () => ({ getGraphService: vi.fn() }));
+const getGraphService = vi.hoisted(() => vi.fn());
+vi.mock("./graph", () => ({ getGraphService }));
 
 import { resolveExpenseApprovers } from "./expense-approver-resolution";
 
@@ -62,6 +63,8 @@ const asController = {
 };
 
 beforeEach(() => {
+  getGraphService.mockReset().mockReturnValue({});
+  vi.spyOn(console, "error").mockImplementation(() => undefined);
   directory.find.mockReset().mockResolvedValue(null);
   directory.save.mockReset().mockResolvedValue(undefined);
   directory.touch.mockReset().mockResolvedValue(undefined);
@@ -195,5 +198,113 @@ describe("resolveExpenseApprovers", () => {
     const { deps } = setup();
     const result = await resolveExpenseApprovers(asManager, deps);
     expect(result.steps.map((s) => s.step)).toEqual([1]);
+  });
+
+  it("accepts exactly 0.8 confidence", async () => {
+    const { deps, choose } = setup();
+    choose.mockResolvedValue({
+      email: "manager@biso.no",
+      confidence: 0.8,
+      reason: "",
+    });
+    const result = await resolveExpenseApprovers(asManager, deps);
+    expect(result.steps[0]).toMatchObject({ source: "ai" });
+  });
+
+  it("treats a rejected candidates call as not found", async () => {
+    const { deps, candidates } = setup();
+    candidates.mockRejectedValue(new Error("graph down"));
+    const result = await resolveExpenseApprovers(asManager, deps);
+    expect(result.steps.map((s) => s.role)).toEqual(["controller"]);
+    expect(result.issues).toHaveLength(1);
+  });
+
+  it("skips the seed save when the controller is in the directory", async () => {
+    directory.find.mockImplementation(async (_db: unknown, key: string) =>
+      key === "campus:2:controller"
+        ? { email: "c@biso.no", aadId: null, key, source: "admin" }
+        : null
+    );
+    const { deps } = setup();
+    const result = await resolveExpenseApprovers(
+      { ...base, campusId: "2", departmentId: "50", departmentName: "X" },
+      deps
+    );
+    expect(result.steps[0]).toMatchObject({
+      email: "c@biso.no",
+      source: "directory",
+    });
+    expect(directory.save).not.toHaveBeenCalled();
+  });
+
+  it("skips the AI when the president is in the directory", async () => {
+    directory.find.mockImplementation(async (_db: unknown, key: string) =>
+      key === "campus:1:president"
+        ? { email: "p@biso.no", aadId: null, key, source: "confirmed" }
+        : null
+    );
+    const { deps, choose } = setup();
+    const result = await resolveExpenseApprovers(asController, deps);
+    expect(choose).not.toHaveBeenCalled();
+    expect(result.steps[0]).toMatchObject({ email: "p@biso.no" });
+  });
+
+  it("names the national mailbox actually used in the fallback issue", async () => {
+    directory.find.mockImplementation(async (_db: unknown, key: string) =>
+      key === "campus:5:national"
+        ? { email: "nat@biso.no", aadId: null, key, source: "admin" }
+        : null
+    );
+    const { deps } = setup();
+    const result = await resolveExpenseApprovers(asController, deps);
+    expect(result.steps[0]).toMatchObject({ email: "nat@biso.no" });
+    expect(result.issues[0]?.reason).toContain("nat@biso.no");
+  });
+
+  it("prefers a confident manager over a deputy", async () => {
+    const { deps } = setup({
+      manager: "manager@biso.no",
+      deputy: "deputy@biso.no",
+    });
+    const result = await resolveExpenseApprovers(asManager, deps);
+    expect(result.steps[0]?.role).toBe("manager");
+    expect(directory.save).not.toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({ role: "deputy" })
+    );
+  });
+
+  describe("without Graph configured", () => {
+    beforeEach(() => {
+      getGraphService.mockImplementation(() => {
+        throw new Error("Azure credentials missing");
+      });
+    });
+    const noGraph = (choose?: unknown) => ({
+      db: {} as never,
+      ...(choose ? { choose: choose as never } : {}),
+    });
+
+    it("still resolves a Bergen controller-only expense", async () => {
+      const result = await resolveExpenseApprovers(
+        { ...base, campusId: "2", departmentId: "50", departmentName: "X" },
+        noGraph()
+      );
+      expect(result.steps.map((s) => s.role)).toEqual(["controller"]);
+    });
+
+    it("still resolves a national expense", async () => {
+      const result = await resolveExpenseApprovers(
+        { ...base, campusId: "5", departmentId: null, departmentName: null },
+        noGraph()
+      );
+      expect(result.steps.map((s) => s.role)).toEqual(["national"]);
+    });
+
+    it("falls back to national when the president lookup cannot reach Graph", async () => {
+      const result = await resolveExpenseApprovers(asController, noGraph());
+      expect(result.steps.map((s) => s.role)).toEqual(["national"]);
+      expect(result.issues[0]?.roleSought).toBe("president");
+    });
   });
 });

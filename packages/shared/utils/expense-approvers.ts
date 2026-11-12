@@ -1,25 +1,20 @@
 /**
  * Expense/reimbursement approver routing (pure, framework-agnostic).
  *
- * Determines the ordered approval chain for a reimbursement. The **structure**
- * (which roles approve, in what order, per campus) and the **role-mailbox
- * matching** logic live here and are unit-tested. The actual department
- * approver is looked up in Microsoft Graph by the api layer (see
- * `apps/api/src/lib/expense-approver-resolution.ts`), which feeds candidate
- * users into `pickApproverByRole`.
+ * Determines the ordered approval plan for a reimbursement: which roles approve,
+ * in what order, per campus. The api layer turns the plan into concrete people
+ * (see `apps/api/src/lib/expense-approver-resolution.ts`): the approver
+ * directory first, then an AI lookup in Microsoft 365, then seeded defaults.
  *
- * Rules (see plan):
- * - Oslo (campus 1): 2 steps — (1) the department financial manager (or, when
- *   the submitter IS the financial manager, the department manager → deputy),
- *   resolved via Graph by department name; (2) the campus controller. Exception:
- *   Ledelsen Oslo (department 2) has no department financial manager, so it is
- *   controller-only (1 step).
- * - Bergen / Trondheim / Stavanger (2/3/4): 1 step — the campus controller.
- * - National (campus 5): 1 step — the national manager mailbox,
- *   manager@biso.no.
- * - Department roles are matched by the email local-part prefix (financial
- *   managers start with "financ", managers "manag", deputies "deput") because
- *   the exact mailbox varies (finance. vs financial. etc.).
+ * Plan rules:
+ * - Oslo (campus 1), ordinary departments: (1) the department financial manager
+ *   (or the department manager, when the submitter declares they are the
+ *   financial manager), then (2) the campus controller.
+ * - Drift Campus and Ledelsen on every campus 1-4 offer a controller switch:
+ *   normally the campus controller approves (1 step); a submitter who is the
+ *   controller goes to the campus president instead, never to a controller.
+ * - Bergen / Trondheim / Stavanger, other departments: the campus controller.
+ * - National (campus 5): the national manager mailbox, manager@biso.no.
  */
 
 export type ApproverRole =
@@ -87,17 +82,6 @@ export const DEFAULT_DIRECTORY_EMAILS: Record<
   "5": { national: NATIONAL_APPROVER_EMAIL },
 };
 
-/** Email local-part prefixes used to identify role mailboxes. */
-export const ROLE_EMAIL_PREFIXES = {
-  finance: "financ",
-  manager: "manag",
-  deputy: "deput",
-} as const;
-
-export function getCampusEmailSlug(campusId: string): string | undefined {
-  return CAMPUS_MAILBOX_SLUGS[campusId]?.[0];
-}
-
 /** Which self-declaration switch the submit form offers for a department. */
 export function approvalSwitchFor(
   campusId: string,
@@ -163,42 +147,4 @@ export function getCampusApprovalPlan(
   }
 
   return [controllerStep];
-}
-
-/**
- * Picks the candidate whose email local-part starts with `rolePrefix`. When
- * several match (e.g. the same department name exists at multiple campuses),
- * disambiguates by the campus slug embedded in the mailbox. Returns null when
- * nothing matches or the match stays ambiguous — the caller then records a
- * remediation issue and falls back to the campus controller.
- */
-export function pickApproverByRole<T extends { email?: string | null }>(
-  candidates: readonly T[],
-  rolePrefix: string,
-  campusSlug: string
-): T | null {
-  const prefix = rolePrefix.toLowerCase();
-  const matches = candidates.filter((candidate) => {
-    const email = candidate.email?.toLowerCase();
-    if (!email) {
-      return false;
-    }
-    const localPart = email.split("@")[0] ?? "";
-    return localPart.startsWith(prefix);
-  });
-
-  if (matches.length === 0) {
-    return null;
-  }
-  if (matches.length === 1) {
-    return matches[0] ?? null;
-  }
-
-  const slug = campusSlug.toLowerCase();
-  const campusMatches = matches.filter((candidate) => {
-    const email = candidate.email?.toLowerCase() ?? "";
-    return email.includes(`.${slug}@`) || email.includes(`.${slug}.`);
-  });
-
-  return campusMatches.length === 1 ? (campusMatches[0] ?? null) : null;
 }

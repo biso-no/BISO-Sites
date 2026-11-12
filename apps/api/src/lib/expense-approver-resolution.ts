@@ -7,8 +7,9 @@
 //      AI picks among mailbox candidates (only answers with confidence >= 0.8
 //      count, and a confident answer is saved to the directory);
 //   3. for the controller and national steps, the seeded default mailbox.
-// A department step nobody can fill is dropped with an issue, so the controller
-// step that follows still approves. A president nobody can fill falls back to
+// Steps resolve concurrently; order and numbering follow the plan. A department
+// step nobody can fill is dropped with an issue, so the controller step that
+// follows still approves. A president nobody can fill falls back to
 // the national approver with an issue, never to the controller.
 
 import { createAdminClient } from "@repo/api/server";
@@ -18,7 +19,6 @@ import {
   DEFAULT_DIRECTORY_EMAILS,
   directoryKey,
   getCampusApprovalPlan,
-  NATIONAL_APPROVER_EMAIL,
 } from "@repo/shared/utils/expense-approvers";
 import {
   findDirectoryApprover,
@@ -85,6 +85,17 @@ export interface ResolveDeps {
 
 type Found = Omit<ResolvedApproverStep, "step">;
 
+/** A found approver plus the bookkeeping to run only if it is the one used. */
+interface Lookup {
+  commit: () => Promise<void> | void;
+  found: Found;
+}
+
+interface StepOutcome {
+  found: Found | null;
+  issues: ApproverResolutionIssue[];
+}
+
 export async function resolveExpenseApprovers(
   input: ResolveInput,
   deps: ResolveDeps = {}
@@ -103,7 +114,12 @@ export async function resolveExpenseApprovers(
     }
     return db;
   };
-  const graph = deps.graph ?? getGraphService();
+  // Graph is only needed by the AI path; missing config there means "not found".
+  let graph = deps.graph;
+  const getGraph = (): Graph => {
+    graph ??= getGraphService();
+    return graph;
+  };
   const findCandidates = deps.candidates ?? findApproverCandidates;
   const choose = deps.choose ?? chooseApprover;
   const department = input.departmentName ?? "(none)";
@@ -111,19 +127,25 @@ export async function resolveExpenseApprovers(
   const fromDirectory = async (
     key: string,
     role: ApproverRole
-  ): Promise<Found | null> => {
+  ): Promise<Lookup | null> => {
     const store = await getDb();
     const row = await findDirectoryApprover(store, key);
     if (!row) {
       return null;
     }
-    await touchDirectoryApprover(store, key);
     return {
-      aadId: row.aadId,
-      directoryKey: key,
-      email: row.email,
-      role,
-      source: "directory",
+      found: {
+        aadId: row.aadId,
+        directoryKey: key,
+        email: row.email,
+        role,
+        source: "directory",
+      },
+      commit: () => {
+        touchDirectoryApprover(store, key).catch((error: unknown) =>
+          console.error("[expense-approver-resolution] touch failed", error)
+        );
+      },
     };
   };
 
@@ -132,11 +154,11 @@ export async function resolveExpenseApprovers(
     key: string,
     role: LookupRole,
     scope: "department" | "campus"
-  ): Promise<Found | null> => {
+  ): Promise<Lookup | null> => {
     let candidates: Candidate[];
     let choice: Awaited<ReturnType<typeof chooseApprover>>;
     try {
-      candidates = await findCandidates(graph as never, {
+      candidates = await findCandidates(getGraph(), {
         role,
         campusId: input.campusId,
         departmentName: input.departmentName,
@@ -158,27 +180,31 @@ export async function resolveExpenseApprovers(
     if (!choice || choice.confidence < MIN_CONFIDENCE) {
       return null;
     }
+    const { confidence, email } = choice;
     const match = candidates.find(
-      (c) => c.email.toLowerCase() === choice.email.toLowerCase()
+      (c) => c.email.toLowerCase() === email.toLowerCase()
     );
-    await saveDirectoryApprover(await getDb(), {
-      key,
-      scope,
-      campusId: input.campusId,
-      departmentId: scope === "department" ? input.departmentId : null,
-      role,
-      email: choice.email,
-      aadId: match?.aadId ?? null,
-      displayName: match?.displayName ?? null,
-      source: "ai",
-      confidence: choice.confidence,
-    });
     return {
-      aadId: match?.aadId ?? null,
-      directoryKey: key,
-      email: choice.email,
-      role,
-      source: "ai",
+      found: {
+        aadId: match?.aadId ?? null,
+        directoryKey: key,
+        email,
+        role,
+        source: "ai",
+      },
+      commit: async () =>
+        saveDirectoryApprover(await getDb(), {
+          key,
+          scope,
+          campusId: input.campusId,
+          departmentId: scope === "department" ? input.departmentId : null,
+          role,
+          email,
+          aadId: match?.aadId ?? null,
+          displayName: match?.displayName ?? null,
+          source: "ai",
+          confidence,
+        }),
     };
   };
 
@@ -192,24 +218,67 @@ export async function resolveExpenseApprovers(
   const campusKey = (campusId: string, role: ApproverRole) =>
     directoryKey({ scope: "campus", campusId, role });
 
+  /** Directory first; the AI only with a department name to search by. */
+  const departmentLookup = async (
+    role: "finance" | "manager" | "deputy"
+  ): Promise<Lookup | null> => {
+    const key = departmentKey(role);
+    return (
+      (await fromDirectory(key, role)) ??
+      (input.departmentName ? await fromAi(key, role, "department") : null)
+    );
+  };
+
+  const managerOrDeputy = async (): Promise<[Lookup | null, Lookup | null]> => {
+    const managerKey = departmentKey("manager");
+    const inDirectory = await fromDirectory(managerKey, "manager");
+    if (inDirectory) {
+      return [inDirectory, null];
+    }
+    return Promise.all([
+      input.departmentName
+        ? fromAi(managerKey, "manager", "department")
+        : Promise.resolve(null),
+      departmentLookup("deputy"),
+    ]);
+  };
+
   const resolveDepartment = async (
     role: "finance" | "manager"
-  ): Promise<Found | null> => {
-    if (!(input.departmentId && input.departmentName)) {
-      return null;
+  ): Promise<StepOutcome> => {
+    if (!input.departmentId) {
+      return {
+        found: null,
+        issues: [
+          {
+            campusId: input.campusId,
+            department,
+            roleSought: role,
+            reason: "Expense has no department set.",
+          },
+        ],
+      };
     }
-    const roles: ("finance" | "manager" | "deputy")[] =
-      role === "manager" ? ["manager", "deputy"] : ["finance"];
-    for (const tryRole of roles) {
-      const key = departmentKey(tryRole);
-      const found =
-        (await fromDirectory(key, tryRole)) ??
-        (await fromAi(key, tryRole, "department"));
-      if (found) {
-        return found;
-      }
+    // A manager in the directory ends the search. Otherwise the AI looks for the
+    // manager and the deputy at once, and a manager wins when both resolve.
+    const [first, second] =
+      role === "manager"
+        ? await managerOrDeputy()
+        : [await departmentLookup("finance"), null];
+    const picked = first ?? second;
+    if (picked) {
+      await picked.commit();
+      return { found: picked.found, issues: [] };
     }
-    return null;
+    const why = input.departmentName
+      ? `No ${role} approver in the directory or found by the lookup for department "${input.departmentName}".`
+      : `No ${role} approver in the directory, and the expense has no department name to search by.`;
+    return {
+      found: null,
+      issues: [
+        { campusId: input.campusId, department, roleSought: role, reason: why },
+      ],
+    };
   };
 
   const seedDefault = async (
@@ -219,7 +288,8 @@ export async function resolveExpenseApprovers(
     const key = campusKey(campusId, role);
     const existing = await fromDirectory(key, role);
     if (existing) {
-      return existing;
+      await existing.commit();
+      return existing.found;
     }
     const email = DEFAULT_DIRECTORY_EMAILS[campusId]?.[role];
     if (!email) {
@@ -237,52 +307,50 @@ export async function resolveExpenseApprovers(
   };
 
   const resolveDirectory = async (
-    role: "controller" | "president" | "national",
-    issues: ApproverResolutionIssue[]
-  ): Promise<Found | null> => {
+    role: "controller" | "president" | "national"
+  ): Promise<StepOutcome> => {
     if (role !== "president") {
-      return seedDefault(role, input.campusId);
+      return { found: await seedDefault(role, input.campusId), issues: [] };
     }
     const key = campusKey(input.campusId, "president");
-    const found =
+    const lookup =
       (await fromDirectory(key, "president")) ??
       (await fromAi(key, "president", "campus"));
-    if (found) {
-      return found;
+    if (lookup) {
+      await lookup.commit();
+      return { found: lookup.found, issues: [] };
     }
-    issues.push({
-      campusId: input.campusId,
-      department,
-      roleSought: "president",
-      reason: `No president approver found for campus ${input.campusId}; sent to the national approver (${NATIONAL_APPROVER_EMAIL}).`,
-    });
-    return seedDefault("national", NATIONAL_CAMPUS_ID);
+    const national = await seedDefault("national", NATIONAL_CAMPUS_ID);
+    return {
+      found: national,
+      issues: [
+        {
+          campusId: input.campusId,
+          department,
+          roleSought: "president",
+          reason: national
+            ? `No president approver found for campus ${input.campusId}; sent to the national approver (${national.email}).`
+            : `No president approver found for campus ${input.campusId}, and no national approver is configured.`,
+        },
+      ],
+    };
   };
+
+  const outcomes = await Promise.all(
+    plan.map((planStep) =>
+      planStep.kind === "directory"
+        ? resolveDirectory(planStep.role)
+        : resolveDepartment(planStep.role)
+    )
+  );
 
   const steps: ResolvedApproverStep[] = [];
   const issues: ApproverResolutionIssue[] = [];
-
-  for (const planStep of plan) {
-    let found: Found | null;
-    if (planStep.kind === "directory") {
-      found = await resolveDirectory(planStep.role, issues);
-    } else {
-      found = await resolveDepartment(planStep.role);
-      if (!found) {
-        issues.push({
-          campusId: input.campusId,
-          department,
-          roleSought: planStep.role,
-          reason: input.departmentName
-            ? `No ${planStep.role} approver found for department "${input.departmentName}".`
-            : "Expense has no department set.",
-        });
-      }
-    }
-    if (found) {
-      steps.push({ ...found, step: steps.length + 1 });
+  for (const outcome of outcomes) {
+    issues.push(...outcome.issues);
+    if (outcome.found) {
+      steps.push({ ...outcome.found, step: steps.length + 1 });
     }
   }
-
   return { steps, issues };
 }
