@@ -8,7 +8,7 @@ import { BRAND } from "../../_components/shop-studio-theme";
  * that uses `options`; everything else is a single input, and `email` /
  * `number` differ from `text` only in the input type and validation.
  */
-export const CUSTOM_FIELD_TYPES = [
+const CUSTOM_FIELD_TYPES = [
   { hint: "Single line of text", label: "Text", value: "text" },
   { hint: "Multiple lines", label: "Paragraph", value: "textarea" },
   { hint: "Digits only", label: "Number", value: "number" },
@@ -36,7 +36,7 @@ export interface CustomFieldDraft {
   uid: string;
 }
 
-export function newCustomField(): CustomFieldDraft {
+function newCustomField(): CustomFieldDraft {
   return {
     helpText: "",
     label: "",

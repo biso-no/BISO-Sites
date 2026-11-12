@@ -1,8 +1,9 @@
+import { errorSummary } from "@repo/api/errors";
 import { createAdminClient } from "@repo/api/server";
 import { createRateLimiter } from "@repo/shared/member-pass/rate-limit";
-import { type NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
-import { applyCorsHeaders } from "@/lib/cors";
+import { noStoreJson } from "@/lib/cors";
 import {
   applyNotificationState,
   type NotificationStateAction,
@@ -20,12 +21,6 @@ const stateRateLimiter = createRateLimiter({
   windowMs: ONE_MINUTE_MS,
 });
 
-function json(body: unknown, origin: string | null, status = 200) {
-  const response = NextResponse.json(body, { status });
-  response.headers.set("Cache-Control", "private, no-store");
-  return applyCorsHeaders(response, origin);
-}
-
 /** The state helper's database, bound to the "app" database with admin rights. */
 async function createStateDb(): Promise<NotificationStateDb> {
   const { db } = await createAdminClient();
@@ -40,12 +35,6 @@ async function createStateDb(): Promise<NotificationStateDb> {
   };
 }
 
-/** Only the error's status code and type: never the ids it was about. */
-function errorSummary(error: unknown): string {
-  const { code, type } = (error ?? {}) as { code?: unknown; type?: unknown };
-  return `code=${String(code ?? "")} type=${String(type ?? "")}`;
-}
-
 /**
  * The handler behind `POST /api/notifications/read` and `/clear`: saves
  * [action] on the announcements in the body for the account the bearer token
@@ -56,7 +45,7 @@ export function notificationStateRoute(action: NotificationStateAction) {
   return async (req: NextRequest) => {
     const origin = req.headers.get("origin");
     if (!req.headers.get("authorization")?.startsWith("Bearer ")) {
-      return json({ error: "not_authenticated" }, origin, 401);
+      return noStoreJson({ error: "not_authenticated" }, origin, 401);
     }
 
     let userId: string;
@@ -64,17 +53,17 @@ export function notificationStateRoute(action: NotificationStateAction) {
       const { account } = await createAuthenticatedClient(req);
       userId = (await account.get()).$id;
     } catch {
-      return json({ error: "not_authenticated" }, origin, 401);
+      return noStoreJson({ error: "not_authenticated" }, origin, 401);
     }
 
     const announcementIds = parseAnnouncementIds(
       await req.json().catch(() => null)
     );
     if (!announcementIds) {
-      return json({ error: "invalid_request" }, origin, 400);
+      return noStoreJson({ error: "invalid_request" }, origin, 400);
     }
     if (!stateRateLimiter(userId)) {
-      return json({ error: "rate_limited" }, origin, 429);
+      return noStoreJson({ error: "rate_limited" }, origin, 429);
     }
 
     try {
@@ -83,13 +72,13 @@ export function notificationStateRoute(action: NotificationStateAction) {
         announcementIds,
         userId,
       });
-      return json({ ok: true }, origin);
+      return noStoreJson({ ok: true }, origin);
     } catch (error) {
       console.error(
         `[Notifications] Saving ${action} failed:`,
         errorSummary(error)
       );
-      return json({ error: "unavailable" }, origin, 503);
+      return noStoreJson({ error: "unavailable" }, origin, 503);
     }
   };
 }

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { asString, fetchTicksterJson } from "./common";
 import type {
   TicksterEventDescription,
   TicksterEventDetail,
@@ -45,17 +46,6 @@ export interface ListTicksterEventsParams {
   skip?: number;
   /** Results to return (max 100). */
   take?: number;
-}
-
-function asString(value: unknown): string | null {
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : null;
-  }
-  if (typeof value === "number") {
-    return String(value);
-  }
-  return null;
 }
 
 function asNumber(value: unknown): number | null {
@@ -265,32 +255,21 @@ export class TicksterEventsClient {
     this.fetcher = config.fetcher ?? fetch;
   }
 
-  private async request(
+  private request(
     languageCode: TicksterLanguageCode,
     pathSuffix: string,
     searchParams?: URLSearchParams
   ): Promise<unknown> {
     const query = searchParams ? `?${searchParams.toString()}` : "";
     const url = `${this.baseUrl}/api/v${this.version}/${languageCode}/events${pathSuffix}${query}`;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.fetchTimeoutMs);
-    try {
-      const response = await this.fetcher(url, {
-        headers: {
-          [this.authHeader]: this.apiKey,
-          Accept: "application/json",
-        },
-        signal: controller.signal,
-      });
-      if (!response.ok) {
-        throw new Error(
-          `Tickster Event API ${pathSuffix || "/events"} responded ${response.status} ${response.statusText}`
-        );
-      }
-      return await response.json();
-    } finally {
-      clearTimeout(timeout);
-    }
+    return fetchTicksterJson({
+      apiKey: this.apiKey,
+      authHeader: this.authHeader,
+      fetcher: this.fetcher,
+      label: `Tickster Event API ${pathSuffix || "/events"}`,
+      timeoutMs: this.fetchTimeoutMs,
+      url,
+    });
   }
 
   /** Search published events. Mirrors `GET /{languageCode}/events`. */

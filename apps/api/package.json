@@ -15,7 +15,6 @@
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "dependencies": {
-    "@ai-sdk/openai": "catalog:",
     "@microsoft/microsoft-graph-client": "catalog:",
     "@react-pdf/renderer": "catalog:",
     "@repo/ai": "workspace:*",

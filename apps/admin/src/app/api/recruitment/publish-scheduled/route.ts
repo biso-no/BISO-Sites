@@ -1,28 +1,11 @@
 import { createAdminClient } from "@repo/api/server";
-import { safeSecretCompare } from "@repo/shared/utils/secrets";
 import { revalidatePath } from "next/cache";
 import { type NextRequest, NextResponse } from "next/server";
+import { requireCronSecret } from "@/lib/api-auth";
 import { publishDueJobs } from "@/lib/job-publication";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-function readBearerToken(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return null;
-  }
-  return authHeader.slice(7);
-}
-
-function hasValidSecret(request: NextRequest, secret: string) {
-  // Header-only — keep the secret out of access logs / referrers.
-  const candidates = [
-    readBearerToken(request),
-    request.headers.get("x-cron-secret"),
-  ];
-  return candidates.some((candidate) => safeSecretCompare(candidate, secret));
-}
 
 /**
  * Publishes scheduled vacancies whose publish time has passed. Hit on a cron
@@ -30,19 +13,9 @@ function hasValidSecret(request: NextRequest, secret: string) {
  * Gated by CRON_SECRET; no user session required.
  */
 async function handlePublishScheduled(request: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) {
-    return NextResponse.json(
-      { code: "SECRET_NOT_CONFIGURED", error: "CRON_SECRET is not configured" },
-      { status: 500 }
-    );
-  }
-
-  if (!hasValidSecret(request, secret)) {
-    return NextResponse.json(
-      { code: "UNAUTHORIZED", error: "Unauthorized" },
-      { status: 401 }
-    );
+  const rejected = requireCronSecret(request);
+  if (rejected) {
+    return rejected;
   }
 
   const startedAt = Date.now();

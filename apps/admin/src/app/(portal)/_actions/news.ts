@@ -25,6 +25,7 @@ import {
   scheduleContentTranslation,
   translateContentFields,
 } from "@/lib/content-translation.server";
+import { loadTranslationsByLocale } from "@/lib/content-translation-reads";
 import { resolveNotifyPush } from "@/lib/notify-push-guard";
 import { loadRecruitmentLookups } from "@/lib/recruitment";
 import {
@@ -45,7 +46,6 @@ import {
 import { logAuditEvent } from "./audit-log";
 import { NEWS_PAGE_SIZE, type NewsFormValues, newsSchema } from "./schemas";
 
-type NewsDatabase = Awaited<ReturnType<typeof createAdminClient>>["db"];
 type TranslationPermissions = ReturnType<
   typeof buildContentTranslationPermissions
 >;
@@ -294,29 +294,6 @@ const buildNestedTranslations = (
       title: translation.title,
     };
   });
-
-/**
- * Existing locales are looked up by content metadata, not the relation: rows
- * that predate the relationship backfill are unlinked, and matching them here
- * both prevents duplicate locale rows and re-links them on the next save.
- */
-const loadTranslationsByLocale = async (
-  db: NewsDatabase,
-  articleId: string
-): Promise<Map<string, ContentTranslations>> => {
-  const current = await db.listRows<ContentTranslations>(
-    "app",
-    "content_translations",
-    [
-      Query.equal("content_type", "news"),
-      Query.equal("content_id", articleId),
-      Query.limit(10),
-    ]
-  );
-  return new Map(
-    current.rows.map((translation) => [translation.locale, translation])
-  );
-};
 
 export async function listNews(opts?: {
   campusId?: string;
@@ -571,7 +548,7 @@ export async function updateNews(
       category: validated.data.category,
     });
 
-    const existingByLocale = await loadTranslationsByLocale(db, id);
+    const existingByLocale = await loadTranslationsByLocale(db, "news", id, 10);
     const submittedTranslations = getNewsTranslationInputs(validated.data);
     const submittedLocales = new Set(
       submittedTranslations.map((translation) => translation.locale)

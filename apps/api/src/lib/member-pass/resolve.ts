@@ -1,5 +1,5 @@
 import "server-only";
-import { appwriteErrorStatus } from "@repo/api/errors";
+import { appwriteErrorStatus, errorSummary } from "@repo/api/errors";
 import { createAdminClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
 import {
@@ -24,12 +24,6 @@ const UNAUTHORIZED = 401;
 
 function isRowNotFound(error: unknown): boolean {
   return (error as { code?: number } | null)?.code === 404;
-}
-
-/** Only the error's status code and type: a message could carry the JWT. */
-function errorSummary(error: unknown): string {
-  const { code, type } = (error ?? {}) as { code?: unknown; type?: unknown };
-  return `code=${String(code ?? "")} type=${String(type ?? "")}`;
 }
 
 /**

@@ -58,7 +58,7 @@ export interface NavColumnConfig {
  * the viewport under the header, so it has no band to open on, and without an
  * entry here its header was white on white.
  */
-export const SOLID_NAV_ROUTES: readonly string[] = ["/fs/new"];
+const SOLID_NAV_ROUTES: readonly string[] = ["/fs/new"];
 
 export function hasSolidNavRoute(pathname: string): boolean {
   return SOLID_NAV_ROUTES.some(

@@ -153,6 +153,7 @@ The admin has no middleware. Each layout, page, server action and route handler 
 | `requireNavAccess(navKey)` | The top of each page | Global admins always pass. Anyone else needs a role listed for that key in `NAV_ACCESS` in `roles.ts`, or gets a 404. |
 | `requireAuth()` | Server actions | Sends the person to sign in if there's no session. It checks no role, so the action must check scope itself. |
 | `requireApiAuth()`, `requireApiGlobalAdmin()`, `requireApiAccountingAdmin()` | Route handlers (`apps/admin/src/lib/api-auth.ts`) | Answer 401 or 403 instead of redirecting. |
+| `requireCronSecret(request)` | Route handlers that scheduled-dispatch calls (`apps/admin/src/lib/api-auth.ts`) | No session needed. Answers 500 when `CRON_SECRET` isn't set, and 401 unless `x-cron-secret` or `Authorization: Bearer` carries it. |
 
 `(protected)/profile` uses a different pair, `getLoggedInUser()` and `unauthorized()`. A new top-level route folder outside these groups must add its own check.
 

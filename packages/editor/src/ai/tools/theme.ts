@@ -7,8 +7,6 @@ import {
   type PageTheme,
 } from "@repo/shared/utils/page-theme";
 
-export type SetThemeInput = { accent: string; dark: string } | { reset: true };
-
 export interface ToolResult {
   message: string;
   status: "applied" | "error";
@@ -20,7 +18,7 @@ function badInput(message: string): ToolResult {
 }
 
 /** Rounded DOWN to one decimal so 6.99 never reads as the 7 it just missed. */
-export function floorRatio(ratio: number): string {
+function floorRatio(ratio: number): string {
   return (Math.floor(ratio * 10) / 10).toFixed(1);
 }
 

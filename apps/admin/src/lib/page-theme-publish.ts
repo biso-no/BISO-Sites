@@ -75,7 +75,7 @@ export function isDepartmentTheme(
   );
 }
 
-export const THEME_CONTRAST_ERROR =
+const THEME_CONTRAST_ERROR =
   "The page colours do not have enough colour contrast. Pick a darker main colour or a lighter accent, or use the suggested shades.";
 
 /** A save error sentence when the submitted theme is unusable, else null. */

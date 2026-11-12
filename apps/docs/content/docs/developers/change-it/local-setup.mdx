@@ -141,7 +141,7 @@ bun x ultracite check apps/admin/src/lib/roles.ts
 `fix` formats and fixes what it can. `check` reports what's left. Don't rely on the repo-wide commands yet:
 
 - `bun run check` runs `ultracite check` on the whole repo. It reports about 150 errors that were already there.
-- `bun run lint` runs `biome lint .` in each workspace. It fails in `@repo/ui`, which `biome.jsonc` tells Biome to skip, and in `@repo/payment`, on one complexity error in `src/reconcile.ts`.
+- `bun run lint` runs `biome lint .` in each workspace. It fails in `@repo/ui`, which `biome.jsonc` tells Biome to skip, and on a few existing errors in `admin`, `@repo/shared` and `@repo/editor`.
 - `bun run fix` does nothing, because no workspace has a `fix` script.
 
 ### Nothing checks your work for you

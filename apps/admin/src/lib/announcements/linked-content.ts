@@ -22,8 +22,8 @@ export type LinkedContentResult =
   | { ok: true; columns: LinkedColumns }
   | { ok: false; error: string };
 
-export const NOT_PUBLISHED_MESSAGE = "Only published content can be linked.";
-export const CONTENT_MISSING_MESSAGE = "That content no longer exists.";
+const NOT_PUBLISHED_MESSAGE = "Only published content can be linked.";
+const CONTENT_MISSING_MESSAGE = "That content no longer exists.";
 
 interface LinkDb {
   listRows: <T>(
@@ -54,7 +54,7 @@ interface LinkValues {
   event_id?: string | null;
 }
 
-export const INCOMPLETE_LINK_MESSAGE = "Pick the content to link.";
+const INCOMPLETE_LINK_MESSAGE = "Pick the content to link.";
 
 export type LinkSelection = { type: LinkedContentType; id: string } | null;
 

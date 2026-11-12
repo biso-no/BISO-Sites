@@ -16,7 +16,7 @@ export type ItPermissionMap = Record<M365Permission, boolean>;
  */
 export type ItCampusScope = string[] | null;
 
-export const IT_PERMISSIONS: M365Permission[] = [
+const IT_PERMISSIONS: M365Permission[] = [
   "it.users.view",
   "it.users.create",
   "it.users.editProfile",

@@ -11,10 +11,7 @@ import { connection } from "next/server";
 import { cache } from "react";
 import { getLoggedInUser } from "@/lib/actions/user";
 
-export type {
-  MembershipInfo,
-  MembershipStatus,
-} from "@repo/shared/utils/membership-status";
+export type { MembershipStatus } from "@repo/shared/utils/membership-status";
 
 // Membership status is owned by apps/api (`/api/membership?view=status`): it
 // holds the only cache, which it invalidates when it fulfils a purchase, and

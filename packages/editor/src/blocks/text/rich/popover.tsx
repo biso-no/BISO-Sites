@@ -18,7 +18,7 @@ import {
  * What the toggle needs from the popover: spread it on the `<button>`. A
  * disclosure: `aria-expanded`, and `aria-controls` names the open menu.
  */
-export interface PopoverButtonProps {
+interface PopoverButtonProps {
   "aria-controls": string | undefined;
   "aria-expanded": boolean;
   onClick: (event: MouseEvent<HTMLButtonElement>) => void;

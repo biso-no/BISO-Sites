@@ -33,7 +33,7 @@ export interface BackfillReport {
   unchanged: string[];
 }
 
-export function documentPermissions(status: unknown): string[] {
+function documentPermissions(status: unknown): string[] {
   return status === "published" ? [PUBLIC_READ] : [];
 }
 

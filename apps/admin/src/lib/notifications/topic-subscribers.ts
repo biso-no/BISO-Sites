@@ -34,7 +34,7 @@ export function pickPushSubscriberTotal(
  * `null` when the count cannot be determined, so callers can say so rather
  * than show a number they cannot stand behind.
  */
-export async function getTopicSubscriberCount(
+async function getTopicSubscriberCount(
   topicId: string
 ): Promise<number | null> {
   try {

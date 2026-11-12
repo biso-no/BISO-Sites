@@ -11,12 +11,8 @@ import { generateSlug, nextAutoSlug } from "@repo/shared/utils/content-slug";
 import {
   ArrowLeft,
   Check,
-  GripVertical,
-  Heading1,
   Image as ImageIcon,
-  List,
   Lock,
-  Pilcrow,
   Plus,
   Save,
   Send,
@@ -26,7 +22,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
   AutoTranslateControl,
@@ -45,13 +41,16 @@ import {
 } from "../../../_actions/shop";
 import {
   type DescriptionBlock,
-  type DescriptionBlockType,
   descriptionBlocksToHtml,
   htmlToDescriptionBlocks,
   isTextDescriptionBlock,
-  newBlock,
-  type TextDescriptionBlock,
 } from "../../../_components/description-blocks";
+import { DescriptionBlockEditor } from "../../../_components/description-block-editor";
+import {
+  StudioCoverPattern,
+  studioCoverBackground,
+  studioCoverPatternIndex,
+} from "../../../_components/studio";
 import {
   type CustomFieldDraft,
   CustomFieldsBoard,
@@ -184,163 +183,6 @@ function describeSaveError(
     return error;
   }
   return Object.values(error ?? {}).flat()[0] ?? "Failed to save product";
-}
-
-/* -------------------------------------------------------------------------- */
-/*                            Cover pattern utilities                          */
-/* -------------------------------------------------------------------------- */
-
-function shopCoverBackground(pattern: string | null): string {
-  switch (pattern) {
-    case "linear":
-      return "linear-gradient(135deg, #2a4a7a 0%, #15263c 100%)";
-    case "concentric":
-      return "linear-gradient(135deg, #2f5d3a 0%, #1a3422 100%)";
-    case "wave":
-      return "linear-gradient(135deg, #b08a3e 0%, #6a5118 100%)";
-    case "grid":
-      return "linear-gradient(180deg, #29261b 0%, #100e09 100%)";
-    default:
-      return "linear-gradient(135deg, #6b1e1e 0%, #2a1010 100%)";
-  }
-}
-
-function shopCoverPatternIndex(pattern: string | null): number {
-  switch (pattern) {
-    case "linear":
-      return 2;
-    case "concentric":
-      return 3;
-    case "wave":
-      return 4;
-    case "grid":
-      return 5;
-    default:
-      return 1;
-  }
-}
-
-function ShopCoverPattern({ which }: { which: number }) {
-  const svgStyle: React.CSSProperties = {
-    height: "100%",
-    inset: 0,
-    opacity: 0.3,
-    position: "absolute",
-    width: "100%",
-  };
-
-  if (which === 2) {
-    return (
-      <svg
-        aria-hidden
-        preserveAspectRatio="none"
-        style={svgStyle}
-        viewBox="0 0 200 130"
-      >
-        <title>Linear cover pattern</title>
-        {Array.from({ length: 8 }).map((_, i) => (
-          <line
-            key={`shop-line-${i}`}
-            stroke="white"
-            strokeWidth="0.5"
-            x1="0"
-            x2="200"
-            y1={i * 18}
-            y2={i * 18 - 30}
-          />
-        ))}
-      </svg>
-    );
-  }
-  if (which === 3) {
-    return (
-      <svg
-        aria-hidden
-        preserveAspectRatio="none"
-        style={svgStyle}
-        viewBox="0 0 200 130"
-      >
-        <title>Concentric cover pattern</title>
-        {[80, 60, 40, 20].map((r) => (
-          <circle
-            cx="40"
-            cy="100"
-            fill="none"
-            key={`shop-circ-${r}`}
-            r={r}
-            stroke="white"
-            strokeWidth="0.5"
-          />
-        ))}
-      </svg>
-    );
-  }
-  if (which === 4) {
-    return (
-      <svg
-        aria-hidden
-        preserveAspectRatio="none"
-        style={svgStyle}
-        viewBox="0 0 200 130"
-      >
-        <title>Wave cover pattern</title>
-        {Array.from({ length: 10 }).map((_, i) => (
-          <path
-            d={`M0,${60 + i * 8} Q50,${40 + i * 8} 100,${60 + i * 8} T200,${60 + i * 8}`}
-            fill="none"
-            key={`shop-wave-${i}`}
-            opacity={1 - i * 0.06}
-            stroke="white"
-            strokeWidth="0.4"
-          />
-        ))}
-      </svg>
-    );
-  }
-  if (which === 5) {
-    return (
-      <svg
-        aria-hidden
-        preserveAspectRatio="none"
-        style={svgStyle}
-        viewBox="0 0 200 130"
-      >
-        <title>Grid cover pattern</title>
-        <defs>
-          <pattern
-            height="22"
-            id="shop-grid"
-            patternUnits="userSpaceOnUse"
-            width="22"
-          >
-            <path d="M0 11h22M11 0v22" stroke="white" strokeWidth="0.3" />
-          </pattern>
-        </defs>
-        <rect fill="url(#shop-grid)" height="130" width="200" />
-      </svg>
-    );
-  }
-  return (
-    <svg
-      aria-hidden
-      preserveAspectRatio="none"
-      style={svgStyle}
-      viewBox="0 0 200 130"
-    >
-      <title>Dotted cover pattern</title>
-      <defs>
-        <pattern
-          height="14"
-          id="shop-dots"
-          patternUnits="userSpaceOnUse"
-          width="14"
-        >
-          <circle cx="2" cy="2" fill="white" r="1" />
-        </pattern>
-      </defs>
-      <rect fill="url(#shop-dots)" height="130" width="200" />
-    </svg>
-  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -587,449 +429,6 @@ function ToggleCard({
         </span>
       )}
     </button>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*                         ProductDescriptionBlockEditor                       */
-/* -------------------------------------------------------------------------- */
-
-function addBtnStyle(): React.CSSProperties {
-  return {
-    alignItems: "center",
-    background: "rgba(255,255,255,.6)",
-    border: `0.5px solid ${BRAND.rule2}`,
-    borderRadius: 999,
-    color: BRAND.ink3,
-    cursor: "pointer",
-    display: "flex",
-    fontSize: 11.5,
-    gap: 5,
-    height: 26,
-    padding: "0 10px",
-  };
-}
-
-function ProductDescriptionBlockRow({
-  block,
-  dragging,
-  onChange,
-  onChangeType,
-  onDelete,
-  onDropBlock,
-  onEnter,
-  onFocused,
-  onInsertBelow,
-  onSlash,
-  onStartDrag,
-  shouldFocus,
-  showSlashMenu,
-}: {
-  block: TextDescriptionBlock;
-  dragging: boolean;
-  onChange: (text: string) => void;
-  onChangeType: (type: DescriptionBlockType) => void;
-  onDelete: () => void;
-  onDropBlock: () => void;
-  onEnter: () => void;
-  onFocused: () => void;
-  onInsertBelow: (type: DescriptionBlockType) => void;
-  onSlash: () => void;
-  onStartDrag: () => void;
-  shouldFocus: boolean;
-  showSlashMenu: boolean;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (ref.current && ref.current.innerText !== block.text) {
-      ref.current.innerText = block.text;
-    }
-  }, [block.text]);
-
-  useEffect(() => {
-    if (!(shouldFocus && ref.current)) {
-      return;
-    }
-    ref.current.focus();
-    const selection = window.getSelection();
-    const range = document.createRange();
-    range.selectNodeContents(ref.current);
-    range.collapse(false);
-    selection?.removeAllRanges();
-    selection?.addRange(range);
-    onFocused();
-  }, [onFocused, shouldFocus]);
-
-  let placeholder = "Write something about this product…";
-  if (block.type === "h") {
-    placeholder = "Section heading…";
-  } else if (block.type === "l") {
-    placeholder = "A feature, a material, a detail…";
-  }
-
-  const contentStyle: React.CSSProperties = (() => {
-    if (block.type === "h") {
-      return {
-        color: BRAND.ink,
-        fontFamily: SERIF_STACK,
-        fontSize: 26,
-        fontWeight: 400,
-        letterSpacing: "-0.012em",
-        lineHeight: 1.15,
-        minHeight: 28,
-        outline: "none",
-      };
-    }
-    return {
-      color: BRAND.ink2,
-      fontSize: 15.5,
-      lineHeight: 1.55,
-      minHeight: 24,
-      outline: "none",
-    };
-  })();
-
-  return (
-    // biome-ignore lint/a11y/noNoninteractiveElementInteractions: drop target wraps semantic editable text
-    // biome-ignore lint/a11y/noStaticElementInteractions: see above
-    <div
-      onDragOver={(event) => event.preventDefault()}
-      onDrop={(event) => {
-        event.preventDefault();
-        onDropBlock();
-      }}
-      style={{
-        display: "flex",
-        gap: 12,
-        opacity: dragging ? 0.35 : 1,
-        padding: block.type === "h" ? "16px 0 8px" : "8px 0",
-        position: "relative",
-        transition: "opacity .15s",
-      }}
-    >
-      <button
-        aria-label="Drag block"
-        draggable
-        onDragStart={onStartDrag}
-        style={{
-          alignItems: "flex-start",
-          background: "transparent",
-          border: 0,
-          color: BRAND.ink4,
-          cursor: "grab",
-          display: "flex",
-          flexShrink: 0,
-          justifyContent: "center",
-          paddingTop: 8,
-          width: 24,
-        }}
-        type="button"
-      >
-        <GripVertical size={13} />
-      </button>
-      <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
-        {block.type === "l" && (
-          <span
-            aria-hidden
-            style={{
-              background: BRAND.claret,
-              height: 1,
-              left: 0,
-              position: "absolute",
-              top: 16,
-              width: 8,
-            }}
-          />
-        )}
-        {/* biome-ignore lint/a11y/useSemanticElements: contentEditable maintains the document editing UX */}
-        <div
-          aria-label={placeholder}
-          contentEditable
-          data-placeholder={placeholder}
-          onInput={(event) => onChange(event.currentTarget.innerText)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
-              event.preventDefault();
-              onEnter();
-              return;
-            }
-            if (event.key === "/") {
-              event.preventDefault();
-              onSlash();
-            }
-          }}
-          ref={ref}
-          role="textbox"
-          style={{ ...contentStyle, paddingLeft: block.type === "l" ? 20 : 0 }}
-          suppressContentEditableWarning
-          tabIndex={0}
-        />
-        {showSlashMenu && (
-          <div
-            style={{
-              background: "white",
-              border: `0.5px solid ${BRAND.rule2}`,
-              borderRadius: 12,
-              boxShadow: "0 12px 24px rgba(0,0,0,.10)",
-              left: 0,
-              marginTop: 4,
-              overflow: "hidden",
-              padding: "4px 0",
-              position: "absolute",
-              top: "100%",
-              width: 220,
-              zIndex: 30,
-            }}
-          >
-            {[
-              { icon: Heading1, label: "Heading", type: "h" as const },
-              { icon: Pilcrow, label: "Paragraph", type: "p" as const },
-              { icon: List, label: "Bullet", type: "l" as const },
-            ].map(({ icon: Icon, label, type }) => (
-              <button
-                key={type}
-                onClick={() => onChangeType(type)}
-                style={{
-                  alignItems: "center",
-                  background: "transparent",
-                  border: 0,
-                  color: BRAND.ink2,
-                  cursor: "pointer",
-                  display: "flex",
-                  fontSize: 13,
-                  gap: 8,
-                  padding: "8px 12px",
-                  textAlign: "left",
-                  width: "100%",
-                }}
-                type="button"
-              >
-                <Icon size={13} />
-                {label}
-              </button>
-            ))}
-            <div
-              style={{ background: BRAND.rule, height: 1, margin: "4px 0" }}
-            />
-            <button
-              onClick={() => onInsertBelow("p")}
-              style={{
-                alignItems: "center",
-                background: "transparent",
-                border: 0,
-                color: BRAND.ink2,
-                cursor: "pointer",
-                display: "flex",
-                fontSize: 13,
-                gap: 8,
-                padding: "8px 12px",
-                textAlign: "left",
-                width: "100%",
-              }}
-              type="button"
-            >
-              <Plus size={13} />
-              New paragraph below
-            </button>
-            <button
-              onClick={onDelete}
-              style={{
-                alignItems: "center",
-                background: "transparent",
-                border: 0,
-                color: BRAND.claret,
-                cursor: "pointer",
-                display: "flex",
-                fontSize: 13,
-                gap: 8,
-                padding: "8px 12px",
-                textAlign: "left",
-                width: "100%",
-              }}
-              type="button"
-            >
-              <Trash2 size={13} />
-              Delete block
-            </button>
-          </div>
-        )}
-      </div>
-      <button
-        aria-label="Delete block"
-        onClick={onDelete}
-        style={{
-          alignItems: "center",
-          background: "transparent",
-          border: 0,
-          borderRadius: 6,
-          color: BRAND.ink4,
-          cursor: "pointer",
-          display: "grid",
-          flexShrink: 0,
-          height: 28,
-          marginTop: 4,
-          placeItems: "center",
-          width: 28,
-        }}
-        type="button"
-      >
-        <Trash2 size={13} />
-      </button>
-    </div>
-  );
-}
-
-function ProductDescriptionBlockEditor({
-  blocks,
-  onChange,
-}: {
-  blocks: DescriptionBlock[];
-  onChange: (blocks: DescriptionBlock[]) => void;
-}) {
-  const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);
-  const [focusBlockId, setFocusBlockId] = useState<string | null>(null);
-  const [slashBlockId, setSlashBlockId] = useState<string | null>(null);
-
-  function updateBlock(id: string, text: string) {
-    onChange(
-      blocks.map((block) =>
-        block.id === id && isTextDescriptionBlock(block)
-          ? { ...block, text }
-          : block
-      )
-    );
-  }
-
-  function insertBlock(afterId: string, type: DescriptionBlockType = "p") {
-    const idx = blocks.findIndex((b) => b.id === afterId);
-    const block = newBlock(type);
-    const next = blocks.slice();
-    next.splice(idx + 1, 0, block);
-    setFocusBlockId(block.id);
-    setSlashBlockId(null);
-    onChange(next);
-  }
-
-  function addBlock(type: DescriptionBlockType) {
-    const block = newBlock(type);
-    setFocusBlockId(block.id);
-    setSlashBlockId(null);
-    onChange([...blocks, block]);
-  }
-
-  function changeBlockType(id: string, type: DescriptionBlockType) {
-    setFocusBlockId(id);
-    setSlashBlockId(null);
-    onChange(
-      blocks.map((block) =>
-        block.id === id && isTextDescriptionBlock(block)
-          ? { ...block, type }
-          : block
-      )
-    );
-  }
-
-  function deleteBlock(id: string) {
-    setSlashBlockId(null);
-    if (blocks.length === 1) {
-      setFocusBlockId(id);
-      const first = blocks[0];
-      onChange([
-        first && isTextDescriptionBlock(first)
-          ? { ...first, text: "", type: "p" }
-          : newBlock("p"),
-      ]);
-      return;
-    }
-    const idx = blocks.findIndex((b) => b.id === id);
-    const next = blocks.filter((b) => b.id !== id);
-    const nextFocus = next[Math.max(0, idx - 1)]?.id ?? null;
-    setFocusBlockId(nextFocus);
-    onChange(next);
-  }
-
-  function moveBlock(sourceId: string, targetId: string) {
-    if (sourceId === targetId) {
-      return;
-    }
-    const si = blocks.findIndex((b) => b.id === sourceId);
-    const ti = blocks.findIndex((b) => b.id === targetId);
-    if (si < 0 || ti < 0) {
-      return;
-    }
-    const next = blocks.slice();
-    const [moved] = next.splice(si, 1);
-    if (!moved) {
-      return;
-    }
-    next.splice(ti, 0, moved);
-    setDraggingBlockId(null);
-    setFocusBlockId(sourceId);
-    onChange(next);
-  }
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      {blocks.filter(isTextDescriptionBlock).map((block) => (
-        <ProductDescriptionBlockRow
-          block={block}
-          dragging={draggingBlockId === block.id}
-          key={block.id}
-          onChange={(text) => updateBlock(block.id, text)}
-          onChangeType={(type) => changeBlockType(block.id, type)}
-          onDelete={() => deleteBlock(block.id)}
-          onDropBlock={() => {
-            if (draggingBlockId) {
-              moveBlock(draggingBlockId, block.id);
-            }
-          }}
-          onEnter={() => insertBlock(block.id)}
-          onFocused={() => setFocusBlockId(null)}
-          onInsertBelow={(type) => insertBlock(block.id, type)}
-          onSlash={() => setSlashBlockId(block.id)}
-          onStartDrag={() => setDraggingBlockId(block.id)}
-          shouldFocus={focusBlockId === block.id}
-          showSlashMenu={slashBlockId === block.id}
-        />
-      ))}
-      <div
-        style={{
-          alignItems: "center",
-          display: "flex",
-          gap: 8,
-          margin: "14px 0 0",
-          padding: "6px 0",
-        }}
-      >
-        <div style={{ background: BRAND.rule, flex: 1, height: 0.5 }} />
-        <button
-          onClick={() => addBlock("h")}
-          style={addBtnStyle()}
-          type="button"
-        >
-          <Heading1 size={11} />
-          Heading
-        </button>
-        <button
-          onClick={() => addBlock("p")}
-          style={addBtnStyle()}
-          type="button"
-        >
-          <Pilcrow size={11} />
-          Paragraph
-        </button>
-        <button
-          onClick={() => addBlock("l")}
-          style={addBtnStyle()}
-          type="button"
-        >
-          <List size={11} />
-          Bullet
-        </button>
-        <div style={{ background: BRAND.rule, flex: 1, height: 0.5 }} />
-      </div>
-    </div>
   );
 }
 
@@ -1583,23 +982,23 @@ function EssentialsStep({
 /*                             DescriptionStep                                */
 /* -------------------------------------------------------------------------- */
 
-function DescriptionStep({
-  blocksEn,
-  blocksNo,
+export function ProductDescriptionStep({
+  descriptionEn,
+  descriptionNo,
   lang,
   onLangChange,
-  setBlocksEn,
-  setBlocksNo,
+  setDescriptionEn,
+  setDescriptionNo,
 }: {
-  blocksEn: DescriptionBlock[];
-  blocksNo: DescriptionBlock[];
+  descriptionEn: string;
+  descriptionNo: string;
   lang: LocaleCode;
   onLangChange: (l: LocaleCode) => void;
-  setBlocksEn: (b: DescriptionBlock[]) => void;
-  setBlocksNo: (b: DescriptionBlock[]) => void;
+  setDescriptionEn: (html: string) => void;
+  setDescriptionNo: (html: string) => void;
 }) {
-  const blocks = lang === "no" ? blocksNo : blocksEn;
-  const setBlocks = lang === "no" ? setBlocksNo : setBlocksEn;
+  const description = lang === "no" ? descriptionNo : descriptionEn;
+  const setDescription = lang === "no" ? setDescriptionNo : setDescriptionEn;
 
   return (
     <div>
@@ -1628,7 +1027,11 @@ function DescriptionStep({
         </p>
         <LocaleTabs lang={lang} onChange={onLangChange} />
       </div>
-      <ProductDescriptionBlockEditor blocks={blocks} onChange={setBlocks} />
+      <DescriptionBlockEditor
+        onChange={setDescription}
+        placeholder="Write something about this product…"
+        value={description}
+      />
     </div>
   );
 }
@@ -2357,10 +1760,10 @@ function PhotosVisibilityStep({
                     overflow: "hidden",
                     position: "relative",
                     width: 56,
-                    background: shopCoverBackground(p.id),
+                    background: studioCoverBackground(p.id),
                   }}
                 >
-                  <ShopCoverPattern which={shopCoverPatternIndex(p.id)} />
+                  <StudioCoverPattern which={studioCoverPatternIndex(p.id)} />
                 </div>
                 <span
                   style={{
@@ -2808,8 +2211,8 @@ function PreviewPane({
   const cat = PRODUCT_CATEGORIES.find((c) => c.id === category);
   const coverBg = heroImage
     ? `url(${heroImage})`
-    : shopCoverBackground(coverPattern);
-  const coverWhich = shopCoverPatternIndex(coverPattern);
+    : studioCoverBackground(coverPattern);
+  const coverWhich = studioCoverPatternIndex(coverPattern);
   const hasPrice = regularPrice > 0;
   const hasMemberPrice =
     memberPrice !== null && memberPrice > 0 && memberPrice < regularPrice;
@@ -3077,7 +2480,7 @@ function PreviewPane({
                   position: "relative",
                 }}
               >
-                {!heroImage && <ShopCoverPattern which={coverWhich} />}
+                {!heroImage && <StudioCoverPattern which={coverWhich} />}
                 {cat && (
                   <span
                     style={{
@@ -3357,11 +2760,27 @@ export function ShopStudioEditor({
     noTranslation?.short_description ?? ""
   );
   const [tags, setTags] = useState<string[]>(product?.tags ?? []);
-  const [blocksNo, setBlocksNo] = useState<DescriptionBlock[]>(() =>
-    htmlToDescriptionBlocks(noTranslation?.description ?? "")
+  // The description editor emits HTML, kept as is so the editor gets back
+  // exactly what it emitted (a re-serialized value would make it reload).
+  // An untouched description starts in the normalized form this studio has
+  // always saved. The preview and the readiness checks read parsed blocks.
+  const [descriptionNo, setDescriptionNo] = useState(() =>
+    descriptionBlocksToHtml(
+      htmlToDescriptionBlocks(noTranslation?.description ?? "")
+    )
   );
-  const [blocksEn, setBlocksEn] = useState<DescriptionBlock[]>(() =>
-    htmlToDescriptionBlocks(enTranslation?.description ?? "")
+  const [descriptionEn, setDescriptionEn] = useState(() =>
+    descriptionBlocksToHtml(
+      htmlToDescriptionBlocks(enTranslation?.description ?? "")
+    )
+  );
+  const blocksNo = useMemo(
+    () => htmlToDescriptionBlocks(descriptionNo),
+    [descriptionNo]
+  );
+  const blocksEn = useMemo(
+    () => htmlToDescriptionBlocks(descriptionEn),
+    [descriptionEn]
   );
   const [localVariants, setLocalVariants] = useState<ProductVariant[]>(() => {
     return (product?.variations ?? [])
@@ -3445,8 +2864,8 @@ export function ShopStudioEditor({
     return {
       name: titleNo,
       name_en: titleEn || null,
-      description: descriptionBlocksToHtml(blocksNo) || null,
-      description_en: descriptionBlocksToHtml(blocksEn) || null,
+      description: descriptionNo || null,
+      description_en: descriptionEn || null,
       short_description: shortDescription || null,
       slug: slug || generateSlug(titleNo),
       campus_id: campusId,
@@ -3525,12 +2944,14 @@ export function ShopStudioEditor({
   }
 
   async function handleTranslate() {
-    const sourceBlocks = localeLang === "no" ? blocksNo : blocksEn;
-    const targetBlocks = localeLang === "no" ? blocksEn : blocksNo;
+    const sourceDescription =
+      localeLang === "no" ? descriptionNo : descriptionEn;
+    const targetDescription =
+      localeLang === "no" ? descriptionEn : descriptionNo;
     const sourceName = localeLang === "no" ? titleNo : titleEn;
     const targetName = localeLang === "no" ? titleEn : titleNo;
     if (
-      (targetName.trim() || descriptionBlocksToHtml(targetBlocks).trim()) &&
+      (targetName.trim() || targetDescription.trim()) &&
       // biome-ignore lint/suspicious/noAlert: Match the existing translation replacement confirmation pattern.
       !window.confirm("Replace the existing translated product draft?")
     ) {
@@ -3541,7 +2962,7 @@ export function ShopStudioEditor({
     try {
       const result = await generateProductTranslationDraft({
         campusId,
-        description: descriptionBlocksToHtml(sourceBlocks),
+        description: sourceDescription,
         departmentId,
         name: sourceName,
         sourceLocale: localeLang,
@@ -3554,10 +2975,18 @@ export function ShopStudioEditor({
       const targetLocale = getTargetLocale(localeLang);
       if (targetLocale === "en") {
         setTitleEn(result.data.name);
-        setBlocksEn(htmlToDescriptionBlocks(result.data.description));
+        setDescriptionEn(
+          descriptionBlocksToHtml(
+            htmlToDescriptionBlocks(result.data.description)
+          )
+        );
       } else {
         setTitleNo(result.data.name);
-        setBlocksNo(htmlToDescriptionBlocks(result.data.description));
+        setDescriptionNo(
+          descriptionBlocksToHtml(
+            htmlToDescriptionBlocks(result.data.description)
+          )
+        );
       }
       setLocaleLang(targetLocale);
       toast.success("Translation draft generated");
@@ -3581,11 +3010,6 @@ export function ShopStudioEditor({
           0% { opacity: 1; }
           50% { opacity: 0.35; }
           100% { opacity: 1; }
-        }
-        [contenteditable][data-placeholder]:empty::before {
-          content: attr(data-placeholder);
-          color: ${BRAND.ink4};
-          font-style: italic;
         }
       `}</style>
 
@@ -3685,13 +3109,13 @@ export function ShopStudioEditor({
               />
             )}
             {activeStep === 1 && (
-              <DescriptionStep
-                blocksEn={blocksEn}
-                blocksNo={blocksNo}
+              <ProductDescriptionStep
+                descriptionEn={descriptionEn}
+                descriptionNo={descriptionNo}
                 lang={localeLang}
                 onLangChange={setLocaleLang}
-                setBlocksEn={setBlocksEn}
-                setBlocksNo={setBlocksNo}
+                setDescriptionEn={setDescriptionEn}
+                setDescriptionNo={setDescriptionNo}
               />
             )}
             {activeStep === 2 && (

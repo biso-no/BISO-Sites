@@ -1,14 +1,9 @@
-import { type NextRequest, NextResponse } from "next/server";
+import { errorSummary } from "@repo/api/errors";
+import type { NextRequest } from "next/server";
 import { getPublicBenefitsForCampus } from "@/lib/benefits/public-benefits";
-import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
+import { corsPreflightResponse, noStoreJson } from "@/lib/cors";
 
 export const dynamic = "force-dynamic";
-
-function json(body: unknown, origin: string | null, status = 200) {
-  const response = NextResponse.json(body, { status });
-  response.headers.set("Cache-Control", "private, no-store");
-  return applyCorsHeaders(response, origin);
-}
 
 /**
  * The benefits the website lists, for the app. Anonymous read of published,
@@ -20,16 +15,11 @@ export async function GET(req: NextRequest) {
   const campus = new URL(req.url).searchParams.get("campus");
   try {
     const benefits = await getPublicBenefitsForCampus(campus, new Date());
-    return json({ benefits }, origin);
+    return noStoreJson({ benefits }, origin);
   } catch (error) {
     console.error("[Benefits] List failed:", errorSummary(error));
-    return json({ error: "unavailable" }, origin, 503);
+    return noStoreJson({ error: "unavailable" }, origin, 503);
   }
-}
-
-function errorSummary(error: unknown): string {
-  const { code, type } = (error ?? {}) as { code?: unknown; type?: unknown };
-  return `code=${String(code ?? "")} type=${String(type ?? "")}`;
 }
 
 export function OPTIONS(req: NextRequest) {

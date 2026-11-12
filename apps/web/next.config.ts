@@ -13,7 +13,6 @@ const baseConfig: NextConfig = {
     "@repo/shared",
     "@repo/ai",
     "@repo/editor",
-    "@repo/payment",
     "@repo/typescript-config",
   ],
   // pdfjs (CV text extraction for AI screening) loads its worker via a

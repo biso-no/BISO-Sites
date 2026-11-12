@@ -1,5 +1,5 @@
 /** Editor-supplied links are untrusted: only these shapes become a live `<a>`. */
-export const EXTERNAL_RE = /^https?:\/\//i;
+const EXTERNAL_RE = /^https?:\/\//i;
 
 // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping control characters is the point.
 const IGNORED_CHARS = /[\u0000- \u007f-\u009f]/g;

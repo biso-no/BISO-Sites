@@ -662,4 +662,44 @@ describe("membership checkout authorization", () => {
     expect(response.status).toBe(503);
     expect(mockedCreateOrder).not.toHaveBeenCalled();
   });
+
+  it("returns 503 and creates no order when Stripe is not configured", async () => {
+    mockedResolveStripeCredentials.mockResolvedValue(null);
+
+    const response = await postStripe(
+      membershipCheckoutRequest({ authorization: "Bearer valid" })
+    );
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({
+      message: "Stripe is not configured",
+    });
+    expect(mockedCreateOrder).not.toHaveBeenCalled();
+    expect(mockedCreateStripeCheckoutSession).not.toHaveBeenCalled();
+  });
+
+  it("returns 504 when the Stripe checkout call times out, and creates no session", async () => {
+    vi.stubEnv("VIPPS_CHECKOUT_TIMEOUT_MS", "20");
+    mockedCreateStripeCheckoutSession.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            resolve({
+              checkoutUrl: "https://stripe.example/checkout",
+              sessionId: "stripe-session",
+            });
+          }, 100);
+        })
+    );
+
+    const response = await postStripe(
+      membershipCheckoutRequest({ authorization: "Bearer valid" })
+    );
+
+    expect(response.status).toBe(504);
+    await expect(response.json()).resolves.toEqual({
+      message: "Stripe checkout timed out",
+    });
+    expect(mockedUpdateOrderWithSession).not.toHaveBeenCalled();
+  });
 });

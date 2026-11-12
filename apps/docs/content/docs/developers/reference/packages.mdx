@@ -7,6 +7,7 @@ covers:
   - packages/typescript-config/*.json
   - packages/shared/scripts/**
   - packages/shared/utils/scorecard-interview-backfill.ts
+  - packages/shared/utils/table-scan.ts
   - packages/api/index.ts
   - packages/editor/src/index.ts
   - packages/editor/src/render/index.ts
@@ -29,7 +30,7 @@ Read this before you change a shared package, or before you import something new
 | [`@repo/editor`](#repoeditor) | The block page editor and the renderer for built pages | admin, web |
 | [`@repo/ui`](#repoui) | Shared React components and CSS | web, admin, docs, `@repo/tours` |
 | [`@repo/connectors`](#repoconnectors) | Clients for Microsoft, 24SevenOffice, SharePoint, the Teams bot, Tickster and SMTP | admin, api, web, member-roster-sync, `@repo/shared` |
-| [`@repo/payment`](#repopayment) | Vipps MobilePay and Stripe | api, admin, and one deprecated web route |
+| [`@repo/payment`](#repopayment) | Vipps MobilePay and Stripe | api, admin |
 | [`@repo/ai`](#repoai) | The Anthropic models, the admin assistant and the AI helpers | admin, api, web, docs, `@repo/i18n`'s translation script |
 | [`@repo/i18n`](#repoi18n) | Locales and the Norwegian and English message files | web, admin, api |
 | [`@repo/tours`](#repotours) | The engine for the admin's guided tours | admin |
@@ -136,7 +137,7 @@ The in-house block page editor, `EditorShell`, built on dnd-kit, immer and zusta
 
 ## `@repo/ui`
 
-Shared React components built on Radix and Tailwind, the Plate.js rich-text editor kits, a few hooks, and the shared CSS.
+Shared React components built on Radix and Tailwind, a few hooks, and the shared CSS.
 
 | Import | What it gives you |
 |---|---|
@@ -150,7 +151,7 @@ Shared React components built on Radix and Tailwind, the Plate.js rich-text edit
 **Sharp edges**
 
 - **Biome skips it.** `biome.jsonc` force-ignores `packages/ui/*`, yet the package's own `lint` script runs `biome lint .`, so `bun run lint` fails here. See [Lint and format](/developers/change-it/local-setup#lint-and-format).
-- **Its tests never run.** It has two test files and no `test` script.
+- **Its tests never run.** It has one test file and no `test` script.
 - **`ts_errors.txt` and `check-types.log` are old.** They're committed type-check output from April 2026 that lists Plate.js type errors. `bun run check-types` in `packages/ui` passes today. Ignore both files, or delete them.
 - **Two sets of tokens live here.** `biso-surface.css` defines the older `.biso-surface` palette and the 2026 redesign's `.biso-surface-v2`. The website and docs put both classes on `<html>` (`apps/web/src/app/layout.tsx`, `apps/docs/app/layout.tsx`), because some website components still read the old one. The admin's own screens use neither. Its page-editor canvas puts both on its frame (`packages/editor/src/components/editor-shell/canvas/index.tsx`), so the editor previews the website's look. So a change to either set shows on the website, in docs and in the editor canvas. The comments in `apps/web/src/app/layout.tsx` and `biso-surface.css` that say the admin mounts only `.biso-surface` are out of date. New website code uses the redesign's tokens only, as the "Design system" section of `apps/web/CLAUDE.md` says.
 
@@ -189,13 +190,12 @@ Vipps MobilePay and Stripe: checkout, payment updates, refunds, reconciliation o
 | `@repo/payment/refunds` | `refundPayment()` and `cancelPayment()`, which call the right provider |
 | `@repo/payment/reconcile` | Re-checks pending orders with the provider |
 
-The api uses it for every checkout, callback, return and reconciliation. The admin uses it for refunds and the payment settings page. The website imports it only in its deprecated `/api/cron/reconcile-orders` route.
+The api uses it for every checkout, callback, return and reconciliation. The admin uses it for refunds and the payment settings page. The website doesn't use it.
 
 **Sharp edges**
 
 - **`README.md` is out of date.** It describes a Vipps-only package with an `@repo/payment/actions` entry point and files that no longer exist, and links to old docs pages. Trust `package.json` and [Payments](/developers/reference/payments).
 - **The table beats the variables.** Credentials in `payment_settings` are used before the `VIPPS_*` and `STRIPE_*` variables, so changing a variable may change nothing. See [Credentials](/developers/reference/payments#credentials-the-payment_settings-table).
-- **`bun run lint` fails here** on one complexity error in `src/reconcile.ts`.
 
 ## `@repo/ai`
 
@@ -216,7 +216,6 @@ AI on the Vercel AI SDK: the two Anthropic models, the admin assistant and its t
 
 - **The package never reads `ANTHROPIC_API_KEY`.** The AI library reads it by itself. Only docs names it, to switch its assistant on, and only `apps/docs/.env.example` lists it. See [AI](/developers/reference/ai).
 - **Don't trust `README.md`.** No app imports `@repo/ai/config`, `@repo/ai/prompts` or `@repo/ai/utils`, though the README shows them. It also shows entry points that don't exist, such as `@repo/ai/provider`, `@repo/ai/hooks/use-assistant` and `@repo/ai/tools/navigation`. The `exports` in `package.json` are the real list.
-- **`@ai-sdk/openai` is still a dependency.** The models moved from OpenAI to Anthropic on 22 October 2026. In the apps, only test mocks in the admin still refer to OpenAI's package. See [Leftovers](/developers/reference/ai#leftovers).
 
 ## `@repo/i18n`
 

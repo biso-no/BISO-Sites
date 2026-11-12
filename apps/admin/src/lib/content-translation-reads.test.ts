@@ -1,5 +1,9 @@
 import { describe, expect, mock, test } from "bun:test";
-import { restampTranslationReads } from "./content-translation-reads";
+import { Query } from "@repo/api";
+import {
+  loadTranslationsByLocale,
+  restampTranslationReads,
+} from "./content-translation-reads";
 
 function fakeDb(pages: { $id: string; $permissions: string[] }[][]) {
   const listRows = mock(() => {
@@ -45,5 +49,28 @@ describe("restampTranslationReads", () => {
     await restampTranslationReads(db as never, "news", "n1", "published");
     expect(db.listRows).toHaveBeenCalledTimes(2);
     expect(db.updateRow).toHaveBeenCalledTimes(101);
+  });
+});
+
+describe("loadTranslationsByLocale", () => {
+  test("asks for one item's translations and keys them by locale", async () => {
+    const rows = [
+      { $id: "t-en", locale: "en" },
+      { $id: "t-no", locale: "no" },
+    ];
+    const listRows = mock(() => Promise.resolve({ rows, total: rows.length }));
+    const byLocale = await loadTranslationsByLocale(
+      { listRows } as never,
+      "memberBenefit",
+      "b1",
+      5
+    );
+    expect(listRows).toHaveBeenCalledWith("app", "content_translations", [
+      Query.equal("content_type", "memberBenefit"),
+      Query.equal("content_id", "b1"),
+      Query.limit(5),
+    ]);
+    expect([...byLocale.keys()]).toEqual(["en", "no"]);
+    expect(byLocale.get("no")?.$id).toBe("t-no");
   });
 });

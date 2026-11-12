@@ -1,5 +1,3 @@
-import type { ContentTranslations } from "@repo/api/types/appwrite";
-
 export interface ProductOption {
   label: string;
   options?: string[];
@@ -13,13 +11,6 @@ export interface ProductMetadata {
   [key: string]: unknown;
 }
 
-export interface ProductWithTranslation extends ContentTranslations {
-  product_ref: NonNullable<ContentTranslations["product_ref"]>;
-}
-
-const productCategories = ["Merch", "Trips", "Lockers", "Membership"] as const;
-type ProductCategory = (typeof productCategories)[number];
-
 export function parseProductMetadata(
   metadataString: string | null | undefined
 ): ProductMetadata {
@@ -32,20 +23,6 @@ export function parseProductMetadata(
   } catch {
     return {};
   }
-}
-
-export function formatPrice(price: number | null | undefined): string {
-  if (!price || price === 0) {
-    return "Free";
-  }
-  return `${price} NOK`;
-}
-
-function _getProductCategory(
-  category: string | null | undefined
-): ProductCategory {
-  const cat = category as ProductCategory;
-  return productCategories.includes(cat) ? cat : "Merch";
 }
 
 export function calculateSavings(

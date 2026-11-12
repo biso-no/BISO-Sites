@@ -474,7 +474,6 @@ export async function cachedDepartmentById(
 // forms are equivalent to TypeScript, and Biome's `noExportedImports` wants
 // the intent spelled out.
 export type {
-  PageDepartmentItem,
   PageDepartmentsFeed,
   PageEventItem,
   PageJobItem,

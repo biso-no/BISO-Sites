@@ -23,7 +23,6 @@ export {
   type DispatchAnnouncementResult,
   type DispatchClients,
   dispatchAnnouncement,
-  htmlToPlainText,
 } from "@repo/shared/utils/push-dispatch";
 
 /** Max scheduled announcements processed in a single dispatch run. */

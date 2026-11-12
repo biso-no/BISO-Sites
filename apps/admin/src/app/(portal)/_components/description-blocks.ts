@@ -66,7 +66,7 @@ export function escapeHtml(value: string): string {
     .replace(/'/g, "&#039;");
 }
 
-export function decodeHtml(value: string): string {
+function decodeHtml(value: string): string {
   return value.replace(
     HTML_ENTITY,
     (entity) => HTML_ENTITY_VALUES[entity] ?? entity

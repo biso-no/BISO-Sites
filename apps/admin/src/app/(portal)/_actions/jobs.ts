@@ -51,6 +51,7 @@ import {
   getTargetLocale,
   isCurrentTranslationSource,
   type TranslationField,
+  toTitledTranslationDraft,
 } from "@/lib/content-translation";
 import {
   parseAutoTranslationOptions,
@@ -1201,21 +1202,8 @@ export async function generateJobTranslationDraft(values: {
       },
       validated.data.sourceLocale
     );
-    if (getTargetLocale(validated.data.sourceLocale) === "en") {
-      return {
-        data: {
-          description_en: translated.description,
-          short_description_en: translated.short_description,
-          title_en: translated.title,
-        },
-      };
-    }
     return {
-      data: {
-        description_no: translated.description,
-        short_description_no: translated.short_description,
-        title_no: translated.title,
-      },
+      data: toTitledTranslationDraft(validated.data.sourceLocale, translated),
     };
   } catch (error) {
     return {

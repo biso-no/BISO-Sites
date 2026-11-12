@@ -6,19 +6,9 @@ import {
   OrdersStatus,
   type Users,
 } from "@repo/api/types/appwrite";
-import {
-  resolveStripeCredentials,
-  resolveVippsCredentials,
-} from "@repo/payment/credentials";
-import { createStripeCheckoutSession } from "@repo/payment/stripe";
-import { createVippsPayment } from "@repo/payment/vipps";
 import { type CheckoutSessionParams, Currency } from "@repo/shared/types/vipps";
 import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
-import {
-  type CheckoutClient,
-  checkoutReturnUrl,
-  isCheckoutClient,
-} from "@repo/shared/utils/checkout-return";
+import { isCheckoutClient } from "@repo/shared/utils/checkout-return";
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { CAMPUS_INVOICE_NAMES } from "@repo/shared/utils/finago-membership-invoice";
 import { getMembershipOfferCandidates } from "@repo/shared/utils/membership-catalog";
@@ -29,13 +19,15 @@ import {
 } from "@repo/shared/utils/membership-plans";
 import { getOrderItems } from "@repo/shared/utils/order-parsing";
 import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
-import {
-  createOrder,
-  updateOrderWithSession,
-} from "@repo/shared/utils/vipps-order-ops";
+import { updateOrderWithSession } from "@repo/shared/utils/vipps-order-ops";
 import { type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
+import {
+  CheckoutTimeoutError,
+  startStripeCheckout,
+  startVippsCheckout,
+} from "@/lib/checkout-session";
 import { getMembershipStatusForStudent } from "@/lib/membership-status-cache";
 import { apiBaseUrl, type PublicUrls, webBaseUrl } from "@/lib/public-urls";
 
@@ -64,62 +56,6 @@ const RECENT_ORDERS_LIMIT = 20;
 // sellable.
 const SETTLED_ORDER_WINDOW_MS = 400 * 24 * 60 * 60 * 1000;
 const SETTLED_ORDERS_LIMIT = 50;
-
-// Same deadline discipline as the product checkout route: neither payment
-// helper has an internal timeout, so a hung provider call would otherwise
-// hang this request indefinitely instead of surfacing as a 504.
-const DEFAULT_VIPPS_CHECKOUT_TIMEOUT_MS = 10_000;
-
-class CheckoutTimeoutError extends Error {}
-
-function readPositiveInteger(
-  value: string | undefined,
-  fallback: number
-): number {
-  if (!value) {
-    return fallback;
-  }
-
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-}
-
-function vippsCheckoutTimeoutMs(): number {
-  return readPositiveInteger(
-    process.env.VIPPS_CHECKOUT_TIMEOUT_MS,
-    DEFAULT_VIPPS_CHECKOUT_TIMEOUT_MS
-  );
-}
-
-async function withDeadline<T>(
-  work: Promise<T>,
-  timeoutMs: number,
-  message: string
-): Promise<T> {
-  let timeout: ReturnType<typeof setTimeout> | undefined;
-  const deadline = new Promise<never>((_, reject) => {
-    timeout = setTimeout(() => {
-      reject(new CheckoutTimeoutError(message));
-    }, timeoutMs);
-    timeout.unref?.();
-  });
-
-  try {
-    return await Promise.race([work, deadline]);
-  } finally {
-    if (timeout) {
-      clearTimeout(timeout);
-    }
-  }
-}
-
-type SessionOutcome =
-  | {
-      ok: true;
-      orderId: string;
-      session: { checkoutUrl: string; sessionId: string };
-    }
-  | { ok: false; message: string; status: number };
 
 function isProvider(value: string): value is Provider {
   return value === "vipps" || value === "stripe";
@@ -375,75 +311,6 @@ async function resolveMembershipEligibility(
   };
 }
 
-// Resolve credentials before creating the order so a misconfigured provider
-// doesn't leave an orphan PENDING order (matches the product checkout route).
-async function startVippsMembershipCheckout(
-  params: CheckoutSessionParams,
-  db: CheckoutDb,
-  urls: PublicUrls,
-  client: CheckoutClient
-): Promise<SessionOutcome> {
-  const creds = await resolveVippsCredentials(db);
-  if (!creds) {
-    return { ok: false, message: "Vipps is not configured", status: 503 };
-  }
-
-  const { orderId, order } = await createOrder(params, db);
-  // The ePayment `reference` is the order id; the amount is taken from the
-  // persisted order total rather than the pre-persist `params.total`, same
-  // discipline as the product checkout route.
-  const returnUrl = checkoutReturnUrl(urls.apiBase, orderId, client);
-  const payment = await withDeadline(
-    createVippsPayment(
-      { ...params, total: order.total ?? params.total, orderId },
-      creds,
-      { returnUrl }
-    ),
-    vippsCheckoutTimeoutMs(),
-    "Vipps checkout timed out"
-  );
-
-  return {
-    ok: true,
-    orderId,
-    session: {
-      checkoutUrl: payment.checkoutUrl,
-      sessionId: payment.reference,
-    },
-  };
-}
-
-async function startStripeMembershipCheckout(
-  params: CheckoutSessionParams,
-  db: CheckoutDb,
-  urls: PublicUrls,
-  client: CheckoutClient
-): Promise<SessionOutcome> {
-  const creds = await resolveStripeCredentials(db);
-  if (!creds) {
-    return { ok: false, message: "Stripe is not configured", status: 503 };
-  }
-
-  const { orderId } = await createOrder(params, db);
-  const successUrl = checkoutReturnUrl(urls.apiBase, orderId, client);
-  // Stripe only accepts http(s) cancel URLs, so an app buyer comes back
-  // through the return route with the cancelled marker, as in the shop route.
-  const cancelUrl =
-    client === "app"
-      ? checkoutReturnUrl(urls.apiBase, orderId, client, { cancelled: true })
-      : `${urls.webBase}/membership/join?cancelled=true`;
-  const session = await withDeadline(
-    createStripeCheckoutSession({ ...params, orderId }, creds, {
-      successUrl,
-      cancelUrl,
-    }),
-    vippsCheckoutTimeoutMs(),
-    "Stripe checkout timed out"
-  );
-
-  return { ok: true, orderId, session };
-}
-
 export async function POST(
   req: NextRequest,
   ctx: { params: Promise<{ provider: string }> }
@@ -569,8 +436,14 @@ export async function POST(
 
     const outcome =
       provider === "vipps"
-        ? await startVippsMembershipCheckout(params, db, urls, client)
-        : await startStripeMembershipCheckout(params, db, urls, client);
+        ? await startVippsCheckout(params, db, urls, client)
+        : await startStripeCheckout(
+            params,
+            db,
+            urls,
+            client,
+            "/membership/join?cancelled=true"
+          );
 
     if (!outcome.ok) {
       return json({ message: outcome.message }, outcome.status);

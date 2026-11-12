@@ -79,10 +79,7 @@ Which targets are set in production is only in the console, under the function's
 | `RECRUITMENT_RETENTION_CLEANUP_URL` | api `POST /api/cron/cleanup-recruitment` | Deletes job applications, with their résumé, answers and interviews, and candidate profiles, once their 180-day retention has passed | Applicant data outlives the retention BISO promises |
 | `RESERVATIONS_CLEANUP_URL` | web `POST /api/cron/cleanup-reservations` | Deletes expired cart reservations, which hold stock for 10 minutes | Expired reservation rows pile up in `cart_reservations`. Stock isn't affected, because availability already ignores expired holds. |
 
-Two things to know about the targets:
-
-- **A target fails on every run if the feature behind it isn't set up.** The ticket-buyer sync answers `500` without `TICKSTER_API_KEY` and `TICKSTER_EOG_CODE`, the event sync without `TICKSTER_API_KEY`, and the retention stop without `AZURE_RETENTION_STOP_WEBHOOK_URL`. Leave a target's variable empty until the feature is configured.
-- **There are two order-reconciliation routes.** The api route is the current one. The website still has a deprecated copy at the same path, `/api/cron/reconcile-orders`. Check that `ORDERS_RECONCILE_URL` points at `api.biso.no`. Running both does no harm, because every payment update claims the order first.
+**A target fails on every run if the feature behind it isn't set up.** The ticket-buyer sync answers `500` without `TICKSTER_API_KEY` and `TICKSTER_EOG_CODE`, the event sync without `TICKSTER_API_KEY`, and the retention stop without `AZURE_RETENTION_STOP_WEBHOOK_URL`. Leave a target's variable empty until the feature is configured.
 
 ### Check that it's working
 
@@ -129,7 +126,7 @@ A run started through the domain may be cut off after 30 seconds, which is Appwr
 
 ### Add a job
 
-1. Write the endpoint in the app that owns the work. Check `CRON_SECRET` from `x-cron-secret` or `Authorization: Bearer` with `safeSecretCompare` from `@repo/shared/utils/secrets`, as the existing targets do.
+1. Write the endpoint in the app that owns the work. Check `CRON_SECRET` from `x-cron-secret` or `Authorization: Bearer` with `safeSecretCompare` from `@repo/shared/utils/secrets`, as the existing targets do. In the admin, `requireCronSecret(request)` in `apps/admin/src/lib/api-auth.ts` does this check.
 2. Add the new variable name to `TARGET_ENV_VARS` in `functions/scheduled-dispatch/src/main.ts`. The function only reads the names in that list.
 3. Deploy the app. See [Deploying](/developers/keep-it-running/deploying).
 4. Set the new variable on scheduled-dispatch in the console, and add it to `functions/scheduled-dispatch/.env.example`.
@@ -191,5 +188,4 @@ These look like scheduled jobs, but nothing runs them on a timer.
 
 - **api `/api/cleanup-anon-users`** deletes anonymous Appwrite users with no email, not verified, and not updated for 14 days. The only schedule for it is in `apps/api/vercel.json`, and Vercel's cron doesn't run on Appwrite. scheduled-dispatch has no target for it, so anonymous users pile up. The website only creates them when a visitor uses the cart. To schedule it, add a target as described in [Add a job](#add-a-job), and expect the first run to delete a backlog.
 - **api `/api/admin/account-turnover`** and its `/bulk` route post to `AZURE_ACCOUNT_TURNOVER_WEBHOOK_URL`. Both need a global admin. Nothing in the repo calls them. The admin's board turnover uses the retention webhooks above instead.
-- **web `/api/cron/reconcile-orders`** is deprecated. It runs only if `ORDERS_RECONCILE_URL` still points at the website. Delete it, and the `/api/checkout/return` forwarder, once that variable points at the api.
 - **admin `POST /api/units/sync`** copies departments from 24SevenOffice. It isn't scheduled. A global admin runs it with the sync button on the admin's departments page when 24SevenOffice's chart of departments changes.

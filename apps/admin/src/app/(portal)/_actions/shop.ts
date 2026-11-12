@@ -30,6 +30,7 @@ import {
   scheduleContentTranslation,
   translateContentFields,
 } from "@/lib/content-translation.server";
+import { loadTranslationsByLocale } from "@/lib/content-translation-reads";
 import {
   emptyResult,
   type ListParams,
@@ -370,29 +371,6 @@ function buildProductTranslationChildren(
   }
 
   return children;
-}
-
-/**
- * Existing locales are looked up by content metadata, not the relation: rows
- * that predate the relationship backfill are unlinked, and matching them here
- * both prevents duplicate locale rows and re-links them on the next save.
- */
-async function loadProductTranslationsByLocale(
-  db: AdminDb,
-  productId: string
-): Promise<Map<string, ContentTranslations>> {
-  const current = await db.listRows<ContentTranslations>(
-    "app",
-    "content_translations",
-    [
-      Query.equal("content_type", "product"),
-      Query.equal("content_id", productId),
-      Query.limit(5),
-    ]
-  );
-  return new Map(
-    current.rows.map((translation) => [translation.locale, translation])
-  );
 }
 
 /**
@@ -1077,7 +1055,12 @@ export async function updateProduct(
     const { rowPermissions, translationPermissions } =
       await buildProductPermissions(db, validated.data);
 
-    const existingByLocale = await loadProductTranslationsByLocale(db, id);
+    const existingByLocale = await loadTranslationsByLocale(
+      db,
+      "product",
+      id,
+      5
+    );
     await db.upsertRow(
       "app",
       "webshop_products",

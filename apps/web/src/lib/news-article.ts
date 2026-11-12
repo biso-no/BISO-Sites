@@ -10,7 +10,6 @@ import { truncateAtWord } from "@/lib/content-text";
 
 const WORDS_PER_MINUTE = 220;
 const LEAD_MAX_LENGTH = 200;
-const AUTO_LEAD_MIN_LENGTH = 400;
 
 export function pickTranslation(
   item: News | null | undefined
@@ -42,22 +41,6 @@ export function buildSummary(
   plainBody: string
 ): string {
   return shortDescription?.trim() || truncate(plainBody);
-}
-
-/**
- * The lead sits under the headline in the hero. Editors can write one
- * (`short_description`); when they haven't, the opening of the body stands in —
- * but only for an article long enough that the lead isn't the whole story.
- */
-export function buildLead(
-  shortDescription: string | null | undefined,
-  plainBody: string
-): string {
-  const authored = shortDescription?.trim();
-  if (authored) {
-    return authored;
-  }
-  return plainBody.length >= AUTO_LEAD_MIN_LENGTH ? truncate(plainBody) : "";
 }
 
 export function formatArticleDate(

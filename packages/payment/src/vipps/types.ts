@@ -1,4 +1,4 @@
-export enum Currency {
+enum Currency {
   NOK = "NOK",
 }
 

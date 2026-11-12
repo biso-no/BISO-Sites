@@ -67,7 +67,7 @@ function friendlyMessage(issue: SchemaIssueLike): string {
   return issue.message;
 }
 
-export function describeJobFormIssue(issue: SchemaIssueLike): JobFormIssue {
+function describeJobFormIssue(issue: SchemaIssueLike): JobFormIssue {
   const field = String(issue.path[0] ?? "form");
   // The "one complete language" refinement is reported on title_no but is
   // satisfied by either language, so don't force the Norwegian tab.

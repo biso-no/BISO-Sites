@@ -67,3 +67,29 @@ export async function restampTranslationReads(
     }
   }
 }
+
+/**
+ * An item's translation rows, keyed by locale. Looked up by content metadata,
+ * not the relation: rows that predate the relationship backfill are unlinked,
+ * and matching them here both prevents duplicate locale rows and re-links them
+ * on the next save.
+ */
+export async function loadTranslationsByLocale(
+  db: Pick<TranslationDb, "listRows">,
+  contentType: TranslationContentType,
+  contentId: string,
+  limit: number
+): Promise<Map<string, ContentTranslations>> {
+  const current = await db.listRows<ContentTranslations>(
+    "app",
+    "content_translations",
+    [
+      Query.equal("content_type", contentType),
+      Query.equal("content_id", contentId),
+      Query.limit(limit),
+    ]
+  );
+  return new Map(
+    current.rows.map((translation) => [translation.locale, translation])
+  );
+}

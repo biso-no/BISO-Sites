@@ -28,19 +28,14 @@ import {
   CalendarDays,
   Check,
   Globe,
-  GripVertical,
-  Heading1,
   Languages,
   Link2,
   List,
   Lock,
   MapPin,
-  Pilcrow,
-  Plus,
   Save,
   Send,
   Sparkles,
-  Trash2,
   Upload,
   Users,
   Wand2,
@@ -72,16 +67,26 @@ import {
   registerAssistantFormTarget,
 } from "../../../_components/assistant/form-bridge";
 import { DepartmentCombobox } from "../../../_components/department-combobox";
+import { DescriptionBlockEditor } from "../../../_components/description-block-editor";
 import {
   type DescriptionBlock,
-  type DescriptionBlockType,
   descriptionBlocksToHtml,
   htmlToDescriptionBlocks,
   isTextDescriptionBlock,
   newBlock,
   stripHtml,
-  type TextDescriptionBlock,
 } from "../../../_components/description-blocks";
+import {
+  StudioCoverPattern,
+  studioCoverBackground,
+  studioCoverPatternIndex,
+} from "../../../_components/studio";
+import {
+  FieldLabel,
+  LocaleTabs,
+  StepIntro,
+  StepRail,
+} from "../../../communications/_components/composer/ui";
 import { describePushAudience } from "./event-studio-push";
 import {
   memberPriceProblem,
@@ -179,6 +184,9 @@ const MEMBER_POPULATION = 4217;
 const STUDENT_POPULATION = 6840;
 
 type LocaleCode = "en" | "no";
+
+/** The event studio leads with English; the composer's tabs default to Norwegian. */
+const LOCALE_TAB_ORDER: readonly LocaleCode[] = ["en", "no"];
 
 interface EventStudioEditorProps {
   allowedDepartmentIds?: string[];
@@ -375,849 +383,12 @@ function buildDefaultValues(
 }
 
 /* -------------------------------------------------------------------------- */
-/*                                Cover patterns                              */
-/* -------------------------------------------------------------------------- */
-
-function coverPatternToNumber(value: EventsCoverPattern | null | undefined) {
-  switch (value) {
-    case EventsCoverPattern.LINEAR:
-      return 2;
-    case EventsCoverPattern.CONCENTRIC:
-      return 3;
-    case EventsCoverPattern.WAVE:
-      return 4;
-    case EventsCoverPattern.GRID:
-      return 5;
-    default:
-      return 1;
-  }
-}
-
-function coverBackground(value: EventsCoverPattern | null | undefined) {
-  switch (value) {
-    case EventsCoverPattern.LINEAR:
-      return "linear-gradient(135deg, #2a4a7a 0%, #15263c 100%)";
-    case EventsCoverPattern.CONCENTRIC:
-      return "linear-gradient(135deg, #2f5d3a 0%, #1a3422 100%)";
-    case EventsCoverPattern.WAVE:
-      return "linear-gradient(135deg, #b08a3e 0%, #6a5118 100%)";
-    case EventsCoverPattern.GRID:
-      return "linear-gradient(180deg, #29261b 0%, #100e09 100%)";
-    default:
-      return "linear-gradient(135deg, #6b1e1e 0%, #2a1010 100%)";
-  }
-}
-
-function EvCoverPattern({ which }: { which: number }) {
-  if (which === 2) {
-    return (
-      <svg
-        aria-hidden
-        preserveAspectRatio="none"
-        style={{
-          height: "100%",
-          inset: 0,
-          opacity: 0.3,
-          position: "absolute",
-          width: "100%",
-        }}
-        viewBox="0 0 200 130"
-      >
-        <title>Linear cover pattern</title>
-        {Array.from({ length: 8 }).map((_, i) => (
-          <line
-            key={`line-${i}`}
-            stroke="white"
-            strokeWidth="0.5"
-            x1="0"
-            x2="200"
-            y1={i * 18}
-            y2={i * 18 - 30}
-          />
-        ))}
-      </svg>
-    );
-  }
-  if (which === 3) {
-    return (
-      <svg
-        aria-hidden
-        preserveAspectRatio="none"
-        style={{
-          height: "100%",
-          inset: 0,
-          opacity: 0.3,
-          position: "absolute",
-          width: "100%",
-        }}
-        viewBox="0 0 200 130"
-      >
-        <title>Concentric cover pattern</title>
-        {[80, 60, 40, 20].map((r) => (
-          <circle
-            cx="40"
-            cy="100"
-            fill="none"
-            key={`circ-${r}`}
-            r={r}
-            stroke="white"
-            strokeWidth="0.5"
-          />
-        ))}
-      </svg>
-    );
-  }
-  if (which === 4) {
-    return (
-      <svg
-        aria-hidden
-        preserveAspectRatio="none"
-        style={{
-          height: "100%",
-          inset: 0,
-          opacity: 0.3,
-          position: "absolute",
-          width: "100%",
-        }}
-        viewBox="0 0 200 130"
-      >
-        <title>Wave cover pattern</title>
-        {Array.from({ length: 10 }).map((_, i) => (
-          <path
-            d={`M0,${60 + i * 8} Q50,${40 + i * 8} 100,${60 + i * 8} T200,${60 + i * 8}`}
-            fill="none"
-            key={`wave-${i}`}
-            opacity={1 - i * 0.06}
-            stroke="white"
-            strokeWidth="0.4"
-          />
-        ))}
-      </svg>
-    );
-  }
-  if (which === 5) {
-    return (
-      <svg
-        aria-hidden
-        preserveAspectRatio="none"
-        style={{
-          height: "100%",
-          inset: 0,
-          opacity: 0.3,
-          position: "absolute",
-          width: "100%",
-        }}
-        viewBox="0 0 200 130"
-      >
-        <title>Grid cover pattern</title>
-        <defs>
-          <pattern
-            height="22"
-            id="evstudio-grid"
-            patternUnits="userSpaceOnUse"
-            width="22"
-          >
-            <path d="M0 11h22M11 0v22" stroke="white" strokeWidth="0.3" />
-          </pattern>
-        </defs>
-        <rect fill="url(#evstudio-grid)" height="130" width="200" />
-      </svg>
-    );
-  }
-  return (
-    <svg
-      aria-hidden
-      preserveAspectRatio="none"
-      style={{
-        height: "100%",
-        inset: 0,
-        opacity: 0.3,
-        position: "absolute",
-        width: "100%",
-      }}
-      viewBox="0 0 200 130"
-    >
-      <title>Dotted cover pattern</title>
-      <defs>
-        <pattern
-          height="14"
-          id="evstudio-dots"
-          patternUnits="userSpaceOnUse"
-          width="14"
-        >
-          <circle cx="2" cy="2" fill="white" r="1" />
-        </pattern>
-      </defs>
-      <rect fill="url(#evstudio-dots)" height="130" width="200" />
-    </svg>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
 /*                                   StepRail                                 */
 /* -------------------------------------------------------------------------- */
-
-function pickStepColor(
-  active: boolean,
-  done: boolean,
-  variants: { active: string; done: string; idle: string }
-) {
-  if (active) {
-    return variants.active;
-  }
-  if (done) {
-    return variants.done;
-  }
-  return variants.idle;
-}
-
-function StepRail({
-  dirty,
-  setStep,
-  step,
-}: {
-  dirty: boolean;
-  setStep: (step: StepIndex) => void;
-  step: StepIndex;
-}) {
-  return (
-    <div
-      style={{
-        alignItems: "center",
-        backdropFilter: "blur(14px)",
-        background: "rgba(250,247,242,.92)",
-        borderBottom: `0.5px solid ${BRAND.rule}`,
-        display: "flex",
-        gap: 6,
-        padding: "14px 36px",
-        position: "sticky",
-        top: 0,
-        WebkitBackdropFilter: "blur(14px)",
-        zIndex: 10,
-      }}
-    >
-      {STEPS.map((name, index) => {
-        const active = index === step;
-        const done = index < step;
-        const pillColor = pickStepColor(active, done, {
-          active: BRAND.paper,
-          done: BRAND.leaf,
-          idle: BRAND.ink3,
-        });
-        const numBg = pickStepColor(active, done, {
-          active: BRAND.paper,
-          done: BRAND.leaf,
-          idle: "white",
-        });
-        const numBorder = pickStepColor(active, done, {
-          active: "0.5px solid transparent",
-          done: `0.5px solid ${BRAND.leaf}`,
-          idle: `0.5px solid ${BRAND.rule2}`,
-        });
-        const numColor = pickStepColor(active, done, {
-          active: BRAND.ink,
-          done: "white",
-          idle: BRAND.ink3,
-        });
-        return (
-          <div key={name} style={{ alignItems: "center", display: "flex" }}>
-            {index > 0 && (
-              <div
-                style={{
-                  background: BRAND.rule2,
-                  height: "0.5px",
-                  margin: "0 -2px",
-                  maxWidth: 36,
-                  width: 36,
-                }}
-              />
-            )}
-            <button
-              onClick={() => setStep(index as StepIndex)}
-              style={{
-                alignItems: "center",
-                background: active ? BRAND.ink : "transparent",
-                border: 0,
-                borderRadius: 999,
-                color: pillColor,
-                cursor: "pointer",
-                display: "flex",
-                fontSize: 12.5,
-                gap: 9,
-                padding: "6px 14px 6px 6px",
-                transition: "color .15s, background .15s",
-              }}
-              type="button"
-            >
-              <span
-                style={{
-                  alignItems: "center",
-                  background: numBg,
-                  borderRadius: "50%",
-                  border: numBorder,
-                  color: numColor,
-                  display: "grid",
-                  fontFamily: "ui-monospace, Menlo, Monaco, monospace",
-                  fontSize: 10.5,
-                  height: 22,
-                  justifyItems: "center",
-                  placeItems: "center",
-                  width: 22,
-                }}
-              >
-                {done ? (
-                  <Check size={11} />
-                ) : (
-                  String(index + 1).padStart(2, "0")
-                )}
-              </span>
-              <span>{name}</span>
-            </button>
-          </div>
-        );
-      })}
-      <div
-        style={{
-          alignItems: "center",
-          display: "flex",
-          gap: 10,
-          marginLeft: "auto",
-        }}
-      >
-        {dirty && (
-          <span
-            style={{
-              alignItems: "center",
-              color: BRAND.ink3,
-              display: "flex",
-              fontSize: 11.5,
-              gap: 5,
-            }}
-          >
-            <span
-              style={{
-                background: BRAND.gold,
-                borderRadius: "50%",
-                height: 5,
-                width: 5,
-              }}
-            />
-            Unsaved
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
 
 /* -------------------------------------------------------------------------- */
 /*                                LocaleTabs                                  */
 /* -------------------------------------------------------------------------- */
-
-function LocaleTabs({
-  locale,
-  setLocale,
-  pendingNo,
-}: {
-  locale: LocaleCode;
-  setLocale: (locale: LocaleCode) => void;
-  pendingNo: boolean;
-}) {
-  return (
-    <div
-      style={{
-        background: BRAND.paper2,
-        border: `0.5px solid ${BRAND.rule2}`,
-        borderRadius: 8,
-        display: "inline-flex",
-        gap: 2,
-        marginBottom: 8,
-        padding: 3,
-      }}
-    >
-      {(["en", "no"] as const).map((item) => {
-        const on = locale === item;
-        return (
-          <button
-            key={item}
-            onClick={() => setLocale(item)}
-            style={{
-              alignItems: "center",
-              background: on ? "white" : "transparent",
-              border: 0,
-              borderRadius: 5,
-              boxShadow: on ? "0 1px 2px rgba(0,0,0,.05)" : "none",
-              color: on ? BRAND.ink : BRAND.ink3,
-              cursor: "pointer",
-              display: "flex",
-              fontSize: 11,
-              gap: 6,
-              padding: "4px 12px",
-            }}
-            type="button"
-          >
-            {item === "en" ? "English" : "Norsk"}
-            {item === "no" && pendingNo && (
-              <span
-                style={{
-                  background: BRAND.gold,
-                  borderRadius: "50%",
-                  height: 5,
-                  width: 5,
-                }}
-                title="Not yet filled"
-              />
-            )}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*                              Description blocks                            */
-/* -------------------------------------------------------------------------- */
-
-function EventDescriptionBlockRow({
-  block,
-  dragging,
-  onChange,
-  onChangeType,
-  onDelete,
-  onDropBlock,
-  onEnter,
-  onFocused,
-  onInsertBelow,
-  onSlash,
-  onStartDrag,
-  shouldFocus,
-  showSlashMenu,
-}: {
-  block: TextDescriptionBlock;
-  dragging: boolean;
-  onChange: (text: string) => void;
-  onChangeType: (type: DescriptionBlockType) => void;
-  onDelete: () => void;
-  onDropBlock: () => void;
-  onEnter: () => void;
-  onFocused: () => void;
-  onInsertBelow: (type: DescriptionBlockType) => void;
-  onSlash: () => void;
-  onStartDrag: () => void;
-  shouldFocus: boolean;
-  showSlashMenu: boolean;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (ref.current && ref.current.innerText !== block.text) {
-      ref.current.innerText = block.text;
-    }
-  }, [block.text]);
-
-  useEffect(() => {
-    if (!(shouldFocus && ref.current)) {
-      return;
-    }
-    ref.current.focus();
-    const selection = window.getSelection();
-    const range = document.createRange();
-    range.selectNodeContents(ref.current);
-    range.collapse(false);
-    selection?.removeAllRanges();
-    selection?.addRange(range);
-    onFocused();
-  }, [onFocused, shouldFocus]);
-
-  let placeholder =
-    "Tell the story. Who's coming? What does the room look like at 8pm?";
-  if (block.type === "h") {
-    placeholder = "Section heading…";
-  } else if (block.type === "l") {
-    placeholder = "A timing, a perk, a what-to-expect…";
-  }
-
-  const contentStyle: React.CSSProperties = (() => {
-    if (block.type === "h") {
-      return {
-        color: BRAND.ink,
-        fontFamily: "'Instrument Serif', Georgia, serif",
-        fontSize: 26,
-        fontWeight: 400,
-        letterSpacing: "-0.012em",
-        lineHeight: 1.15,
-        minHeight: 28,
-        outline: "none",
-      };
-    }
-    if (block.type === "l") {
-      return {
-        color: BRAND.ink2,
-        fontSize: 15.5,
-        lineHeight: 1.6,
-        minHeight: 24,
-        outline: "none",
-      };
-    }
-    return {
-      color: BRAND.ink2,
-      fontSize: 15.5,
-      lineHeight: 1.55,
-      minHeight: 24,
-      outline: "none",
-    };
-  })();
-
-  return (
-    // biome-ignore lint/a11y/noNoninteractiveElementInteractions: drop target wraps semantic editable text
-    // biome-ignore lint/a11y/noStaticElementInteractions: see above
-    <div
-      onDragOver={(event) => event.preventDefault()}
-      onDrop={(event) => {
-        event.preventDefault();
-        onDropBlock();
-      }}
-      style={{
-        display: "flex",
-        gap: 12,
-        opacity: dragging ? 0.35 : 1,
-        padding: block.type === "h" ? "16px 0 8px" : "8px 0",
-        position: "relative",
-        transition: "opacity .15s",
-      }}
-    >
-      <button
-        aria-label="Drag block"
-        draggable
-        onDragStart={onStartDrag}
-        style={{
-          alignItems: "flex-start",
-          background: "transparent",
-          border: 0,
-          color: BRAND.ink4,
-          cursor: "grab",
-          display: "flex",
-          flexShrink: 0,
-          justifyContent: "center",
-          opacity: dragging ? 1 : undefined,
-          paddingTop: 8,
-          width: 24,
-        }}
-        type="button"
-      >
-        <GripVertical size={13} />
-      </button>
-      <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
-        {block.type === "l" && (
-          <span
-            aria-hidden
-            style={{
-              background: BRAND.claret,
-              height: 1,
-              left: 0,
-              position: "absolute",
-              top: 16,
-              width: 8,
-            }}
-          />
-        )}
-        {/* biome-ignore lint/a11y/useSemanticElements: contentEditable maintains the document editing UX */}
-        <div
-          aria-label={placeholder}
-          contentEditable
-          data-placeholder={placeholder}
-          onInput={(event) => onChange(event.currentTarget.innerText)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
-              event.preventDefault();
-              onEnter();
-              return;
-            }
-            if (event.key === "/") {
-              event.preventDefault();
-              onSlash();
-            }
-          }}
-          ref={ref}
-          role="textbox"
-          style={{ ...contentStyle, paddingLeft: block.type === "l" ? 20 : 0 }}
-          suppressContentEditableWarning
-          tabIndex={0}
-        />
-        {showSlashMenu && (
-          <div
-            style={{
-              background: "white",
-              border: `0.5px solid ${BRAND.rule2}`,
-              borderRadius: 12,
-              boxShadow: "0 12px 24px rgba(0,0,0,.10)",
-              left: 0,
-              marginTop: 4,
-              overflow: "hidden",
-              padding: "4px 0",
-              position: "absolute",
-              top: "100%",
-              width: 220,
-              zIndex: 30,
-            }}
-          >
-            {[
-              { icon: Heading1, label: "Heading", type: "h" as const },
-              { icon: Pilcrow, label: "Paragraph", type: "p" as const },
-              { icon: List, label: "Bullet", type: "l" as const },
-            ].map(({ icon: Icon, label, type }) => (
-              <button
-                key={type}
-                onClick={() => onChangeType(type)}
-                style={{
-                  alignItems: "center",
-                  background: "transparent",
-                  border: 0,
-                  color: BRAND.ink2,
-                  cursor: "pointer",
-                  display: "flex",
-                  fontSize: 13,
-                  gap: 8,
-                  padding: "8px 12px",
-                  textAlign: "left",
-                  width: "100%",
-                }}
-                type="button"
-              >
-                <Icon size={13} />
-                {label}
-              </button>
-            ))}
-            <div
-              style={{
-                background: BRAND.rule,
-                height: 1,
-                margin: "4px 0",
-              }}
-            />
-            <button
-              onClick={() => onInsertBelow("p")}
-              style={{
-                alignItems: "center",
-                background: "transparent",
-                border: 0,
-                color: BRAND.ink2,
-                cursor: "pointer",
-                display: "flex",
-                fontSize: 13,
-                gap: 8,
-                padding: "8px 12px",
-                textAlign: "left",
-                width: "100%",
-              }}
-              type="button"
-            >
-              <Plus size={13} />
-              New paragraph below
-            </button>
-            <button
-              onClick={onDelete}
-              style={{
-                alignItems: "center",
-                background: "transparent",
-                border: 0,
-                color: BRAND.claret,
-                cursor: "pointer",
-                display: "flex",
-                fontSize: 13,
-                gap: 8,
-                padding: "8px 12px",
-                textAlign: "left",
-                width: "100%",
-              }}
-              type="button"
-            >
-              <Trash2 size={13} />
-              Delete block
-            </button>
-          </div>
-        )}
-      </div>
-      <button
-        aria-label="Delete block"
-        onClick={onDelete}
-        style={{
-          alignItems: "center",
-          background: "transparent",
-          border: 0,
-          borderRadius: 6,
-          color: BRAND.ink4,
-          cursor: "pointer",
-          display: "grid",
-          flexShrink: 0,
-          height: 28,
-          justifyItems: "center",
-          marginTop: 4,
-          placeItems: "center",
-          width: 28,
-        }}
-        type="button"
-      >
-        <Trash2 size={13} />
-      </button>
-    </div>
-  );
-}
-
-function EventDescriptionBlockEditor({
-  blocks,
-  onChangeBlocks,
-}: {
-  blocks: DescriptionBlock[];
-  onChangeBlocks: (next: DescriptionBlock[]) => void;
-}) {
-  const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);
-  const [focusBlockId, setFocusBlockId] = useState<string | null>(null);
-  const [slashBlockId, setSlashBlockId] = useState<string | null>(null);
-
-  function updateBlock(id: string, text: string) {
-    onChangeBlocks(
-      blocks.map((block) =>
-        block.id === id && isTextDescriptionBlock(block)
-          ? { ...block, text }
-          : block
-      )
-    );
-  }
-
-  function insertBlock(afterId: string, type: DescriptionBlockType = "p") {
-    const idx = blocks.findIndex((b) => b.id === afterId);
-    const block = newBlock(type);
-    const next = blocks.slice();
-    next.splice(idx + 1, 0, block);
-    setFocusBlockId(block.id);
-    setSlashBlockId(null);
-    onChangeBlocks(next);
-  }
-
-  function addBlock(type: DescriptionBlockType) {
-    const block = newBlock(type);
-    setFocusBlockId(block.id);
-    setSlashBlockId(null);
-    onChangeBlocks([...blocks, block]);
-  }
-
-  function changeBlockType(id: string, type: DescriptionBlockType) {
-    setFocusBlockId(id);
-    setSlashBlockId(null);
-    onChangeBlocks(
-      blocks.map((block) =>
-        block.id === id && isTextDescriptionBlock(block)
-          ? { ...block, type }
-          : block
-      )
-    );
-  }
-
-  function deleteBlock(id: string) {
-    setSlashBlockId(null);
-    if (blocks.length === 1) {
-      setFocusBlockId(id);
-      const first = blocks[0];
-      onChangeBlocks([
-        first && isTextDescriptionBlock(first)
-          ? { ...first, text: "", type: "p" }
-          : newBlock("p"),
-      ]);
-      return;
-    }
-    const idx = blocks.findIndex((b) => b.id === id);
-    const next = blocks.filter((b) => b.id !== id);
-    const nextFocus = next[Math.max(0, idx - 1)]?.id ?? null;
-    setFocusBlockId(nextFocus);
-    onChangeBlocks(next);
-  }
-
-  function moveBlock(sourceId: string, targetId: string) {
-    if (sourceId === targetId) {
-      return;
-    }
-    const si = blocks.findIndex((b) => b.id === sourceId);
-    const ti = blocks.findIndex((b) => b.id === targetId);
-    if (si < 0 || ti < 0) {
-      return;
-    }
-    const next = blocks.slice();
-    const [moved] = next.splice(si, 1);
-    if (!moved) {
-      return;
-    }
-    next.splice(ti, 0, moved);
-    setDraggingBlockId(null);
-    setFocusBlockId(sourceId);
-    onChangeBlocks(next);
-  }
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      {blocks.filter(isTextDescriptionBlock).map((block) => (
-        <EventDescriptionBlockRow
-          block={block}
-          dragging={draggingBlockId === block.id}
-          key={block.id}
-          onChange={(text) => updateBlock(block.id, text)}
-          onChangeType={(type) => changeBlockType(block.id, type)}
-          onDelete={() => deleteBlock(block.id)}
-          onDropBlock={() => {
-            if (draggingBlockId) {
-              moveBlock(draggingBlockId, block.id);
-            }
-          }}
-          onEnter={() => insertBlock(block.id)}
-          onFocused={() => setFocusBlockId(null)}
-          onInsertBelow={(type) => insertBlock(block.id, type)}
-          onSlash={() => setSlashBlockId(block.id)}
-          onStartDrag={() => setDraggingBlockId(block.id)}
-          shouldFocus={focusBlockId === block.id}
-          showSlashMenu={slashBlockId === block.id}
-        />
-      ))}
-      <div
-        style={{
-          alignItems: "center",
-          display: "flex",
-          gap: 8,
-          margin: "14px 0 0",
-          opacity: 0.85,
-          padding: "6px 0",
-        }}
-      >
-        <div style={{ background: BRAND.rule, flex: 1, height: 0.5 }} />
-        <button
-          onClick={() => addBlock("h")}
-          style={addBtnStyle()}
-          type="button"
-        >
-          <Heading1 size={11} />
-          Heading
-        </button>
-        <button
-          onClick={() => addBlock("p")}
-          style={addBtnStyle()}
-          type="button"
-        >
-          <Pilcrow size={11} />
-          Paragraph
-        </button>
-        <button
-          onClick={() => addBlock("l")}
-          style={addBtnStyle()}
-          type="button"
-        >
-          <List size={11} />
-          Bullet
-        </button>
-        <div style={{ background: BRAND.rule, flex: 1, height: 0.5 }} />
-      </div>
-    </div>
-  );
-}
 
 function addBtnStyle(): React.CSSProperties {
   return {
@@ -1253,50 +424,6 @@ function fieldInputStyle(extra?: React.CSSProperties): React.CSSProperties {
     width: "100%",
     ...extra,
   };
-}
-
-function FieldLabel({
-  children,
-  help,
-  required,
-}: {
-  children: React.ReactNode;
-  help?: string;
-  required?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        alignItems: "center",
-        color: BRAND.ink3,
-        display: "flex",
-        fontSize: 11.5,
-        fontWeight: 500,
-        gap: 8,
-        letterSpacing: ".04em",
-        textTransform: "uppercase",
-      }}
-    >
-      {children}
-      {required && (
-        <span style={{ color: BRAND.claret, fontSize: 10 }}>required</span>
-      )}
-      {help && (
-        <span
-          style={{
-            color: BRAND.ink4,
-            fontSize: 10.5,
-            fontWeight: 400,
-            letterSpacing: 0,
-            marginLeft: "auto",
-            textTransform: "none",
-          }}
-        >
-          {help}
-        </span>
-      )}
-    </div>
-  );
 }
 
 function ToggleCard({
@@ -1541,6 +668,7 @@ function EssentialsStep({
       <div style={{ padding: "8px 0 24px", position: "relative" }}>
         <LocaleTabs
           locale={locale}
+          order={LOCALE_TAB_ORDER}
           pendingNo={!values.title_no?.trim()}
           setLocale={setLocale}
         />
@@ -1797,35 +925,34 @@ function EssentialsStep({
 /*                              Description step                              */
 /* -------------------------------------------------------------------------- */
 
-function DescriptionStep({
-  blocksEn,
-  blocksNo,
+export function EventDescriptionStep({
   locale,
-  onChangeBlocksEn,
-  onChangeBlocksNo,
+  onChangeDescriptionEn,
+  onChangeDescriptionNo,
   onSuggestRunOfShow,
   setLocale,
   suggesting,
   values,
 }: {
-  blocksEn: DescriptionBlock[];
-  blocksNo: DescriptionBlock[];
   locale: LocaleCode;
-  onChangeBlocksEn: (next: DescriptionBlock[]) => void;
-  onChangeBlocksNo: (next: DescriptionBlock[]) => void;
+  onChangeDescriptionEn: (html: string) => void;
+  onChangeDescriptionNo: (html: string) => void;
   onSuggestRunOfShow: () => Promise<void>;
   setLocale: (locale: LocaleCode) => void;
   suggesting: boolean;
   values: EventUpsertInput;
 }) {
-  const blocks = locale === "en" ? blocksEn : blocksNo;
-  const onChange = locale === "en" ? onChangeBlocksEn : onChangeBlocksNo;
+  const description =
+    (locale === "en" ? values.description_en : values.description_no) ?? "";
+  const onChange =
+    locale === "en" ? onChangeDescriptionEn : onChangeDescriptionNo;
 
   return (
     <div>
       <div style={{ padding: "8px 0 8px" }}>
         <LocaleTabs
           locale={locale}
+          order={LOCALE_TAB_ORDER}
           pendingNo={!values.title_no?.trim()}
           setLocale={setLocale}
         />
@@ -1853,7 +980,11 @@ function DescriptionStep({
         </p>
       </div>
 
-      <EventDescriptionBlockEditor blocks={blocks} onChangeBlocks={onChange} />
+      <DescriptionBlockEditor
+        onChange={onChange}
+        placeholder="Tell the story. Who's coming? What does the room look like at 8pm?"
+        value={description}
+      />
 
       <div
         style={{
@@ -2005,30 +1136,10 @@ function ScheduleStep({
 
   return (
     <div>
-      <div style={{ padding: "8px 0 18px" }}>
-        <div
-          style={{
-            color: BRAND.ink,
-            fontFamily: "'Instrument Serif', Georgia, serif",
-            fontSize: 40,
-            letterSpacing: "-0.015em",
-            lineHeight: 1.05,
-          }}
-        >
-          When, where, how many.
-        </div>
-        <p
-          style={{
-            color: BRAND.ink3,
-            fontSize: 13.5,
-            margin: "8px 0 0",
-            maxWidth: "50ch",
-          }}
-        >
-          Once the date is in, calendar buttons and reminders wire themselves up
-          automatically. Capacity sets the cut-off for the waitlist.
-        </p>
-      </div>
+      <StepIntro
+        lead="Once the date is in, calendar buttons and reminders wire themselves up automatically. Capacity sets the cut-off for the waitlist."
+        title="When, where, how many."
+      />
 
       <div
         style={{
@@ -2341,7 +1452,7 @@ function ScheduleStep({
                   key={pattern.id}
                   onClick={() => set("cover_pattern", pattern.id)}
                   style={{
-                    background: coverBackground(pattern.id),
+                    background: studioCoverBackground(pattern.id),
                     border: `1.5px solid ${active ? BRAND.ink : "transparent"}`,
                     borderRadius: 8,
                     cursor: "pointer",
@@ -2354,7 +1465,9 @@ function ScheduleStep({
                   }}
                   type="button"
                 >
-                  <EvCoverPattern which={coverPatternToNumber(pattern.id)} />
+                  <StudioCoverPattern
+                    which={studioCoverPatternIndex(pattern.id)}
+                  />
                   <span
                     style={{
                       bottom: 4,
@@ -2627,31 +1740,10 @@ function TicketsStep({
 
   return (
     <div>
-      <div style={{ padding: "8px 0 18px" }}>
-        <div
-          style={{
-            color: BRAND.ink,
-            fontFamily: "'Instrument Serif', Georgia, serif",
-            fontSize: 40,
-            letterSpacing: "-0.015em",
-            lineHeight: 1.05,
-          }}
-        >
-          Doors, tickets, who's invited.
-        </div>
-        <p
-          style={{
-            color: BRAND.ink3,
-            fontSize: 13.5,
-            margin: "8px 0 0",
-            maxWidth: "50ch",
-          }}
-        >
-          Where people get tickets or sign up goes in the ticket link: the event
-          page shows it as a Get tickets button. BISO sells no event tickets
-          itself, so a paid event needs one.
-        </p>
-      </div>
+      <StepIntro
+        lead="Where people get tickets or sign up goes in the ticket link: the event page shows it as a Get tickets button. BISO sells no event tickets itself, so a paid event needs one."
+        title="Doors, tickets, who's invited."
+      />
 
       <div
         style={{
@@ -3047,30 +2139,10 @@ function ReviewStep({
 
   return (
     <div>
-      <div style={{ padding: "8px 0 18px" }}>
-        <div
-          style={{
-            color: BRAND.ink,
-            fontFamily: "'Instrument Serif', Georgia, serif",
-            fontSize: 40,
-            letterSpacing: "-0.015em",
-            lineHeight: 1.05,
-          }}
-        >
-          One last look.
-        </div>
-        <p
-          style={{
-            color: BRAND.ink3,
-            fontSize: 13.5,
-            margin: "8px 0 0",
-            maxWidth: "50ch",
-          }}
-        >
-          Click any row to jump back and edit. When you're happy, hit Publish —
-          the event goes on biso.no and the BISO app at the same moment.
-        </p>
-      </div>
+      <StepIntro
+        lead="Click any row to jump back and edit. When you're happy, hit Publish — the event goes on biso.no and the BISO app at the same moment."
+        title="One last look."
+      />
 
       <TranslationReviewCard
         className="mb-4"
@@ -3391,7 +2463,7 @@ function EventPreviewPane({
   const audienceLabel = draft.member_only
     ? "with active BISO membership"
     : `on the ${campus?.name ?? "campus"}`;
-  const coverWhich = coverPatternToNumber(draft.cover_pattern);
+  const coverWhich = studioCoverPatternIndex(draft.cover_pattern);
   let capacityBarColor: string = BRAND.leaf;
   if (ratio >= 0.95) {
     capacityBarColor = BRAND.claret;
@@ -3638,7 +2710,7 @@ function EventPreviewPane({
                 style={{
                   background: draft.image
                     ? `linear-gradient(135deg, rgba(0, 23, 49, 0.28), rgba(0, 10, 22, 0.52)), url(${draft.image})`
-                    : coverBackground(draft.cover_pattern),
+                    : studioCoverBackground(draft.cover_pattern),
                   backgroundPosition: "center",
                   backgroundSize: "cover",
                   height: 160,
@@ -3646,7 +2718,7 @@ function EventPreviewPane({
                   position: "relative",
                 }}
               >
-                {!draft.image && <EvCoverPattern which={coverWhich} />}
+                {!draft.image && <StudioCoverPattern which={coverWhich} />}
                 <span
                   style={{
                     backdropFilter: "blur(8px)",
@@ -4274,6 +3346,21 @@ export function EventStudioEditor({
     setDirty(true);
   }
 
+  // The description editor emits HTML. Store it as is, so the editor gets back
+  // exactly what it emitted (a re-serialized value would make it reload), and
+  // keep the parsed blocks for the preview and the run-of-show suggestion.
+  function onChangeDescriptionEn(html: string) {
+    setBlocksEn(htmlToDescriptionBlocks(html));
+    setValues((prev) => ({ ...prev, description_en: html }));
+    setDirty(true);
+  }
+
+  function onChangeDescriptionNo(html: string) {
+    setBlocksNo(htmlToDescriptionBlocks(html));
+    setValues((prev) => ({ ...prev, description_no: html }));
+    setDirty(true);
+  }
+
   // Form bridge — lets the assistant fill fields in this studio via the fillForm tool.
   // Refs capture the latest function pointers; the effect registers only once on mount.
   const setRef = useRef(set);
@@ -4515,11 +3602,6 @@ export function EventStudioEditor({
           50% { opacity: 0.35; }
           100% { opacity: 1; }
         }
-        [contenteditable][data-placeholder]:empty::before {
-          content: attr(data-placeholder);
-          color: ${BRAND.ink4};
-          font-style: italic;
-        }
       `}</style>
 
       <div
@@ -4567,7 +3649,7 @@ export function EventStudioEditor({
             position: "relative",
           }}
         >
-          <StepRail dirty={dirty} setStep={setStep} step={step} />
+          <StepRail dirty={dirty} setStep={setStep} step={step} steps={STEPS} />
           <div
             style={{
               margin: "0 auto",
@@ -4623,12 +3705,10 @@ export function EventStudioEditor({
               />
             )}
             {step === 1 && (
-              <DescriptionStep
-                blocksEn={blocksEn}
-                blocksNo={blocksNo}
+              <EventDescriptionStep
                 locale={locale}
-                onChangeBlocksEn={onChangeBlocksEn}
-                onChangeBlocksNo={onChangeBlocksNo}
+                onChangeDescriptionEn={onChangeDescriptionEn}
+                onChangeDescriptionNo={onChangeDescriptionNo}
                 onSuggestRunOfShow={handleSuggestRunOfShow}
                 setLocale={setLocale}
                 suggesting={suggesting}
