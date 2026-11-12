@@ -15,6 +15,7 @@ import {
   type ExpensePayload,
   type ExpenseRowInput,
   mergeLegacyDraft,
+  normalisedSwitches,
   parseExpensePayload,
 } from "@/lib/expense-payload";
 import {
@@ -49,6 +50,7 @@ interface Submission {
   profile: CompleteProfile;
   reimbursementNumber: string;
   submitterId: string;
+  submitterIsController: boolean;
   submitterIsFinancialManager: boolean;
 }
 
@@ -282,6 +284,7 @@ async function submitForApproval({
   expense,
   profile,
   reimbursementNumber,
+  submitterIsController,
   submitterIsFinancialManager,
 }: Submission): Promise<void> {
   // Exactly-once chain creation. The `expense_approvals` table has a UNIQUE
@@ -296,6 +299,7 @@ async function submitForApproval({
       campusId: expense.campus,
       departmentId: expense.department ?? null,
       departmentName: expense.departmentRel?.Name ?? null,
+      submitterIsController,
       submitterIsFinancialManager,
       reimbursementNumber,
       submitterName: profile.name,
@@ -482,14 +486,14 @@ async function submitExpense(req: NextRequest) {
   // Read again so both flows see the types and accounts enrichment stored.
   const expense = await readExpense();
 
+  const switches = normalisedSwitches(payload);
   const submission: Submission = {
     expense,
     profile,
     reimbursementNumber: generateReimbursementNumber(expense.$sequence),
     submitterId: userId,
-    submitterIsFinancialManager: Boolean(
-      payload.submitter_is_financial_manager
-    ),
+    submitterIsController: switches.submitter_is_controller,
+    submitterIsFinancialManager: switches.submitter_is_financial_manager,
   };
 
   if (await isFeatureEnabled("expenses_ledger_posting")) {

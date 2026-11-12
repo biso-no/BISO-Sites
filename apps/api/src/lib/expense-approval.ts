@@ -20,7 +20,9 @@ import {
   sendApprovalEmail,
   sendProactiveCard,
 } from "@repo/connectors/teams-bot";
+import { confirmDirectoryApprover } from "./expense-approver-directory";
 import { resolveExpenseApprovers } from "./expense-approver-resolution";
+import { recordExpenseEvents } from "./expense-events";
 
 const TOKEN_TTL_DAYS = 14;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -57,18 +59,19 @@ export interface ApprovalChainContext {
   description: string;
   expenseId: string;
   reimbursementNumber: string;
-  submitterIsController?: boolean;
+  submitterIsController: boolean;
   submitterIsFinancialManager: boolean;
   submitterName: string;
   total: number;
 }
 
-function stepLabel(role: string, index: number, count: number): string {
+export function stepLabel(role: string, index: number, count: number): string {
   const roleText: Record<string, string> = {
     finance: "Department financial manager",
     manager: "Department manager",
     deputy: "Department deputy",
     controller: "Campus financial controller",
+    president: "Campus president",
     national: "National approver",
   };
   const base = roleText[role] ?? role;
@@ -184,7 +187,7 @@ export async function createApprovalChain(
       campusName: context.campusLabel,
       departmentId: context.departmentId,
       departmentName: context.departmentName,
-      submitterIsController: context.submitterIsController ?? false,
+      submitterIsController: context.submitterIsController,
       submitterIsFinancialManager: context.submitterIsFinancialManager,
     },
     { db }
@@ -244,6 +247,17 @@ export async function createApprovalChain(
     );
     created.push(row);
   }
+
+  await recordExpenseEvents(
+    db,
+    steps.map((step) => ({
+      action: "approver_resolved",
+      actorKind: "system",
+      after: step.email,
+      expenseId: context.expenseId,
+      note: `${step.role} via ${step.source}`,
+    }))
+  );
 
   const first = created.find((row) => row.step === 1) ?? created[0];
   const firstStep = steps.find((step) => step.step === first.step);
@@ -642,7 +656,12 @@ export async function decideApproval(params: {
     };
   }
 
-  // Approved — notify the next pending step, or finalize.
+  // Approved: a directory approver who answered is now confirmed (best-effort).
+  if (row.directory_key) {
+    await confirmDirectoryApprover(db, row.directory_key, row.approver_email);
+  }
+
+  // Notify the next pending step, or finalize.
   const next = await db.listRows<ExpenseApprovals>("app", "expense_approvals", [
     Query.equal("expense_id", row.expense_id),
     Query.equal("status", ExpenseApprovalsStatus.PENDING),
@@ -804,6 +823,7 @@ function buildContextFromExpense(
     campusId: expense.campus,
     departmentId: expense.department ?? null,
     departmentName: expense.departmentRel?.Name ?? null,
+    submitterIsController: false,
     submitterIsFinancialManager: false,
     reimbursementNumber: refNumber,
     submitterName: "BISO member",

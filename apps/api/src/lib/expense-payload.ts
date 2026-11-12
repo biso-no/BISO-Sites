@@ -1,5 +1,6 @@
 import { Permission, Role } from "@repo/api";
 import { ExpensesStatus } from "@repo/api/types/appwrite";
+import { approvalSwitchFor } from "@repo/shared/utils/expense-approvers";
 import { DEFAULT_COST_TYPE_SLUG } from "@repo/shared/utils/expense-cost-types";
 import { z } from "zod";
 
@@ -62,6 +63,7 @@ const ExpensePayloadSchema = z.object({
   expenseId: z.string().min(1).optional(),
   occasion: z.string().trim().max(OCCASION_MAX).nullish(),
   prepayment_amount: z.coerce.number().finite().nullable().optional(),
+  submitter_is_controller: z.boolean().optional().default(false),
   submitter_is_financial_manager: z.boolean().optional().default(false),
   total: z.coerce.number().finite().default(0),
 });
@@ -100,6 +102,7 @@ export interface ExpenseRowInput {
   occasion?: string | null;
   prepayment_amount: number | null;
   status: ExpensesStatus;
+  submitter_is_controller: boolean;
   submitter_is_financial_manager: boolean;
   total: number;
   user: string;
@@ -168,6 +171,32 @@ function sentOccasionAndEvent(
 }
 
 /**
+ * The submitter's two self-declarations, kept only when the department offers
+ * that switch. Old apps send no controller flag, which reads as false.
+ */
+export function normalisedSwitches(
+  data: Pick<
+    ExpensePayload,
+    | "campus"
+    | "department"
+    | "submitter_is_controller"
+    | "submitter_is_financial_manager"
+  >
+): {
+  submitter_is_controller: boolean;
+  submitter_is_financial_manager: boolean;
+} {
+  const offered = approvalSwitchFor(data.campus, data.department);
+  return {
+    submitter_is_controller:
+      offered === "controller" && Boolean(data.submitter_is_controller),
+    submitter_is_financial_manager:
+      offered === "financial_manager" &&
+      Boolean(data.submitter_is_financial_manager),
+  };
+}
+
+/**
  * The expense row to write. The AI-era columns (`occasion`, `event_id`,
  * `cost_type_text`) are written only when the payload has them, so clients
  * that never send them keep working against a schema without them.
@@ -189,8 +218,7 @@ export function buildExpenseRowInput(
     ...sentOccasionAndEvent(data),
     prepayment_amount: data.prepayment_amount ?? 0,
     status,
-    submitter_is_financial_manager:
-      data.submitter_is_financial_manager ?? false,
+    ...normalisedSwitches(data),
     total: data.total,
     user: userId,
     userId,

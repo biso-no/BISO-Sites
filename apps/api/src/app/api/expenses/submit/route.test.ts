@@ -495,6 +495,64 @@ describe("expense submit route", () => {
     );
   });
 
+  it("treats a missing controller flag as false", async () => {
+    vi.mocked(isFeatureEnabled).mockResolvedValue(true);
+
+    await POST(submitRequest(SUBMIT_BODY));
+
+    expect(createApprovalChain).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        submitterIsController: false,
+        submitterIsFinancialManager: false,
+      })
+    );
+  });
+
+  it("routes a declared controller switch the department offers", async () => {
+    vi.mocked(isFeatureEnabled).mockResolvedValue(true);
+
+    await POST(
+      submitRequest({
+        ...SUBMIT_BODY,
+        department: "1",
+        submitter_is_controller: true,
+      })
+    );
+    expect(createApprovalChain).toHaveBeenLastCalledWith(
+      expect.objectContaining({ submitterIsController: true })
+    );
+  });
+
+  it("stores a switch the department does not offer as false", async () => {
+    vi.mocked(isFeatureEnabled).mockResolvedValue(true);
+
+    await POST(
+      submitRequest({
+        ...SUBMIT_BODY,
+        campus: "2",
+        submitter_is_controller: true,
+        submitter_is_financial_manager: true,
+      })
+    );
+
+    expect(adminDb.createRow).toHaveBeenCalledWith(
+      "app",
+      "expense",
+      expect.any(String),
+      expect.objectContaining({
+        submitter_is_controller: false,
+        submitter_is_financial_manager: false,
+      }),
+      expect.anything()
+    );
+    expect(createApprovalChain).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        submitterIsController: false,
+        submitterIsFinancialManager: false,
+      })
+    );
+  });
+
   it("answers 400 with the occasion field when a type asks for one", async () => {
     enrichment.enrichSubmission.mockRejectedValueOnce(
       new enrichment.OccasionRequiredError("Occasion is required")

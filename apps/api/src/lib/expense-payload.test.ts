@@ -436,4 +436,46 @@ describe("expense payload helpers", () => {
       )
     ).toBeNull();
   });
+
+  it("treats a missing controller flag as false", () => {
+    const payload = parseExpensePayload({
+      ...BASE,
+      campus: "1",
+      department: "1",
+    });
+
+    expect(payload?.submitter_is_controller).toBe(false);
+    expect(buildExpenseRowInput(payload!, "u").submitter_is_controller).toBe(
+      false
+    );
+  });
+
+  it("keeps a switch the department offers", () => {
+    const payload = parseExpensePayload({
+      ...BASE,
+      campus: "1",
+      department: "1",
+      submitter_is_controller: true,
+    });
+
+    expect(buildExpenseRowInput(payload!, "u")).toMatchObject({
+      submitter_is_controller: true,
+      submitter_is_financial_manager: false,
+    });
+  });
+
+  it("stores a switch the department does not offer as false", () => {
+    const payload = parseExpensePayload({
+      ...BASE,
+      campus: "2",
+      department: "some-dept",
+      submitter_is_controller: true,
+      submitter_is_financial_manager: true,
+    });
+
+    expect(buildExpenseRowInput(payload!, "u")).toMatchObject({
+      submitter_is_controller: false,
+      submitter_is_financial_manager: false,
+    });
+  });
 });

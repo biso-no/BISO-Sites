@@ -1010,6 +1010,37 @@ describe("enrichSubmission", () => {
     ]);
   });
 
+  it("notes what the submitter declared about themselves", async () => {
+    const asController = submission([], {
+      campus: "1",
+      department: "1",
+      submitter_is_controller: true,
+    });
+    await enrichSubmission(
+      admin,
+      asController.expense,
+      asController.payload,
+      "Ada Lovelace"
+    );
+    const asManager = submission([], {
+      campus: "1",
+      department: "dept-x",
+      submitter_is_financial_manager: true,
+    });
+    await enrichSubmission(
+      admin,
+      asManager.expense,
+      asManager.payload,
+      "Ada Lovelace"
+    );
+
+    const notes = recordExpenseEvents.mock.calls.map((call) => call[1][0].note);
+    expect(notes).toEqual([
+      "Submitter says they are the campus controller",
+      "Submitter says they are the department's financial manager",
+    ]);
+  });
+
   it("keeps own text and occasion when an old app submits a web draft", async () => {
     scanning.findScan.mockResolvedValue(scan("meeting-food", 0.95));
     generateObject.mockResolvedValue({

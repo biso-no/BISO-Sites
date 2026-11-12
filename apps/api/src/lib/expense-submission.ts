@@ -22,6 +22,7 @@ import {
   type ExpensePayload,
   isLegacyAttachment,
   isLegacyPayload,
+  normalisedSwitches,
   receiptFileId,
 } from "./expense-payload";
 import {
@@ -859,10 +860,23 @@ function classifiedNote({ decision, scan }: EnrichedReceipt): string {
   return reason ? `${confidence}: ${reason}` : confidence;
 }
 
+/** What the submitter declared about themselves, when the department offers it. */
+function declarationNote(payload: ExpensePayload): string | null {
+  const switches = normalisedSwitches(payload);
+  if (switches.submitter_is_controller) {
+    return "Submitter says they are the campus controller";
+  }
+  if (switches.submitter_is_financial_manager) {
+    return "Submitter says they are the department's financial manager";
+  }
+  return null;
+}
+
 function historyEvents(
   expenseId: string,
   receipts: EnrichedReceipt[],
-  profileName: string
+  profileName: string,
+  payload: ExpensePayload
 ): ExpenseEventInput[] {
   const classified = receipts.filter(isAiTyped).map(
     (receipt): ExpenseEventInput => ({
@@ -893,12 +907,15 @@ function historyEvents(
         note: receipt.accountReason,
       })
     );
+  const declared = declarationNote(payload);
+  const declaration = declared ? { note: declared } : {};
   return [
     {
       action: "submitted",
       actorKind: "student",
       actorName: profileName,
       expenseId,
+      ...declaration,
     },
     ...classified,
     ...accounts,
@@ -1028,6 +1045,6 @@ export async function enrichSubmission(
 
   await recordExpenseEvents(
     db,
-    historyEvents(expense.$id, receipts, profileName)
+    historyEvents(expense.$id, receipts, profileName, payload)
   );
 }
