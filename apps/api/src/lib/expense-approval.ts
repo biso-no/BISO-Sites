@@ -11,6 +11,7 @@ import {
   type ExpenseApprovals,
   type ExpenseApprovalsApproverRole,
   ExpenseApprovalsStatus,
+  type Expenses,
   ExpensesStatus,
   type Users,
 } from "@repo/api/types/appwrite";
@@ -226,6 +227,106 @@ async function recordResolutionIssues(
   }
 }
 
+/** The account email on a user row, or null when the row is gone. */
+async function loadUserEmail(
+  db: AdminDb,
+  userId: string
+): Promise<string | null> {
+  const user = await db
+    .getRow<Users>("app", "user", userId)
+    .catch((error: unknown) => {
+      // A missing user row only means there is no email to compare.
+      if (appwriteErrorStatus(error) === HTTP_NOT_FOUND) {
+        return null;
+      }
+      throw error;
+    });
+  return user?.email?.trim().toLowerCase() || null;
+}
+
+/** The submitter's account email (trimmed, lowercased), or null when unknown. */
+async function loadSubmitterEmail(
+  db: AdminDb,
+  expenseId: string
+): Promise<string | null> {
+  const expense = await db.getRow<Expenses>("app", "expense", expenseId, [
+    Query.select(["$id", "userId"]),
+  ]);
+  return expense?.userId ? loadUserEmail(db, expense.userId) : null;
+}
+
+interface RoutedChain {
+  issues: ApproverResolutionIssue[];
+  steps: ResolvedApproverStep[];
+}
+
+/**
+ * Keeps the chain from routing to the submitter or to one person twice. A step
+ * whose approver is the submitter is dropped as not found, with an issue. Of
+ * two steps with the same approver the earlier is dropped (the later one is
+ * the stronger role), with an issue. Surviving steps are renumbered from 1.
+ */
+function guardChain(
+  context: ApprovalChainContext,
+  resolved: RoutedChain,
+  submitterEmail: string | null
+): RoutedChain {
+  const issues = [...resolved.issues];
+  const emailOf = (step: ResolvedApproverStep) =>
+    step.email.trim().toLowerCase();
+  const issueFor = (
+    step: ResolvedApproverStep,
+    reason: string
+  ): ApproverResolutionIssue => ({
+    campusId: context.campusId,
+    department: context.departmentName ?? "(none)",
+    reason,
+    roleSought: step.fallbackFor ?? step.role,
+  });
+
+  const notSubmitter = resolved.steps.filter((step) => {
+    if (submitterEmail && emailOf(step) === submitterEmail) {
+      issues.push(issueFor(step, "Approver is the submitter"));
+      return false;
+    }
+    return true;
+  });
+  const kept = notSubmitter.filter((step, index) => {
+    const later = notSubmitter
+      .slice(index + 1)
+      .find((other) => emailOf(other) === emailOf(step));
+    if (later) {
+      issues.push(
+        issueFor(
+          step,
+          `Same approver as the ${later.role} step; the earlier ${step.role} step was dropped`
+        )
+      );
+      return false;
+    }
+    return true;
+  });
+  return {
+    issues,
+    steps: kept.map((step, index) => ({ ...step, step: index + 1 })),
+  };
+}
+
+/** Issue writes are best-effort once the chain exists: never thrown. */
+async function recordResolutionIssuesSafely(
+  db: AdminDb,
+  expenseId: string,
+  issues: readonly ApproverResolutionIssue[]
+): Promise<void> {
+  for (const issue of issues) {
+    try {
+      await recordResolutionIssues(db, expenseId, [issue]);
+    } catch (error) {
+      console.error("[expense-approval] issue write failed:", error);
+    }
+  }
+}
+
 /**
  * Resolves approvers, creates the chain rows, and notifies the first step.
  * Writes a remediation issue when an approver can't be found, once the chain
@@ -236,7 +337,7 @@ export async function createApprovalChain(
 ): Promise<CreateChainResult> {
   const { db } = await createAdminClient();
 
-  const { steps, issues } = await resolveExpenseApprovers(
+  const resolved = await resolveExpenseApprovers(
     {
       campusId: context.campusId,
       campusName: context.campusLabel,
@@ -246,6 +347,11 @@ export async function createApprovalChain(
       submitterIsFinancialManager: context.submitterIsFinancialManager,
     },
     { db }
+  );
+  const { steps, issues } = guardChain(
+    context,
+    resolved,
+    await loadSubmitterEmail(db, context.expenseId)
   );
 
   if (steps.length === 0) {
@@ -279,7 +385,7 @@ export async function createApprovalChain(
   const rawTokens = new Map<number, string>();
 
   const created: ExpenseApprovals[] = [];
-  for (const step of steps) {
+  const createStepRow = async (step: ResolvedApproverStep) => {
     const rawToken = randomBytes(24).toString("hex");
     rawTokens.set(step.step, rawToken);
     const row = await db.createRow<ExpenseApprovals>(
@@ -310,35 +416,25 @@ export async function createApprovalChain(
       }
     );
     created.push(row);
-  }
+  };
 
-  // The chain rows are the claim: a duplicate submit has failed by now.
-  await recordResolutionIssues(db, context.expenseId, issues);
-
-  await recordExpenseEvents(
-    db,
-    steps.map((step) => ({
-      action: "approver_resolved",
-      actorKind: "system",
-      after: step.email,
-      expenseId: context.expenseId,
-      note: approverResolvedNote(step),
-    }))
-  );
-
-  const first = created.find((row) => row.step === 1) ?? created[0];
-  const firstStep = steps.find((step) => step.step === first.step);
-
-  // Transition the expense to `pending` BEFORE notifying. The chain rows already
-  // exist (their creation was the atomic claim via the unique (expense_id, step)
-  // index), so the approval links we send always point at a submitted expense, not
-  // a draft — and the submit route no longer needs a separate post-notify status
-  // update that could fail and strand a draft with live approval links.
-  await db.updateRow("app", "expense", context.expenseId, {
-    status: ExpensesStatus.PENDING,
-  });
+  // The first row is the claim: a racing duplicate submit fails here with a
+  // 409, holds nothing of ours, and so must not roll anything back.
+  await createStepRow(steps[0]);
 
   try {
+    for (const step of steps.slice(1)) {
+      await createStepRow(step);
+    }
+
+    // Transition the expense to `pending` BEFORE notifying, so the approval
+    // links we send always point at a submitted expense, not a draft.
+    await db.updateRow("app", "expense", context.expenseId, {
+      status: ExpensesStatus.PENDING,
+    });
+
+    const first = created.find((row) => row.step === 1) ?? created[0];
+    const firstStep = steps.find((step) => step.step === first.step);
     await notifyStep(
       context,
       first,
@@ -347,9 +443,10 @@ export async function createApprovalChain(
       firstStep?.aadId ?? null
     );
   } catch (error) {
-    // The first approver is unreachable — roll the whole submission back: delete
-    // the chain rows (which also invalidates any link already delivered) and return
-    // the expense to draft so it can be retried cleanly.
+    // Anything after the claim failed (a step row, the status write, or the
+    // first approver being unreachable): delete the chain rows (which also
+    // invalidates any link already delivered) and return the expense to draft
+    // so it can be resubmitted cleanly, never stranded behind a 409.
     await Promise.all(
       created.map((row) =>
         db.deleteRow("app", "expense_approvals", row.$id).catch(() => undefined)
@@ -361,6 +458,27 @@ export async function createApprovalChain(
       })
       .catch(() => undefined);
     throw error;
+  }
+
+  // Best-effort history and issues, written only once the chain stands so a
+  // rolled-back submission leaves no `approver_resolved` trail behind.
+  await recordResolutionIssuesSafely(db, context.expenseId, issues);
+  try {
+    await recordExpenseEvents(
+      db,
+      steps.map((step) => ({
+        action: "approver_resolved",
+        actorKind: "system",
+        after: step.email,
+        expenseId: context.expenseId,
+        note: approverResolvedNote(step),
+      }))
+    );
+  } catch (error) {
+    console.error(
+      "[expense-approval] approver_resolved history failed:",
+      error
+    );
   }
 
   return { stepsCreated: created.length, notified: true };
@@ -1167,16 +1285,7 @@ export async function changeStepApprover(params: {
       error: "This person is already the approver for the step.",
     };
   }
-  const submitter = await db
-    .getRow<Users>("app", "user", expense.userId)
-    .catch((error: unknown) => {
-      // A missing submitter row only means there is no email to compare.
-      if (appwriteErrorStatus(error) === HTTP_NOT_FOUND) {
-        return null;
-      }
-      throw error;
-    });
-  if (submitter?.email?.trim().toLowerCase() === email) {
+  if ((await loadUserEmail(db, expense.userId)) === email) {
     return {
       ok: false,
       code: "self_approver",

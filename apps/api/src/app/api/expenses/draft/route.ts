@@ -56,6 +56,8 @@ async function loadOwnedDraft(
         "occasion",
         "event_id",
         "submitter_is_controller",
+        "campus",
+        "department",
         "expenseAttachments.*",
       ]),
     ]

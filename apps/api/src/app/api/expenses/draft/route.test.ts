@@ -151,6 +151,8 @@ describe("expense draft route", () => {
   it("keeps the stored controller flag when an old app re-saves a web draft", async () => {
     adminDb.getRow.mockResolvedValue({
       $id: "expense-1",
+      campus: DRAFT_BODY.campus,
+      department: "2",
       expenseAttachments: [],
       status: "draft",
       submitter_is_controller: true,

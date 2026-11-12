@@ -280,6 +280,8 @@ export function mergeLegacyAttachmentTypes(
 
 /** What the draft merge reads from the stored draft. */
 export interface StoredDraft {
+  campus?: string | null;
+  department?: string | null;
   event_id?: string | null;
   expenseAttachments?: readonly StoredAttachmentType[] | null;
   occasion?: string | null;
@@ -296,14 +298,19 @@ export interface StoredDraft {
  * that leaves them out keeps them (see `buildExpenseRowInput`).
  *
  * No app version has the controller switch, so a payload that leaves
- * `submitter_is_controller` out keeps the stored flag. Dropping it would send
- * a controller's own reimbursement, switched on from the web, to the
- * controller.
+ * `submitter_is_controller` out keeps the stored flag, but only when its
+ * campus and department are the stored draft's: a flag declared for one
+ * department must not carry over to another. Dropping it within the same
+ * department would send a controller's own reimbursement, switched on from the
+ * web, to the controller.
  */
 export function mergeLegacyDraft(
   payload: ExpensePayload,
   existing: StoredDraft
 ): ExpensePayload {
+  const sameCampusAndDepartment =
+    payload.campus === existing.campus &&
+    payload.department === existing.department;
   const merged: ExpensePayload = {
     ...payload,
     expenseAttachments: mergeLegacyAttachmentTypes(
@@ -312,7 +319,7 @@ export function mergeLegacyDraft(
     ),
     submitter_is_controller:
       payload.submitter_is_controller ??
-      existing.submitter_is_controller ??
+      (sameCampusAndDepartment ? existing.submitter_is_controller : null) ??
       undefined,
   };
   if (!isLegacyPayload(payload)) {

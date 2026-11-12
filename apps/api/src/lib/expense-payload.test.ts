@@ -417,7 +417,11 @@ describe("expense payload helpers", () => {
   });
 
   it("keeps the stored controller flag when a payload leaves it out", () => {
-    const stored = { submitter_is_controller: true };
+    const stored = {
+      campus: "1",
+      department: "2",
+      submitter_is_controller: true,
+    };
     const oldApp = parseExpensePayload({
       ...BASE,
       campus: "1",
@@ -461,6 +465,41 @@ describe("expense payload helpers", () => {
       buildExpenseRowInput(mergeLegacyDraft(elsewhere!, stored), "u")
         .submitter_is_controller
     ).toBe(false);
+  });
+
+  it("drops the kept controller flag when the department changes", () => {
+    const stored = {
+      campus: "1",
+      department: "2",
+      submitter_is_controller: true,
+    };
+    const moved = parseExpensePayload({
+      ...BASE,
+      campus: "1",
+      department: "3",
+    });
+    expect(
+      mergeLegacyDraft(moved!, stored).submitter_is_controller
+    ).toBeUndefined();
+
+    const otherCampus = parseExpensePayload({
+      ...BASE,
+      campus: "2",
+      department: "2",
+    });
+    expect(
+      mergeLegacyDraft(otherCampus!, stored).submitter_is_controller
+    ).toBeUndefined();
+  });
+
+  it("keeps it when campus and department match", () => {
+    const stored = {
+      campus: "1",
+      department: "2",
+      submitter_is_controller: true,
+    };
+    const same = parseExpensePayload({ ...BASE, campus: "1", department: "2" });
+    expect(mergeLegacyDraft(same!, stored).submitter_is_controller).toBe(true);
   });
 
   it("keeps a switch the department offers", () => {

@@ -190,6 +190,184 @@ describe("approval chain", () => {
     expect(tablesWritten()).toEqual(["expense_approvals"]);
   });
 
+  const stepFor = (role: string, email: string, step: number) => ({
+    aadId: null,
+    directoryKey: `campus:1:${role}`,
+    email,
+    role,
+    source: "default",
+    step,
+  });
+  const issueRows = () =>
+    db.createRow.mock.calls
+      .filter(([, table]) => table === "expense_approval_issues")
+      .map(([, , , data]) => data);
+  const submitterIs = (email: string) =>
+    db.getRow.mockImplementation(async (_db: string, table: string) =>
+      table === "expense" ? { $id: "expense-1", userId: "user-1" } : { email }
+    );
+
+  it("rolls back steps and the claim when notification fails", async () => {
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [ISSUE],
+      steps: [
+        stepFor("finance", "fin@biso.no", 1),
+        stepFor("controller", "ctrl@biso.no", 2),
+      ],
+    });
+    teams.sendApprovalEmail.mockRejectedValue(new Error("mail down"));
+    db.deleteRow.mockResolvedValue({});
+
+    await expect(createApprovalChain(CONTEXT)).rejects.toThrow(
+      "Could not deliver"
+    );
+
+    expect(db.deleteRow).toHaveBeenCalledTimes(2);
+    expect(db.updateRow).toHaveBeenLastCalledWith(
+      "app",
+      "expense",
+      "expense-1",
+      { status: "draft" }
+    );
+    // No history or issues for a submission that never stood.
+    expect(events.recordExpenseEvents).not.toHaveBeenCalled();
+    expect(issueRows()).toEqual([]);
+  });
+
+  it("rolls back when a later step row cannot be created", async () => {
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [
+        stepFor("finance", "fin@biso.no", 1),
+        stepFor("controller", "ctrl@biso.no", 2),
+      ],
+    });
+    db.deleteRow.mockResolvedValue({});
+    db.createRow
+      .mockImplementationOnce(async (_d: string, _t: string, id: string) => ({
+        $id: id,
+        step: 1,
+      }))
+      .mockRejectedValueOnce(new Error("boom"));
+
+    await expect(createApprovalChain(CONTEXT)).rejects.toThrow("boom");
+    expect(db.deleteRow).toHaveBeenCalledTimes(1);
+    expect(db.updateRow).toHaveBeenLastCalledWith(
+      "app",
+      "expense",
+      "expense-1",
+      { status: "draft" }
+    );
+  });
+
+  it("a failed issue write does not strand the draft", async () => {
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [ISSUE],
+      steps: [CONTROLLER_STEP],
+    });
+    db.createRow.mockImplementation(
+      (_d: string, table: string, id: string, data: object) =>
+        table === "expense_approval_issues"
+          ? Promise.reject(new Error("issue write failed"))
+          : Promise.resolve({ $id: id, ...data })
+    );
+    const logged = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    await expect(createApprovalChain(CONTEXT)).resolves.toEqual({
+      notified: true,
+      stepsCreated: 1,
+    });
+
+    expect(db.deleteRow).not.toHaveBeenCalled();
+    expect(db.updateRow).not.toHaveBeenCalledWith(
+      "app",
+      "expense",
+      "expense-1",
+      { status: "draft" }
+    );
+    logged.mockRestore();
+  });
+
+  it("treats an approver who is the submitter as not found", async () => {
+    submitterIs(" Fin@BISO.no ");
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [
+        stepFor("finance", "fin@biso.no", 1),
+        stepFor("controller", "ctrl@biso.no", 2),
+      ],
+    });
+
+    const result = await createApprovalChain(CONTEXT);
+
+    expect(result.stepsCreated).toBe(1);
+    const rows = db.createRow.mock.calls
+      .filter(([, table]) => table === "expense_approvals")
+      .map(([, , , data]) => data);
+    expect(rows).toEqual([
+      expect.objectContaining({
+        approver_email: "ctrl@biso.no",
+        approver_role: "controller",
+        step: 1,
+      }),
+    ]);
+    expect(issueRows()).toEqual([
+      expect.objectContaining({
+        reason: "Approver is the submitter",
+        role_sought: "finance",
+      }),
+    ]);
+  });
+
+  it("leaves the expense pending with an issue when only the submitter was resolved", async () => {
+    submitterIs("ctrl@biso.no");
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [stepFor("controller", "ctrl@biso.no", 1)],
+    });
+
+    const result = await createApprovalChain(CONTEXT);
+
+    expect(result).toEqual({ notified: false, stepsCreated: 0 });
+    expect(tablesWritten()).toEqual([
+      "expense_approval_issues",
+      "expense_approval_issues",
+    ]);
+    expect(db.updateRow).toHaveBeenCalledWith("app", "expense", "expense-1", {
+      status: "pending",
+    });
+  });
+
+  it("drops the earlier of two steps with the same approver", async () => {
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [
+        stepFor("finance", "same@biso.no", 1),
+        stepFor("controller", "Same@biso.no ", 2),
+        stepFor("president", "pres@biso.no", 3),
+      ],
+    });
+
+    const result = await createApprovalChain(CONTEXT);
+
+    expect(result.stepsCreated).toBe(2);
+    const rows = db.createRow.mock.calls
+      .filter(([, table]) => table === "expense_approvals")
+      .map(([, , , data]) => data);
+    expect(rows.map((row) => [row.step, row.approver_role])).toEqual([
+      [1, "controller"],
+      [2, "president"],
+    ]);
+    expect(issueRows()).toEqual([
+      expect.objectContaining({
+        reason: expect.stringContaining("earlier finance step was dropped"),
+        role_sought: "finance",
+      }),
+    ]);
+  });
+
   it("records an issue before leaving an expense with no approver pending", async () => {
     resolution.resolveExpenseApprovers.mockResolvedValue({
       issues: [ISSUE],
