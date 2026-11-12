@@ -659,6 +659,11 @@ export async function postApprovedExpense(
 
   const expense = await loadExpenseForPosting(db, expenseId);
 
+  // A stale listing may name an expense that has moved on (retried, booked,
+  // failed): only an approved expense is claimed.
+  if (expense.status !== ExpensesStatus.APPROVED) {
+    return;
+  }
   if (await shouldSkipClaimedExpense(db, expense)) {
     return;
   }
@@ -805,6 +810,20 @@ export async function retryExpenseBooking(params: {
     status: ExpensesStatus.APPROVED,
     ledger_transaction_id: POSTING_CLAIM_MARKER,
   });
+  // Another retry may have incremented between our claim and this write, while
+  // the row still read `failed`. Only the one whose value is still the latest
+  // posts; the other leaves the row approved with a fresh marker (the cron skips
+  // it, and the stale-lease reaper turns it `failed` if nobody posts).
+  const current = await db.getRow<Expenses>("app", "expense", expenseId, [
+    Query.select(["$id", "posting_lock"]),
+  ]);
+  if ((current.posting_lock ?? 0) !== claimed.posting_lock) {
+    return {
+      ok: false,
+      code: "retry_in_progress",
+      error: "This booking is already being retried.",
+    };
+  }
   await recordExpenseEvents(db, [
     {
       expenseId,

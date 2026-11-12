@@ -63,6 +63,7 @@ const expense = {
   $sequence: 7,
   $updatedAt: "2026-11-01T00:00:00.000Z",
   ledger_transaction_id: null,
+  status: "approved",
   bank_account: "1234.56.78901",
   campus: "1",
   department: "101",

@@ -161,7 +161,7 @@ describe("retryExpenseBooking", () => {
       );
       return Promise.resolve(
         reset
-          ? expense
+          ? { ...expense, posting_lock: 1 }
           : { ...expense, ledger_transaction_id: "posting", status: "failed" }
       );
     });
@@ -201,6 +201,7 @@ describe("retryExpenseBooking", () => {
             ledger_transaction_id: db.updateRow.mock.calls.length
               ? null
               : "posting",
+            posting_lock: db.updateRow.mock.calls.length ? 1 : 0,
             status: db.updateRow.mock.calls.length ? "approved" : "failed",
           }
     );
@@ -234,7 +235,9 @@ describe("retry claim", () => {
       return Promise.resolve({ email: "t@example.test", name: "Student" });
     }
     return Promise.resolve(
-      db.updateRow.mock.calls.length > 0 ? expense : failedRow
+      db.updateRow.mock.calls.length > 0
+        ? { ...expense, posting_lock: 2 }
+        : failedRow
     );
   };
 
@@ -349,7 +352,7 @@ describe("retry claim races", () => {
     status: "failed",
   };
 
-  it("posts exactly once when a loser increments right after the winner's write", async () => {
+  it("posts exactly once when a loser increments right after the winner's re-read", async () => {
     const row = fakeRow(failed);
     // The loser read the failed row before the winner wrote anything, but its
     // increment only lands once the winner has marked the row approved.
@@ -368,10 +371,15 @@ describe("retry claim races", () => {
         return { ...row };
       }
     );
-    const write = db.updateRow.getMockImplementation();
-    db.updateRow.mockImplementation((...args: unknown[]) => {
-      const result = write?.(...args);
-      if ((args[3] as { status?: string }).status === "approved") {
+    // The winner's re-read of posting_lock follows its approved write; the loser's
+    // increment lands right after that re-read, before the winner posts.
+    const read = db.getRow.getMockImplementation();
+    db.getRow.mockImplementation((...args: unknown[]) => {
+      const result = read?.(...args);
+      if (
+        String(args[3]).includes("posting_lock") &&
+        row.status === "approved"
+      ) {
         release();
       }
       return result;
@@ -387,6 +395,52 @@ describe("retry claim races", () => {
     expect(finago.postExpenseTransaction).toHaveBeenCalledTimes(1);
     expect(row.status).toBe("success");
     expect(row.ledger_transaction_id).toBe("tx-1");
+  });
+
+  it("posts once when both retries increment before either writes", async () => {
+    const row = fakeRow(failed);
+    // A claims lock 2 and stalls before its approved write. B reads the row
+    // (lock 2, failed) and increments to 3 while the status is still failed.
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const increment = db.incrementRowColumn.getMockImplementation();
+    db.incrementRowColumn.mockImplementation(async (arg: unknown) => {
+      const result = await increment?.(arg);
+      if (row.posting_lock === 3) {
+        release();
+      }
+      return result;
+    });
+    const write = db.updateRow.getMockImplementation();
+    let writes = 0;
+    db.updateRow.mockImplementation(async (...args: unknown[]) => {
+      if ((args[3] as { status?: string }).status === "approved") {
+        writes += 1;
+        if (writes === 1) {
+          await gate;
+        }
+      }
+      return await write?.(...args);
+    });
+
+    const a = retryExpenseBooking({ actor: ACTOR, expenseId: "exp-1" });
+    while (row.posting_lock !== 2) {
+      await Promise.resolve();
+    }
+    const b = retryExpenseBooking({ actor: ACTOR, expenseId: "exp-1" });
+    const [first, second] = await Promise.all([a, b]);
+
+    expect(first).toMatchObject({ code: "retry_in_progress", ok: false });
+    expect(second).toEqual({ ok: true, status: "success" });
+    expect(finago.postExpenseTransaction).toHaveBeenCalledTimes(1);
+    expect(row.status).toBe("success");
+    const retried = db.createRow.mock.calls.filter(
+      ([, table, , data]) =>
+        table === "expense_events" && data.action === "booking_retried"
+    );
+    expect(retried).toHaveLength(1);
   });
 
   it("selects posting_lock so the claim can compare against it", async () => {
@@ -453,6 +507,24 @@ describe("retry claim races", () => {
 });
 
 describe("postApprovedExpense hardening", () => {
+  it("skips an expense that is no longer approved without claiming it", async () => {
+    for (const status of ["failed", "success", "pending"]) {
+      db.getRow.mockImplementation((_d: string, table: string) =>
+        Promise.resolve(
+          table === "user"
+            ? { email: "t@example.test", name: "Student" }
+            : { ...expense, status }
+        )
+      );
+
+      await postApprovedExpense("exp-1");
+    }
+
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+    expect(db.updateRow).not.toHaveBeenCalled();
+    expect(finago.postExpenseTransaction).not.toHaveBeenCalled();
+  });
+
   it("success write waits between attempts", async () => {
     const sleep = vi.fn().mockResolvedValue(undefined);
     db.updateRow.mockImplementation(
