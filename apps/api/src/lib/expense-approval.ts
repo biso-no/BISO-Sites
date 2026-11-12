@@ -57,6 +57,7 @@ export interface ApprovalChainContext {
   description: string;
   expenseId: string;
   reimbursementNumber: string;
+  submitterIsController?: boolean;
   submitterIsFinancialManager: boolean;
   submitterName: string;
   total: number;
@@ -177,14 +178,16 @@ export async function createApprovalChain(
 ): Promise<CreateChainResult> {
   const { db } = await createAdminClient();
 
-  const { steps, issue } = await resolveExpenseApprovers({
+  const { steps, issues } = await resolveExpenseApprovers({
     campusId: context.campusId,
+    campusName: context.campusLabel,
     departmentId: context.departmentId,
     departmentName: context.departmentName,
+    submitterIsController: context.submitterIsController ?? false,
     submitterIsFinancialManager: context.submitterIsFinancialManager,
   });
 
-  if (issue) {
+  for (const issue of issues) {
     await db.createRow("app", "expense_approval_issues", ID.unique(), {
       expense_id: context.expenseId,
       campus_id: issue.campusId,
@@ -221,7 +224,7 @@ export async function createApprovalChain(
         approver_role: step.role as ExpenseApprovalsApproverRole,
         approver_email: step.email,
         approver_aad_id: step.aadId,
-        directory_key: null,
+        directory_key: step.directoryKey,
         status: ExpenseApprovalsStatus.PENDING,
         decided_by: null,
         decided_at: null,
