@@ -1,10 +1,11 @@
 ---
 title: Fix expense approval issues
-description: How global admins find reimbursements whose approver couldn't be found or reached, fix the approver's department, resend an approval and mark an issue as resolved.
-who: "Global admins (National + Operations Unit)"
+description: How global admins and campus controllers find reimbursements whose approver couldn't be found or reached, fix the approver's department, resend an approval and mark an issue as resolved. Also shows who sees what, and how a reimbursement is decided in the admin.
+who: "Global admins (National + Operations Unit) and the campus controller of the issue's campus. Campus leaders can read."
 covers:
   - apps/admin/src/app/(portal)/it/expense-approvals/**
-  - apps/admin/src/app/(portal)/_actions/expense-approval-issues.ts
+  - apps/admin/src/app/(portal)/expenses/issues-actions.ts
+  - apps/admin/src/app/(portal)/expenses/_components/approval-issues-panel.tsx
   - apps/api/src/lib/expense-approval.ts
   - apps/api/src/lib/expense-approver-resolution.ts
   - apps/api/src/lib/expense-approver-directory.ts
@@ -39,11 +40,11 @@ covers:
 <Steps>
 <Step title="Open the approval issues">
 
-Open **System**, choose **IT**, then the **Godkjenningsavvik** (Approval issues) tab. The page is headed **Godkjenningsavvik for refusjoner** (Reimbursement approval issues).
+Open **Utlegg** (Expenses) in the sidebar and choose **Trenger oppfølging** (Needs attention). Open issues are listed in a box headed **Godkjenningsavvik for refusjoner** (Reimbursement approval issues), above the list of reimbursements. The old address under **IT** sends you here. If there are no open issues, the box isn't shown.
 
-The list shows up to 200 issues, open ones first, then the newest. The columns are **Avdeling** (Department), **Campus**, **Søkt rolle** (Sought role), **Årsak** (Reason), **Opprettet** (Created) and **Status**, which is **Åpen** (Open) or **Løst** (Resolved).
+The box shows up to 200 issues, open ones first, then the newest. The columns are **Avdeling** (Department), **Campus**, **Søkt rolle** (Sought role), **Årsak** (Reason), **Opprettet** (Created) and **Status**, which is **Åpen** (Open) or **Løst** (Resolved).
 
-If there are none, you see **Ingen avvik** (No approval issues).
+You see the issues for campuses you can see: all of them as a global admin, and your own campus as a campus leader or controller. Only global admins and the campus controller of the issue's campus get the buttons **Marker som løst** (Mark resolved) and **Send varsel på nytt** (Resend notification). Campus leaders can only read.
 
 </Step>
 <Step title="Read the reason">
@@ -66,7 +67,7 @@ The department's approver account doesn't have the department in **Avdeling** (D
 1. Choose **Brukere** (Users), and find the department's financial manager role account. If **Søkt rolle** (Sought role) says `manager`, find the leader's or the deputy's account instead. If it says `president`, find the campus president's.
 2. Open it, set **Avdeling** (Department) to the department named in the issue, exactly, and choose **Lagre profil** (Save profile). For a president, check that the login address starts with `president.` and has the campus name. See [Change an account's details](/guide/access-and-settings/manage-users#change-an-accounts-details-global-admins).
 3. If the department has no such account, it needs one. See [Create a user](/guide/access-and-settings/manage-users#create-a-user-global-admins-and-campus-leaders).
-4. Go back to **Godkjenningsavvik** (Approval issues) and choose **Marker som løst** (Mark resolved) on the issue.
+4. Go back to **Utlegg** (Expenses), **Trenger oppfølging** (Needs attention) and choose **Marker som løst** (Mark resolved) on the issue.
 
 </Step>
 <Step title="Resend the approval">
@@ -99,6 +100,10 @@ This only changes the status. It doesn't check that the department was fixed, an
 - Nobody is told about a new issue. Open the tab now and then to check.
 - Marking an issue as resolved and resending are written to the activity log with your email.
 </WhatHappensNext>
+
+## Who sees what, and deciding in the admin
+
+An approver doesn't have to use Teams or email. Everyone on a step can open the reimbursement under **Utlegg** (Expenses) and approve or reject it there, while their step is the current one. A global admin or the campus controller can also decide on behalf of a step, change an approver and retry a failed booking. Campus leaders see their campus read only. The controller never acts on a reimbursement the student said they sent as the controller. See [Review and decide reimbursements](/guide/access-and-settings/expenses-admin).
 
 ## Common mistakes
 

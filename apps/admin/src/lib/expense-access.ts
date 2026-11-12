@@ -155,6 +155,30 @@ export function canOpenExpensesSection(
   );
 }
 
+/** Campuses whose approval issues the viewer may list; `null` means every campus. */
+export function issueCampusScope(viewer: ExpenseViewer): string[] | null {
+  if (viewer.isGlobalAdmin) {
+    return null;
+  }
+  return [
+    ...new Set([
+      ...(viewer.isCampusAdmin ? viewer.managedCampusIds : []),
+      ...viewer.controllerCampusIds,
+    ]),
+  ];
+}
+
+/** Resolving or re-sending an approval issue: global admins and that campus's controller. */
+export function canActOnApprovalIssue(
+  viewer: ExpenseViewer,
+  campusId: string | null | undefined
+): boolean {
+  return (
+    viewer.isGlobalAdmin ||
+    Boolean(campusId && viewer.controllerCampusIds.includes(campusId))
+  );
+}
+
 /**
  * Appwrite queries limiting an expense list to what the viewer may see:
  * their campuses (managed as campus admin, or as controller) plus the

@@ -15,6 +15,7 @@ const OUTSIDE_SERVICE_ROUTES = [
   "/documents",
   "/shop/accounting",
   "/it/expense-approvals",
+  "/expenses",
 ];
 /** The guide's area folders from the platform-guide pages. */
 const AREA_FOLDERS = [

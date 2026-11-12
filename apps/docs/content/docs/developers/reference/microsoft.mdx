@@ -147,7 +147,7 @@ On the IT pages, global admins may do everything. Campus admins may look up acco
 
 - The card and the email are sent separately. If one fails, the log says `[expense-approval] Teams notify failed:` or `[expense-approval] Email notify failed:`, and the other is still sent.
 - If neither reaches the first approver, the submission fails, and the reimbursement goes back to draft so the student can try again.
-- If an approver can't be found, or a later approver can't be reached, the api records an issue. Staff see it on the admin's **IT** page, under expense approvals (`/it/expense-approvals`), and can send the approval again from there.
+- If an approver can't be found, or a later approver can't be reached, the api records an issue. Staff see it in the admin under **Utlegg** (Expenses), in the **Trenger oppfølging** (Needs attention) view (`/expenses?view=attention`), and a global admin or the campus controller can send the approval again from there. The old address `/it/expense-approvals` redirects there.
 - A card click that fails the bot's sign-in check answers `401`, and the api logs `[teams/bot] auth failed:`.
 
 **Test it safely.** There's no safe end-to-end test. The bot's messaging endpoint is set to the production API in its Azure resource (`apps/api/teams-manifest/README.md`), so Teams sends every card click there. Keep `expenses_ledger_posting` off in your own project, and nothing calls the bot. The approver rules have unit tests in `packages/shared/utils/expense-approvers.test.ts`.

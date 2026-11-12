@@ -8,11 +8,10 @@ interface ItUsersTabsProps {
   labels: {
     audit: string;
     dataHealth: string;
-    expenseApprovals: string;
     users: string;
   };
   /**
-   * Audit, data health and expense approvals read across every campus, so they
+   * Audit and data health read across every campus, so they
    * are hidden from campus admins — who otherwise only see their own campus.
    */
   showTenantTools: boolean;
@@ -22,11 +21,6 @@ const TABS = [
   { href: "/it/users", key: "users" as const, tenantWide: false },
   { href: "/it/users/audit", key: "audit" as const, tenantWide: true },
   { href: "/it/data-health", key: "dataHealth" as const, tenantWide: true },
-  {
-    href: "/it/expense-approvals",
-    key: "expenseApprovals" as const,
-    tenantWide: true,
-  },
 ];
 
 export function ItUsersTabs({ labels, showTenantTools }: ItUsersTabsProps) {

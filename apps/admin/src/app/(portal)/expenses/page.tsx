@@ -1,6 +1,10 @@
 import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
-import type { Campus, Departments } from "@repo/api/types/appwrite";
+import {
+  type Campus,
+  type Departments,
+  ExpenseApprovalIssuesStatus,
+} from "@repo/api/types/appwrite";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { getUserAuthContext } from "@/lib/authorization";
@@ -11,6 +15,7 @@ import {
 import { getExpenseViewer } from "@/lib/expense-viewer";
 import { firstParam, type ListSearchParams } from "@/lib/list-params";
 import { PageHeader } from "../_components/page-header";
+import { ApprovalIssuesPanel } from "./_components/approval-issues-panel";
 import { ExpensesList, type FilterOption } from "./_components/expenses-list";
 import {
   EXPENSE_LIST_STATUSES,
@@ -18,6 +23,7 @@ import {
   listExpenses,
   resolveExpenseListFilters,
 } from "./expenses-data";
+import { listExpenseApprovalIssues } from "./issues-actions";
 
 const OPTION_LIMIT = 200;
 
@@ -89,16 +95,43 @@ export default async function ExpensesPage({
     filters.view = defaultView;
   }
 
-  const [t, result, campusOptions, departmentOptions] = await Promise.all([
-    getTranslations("adminPortal.expenses"),
-    listExpenses(viewer, filters),
-    listCampusOptions(viewer),
-    listDepartmentOptions(filters.campusId),
-  ]);
+  const [t, result, campusOptions, departmentOptions, issues] =
+    await Promise.all([
+      getTranslations("adminPortal.expenses"),
+      listExpenses(viewer, filters),
+      listCampusOptions(viewer),
+      listDepartmentOptions(filters.campusId),
+      filters.view === "attention" ? listExpenseApprovalIssues() : null,
+    ]);
+  const openIssues = (issues?.data ?? []).filter(
+    (issue) => issue.status !== ExpenseApprovalIssuesStatus.RESOLVED
+  );
 
   return (
     <div className="pb-12">
       <PageHeader description={t("description")} title={t("title")} />
+      {openIssues.length > 0 && (
+        <ApprovalIssuesPanel
+          issues={openIssues}
+          labels={{
+            columnCampus: t("issues.column.campus"),
+            columnCreated: t("issues.column.created"),
+            columnDepartment: t("issues.column.department"),
+            columnReason: t("issues.column.reason"),
+            columnRole: t("issues.column.role"),
+            columnStatus: t("issues.column.status"),
+            resend: t("issues.resend"),
+            resendError: t("issues.resendError"),
+            resendSuccess: t("issues.resendSuccess"),
+            resolve: t("issues.resolve"),
+            resolveError: t("issues.resolveError"),
+            resolveSuccess: t("issues.resolveSuccess"),
+            statusOpen: t("issues.status.open"),
+            statusResolved: t("issues.status.resolved"),
+            title: t("issues.title"),
+          }}
+        />
+      )}
       <ExpensesList
         campusOptions={campusOptions}
         defaultView={defaultView}
