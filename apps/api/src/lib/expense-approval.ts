@@ -11,7 +11,6 @@ import {
   type ExpenseApprovals,
   type ExpenseApprovalsApproverRole,
   ExpenseApprovalsStatus,
-  type ExpenseAttachments,
   type Expenses,
   ExpensesStatus,
   type Users,
@@ -46,6 +45,7 @@ import {
   type ApprovalCardDetails,
   hasReceiptWithoutAccount,
   loadApprovalCardDetails,
+  loadExpenseReceiptRows,
 } from "./expense-card-details";
 import { getGraphService } from "./graph";
 
@@ -566,16 +566,13 @@ export async function getApprovalContext(
         "$sequence",
         "departmentRel.Name",
         "campusRel.name",
-        "expenseAttachments.*",
       ]),
     ]
   );
 
   const totalSteps = await countSteps(row.expense_id);
   const expired = Date.now() > new Date(row.expires_at).getTime();
-  const attachments = [...(expense.expenseAttachments ?? [])].sort(
-    (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
-  );
+  const attachments = await loadExpenseReceiptRows(db, row.expense_id);
 
   return {
     reimbursementNumber: reimbursementNumber(
@@ -775,7 +772,6 @@ const NOTE_SEPARATOR = " · ";
 const NOT_CURRENT_STEP_ERROR = "This step is not waiting for a decision.";
 const ACCOUNT_MISSING_ERROR =
   "A receipt has no account yet. Set it in admin before approving.";
-const ATTACHMENT_LIMIT = 100;
 
 export interface ApprovalActor {
   email: string | null;
@@ -1056,16 +1052,7 @@ async function expenseLacksAccount(
   db: AdminDb,
   expenseId: string
 ): Promise<boolean> {
-  const { rows } = await db.listRows<ExpenseAttachments>(
-    "app",
-    "expense_attachments",
-    [
-      Query.equal("expense_id", expenseId),
-      Query.select(["$id", "amount", "account_number"]),
-      Query.limit(ATTACHMENT_LIMIT),
-    ]
-  );
-  return hasReceiptWithoutAccount(rows);
+  return hasReceiptWithoutAccount(await loadExpenseReceiptRows(db, expenseId));
 }
 
 /**

@@ -29,11 +29,17 @@ interface Tables {
 }
 
 function seed(tables: Tables, expense: object = EXPENSE) {
-  db.getRow.mockResolvedValue(expense);
+  // Receipts come through the expense's `expenseAttachments` relation, so a
+  // legacy row without `expense_id` is read the same as a new one.
+  db.getRow.mockImplementation(() =>
+    Promise.resolve({
+      ...expense,
+      expenseAttachments: tables.attachments ?? [],
+    })
+  );
   db.listRows.mockImplementation((_db: string, table: string) => {
     const map: Record<string, object[] | undefined> = {
       expense_approvals: tables.approvals,
-      expense_attachments: tables.attachments,
       expense_cost_types: tables.costTypes,
       expense_events: tables.events,
       ledger_accounts: tables.ledger,
@@ -111,7 +117,7 @@ describe("loadApprovalCardDetails", () => {
 
   it("flags a missing account", async () => {
     seed({
-      attachments: [{ ...TAXI, account_number: null }],
+      attachments: [{ ...TAXI, account_number: null, cost_type: null }],
       costTypes: COST_TYPES,
     });
     expect((await loadApprovalCardDetails(asDb(), "e1")).missingAccount).toBe(
@@ -121,6 +127,40 @@ describe("loadApprovalCardDetails", () => {
     seed({ attachments: [TAXI], costTypes: COST_TYPES });
     expect((await loadApprovalCardDetails(asDb(), "e1")).missingAccount).toBe(
       false
+    );
+  });
+
+  it("reads receipts of an expense submitted before expense_id was written", async () => {
+    const legacy = {
+      ...TAXI,
+      account_number: null,
+      cost_type: "taxi",
+      expense_id: null,
+    };
+    seed({ attachments: [legacy], costTypes: COST_TYPES });
+
+    const details = await loadApprovalCardDetails(asDb(), "e1");
+
+    expect(details.receipts).toHaveLength(1);
+    expect(details.missingAccount).toBe(false);
+    expect(
+      db.listRows.mock.calls.some(([, t]) => t === "expense_attachments")
+    ).toBe(false);
+  });
+
+  it("flags an own-text receipt with no account", async () => {
+    seed({
+      attachments: [
+        {
+          ...TAXI,
+          account_number: null,
+          cost_type: null,
+          cost_type_text: "Pizza",
+        },
+      ],
+    });
+    expect((await loadApprovalCardDetails(asDb(), "e1")).missingAccount).toBe(
+      true
     );
   });
 
@@ -218,12 +258,13 @@ describe("loadApprovalCardDetails", () => {
   });
 
   it("offers no Approve when the receipts cannot be read", async () => {
-    db.getRow.mockResolvedValue(EXPENSE);
-    db.listRows.mockImplementation((_db: string, table: string) =>
-      table === "expense_attachments"
-        ? Promise.reject(new Error("boom"))
-        : Promise.resolve({ rows: [], total: 0 })
+    db.getRow.mockImplementation(
+      (_d: string, _t: string, _id: string, q: string[]) =>
+        q.some((query) => query.includes("expenseAttachments"))
+          ? Promise.reject(new Error("boom"))
+          : Promise.resolve(EXPENSE)
     );
+    db.listRows.mockResolvedValue({ rows: [], total: 0 });
     const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     const details = await loadApprovalCardDetails(asDb(), "e1");
@@ -235,16 +276,16 @@ describe("loadApprovalCardDetails", () => {
 
   it("reads the history while the receipts are still loading", async () => {
     seed({ attachments: [TAXI], costTypes: COST_TYPES });
-    const seeded = db.listRows.getMockImplementation();
     let release: () => void = () => undefined;
     const receiptsHeld = new Promise<void>((resolve) => {
       release = resolve;
     });
-    db.listRows.mockImplementation(async (...args: [string, string]) => {
-      if (args[1] === "expense_attachments") {
+    const seededGet = db.getRow.getMockImplementation();
+    db.getRow.mockImplementation(async (...args: unknown[]) => {
+      if (JSON.stringify(args[3]).includes("expenseAttachments")) {
         await receiptsHeld;
       }
-      return seeded?.(...args);
+      return seededGet?.(...args);
     });
 
     const loading = loadApprovalCardDetails(asDb(), "e1");

@@ -121,6 +121,20 @@ describe("guardChain", () => {
     ]);
   });
 
+  it("keeps the president fallback label when the national step is the submitter", () => {
+    const { steps } = guard(
+      [{ ...step("national", "me@biso.no", 1), fallbackFor: "president" }],
+      "me@biso.no"
+    );
+    expect(steps).toEqual([
+      expect.objectContaining({
+        email: NATIONAL_APPROVER_EMAIL,
+        fallbackFor: "president",
+        role: "national",
+      }),
+    ]);
+  });
+
   it("drops a national step when the national mailbox is the submitter", () => {
     const { steps, issues } = guard(
       [step("national", NATIONAL_APPROVER_EMAIL, 1)],

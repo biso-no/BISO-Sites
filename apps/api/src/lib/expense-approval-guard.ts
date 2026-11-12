@@ -65,7 +65,7 @@ function substitutesFor(
   } else if (step.role === "president") {
     add(national, "national", "president");
   } else if (step.role === "national") {
-    add(national, "national");
+    add(national, "national", step.fallbackFor);
   }
   return candidates;
 }

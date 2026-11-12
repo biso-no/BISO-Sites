@@ -33,6 +33,8 @@ import {
 const PAGE_PATH = "/expenses/settings/approvers";
 const TABLE = "expense_approvers";
 const DEPARTMENT_LIMIT = 500;
+/** Appwrite takes at most 100 values in one `equal`. */
+const EQUAL_VALUES_LIMIT = 100;
 const GRAPH_LOOKUP_TIMEOUT_MS = 6000;
 
 type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
@@ -127,6 +129,14 @@ async function readDepartmentNames(db: AdminDb): Promise<Map<string, string>> {
   return new Map(result.rows.map((row) => [row.$id, row.Name]));
 }
 
+function chunk<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let start = 0; start < items.length; start += size) {
+    chunks.push(items.slice(start, start + size));
+  }
+  return chunks;
+}
+
 /**
  * Matches the name, the email or the department name, in the query so the cap
  * applies to matching rows. Department names live in another table, so they
@@ -140,9 +150,9 @@ function searchQuery(needle: string, departmentNames: Map<string, string>) {
   return Query.or([
     Query.contains("email", lower),
     Query.contains("display_name", needle),
-    ...(departmentIds.length > 0
-      ? [Query.equal("department_id", departmentIds)]
-      : []),
+    ...chunk(departmentIds, EQUAL_VALUES_LIMIT).map((ids) =>
+      Query.equal("department_id", ids)
+    ),
   ]);
 }
 

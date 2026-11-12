@@ -5,7 +5,11 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 
-import { ApprovalBody, type ApprovalContext } from "./approval-client";
+import {
+  ApprovalBody,
+  type ApprovalContext,
+  afterDecisionRefused,
+} from "./approval-client";
 
 const CONTEXT: ApprovalContext = {
   adminUrl: "https://admin.biso.no/expenses/expense-1",
@@ -55,5 +59,25 @@ describe("ApprovalBody", () => {
     expect(html).toContain(">reject<");
     expect(html).toContain("accountMissing");
     expect(html).toContain('href="https://admin.biso.no/expenses/expense-1"');
+  });
+});
+
+describe("afterDecisionRefused", () => {
+  it("switches the page into the missing-account state on account_missing", () => {
+    const refused = afterDecisionRefused(CONTEXT, "account_missing");
+    expect(refused.accountMissing).toBe(true);
+    expect(refused.context?.missingAccount).toBe(true);
+    const html = render(refused.context as ApprovalContext);
+    expect(html.match(BUTTON)).toHaveLength(1);
+    expect(html).not.toContain(">approve<");
+    expect(html).toContain("accountMissing");
+    expect(html).toContain('href="https://admin.biso.no/expenses/expense-1"');
+  });
+
+  it("leaves the context alone for any other refusal", () => {
+    expect(afterDecisionRefused(CONTEXT, "link_expired")).toEqual({
+      accountMissing: false,
+      context: CONTEXT,
+    });
   });
 });

@@ -3,7 +3,7 @@
 // the submitter's self-declaration and the national-fallback note. Every lookup
 // is best-effort: a failure leaves that part empty and the card still sends.
 
-import { Query } from "@repo/api";
+import { type Models, Query } from "@repo/api";
 import type { createAdminClient } from "@repo/api/server";
 import type {
   ExpenseApprovals,
@@ -33,7 +33,6 @@ export type ApprovalCardDetails = Pick<
   | "receipts"
 >;
 
-const ATTACHMENT_LIMIT = 100;
 const HISTORY_LIMIT = 6;
 const APPROVAL_LIMIT = 20;
 const NATIONAL_CAMPUS_ID = "5";
@@ -324,15 +323,46 @@ const UNREAD_RECEIPTS: ReceiptParts = {
   receipts: [],
 };
 
-/** True when a receipt with an amount has no account yet. */
+/**
+ * True when a receipt with an amount has no account and none can be worked out:
+ * posting resolves a typed receipt's account from its type, so only a receipt
+ * with no type (own text or nothing) and no account is missing one.
+ */
+export function receiptLacksAccount(row: {
+  account_number?: number | null;
+  amount?: number | null;
+  cost_type?: string | null;
+}): boolean {
+  return (
+    (row.amount ?? 0) > 0 &&
+    row.account_number == null &&
+    !row.cost_type?.trim()
+  );
+}
+
+/** True when any receipt of the list lacks an account. */
 export function hasReceiptWithoutAccount(
-  rows: readonly {
-    account_number?: number | null;
-    amount?: number | null;
-  }[]
+  rows: readonly Parameters<typeof receiptLacksAccount>[0][]
 ): boolean {
-  return rows.some(
-    (row) => (row.amount ?? 0) > 0 && row.account_number == null
+  return rows.some(receiptLacksAccount);
+}
+
+/**
+ * The expense's receipts, read through the `expenseAttachments` relation. Rows
+ * submitted before `expense_id` was written on attachments are only reachable
+ * this way, so every approval-side check reads them here.
+ */
+export async function loadExpenseReceiptRows(
+  db: Db,
+  expenseId: string
+): Promise<ExpenseAttachments[]> {
+  const expense = await db.getRow<
+    Models.Row & { expenseAttachments?: ExpenseAttachments[] }
+  >("app", "expense", expenseId, [
+    Query.select(["$id", "expenseAttachments.*"]),
+  ]);
+  return [...(expense.expenseAttachments ?? [])].sort(
+    (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
   );
 }
 
@@ -340,15 +370,7 @@ async function loadReceiptParts(
   db: Db,
   expenseId: string
 ): Promise<ReceiptParts> {
-  const { rows } = await db.listRows<ExpenseAttachments>(
-    "app",
-    "expense_attachments",
-    [
-      Query.equal("expense_id", expenseId),
-      Query.orderAsc("sort_order"),
-      Query.limit(ATTACHMENT_LIMIT),
-    ]
-  );
+  const rows = await loadExpenseReceiptRows(db, expenseId);
   const [typeLabels, accountNames] = await Promise.all([
     loadTypeLabels(db),
     bestEffort("ledger lookup", new Map<number, string>(), () =>

@@ -1303,6 +1303,21 @@ describe("receipts without an account", () => {
   const UNSET = { $id: "att-1", account_number: null, amount: 120 };
   const SET = { $id: "att-2", account_number: 6555, amount: 80 };
   const SUPPORTING = { $id: "att-3", account_number: null, amount: 0 };
+  // Submitted before this branch: no expense_id, no account, a type slug.
+  const LEGACY = {
+    $id: "att-4",
+    account_number: null,
+    amount: 120,
+    cost_type: "taxi",
+    expense_id: null,
+  };
+  const OWN_TEXT = {
+    $id: "att-5",
+    account_number: null,
+    amount: 120,
+    cost_type: null,
+    cost_type_text: "Pizza",
+  };
 
   function setup(attachments: object[]) {
     const rowsByTable: Record<string, object[]> = {
@@ -1342,6 +1357,67 @@ describe("receipts without an account", () => {
       adminUrl: "https://admin.biso.no/expenses/expense-1",
       missingAccount: true,
     });
+  });
+
+  it("a legacy pending expense shows Approve and approves by link", async () => {
+    setup([LEGACY]);
+    // The legacy rows have no expense_id, so only the relation reaches them.
+    db.listRows.mockImplementation((_db: string, table: string) =>
+      Promise.resolve({ rows: table === "expense_approvals" ? [STEP] : [] })
+    );
+
+    expect(await getApprovalContext(RAW)).toMatchObject({
+      missingAccount: false,
+      receipts: [expect.objectContaining({ id: "att-4" })],
+    });
+    expect(
+      await decideApproval({
+        decidedBy: "Ctrl",
+        decision: "approved",
+        rawToken: RAW,
+        source: "teams",
+      })
+    ).toMatchObject({ decision: "approved", ok: true });
+  });
+
+  it("an own-text receipt with no account is refused", async () => {
+    setup([OWN_TEXT]);
+
+    expect(await getApprovalContext(RAW)).toMatchObject({
+      missingAccount: true,
+    });
+    expect(
+      await decideApproval({
+        decidedBy: "Ctrl",
+        decision: "approved",
+        rawToken: RAW,
+        source: "web",
+      })
+    ).toMatchObject({ code: "account_missing", ok: false });
+  });
+
+  it("the context, the token approve and the card read the same rows", async () => {
+    setup([UNSET]);
+    const { loadApprovalCardDetails: real } = await vi.importActual<
+      typeof import("./expense-card-details")
+    >("./expense-card-details");
+
+    await getApprovalContext(RAW);
+    await decideApproval({
+      decidedBy: "Ctrl",
+      decision: "approved",
+      rawToken: RAW,
+      source: "web",
+    });
+    const details = await real(db as never, "expense-1");
+
+    expect(details.missingAccount).toBe(true);
+    const tables = db.listRows.mock.calls.map(([, table]) => table);
+    expect(tables).not.toContain("expense_attachments");
+    const relationReads = db.getRow.mock.calls.filter(([, , , q]) =>
+      JSON.stringify(q).includes("expenseAttachments")
+    );
+    expect(relationReads).toHaveLength(3);
   });
 
   it("a supporting row without an amount needs no account", async () => {

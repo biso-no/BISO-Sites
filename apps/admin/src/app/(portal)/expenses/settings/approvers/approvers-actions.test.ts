@@ -489,6 +489,35 @@ describe("listApprovers", () => {
   });
 });
 
+describe("listApprovers department search", () => {
+  test("a search matching 150 departments builds two equal clauses", async () => {
+    ctx = baseCtx;
+    db.listRows.mockImplementation(async (_d, table) => ({
+      rows:
+        table === "departments"
+          ? Array.from({ length: 150 }, (_, i) => ({
+              $id: `d${i}`,
+              Name: "OSL Club",
+            }))
+          : [],
+    }));
+
+    const result = await listApprovers({
+      campusId: null,
+      q: "club",
+      role: null,
+    });
+
+    expect("data" in result).toBe(true);
+    const query = (
+      db.listRows.mock.calls.find(
+        ([, table]) => table === "expense_approvers"
+      )?.[2] as string[]
+    ).join("\n");
+    expect(query.match(/"attribute":"department_id"/g)).toHaveLength(2);
+  });
+});
+
 describe("setApproverActive", () => {
   test("setApproverActive refuses another campus", async () => {
     ctx = campusAdminCtx;

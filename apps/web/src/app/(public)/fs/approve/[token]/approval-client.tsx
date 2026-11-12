@@ -37,6 +37,24 @@ export interface ApprovalContext {
 
 type Decision = "approved" | "rejected";
 
+/**
+ * An `account_missing` answer means the page's context was stale: it moves to
+ * the missing-account state (Approve hidden, note and admin link shown) and
+ * the note carries the message, so no separate error is set.
+ */
+export function afterDecisionRefused(
+  context: ApprovalContext | null,
+  code: string | undefined
+): { context: ApprovalContext | null; accountMissing: boolean } {
+  if (code !== "account_missing") {
+    return { accountMissing: false, context };
+  }
+  return {
+    accountMissing: true,
+    context: context ? { ...context, missingAccount: true } : context,
+  };
+}
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
 const focusRing =
@@ -114,10 +132,10 @@ export function ApprovalClient({
       });
       const data = await res.json();
       if (!(res.ok && data.success)) {
+        const refused = afterDecisionRefused(context, data.code);
+        setContext(refused.context);
         setError(
-          data.code === "account_missing"
-            ? t("accountMissing")
-            : (data.error ?? t("decisionFailed"))
+          refused.accountMissing ? null : (data.error ?? t("decisionFailed"))
         );
         return;
       }
