@@ -28,9 +28,13 @@ import {
   DEFAULT_COST_TYPE_SLUG,
   resolveReceiptAccount,
 } from "@repo/shared/utils/expense-cost-types";
+import {
+  type ExpenseEventInput,
+  recordExpenseEvents,
+} from "@repo/shared/utils/expense-events";
+import { reimbursementNumber } from "@repo/shared/utils/reimbursement-number";
 import { PDFDocument } from "pdf-lib";
 import { assertApprovedExpenseChain } from "./expense-approval-chain";
-import { type ExpenseEventInput, recordExpenseEvents } from "./expense-events";
 import { type BookedExampleInput, writeExamples } from "./expense-examples";
 import { loadAllCostTypes } from "./expense-types";
 import { generateExpensePdf } from "./pdf/expense-pdf";
@@ -54,10 +58,6 @@ type ExpenseWithRels = Expenses & {
   departmentRel: { Id?: string; Name?: string } | null;
   campusRel: { name?: string } | null;
 };
-
-function reimbursementNumber(sequence: number | string): string {
-  return String(10_000 + Number(sequence || 0)).padStart(5, "0");
-}
 
 function formatDate(date: Date): string {
   return date.toLocaleDateString("nb-NO", {

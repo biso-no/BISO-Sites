@@ -250,6 +250,7 @@ export enum ExpenseEventsAction {
   BOOKED = "booked",
   BOOKING_FAILED = "booking_failed",
   DATE_SHIFTED = "date_shifted",
+  BOOKING_RETRIED = "booking_retried",
 }
 
 export enum TourProgressStatus {
@@ -905,6 +906,8 @@ export type ExpenseApprovals = Models.Row & {
   campus_id: string | null;
   department: string | null;
   decision_lock: number;
+  decided_by_email: string | null;
+  on_behalf: boolean;
 };
 
 export type PaymentSettings = Models.Row & {

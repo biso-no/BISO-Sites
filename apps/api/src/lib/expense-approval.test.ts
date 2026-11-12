@@ -24,7 +24,7 @@ vi.mock("@repo/connectors/teams-bot", () => ({
   sendProactiveCard: vi.fn(async () => null),
 }));
 vi.mock("./expense-approver-resolution", () => resolution);
-vi.mock("./expense-events", () => events);
+vi.mock("@repo/shared/utils/expense-events", () => events);
 
 import {
   createApprovalChain,

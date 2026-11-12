@@ -21,13 +21,14 @@ import {
   sendProactiveCard,
 } from "@repo/connectors/teams-bot";
 import { getCampusApprovalPlan } from "@repo/shared/utils/expense-approvers";
+import { recordExpenseEvents } from "@repo/shared/utils/expense-events";
+import { reimbursementNumber } from "@repo/shared/utils/reimbursement-number";
 import { confirmDirectoryApprover } from "./expense-approver-directory";
 import {
   type ApproverResolutionIssue,
   type ResolvedApproverStep,
   resolveExpenseApprovers,
 } from "./expense-approver-resolution";
-import { recordExpenseEvents } from "./expense-events";
 
 const TOKEN_TTL_DAYS = 14;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -282,6 +283,8 @@ export async function createApprovalChain(
         campus_id: context.campusId,
         department: context.departmentName,
         decision_lock: 0,
+        decided_by_email: null,
+        on_behalf: false,
       }
     );
     created.push(row);
@@ -495,10 +498,6 @@ type ExpenseSummaryRow = Models.Row & {
   departmentRel?: { Name?: string } | null;
   campusRel?: { name?: string } | null;
 };
-
-function reimbursementNumber(sequence: number | string): string {
-  return String(10_000 + Number(sequence || 0)).padStart(5, "0");
-}
 
 /** Idempotent result for a step that is already decided. */
 function decidedResult(

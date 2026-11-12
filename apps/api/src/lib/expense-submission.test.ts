@@ -43,7 +43,7 @@ const findPossibleDuplicate = vi.hoisted(() => vi.fn());
 vi.mock("./expense-duplicates", () => ({ findPossibleDuplicate }));
 
 const recordExpenseEvents = vi.hoisted(() => vi.fn());
-vi.mock("./expense-events", () => ({ recordExpenseEvents }));
+vi.mock("@repo/shared/utils/expense-events", () => ({ recordExpenseEvents }));
 
 vi.mock("./receipt-date", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./receipt-date")>()),

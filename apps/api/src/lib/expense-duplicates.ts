@@ -1,8 +1,8 @@
 import { Query } from "@repo/api";
 import type { createAdminClient } from "@repo/api/server";
 import type { ExpenseAttachments, Expenses } from "@repo/api/types/appwrite";
+import { reimbursementNumber } from "@repo/shared/utils/reimbursement-number";
 import { osloDayBoundsUtc, receiptDateInOslo } from "./receipt-date";
-import { reimbursementNumber } from "./reimbursement-number";
 
 type Db = Awaited<ReturnType<typeof createAdminClient>>["db"];
 

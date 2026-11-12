@@ -3,9 +3,13 @@ import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 
 interface AppwriteColumn {
+  default?: unknown;
+  elements?: string[];
   key: string;
   onDelete?: string;
   relatedTable?: string;
+  required?: boolean;
+  size?: number;
   twoWay?: boolean;
   twoWayKey?: string;
   type: string;
@@ -356,6 +360,52 @@ describe("approver directory schema", () => {
   test("expense records controller submissions", () => {
     expect(findColumn("expense", "submitter_is_controller")?.type).toBe(
       "boolean"
+    );
+  });
+});
+
+describe("admin expenses schema", () => {
+  const findTable = (id: string) =>
+    loadConfig().tables.find((t) => t.$id === id);
+  const findColumn = (table: string, key: string) =>
+    findTable(table)?.columns?.find((c) => c.key === key);
+  const hasKeyIndex = (table: string, key: string, columns: string[]) =>
+    findTable(table)?.indexes?.some(
+      (i) =>
+        i.key === key &&
+        i.type === "key" &&
+        JSON.stringify(i.columns) === JSON.stringify(columns)
+    ) ?? false;
+
+  test("expense_approvals records who decided and on whose behalf", () => {
+    const email = findColumn("expense_approvals", "decided_by_email");
+    expect(email?.type).toBe("string");
+    expect(email?.size).toBe(320);
+    expect(email?.required).toBe(false);
+    const onBehalf = findColumn("expense_approvals", "on_behalf");
+    expect(onBehalf?.type).toBe("boolean");
+    expect(onBehalf?.required).toBe(false);
+    expect(onBehalf?.default).toBe(false);
+    expect(
+      hasKeyIndex("expense_approvals", "idx_approver_email", ["approver_email"])
+    ).toBe(true);
+  });
+
+  test("expense has campus and department list indexes", () => {
+    expect(hasKeyIndex("expense", "idx_campus", ["campus"])).toBe(true);
+    expect(hasKeyIndex("expense", "idx_department", ["department"])).toBe(true);
+  });
+
+  test("expense_approvers has email and campus-role indexes", () => {
+    expect(hasKeyIndex("expense_approvers", "idx_email", ["email"])).toBe(true);
+    expect(
+      hasKeyIndex("expense_approvers", "idx_campus_role", ["campus_id", "role"])
+    ).toBe(true);
+  });
+
+  test("expense_events.action includes booking_retried", () => {
+    expect(findColumn("expense_events", "action")?.elements).toContain(
+      "booking_retried"
     );
   });
 });

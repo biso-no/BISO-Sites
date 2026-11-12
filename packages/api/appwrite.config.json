@@ -1321,6 +1321,28 @@
                     "orders": [
                         "ASC"
                     ]
+                },
+                {
+                    "key": "idx_campus",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "campus"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "idx_department",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "department"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
                 }
             ]
         },
@@ -3264,6 +3286,22 @@
                     "default": 0,
                     "min": 0,
                     "max": 1000000
+                },
+                {
+                    "key": "decided_by_email",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 320,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "on_behalf",
+                    "type": "boolean",
+                    "required": false,
+                    "array": false,
+                    "default": false
                 }
             ],
             "indexes": [
@@ -3299,6 +3337,17 @@
                     ],
                     "orders": [
                         "ASC",
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "idx_approver_email",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "approver_email"
+                    ],
+                    "orders": [
                         "ASC"
                     ]
                 }
@@ -5623,7 +5672,8 @@
                         "notified",
                         "booked",
                         "booking_failed",
-                        "date_shifted"
+                        "date_shifted",
+                        "booking_retried"
                     ]
                 },
                 {
@@ -13295,6 +13345,30 @@
                         "key"
                     ],
                     "orders": [
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "idx_email",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "email"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "idx_campus_role",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "campus_id",
+                        "role"
+                    ],
+                    "orders": [
+                        "ASC",
                         "ASC"
                     ]
                 }

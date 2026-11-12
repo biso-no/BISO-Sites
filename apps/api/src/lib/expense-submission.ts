@@ -7,6 +7,10 @@ import {
   DEFAULT_COST_TYPE_SLUG,
   findCostType,
 } from "@repo/shared/utils/expense-cost-types";
+import {
+  type ExpenseEventInput,
+  recordExpenseEvents,
+} from "@repo/shared/utils/expense-events";
 import type { ApproverHint } from "@repo/shared/utils/expense-hints";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
 import { generateObject } from "ai";
@@ -15,7 +19,6 @@ import {
   findPossibleDuplicate,
   type PossibleDuplicate,
 } from "./expense-duplicates";
-import { type ExpenseEventInput, recordExpenseEvents } from "./expense-events";
 import { selectExamples } from "./expense-examples";
 import {
   attachmentFileKey,
