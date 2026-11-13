@@ -34,7 +34,7 @@ next-intl messages), `not-found.tsx`, `unauthorized.tsx`, `robots.ts`,
 
 ## Auth
 
-- Session cookie: `biso_web_session` (override with `APPWRITE_SESSION_COOKIE`).
+- Session cookie: `biso_session_web` (override with `APPWRITE_SESSION_COOKIE`).
   **Never name it `a_session_biso`.** That is byte-for-byte the cookie Appwrite
   itself issues for project `biso` (`a_session_<projectId>`), and because this
   app scopes the cookie to `.biso.no` while Appwrite is hosted at
@@ -54,7 +54,7 @@ next-intl messages), `not-found.tsx`, `unauthorized.tsx`, `robots.ts`,
   Appwrite user, accumulating thousands of junk accounts. Anonymous sessions are
   now provisioned **lazily**, only inside actions that genuinely need a per-user
   identity, via `ensureAnonymousSession()` in `src/lib/anon-session.ts` (no-op if
-  a session cookie already exists; sets the `biso_web_session` cookie cross-subdomain
+  a session cookie already exists; sets the `biso_session_web` cookie cross-subdomain
   `.biso.no` in prod, `lax` locally). Currently called from
   `createOrUpdateReservation` (cart). Call it at the start of any new action that
   must write rows owned by the visitor.
@@ -218,7 +218,7 @@ All consumed server-side only:
 - `images.remotePatterns` only allows `appwrite.biso.no`, `biso.no`, and
   `via.placeholder.com`. New image sources need an entry.
 - There is **no middleware** and sessions are provisioned lazily, so the
-  `biso_web_session` cookie is **not** guaranteed to exist on any given request.
+  `biso_session_web` cookie is **not** guaranteed to exist on any given request.
   Never assume an anonymous session is present — read it defensively, and call
   `ensureAnonymousSession()` first in any action that needs a per-user identity
   (see Auth section).

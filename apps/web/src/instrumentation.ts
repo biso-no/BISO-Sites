@@ -15,7 +15,7 @@ export function register() {
 
   // `src/lib/cookie-prefs.ts` and the shared `createSessionClient` in
   // @repo/api both resolve the cookie name from APPWRITE_SESSION_COOKIE, but
-  // they default differently — this app to `biso_web_session`, the shared
+  // they default differently — this app to `biso_session_web`, the shared
   // package to the historical `a_session_biso`. With the var unset those two
   // disagree, so every visitor's session is written under one name and read
   // under another: a silent, total logout. Refuse to start instead.

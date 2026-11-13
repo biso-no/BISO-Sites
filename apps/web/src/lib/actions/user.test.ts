@@ -27,7 +27,7 @@ vi.mock("@/lib/auth-utils", () => ({
 }));
 
 vi.mock("@/lib/cookie-prefs", () => ({
-  SESSION_COOKIE: "biso_web_session",
+  SESSION_COOKIE: "biso_session_web",
 }));
 
 import { removeIdentity, updateProfile } from "./user";
