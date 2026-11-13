@@ -1,5 +1,7 @@
+import { randomBytes } from "node:crypto";
 import type { CostTypeOption } from "@repo/shared/utils/expense-cost-types";
 import { RECEIPT_ISSUE_CODES } from "@repo/shared/utils/expense-hints";
+import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const generateObject = vi.hoisted(() => vi.fn());
@@ -14,6 +16,7 @@ import {
   type ExtractedReceipt,
   extractReceipt,
   findScan,
+  fitFileForModel,
   type StoredScan,
   saveScan,
   sha256Hex,
@@ -309,7 +312,7 @@ describe("extractReceipt prompt", () => {
     const abortSignal = new AbortController().signal;
     await extractReceipt({
       abortSignal,
-      buffer: Buffer.from("x"),
+      buffer: await blankImage(10, 10),
       mimeType: "image/png",
       purpose: "auto",
     });
@@ -319,12 +322,104 @@ describe("extractReceipt prompt", () => {
   it("lists the receipt issue codes from the shared vocabulary", async () => {
     generateObject.mockResolvedValue({ object: receipt });
     await extractReceipt({
-      buffer: Buffer.from("x"),
+      buffer: await blankImage(10, 10),
       mimeType: "image/png",
       purpose: "receipt",
     });
     const call = generateObject.mock.calls.at(-1)?.[0];
     const text = call.messages[0].content[0].text as string;
     expect(text).toContain(`(${RECEIPT_ISSUE_CODES.join(", ")})`);
+  });
+});
+
+function blankImage(width: number, height: number): Promise<Buffer> {
+  return sharp({
+    create: { background: "#ffffff", channels: 3, height, width },
+  })
+    .png()
+    .toBuffer();
+}
+
+describe("fitFileForModel", () => {
+  it("shrinks a photo over 8000 px to a JPEG within the model's long edge", async () => {
+    const photo = await sharp(await blankImage(9000, 3000))
+      .jpeg()
+      .toBuffer();
+    const file = await fitFileForModel(photo, "image/jpeg");
+    const { height, width } = await sharp(file.data).metadata();
+    expect(file.mediaType).toBe("image/jpeg");
+    expect(width).toBe(2576);
+    expect(height).toBeLessThan(2576);
+  });
+
+  it("turns a photo upright by its EXIF orientation before shrinking", async () => {
+    // Orientation 6: stored landscape, shown rotated a quarter turn, as phones
+    // save portrait shots.
+    const photo = await sharp(await blankImage(3000, 1000))
+      .jpeg()
+      .withMetadata({ orientation: 6 })
+      .toBuffer();
+    const file = await fitFileForModel(photo, "image/jpeg");
+    const { height, orientation, width } = await sharp(file.data).metadata();
+    expect(height).toBe(2576);
+    expect(width).toBeLessThan(2576);
+    expect(orientation).toBeUndefined();
+  });
+
+  it("re-encodes an image within the long edge that is too many bytes", async () => {
+    const side = 1500;
+    const noisy = await sharp(randomBytes(side * side * 3), {
+      raw: { channels: 3, height: side, width: side },
+    })
+      .png()
+      .toBuffer();
+    expect(noisy.length).toBeGreaterThan(5 * 1024 * 1024);
+    const file = await fitFileForModel(noisy, "image/png");
+    const { width } = await sharp(file.data).metadata();
+    expect(file.mediaType).toBe("image/jpeg");
+    expect(width).toBe(side);
+    expect(file.data.length).toBeLessThan(noisy.length);
+  });
+
+  it("sends an image that already fits as uploaded", async () => {
+    const photo = await blankImage(1200, 1600);
+    const file = await fitFileForModel(photo, "image/png");
+    expect(file.data).toBe(photo);
+    expect(file.mediaType).toBe("image/png");
+  });
+
+  it("sends a PDF as uploaded", async () => {
+    const pdf = Buffer.from("%PDF-1.7");
+    const file = await fitFileForModel(pdf, "application/pdf");
+    expect(file).toEqual({ data: pdf, mediaType: "application/pdf" });
+  });
+
+  it("sends an image it can't read as uploaded, and logs it", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {
+      // keep the test output clean
+    });
+    const broken = Buffer.from("not an image");
+    const file = await fitFileForModel(broken, "image/jpeg");
+    expect(file).toEqual({ data: broken, mediaType: "image/jpeg" });
+    expect(error).toHaveBeenCalledOnce();
+    error.mockRestore();
+  });
+});
+
+describe("extractReceipt image size", () => {
+  it("gives the model the shrunk copy of an oversized photo", async () => {
+    generateObject.mockResolvedValue({ object: receipt });
+    const photo = await sharp(await blankImage(9000, 100))
+      .jpeg()
+      .toBuffer();
+    await extractReceipt({
+      buffer: photo,
+      mimeType: "image/jpeg",
+      purpose: "receipt",
+    });
+    const part = generateObject.mock.calls.at(-1)?.[0].messages[0].content[1];
+    const { width } = await sharp(part.data).metadata();
+    expect(part.mediaType).toBe("image/jpeg");
+    expect(width).toBe(2576);
   });
 });

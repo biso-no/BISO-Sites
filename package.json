@@ -76,6 +76,7 @@
     "openapi-typescript": "^7.13.0",
     "@parvineyvazov/json-translator": "^4.1.0",
     "stripe": "^22.0.0",
+    "sharp": "^0.35.3",
     "@ariakit/react": "^0.4.24",
     "@emoji-mart/data": "1.2.1",
     "@faker-js/faker": "^10.4.0",

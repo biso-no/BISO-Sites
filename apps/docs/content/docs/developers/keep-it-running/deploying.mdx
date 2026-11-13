@@ -102,6 +102,7 @@ After you change a variable or rotate a secret, you redeploy. A new deployment o
 - **web** refuses to start unless `APPWRITE_SESSION_COOKIE` is `biso_web_session`.
 - **admin** refuses to start without `APPWRITE_API_KEY` and `NEXT_PUBLIC_BASE_URL`, and unless `APPWRITE_SESSION_COOKIE` is `biso_admin_session`.
 - **api** has no start-up check. A missing variable shows up only when a route needs it.
+- **api** uses `sharp`, a native module, to shrink receipt photos before the AI reads them. `bun install` fetches its binary for the machine it runs on, so let the Site build it. Don't upload a build made on a Mac. If the binary can't load, receipts still go to the AI unshrunk, the log says `[receipt-scan] Could not shrink the image`, and photos over 8000 px fail to read.
 - **docs** runs at `docs.biso.no`. It must stay on a `*.biso.no` host, or the browser never sends it the admin's session cookie. The "Owner actions" in `apps/docs/CLAUDE.md` set up its sign-in and private details. Do the "Owner steps" under "Assistant" there before you switch the assistant on.
 
 ### Don't use the Dockerfiles
