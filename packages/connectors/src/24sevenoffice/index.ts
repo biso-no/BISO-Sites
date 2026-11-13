@@ -8,7 +8,7 @@
  */
 
 // Authentication (lower-level, usually not needed directly)
-export { getValidSession, hasSession } from "./auth";
+export { getSessionCompanyName, getValidSession, hasSession } from "./auth";
 // Category management
 export {
   assignMembershipCategory,
@@ -74,26 +74,39 @@ export {
   buildShopReversalTransactionInput,
   buildShopTransactionInput,
   CAMPUS_DIMENSION_TYPE,
+  CUSTOMER_DIMENSION_TYPE,
+  type CustomerApi,
   type DateShift,
   DEPARTMENT_DIMENSION_TYPE,
   type DimensionElement,
   type ExpenseReceiptLine,
+  type FinagoBankAccount,
+  type FinagoCustomer,
   type FiscalPeriod,
   getDepartments,
+  getOrganizationName,
   isClosedPeriodError,
+  isMembershipCustomer,
   type LedgerAccount,
   listAccounts,
   listFiscalPeriods,
   listTaxes,
+  listTransactionLines,
   nextPeriodStart,
+  normalizeBankAccount,
   type PostExpenseTransactionParams,
   type PostedExpenseTransaction,
+  type PostedTransactionLine,
+  payeeName,
   periodContaining,
   postExpenseTransaction,
   postLedgerTransaction,
   postWithClosedPeriodFallback,
+  type ReimbursementCustomer,
   type ResolvedBookingDate,
   resolveBookingDate,
+  resolveReimbursementCustomer,
+  restCustomerApi,
   type ShopLedgerLine,
   type ShopTransactionInput,
   type TaxCode,

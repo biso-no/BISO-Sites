@@ -16,6 +16,14 @@ const finago = vi.hoisted(() => ({
   uploadDocument: vi.fn(),
 }));
 const oslo = vi.hoisted(() => ({ todayInOslo: vi.fn() }));
+// The payee lookup calls Finago; every test books on one known customer.
+const payee = vi.hoisted(() => ({
+  resolveReimbursementCustomer: vi.fn(async () => ({
+    bankAccountAdded: false,
+    created: false,
+    customerId: 4992,
+  })),
+}));
 
 vi.mock("@repo/api/server", () => ({
   createAdminClient: vi.fn(async () => ({ db, storage })),
@@ -24,7 +32,7 @@ vi.mock("@repo/connectors/24sevenoffice", async () => {
   const actual = await vi.importActual<
     typeof import("@repo/connectors/24sevenoffice")
   >("@repo/connectors/24sevenoffice");
-  return { ...actual, ...finago };
+  return { ...actual, ...finago, ...payee };
 });
 vi.mock("./pdf/expense-pdf", () => ({
   generateExpensePdf: vi.fn(async () => {

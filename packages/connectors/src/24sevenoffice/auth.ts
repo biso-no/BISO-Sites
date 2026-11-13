@@ -8,8 +8,10 @@
 import { ID } from "@repo/api/client";
 import { createAdminClient, type createSessionClient } from "@repo/api/server";
 import { createSoapClient } from "./client";
+import { loginCredential, soapIdentityOverride } from "./soap-identity";
 import type {
   Credentials,
+  GetIdentityResult,
   HasSessionResult,
   LoginResult,
   StoredToken,
@@ -21,10 +23,32 @@ const TOKEN_MAX_AGE_MS = 23 * 60 * 60 * 1000;
 const DATABASE_ID = "24so";
 const TOKENS_TABLE = "auth_tokens";
 
+// A session in an overridden company lives only in this process. Production
+// reads the shared `24so.auth_tokens` table, so a session for another company
+// stored there would send production's SOAP calls to that company.
+let overrideSession: { identityId: string; token: string } | null = null;
+
+async function getOverrideSession(identityId: string): Promise<string> {
+  if (
+    overrideSession?.identityId === identityId &&
+    (await hasSession(overrideSession.token))
+  ) {
+    return overrideSession.token;
+  }
+  const token = await login(getCredentials(), identityId);
+  overrideSession = { identityId, token };
+  return token;
+}
+
 /**
  * Get a valid session token, either from cache or by logging in
  */
 export async function getValidSession(): Promise<string> {
+  const identityId = soapIdentityOverride();
+  if (identityId) {
+    return await getOverrideSession(identityId);
+  }
+
   const { db } = await createAdminClient();
 
   // Check for stored token
@@ -63,25 +87,39 @@ export async function hasSession(token: string): Promise<boolean> {
 }
 
 /**
- * Login to 24SevenOffice and get a session token
+ * Login to 24SevenOffice and get a session token. With an `identityId` the
+ * session starts in that company; without one, in the login's default company.
  */
-async function login(credentials: Credentials): Promise<string> {
+async function login(
+  credentials: Credentials,
+  identityId?: string
+): Promise<string> {
   const client = await createSoapClient("authenticate");
 
   const [result]: [LoginResult] = await client.LoginAsync({
-    credential: {
-      ApplicationId: credentials.ApplicationId,
-      Username: credentials.Username,
-      Password: credentials.Password,
-    },
+    credential: loginCredential(credentials, identityId),
   });
 
   if (!result.LoginResult) {
     throw new Error("[24SO Auth] Login failed - no token received");
   }
 
-  console.log("[24SO Auth] Successfully authenticated");
+  console.log(
+    identityId
+      ? `[24SO Auth] Successfully authenticated to identity ${identityId}`
+      : "[24SO Auth] Successfully authenticated"
+  );
   return result.LoginResult;
+}
+
+/** The name of the company a session is logged in to, or null if unknown. */
+export async function getSessionCompanyName(
+  token: string
+): Promise<string | null> {
+  const client = await createSoapClient("authenticate");
+  client.addHttpHeader("Cookie", `ASP.NET_SessionId=${token}`);
+  const [result]: [GetIdentityResult] = await client.GetIdentityAsync({});
+  return result?.GetIdentityResult?.Client?.Name ?? null;
 }
 
 /**

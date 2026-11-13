@@ -29,6 +29,7 @@ covers:
   - packages/shared/utils/expense-cost-types.ts
   - packages/shared/utils/expense-hints.ts
   - apps/api/src/app/api/expenses/post-pending/route.ts
+  - apps/api/src/lib/expense-book-on-approval.ts
   - apps/api/src/app/api/expenses/submit/route.ts
   - apps/admin/src/app/(portal)/shop/accounting/**
   - apps/admin/src/lib/finago/**
@@ -42,9 +43,10 @@ covers:
   - apps/web/src/lib/expense-event-window.ts
   - apps/web/src/lib/api-error.ts
   - packages/api/scripts/reset-stranded-finago-posting.ts
+  - apps/api/scripts/post-expense-to-demo.ts
 ---
 
-Read this before you change anything that reads from or writes to 24SevenOffice, BISO's accounting system, which the code also calls Finago. It's the source of truth for who is a member, and it receives the platform's invoices and ledger postings. So a bug here can invoice a student twice or put wrong numbers in BISO's books. Every call goes to 24SevenOffice's production service, and there's no test company, so read [Test it safely](#test-it-safely) before you run anything.
+Read this before you change anything that reads from or writes to 24SevenOffice, BISO's accounting system, which the code also calls Finago. It's the source of truth for who is a member, and it receives the platform's invoices and ledger postings. So a bug here can invoice a student twice or put wrong numbers in BISO's books. Every call goes to 24SevenOffice's production service. The one exception is a DEMO company for trying reimbursement bookings, so read [Test it safely](#test-it-safely) before you run anything.
 
 ## Accounts
 
@@ -56,8 +58,10 @@ The connector in `packages/connectors/src/24sevenoffice/` talks to two separate 
 
 | API | Used for | Variables | Sign-in |
 |---|---|---|---|
-| SOAP | Membership checks, customers, categories, membership invoices, products and departments | `TFSO_APP_ID`, `TFSO_USERNAME`, `TFSO_PASSWORD` | A session token, kept for 23 hours in the `auth_tokens` table of the `24so` database (`auth.ts`) |
-| REST | Ledger postings for shop sales, refunds and reimbursements, file uploads, the chart of accounts, and departments | `TFSO_REST_CLIENT_ID`, `TFSO_REST_CLIENT_SECRET`, `TFSO_REST_ORG_ID` | An OAuth token, kept in memory until shortly before it expires (`rest/auth.ts`) |
+| SOAP | Membership checks, customers, categories, membership invoices, products, departments, fiscal-year locks for reimbursements and tax codes for the chart of accounts | `TFSO_APP_ID`, `TFSO_USERNAME`, `TFSO_PASSWORD` | A session token, kept for 23 hours in the `auth_tokens` table of the `24so` database (`auth.ts`) |
+| REST | Ledger postings for shop sales, refunds and reimbursements, file uploads, the chart of accounts, departments, and reimbursement customers with their bank accounts (the integration needs the customer and bank-account scopes) | `TFSO_REST_CLIENT_ID`, `TFSO_REST_CLIENT_SECRET`, `TFSO_REST_ORG_ID` | An OAuth token, kept in memory until shortly before it expires (`rest/auth.ts`) |
+
+**Which company.** The login can reach more than one 24SevenOffice company. REST picks its company with `TFSO_REST_ORG_ID`. SOAP logs in to the login's default company, which is production, unless `TFSO_SOAP_IDENTITY_ID` names another one (`soap-identity.ts`). With that set, the login goes straight into that company, and the session is kept in memory only. It never goes in `auth_tokens`, because production reads that table and would then send its SOAP calls to the other company. Never set it in production.
 
 Both addresses are written into the code: `api.24sevenoffice.com` for SOAP (`client.ts`) and `rest.api.24sevenoffice.com/v1` for REST (`rest/client.ts`). No variable points them anywhere else. Reimbursement postings also need `TFSO_EXPENSE_TRANSACTION_TYPE_NUMBER`, `TFSO_SUPPLIER_DEBT_ACCOUNT`, `TFSO_DEPARTMENT_DIMENSION_TYPE` and `TFSO_CAMPUS_DIMENSION_TYPE`. All of them are listed under [24SevenOffice](/developers/keep-it-running/secrets-and-environment#24sevenoffice) in Secrets and environment. `TFSO_PASSWORD` is an account password with only one value at a time, so read the rotation notes there before you change it.
 
@@ -127,9 +131,11 @@ It reads its settings from `apps/admin/.env.local`, so it works on whichever App
 **What it does.** The feature flag `expenses_ledger_posting` decides how a submitted reimbursement reaches accounting. It's off by default.
 
 - **Off:** the api emails the cover sheet and receipts to the student and to accounting, through Appwrite Messaging. Accounting's inbox is the Appwrite user named in `INVOICE_USER_ID`. See [Messaging and wallets](/developers/reference/messaging-and-wallet#appwrite-messaging-email).
-- **On:** the reimbursement goes through an approval chain in Teams and email ([Teams approval bot](/developers/reference/microsoft#teams-approval-bot)). Once approved, scheduled-dispatch's `EXPENSES_POST_PENDING_URL` target posts it to the ledger, with one PDF of the cover sheet and the receipts attached.
+- **On:** the reimbursement goes through an approval chain in Teams and email ([Teams approval bot](/developers/reference/microsoft#teams-approval-bot)). The approvers get it one step at a time. When the last step approves, the api posts it to the ledger right away, with one PDF of the cover sheet and the receipts attached (`bookAfterFinalApproval` in `expense-book-on-approval.ts`). That happens for a decision from the Teams card, the website's approval page or the admin. The posting runs after the approver's answer is sent, because the upload can take longer than Teams waits. scheduled-dispatch's `EXPENSES_POST_PENDING_URL` target is the backstop: it posts any reimbursement still `approved`, for example after a restart cut a posting short, or one approved while the flag was off. Both use `postApprovedExpense`, which claims the row first, so one reimbursement is never posted twice.
 
-**Dates.** Each receipt is booked on its own date, read as a calendar day in Oslo. The transaction has one supplier-debt line per date, all with the same reference and bank account. A receipt with no date, or a date in the future, is booked on the posting day. A receipt in a year that 24SevenOffice has locked moves to the first period of the next open year. The lock flag comes from SOAP `GetFiscalYears`, because the REST `/fiscalperiods` call doesn't have one. If 24SevenOffice rejects a closed month and its message names a date, the posting moves every line in the period holding that date to the next period and tries again, up to 12 times. It never moves a line past the current period. A rejection that names no date fails like any other error. If either lookup fails, the posting goes ahead without it and relies on that retry. Every move, the booking and any failure are written to `expense_events`. Each receipt with an amount gets its final date in `expense_attachments.booked_date`. Receipts without an amount are not posted and get no date. A failed history write is only logged and never changes the result of a posting.
+**Who gets paid.** Each supplier-debt line carries the submitter's 24SevenOffice customer as the Customer dimension (type 5), so the debt sits on that person's ledger and the payout reaches them (`rest/customers.ts`). Before anything is uploaded, the posting looks the customer up by the submitter's account email with REST `GET /customers?email=`. It skips any record whose name starts with "(Student)", because those belong to [membership purchases](#membership-purchases), and any result whose email isn't an exact match. Of several matches it takes the lowest customer number. With no match it creates a person customer. A BI account name such as "(Student) Heien, Markus" becomes first name Markus and last name Heien; any other name keeps its order, with the last word as the last name. A customer that exists without that email isn't found, so the person gets a second customer. The bank account from the reimbursement is then added to the customer when it isn't there yet, compared as letters and digits only. It becomes the default account only when the customer has none, so an existing default never changes. A submitter with no email, or a reimbursement with no bank account, fails the posting before anything reaches 24SevenOffice. The `booked` event's note is the transaction id followed by `customer <number>`, and the admin history shows both.
+
+**Dates.** Each receipt is booked on its own date, read as a calendar day in Oslo. The transaction has one supplier-debt line per date, all with the same reference, bank account and customer. A receipt with no date, or a date in the future, is booked on the posting day. A receipt in a year that 24SevenOffice has locked moves to the first period of the next open year. The lock flag comes from SOAP `GetFiscalYears`, because the REST `/fiscalperiods` call doesn't have one. If 24SevenOffice rejects a closed month and its message names a date, the posting moves every line in the period holding that date to the next period and tries again, up to 12 times. It never moves a line past the current period. A rejection that names no date fails like any other error. If either lookup fails, the posting goes ahead without it and relies on that retry. Every move, the booking and any failure are written to `expense_events`. Each receipt with an amount gets its final date in `expense_attachments.booked_date`. Receipts without an amount are not posted and get no date. A failed history write is only logged and never changes the result of a posting.
 
 **When it fails.** With the flag off and `INVOICE_USER_ID` unset, every submission fails. With it on, a posting that fails, or one that was interrupted, gets the status `failed` and is never posted again by itself, because 24SevenOffice may already have it. Check in 24SevenOffice before you post it by hand. If 24SevenOffice accepted the posting but saving the `success` status failed, the row is never set to `failed` at once. The api retries the save twice, then logs the transaction id and writes a `booked` event that says the status write failed. The status stays `approved` and `ledger_transaction_id` holds the claim marker `posting` until the 15-minute stale check marks it `failed`, so look at that event before you post it again.
 
@@ -181,11 +187,26 @@ These read from 24SevenOffice and write only to Appwrite.
 
 ## Test it safely
 
-There's no safe way to test against 24SevenOffice. Every address in the connector is the production service, no test company is recorded, and nothing marks an order as a test. So:
+Every address in the connector is the production service, and nothing marks an order as a test. The only safe target is the DEMO company, and only for reimbursement bookings (below). So:
 
 - **Leave every `TFSO_*` variable unset** in your own project and on your machine. The features above then fail cleanly, with the messages on this page.
 - **Never pay for an order with real `TFSO_*` values set,** even in Vipps or Stripe test mode. A test membership becomes a real invoice to a real student, and a test shop order becomes a real ledger posting once posting is on.
 - **Reads change nothing in 24SevenOffice,** such as a membership check, the roster sync or a department sync. They still need the production credentials: get them from the account owner for the session, and don't keep them in `.env.local` afterwards. They also write what they read into whichever Appwrite project you point them at. Don't run member-roster-sync from your machine against production ([Scheduled jobs](/developers/keep-it-running/scheduled-jobs#member-roster-sync) says why).
+
+### Book a reimbursement in DEMO
+
+`apps/api/scripts/post-expense-to-demo.ts` books one real expense into the company "BI Student Organisation (DEMO)". It runs the same code as the live booking: receipt lines, booking dates, the merged PDF, dimensions and the closed-period retry (`buildAndPostLedgerTransaction` in `expense-posting.ts`). It writes nothing to Appwrite, so the expense keeps its status and can still be booked for real.
+
+```bash
+bun --env-file=apps/api/.env.local apps/api/scripts/post-expense-to-demo.ts --list
+bun --env-file=apps/api/.env.local apps/api/scripts/post-expense-to-demo.ts <expenseId>
+```
+
+It sets `TFSO_REST_ORG_ID` and `TFSO_SOAP_IDENTITY_ID` to DEMO itself, and stops before posting unless both APIs name a company that ends in "(DEMO)". It then prints the transaction id, any moved dates, and each line as 24SevenOffice stored it, with its period and dimensions.
+
+DEMO isn't a copy of production. It has its own chart of accounts, fiscal years and departments, and none of them can be created through the APIs. Pick an expense whose accounts and department exist in DEMO, or add the missing ones in the 24SevenOffice web app. A posting to a missing account, department or year fails there just as it would in production.
+
+### Unit tests
 
 The logic around 24SevenOffice has unit tests that need no network:
 

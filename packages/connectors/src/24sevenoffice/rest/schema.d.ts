@@ -528,6 +528,8 @@ export interface paths {
                     accountId?: number;
                     /** @description The number of the account involved in the transaction. */
                     accountNumber?: number;
+                    /** @description Filter by link ID associated with the transaction line. */
+                    linkId?: number;
                     /** @description The invoice number associated with the transaction. */
                     invoiceNumber?: string;
                     /** @description The currency code used in the transaction. */
@@ -1604,6 +1606,8 @@ export interface paths {
                     customerId?: string;
                     /** @description Filter sales orders by invoice number. */
                     invoiceNumber?: string;
+                    /** @description Filter sales orders by reference number. */
+                    referenceNumber?: string;
                     /** @description A start date-time to filter sales orders by creation time. */
                     createdFrom?: string;
                     /** @description An end date-time to filter sales orders by creation time. */
@@ -2272,6 +2276,31 @@ export interface paths {
                 };
             };
         };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/application/clients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read clients that granted access
+         * @description Read the organizations that have granted the calling application access.
+         *
+         *     The application is identified by the access token used for the request, so an application
+         *     can only ever read its own grants. There is no way to ask on behalf of another application.
+         *
+         *     An application with no grants gets an empty array.
+         */
+        get: operations["GetApplicationClients"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3186,6 +3215,13 @@ export interface components {
              * @example https://attachment.api.24sevenoffice.com/download/abc123?signature=xyz
              */
             downloadUrl: string;
+            /**
+             * @description List of URLs to download the raw files associated with the document, if available. This is typically the XML-file carrying the EHF-format of the invoice received through PEPPOL.
+             * @example [
+             *       "https://attachment.api.24sevenoffice.com/raw/abc123?signature=xyz"
+             *     ]
+             */
+            rawFileUrls?: string[];
             /** @description List of pages in the document, if available. This may be used to display document content in client applications. */
             pages?: components["schemas"]["DocumentPageInfo"][];
         };
@@ -3319,6 +3355,23 @@ export interface components {
              */
             id?: number;
         };
+        /**
+         * @description Details of the link associated with the transaction line.
+         *
+         *     If no link is set on the line, the line is treated as open.
+         */
+        Link: {
+            /**
+             * @description The unique identifier of the link.
+             * @example 7306316
+             */
+            id?: number;
+            /**
+             * @description Whether the link is open (`true`) or closed (`false`).
+             * @example true
+             */
+            isOpen?: boolean;
+        };
         /** @description Details of an invoice used within Finago Office. */
         Invoice: {
             /**
@@ -3379,6 +3432,7 @@ export interface components {
             date: string;
             invoice?: components["schemas"]["Invoice"];
             customer?: components["schemas"]["Customer"];
+            link?: components["schemas"]["Link"];
             /** @description A list of dimensions and dimension values associated with the transaction line, such as department or project. Included if `includeDimensions=true` is specified in the query parameters. */
             dimensions?: {
                 /**
@@ -3449,7 +3503,7 @@ export interface components {
              */
             comment?: string;
             /**
-             * @description Optional identifier (Document number) for a document/attachment associated with this transaction.
+             * @description Optional identifier (Document number) for a document/attachment associated with this transaction. Only documents uploaded by the same integration (using POST /fileUpload) are allowed.
              * @example 12345
              */
             documentId?: number;
@@ -3957,6 +4011,11 @@ export interface components {
              * @example +47-98765432
              */
             mobilePhone?: string | null;
+            /**
+             * @description A free-text note about the customer.
+             * @example Prefers to be contacted by email.
+             */
+            note?: string | null;
         };
         /** @description A new customer to be created in Finago Office CRM, either a company or a private person - decided by the `isCompany` flag. */
         CustomerPostRequest: components["schemas"]["CompanyCustomerPostRequest"] | components["schemas"]["PersonCustomerPostRequest"];
@@ -4087,6 +4146,11 @@ export interface components {
              * @example +47-98765432
              */
             mobilePhone?: string | null;
+            /**
+             * @description A free-text note about the customer.
+             * @example Prefers to be contacted by email.
+             */
+            note?: string | null;
             createdAt?: components["schemas"]["createdAt"];
             modifiedAt?: components["schemas"]["modifiedAt"];
         };
@@ -4296,7 +4360,7 @@ export interface components {
                  */
                 id?: number;
             };
-            /** @description Reference to the payment method used for the sales order. See GET /paymentmethods. Send with id set to null to remove the payment method from the sales order. */
+            /** @description Reference to the payment method used for the sales order. Setting a payment method causes the invoice to be marked as paid, and the money booked to the account associated with the payment method (instead of accounts receivable). See `GET /paymentmethods`. Send with id set to null to remove the payment method from the sales order. */
             paymentMethod?: {
                 /**
                  * @description Identifier of the payment method. (Set to null to remove the payment method from the sales order).
@@ -4309,7 +4373,7 @@ export interface components {
              * @example PO12345
              */
             referenceNumber?: string;
-            /** @description The sales type for the sales order. */
+            /** @description The sales type for the sales order. Available options obtained from `GET /salestypes`. */
             salesType?: {
                 /**
                  * @description The unique identifier for the sales type. A negative value stands for a system-defined ID.
@@ -4817,6 +4881,31 @@ export interface components {
              * @example en-US
              */
             culture?: string | null;
+        };
+        ApplicationClientModel: {
+            /**
+             * Format: int64
+             * @description The identifier for the organization that granted the application access.
+             * @example 12345
+             */
+            organizationId?: number;
+            /**
+             * Format: date-time
+             * @description The point in time the organization granted the application access.
+             * @example 2026-01-15T09:30:00Z
+             */
+            consentedAt?: string;
+            /** @description The consents the organization has granted the application. */
+            consents?: components["schemas"]["ConsentModel"][];
+        };
+        ConsentModel: {
+            /**
+             * @description The API the consent applies to.
+             * @example https://api.24sevenoffice.com
+             */
+            audience?: string;
+            /** @description The scopes granted for the audience. */
+            scopes?: string[];
         };
         /** @enum {string} */
         CommunicationStatusType: "Unconfirmed" | "Confirmed";
@@ -5478,6 +5567,10 @@ export interface operations {
                 isCompany?: boolean;
                 /** @description A flag variable to filter customers by being a supplier or not. */
                 isSupplier?: boolean;
+                /** @description Filter customers by email address. */
+                email?: string;
+                /** @description Filter customers by external reference. */
+                externalReference?: string;
                 /**
                  * @description Filter customers by date of last modification. Compares dates by greater or equal and accepts dates in ISO8601 format
                  * @example {}
@@ -5839,6 +5932,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaymentMethod"][];
+                };
+            };
+        };
+    };
+    GetApplicationClients: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Authorization header */
+                Authorization: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    /** @description The Link header includes information on where to find `next` page. Refer to https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link' */
+                    Link?: string;
+                    "Access-Control-Allow-Origin"?: string;
+                    "Access-Control-Allow-Credentials"?: string;
+                    "X-Trace-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example [
+                     *       {
+                     *         "organizationId": 12345,
+                     *         "consentedAt": "2026-01-15T09:30:00Z",
+                     *         "consents": [
+                     *           {
+                     *             "audience": "https://api.24sevenoffice.com",
+                     *             "scopes": [
+                     *               "api.me.license:read"
+                     *             ]
+                     *           }
+                     *         ]
+                     *       }
+                     *     ]
+                     */
+                    "application/json": components["schemas"]["ApplicationClientModel"][];
                 };
             };
         };
@@ -6251,12 +6388,12 @@ export interface operations {
                 productSearch?: string;
                 /**
                  * @description Searches for products belonging to specific categories. Multiple category IDs can be provided, separated by commas.
-                 * @example 12,15,18
+                 * @example 121518
                  */
                 categoryIds?: string;
                 /**
                  * @description Searches for products belonging to specific suppliers. Multiple supplier IDs can be provided, separated by commas.
-                 * @example 1,3,5
+                 * @example 135
                  */
                 supplierIds?: string;
                 /**
@@ -6264,6 +6401,11 @@ export interface operations {
                  * @example 1234
                  */
                 productNumber?: string;
+                /**
+                 * @description Filter products by their EAN. Will find match on both ean and eanAlternative.
+                 * @example 0123456789000
+                 */
+                ean?: string;
             };
             header: {
                 /** @description Authorization header */

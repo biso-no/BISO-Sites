@@ -1548,6 +1548,7 @@
       "approverResolved": "Approver found: {email}",
       "notified": "Notified {email}",
       "booked": "Booked in the ledger (transaction {id})",
+      "bookedWithCustomer": "Booked in the ledger (transaction {id}, customer {customer})",
       "bookedPlain": "Booked in the ledger",
       "bookingFailed": "Booking failed: {note}",
       "dateShifted": "Posting date moved from {from} to {to}. {note}",

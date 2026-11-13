@@ -9,6 +9,7 @@ import {
 import type { Activity } from "botbuilder";
 import { type NextRequest, NextResponse } from "next/server";
 import { decideApproval } from "@/lib/expense-approval";
+import { bookAfterFinalApproval } from "@/lib/expense-book-on-approval";
 
 interface CardAction {
   data?: { token?: string };
@@ -68,6 +69,7 @@ export async function POST(req: NextRequest) {
   if (!result.ok) {
     return messageResponse(result.error);
   }
+  bookAfterFinalApproval(result);
 
   return adaptiveCardResponse(
     buildDecisionResultCard({

@@ -100,6 +100,7 @@ const ACTOR_KIND_NAMES: Record<string, string> = {
 const ON_BEHALF_NOTE = /^On behalf of (.+?)(?: · Reason: ([\s\S]*))?$/;
 const REASON_NOTE = /^Reason: ([\s\S]*)$/;
 const TRANSACTION_ID = /^\S+/;
+const BOOKED_CUSTOMER = /\bcustomer (\d+)\b/;
 const PLACEHOLDER = /\{(\w+)\}/g;
 
 async function bestEffort<T>(
@@ -479,7 +480,12 @@ function describeHistoryEvent(
     case "notified":
       return `Notified ${after}`;
     case "booked": {
-      const id = TRANSACTION_ID.exec(event.note?.trim() ?? "")?.[0];
+      const note = event.note?.trim() ?? "";
+      const id = TRANSACTION_ID.exec(note)?.[0];
+      const customer = BOOKED_CUSTOMER.exec(note)?.[1];
+      if (id && customer) {
+        return `Booked in the ledger (transaction ${id}, customer ${customer})`;
+      }
       return id
         ? `Booked in the ledger (transaction ${id})`
         : "Booked in the ledger";

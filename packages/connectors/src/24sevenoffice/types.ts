@@ -22,6 +22,10 @@ export interface HasSessionResult {
   HasSessionResult: boolean;
 }
 
+export interface GetIdentityResult {
+  GetIdentityResult?: { Client?: { Id?: number | string; Name?: string } };
+}
+
 export type StoredToken = Models.Row & {
   token: string;
   $createdAt: string;

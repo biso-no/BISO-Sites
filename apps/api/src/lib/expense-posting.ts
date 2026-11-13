@@ -20,7 +20,9 @@ import {
   listFiscalPeriods,
   type PostedExpenseTransaction,
   postExpenseTransaction,
+  type ReimbursementCustomer,
   resolveBookingDate,
+  resolveReimbursementCustomer,
   uploadDocument,
 } from "@repo/connectors/24sevenoffice";
 import {
@@ -56,7 +58,7 @@ const POSTING_CLAIM_MARKER = "posting";
 // reclaimed (surfaced as failed for manual review) rather than blocking forever.
 const STALE_POSTING_LEASE_MS = 15 * 60 * 1000;
 
-type ExpenseWithRels = Expenses & {
+export type ExpenseWithRels = Expenses & {
   departmentRel: { Id?: string; Name?: string } | null;
   campusRel: { name?: string } | null;
 };
@@ -363,6 +365,7 @@ async function recordBooking(
   db: AdminDb,
   expenseId: string,
   booking: {
+    customerId: number;
     lines: ExpenseReceiptLine[];
     shifts: DateShift[];
     transactionId: string;
@@ -389,7 +392,8 @@ async function recordBooking(
       expenseId,
       actorKind: "system",
       action: "booked",
-      note: booking.transactionId,
+      // The transaction id stays the first word: readers take it from there.
+      note: `${booking.transactionId} customer ${booking.customerId}`,
     },
   ]);
 }
@@ -524,13 +528,111 @@ const POSTING_SELECT = [
   "expenseAttachments.*",
 ];
 
-function loadExpenseForPosting(
+export function loadExpenseForPosting(
   db: AdminDb,
   expenseId: string
 ): Promise<ExpenseWithRels> {
   return db.getRow<ExpenseWithRels>("app", "expense", expenseId, [
     Query.select(POSTING_SELECT),
   ]);
+}
+
+export interface LedgerPosting {
+  /** Date shifts made while building the lines (missing, future or locked-year dates). */
+  builtShifts: DateShift[];
+  /** The Finago customer the supplier debt is booked on. */
+  payee: ReimbursementCustomer;
+  posted: PostedExpenseTransaction;
+  receipts: ExpenseReceiptLine[];
+}
+
+/**
+ * Builds an expense's ledger lines and document and posts the transaction to
+ * Finago. Reads Appwrite (profile, cost types, receipt files) but writes
+ * nothing to it, so `scripts/post-expense-to-demo.ts` can run the real booking
+ * against the DEMO company.
+ */
+export async function buildAndPostLedgerTransaction(
+  db: AdminDb,
+  storage: AdminStorage,
+  expense: ExpenseWithRels
+): Promise<LedgerPosting> {
+  // One Oslo "today" per posting: used for date resolution, the closed-period
+  // retry limit and the voucher header date.
+  const today = todayInOslo();
+  const profile = await db.getRow<Users>("app", "user", expense.userId);
+  const options = await loadAllCostTypes(db);
+  const ordered = sortedAttachments(expense.expenseAttachments ?? []);
+  const { locks, periods } = await loadFiscalContext();
+  const built = buildReceiptLines(ordered, options, {
+    locks,
+    periods,
+    today,
+  });
+  const receipts = built.lines;
+
+  if (receipts.length === 0) {
+    throw new Error("No receipt lines with a positive amount to post");
+  }
+
+  // Before the document upload, so a missing email or bank account fails the
+  // booking without leaving an unused file in Finago.
+  const payee = await resolveReimbursementCustomer({
+    bankAccount: expense.bank_account,
+    email: profile.email ?? "",
+    name: profile.name ?? "",
+  });
+
+  const refNumber = reimbursementNumber(expense.$sequence);
+  const addressParts = [profile.address, profile.zip, profile.city].filter(
+    Boolean
+  );
+
+  const coverBytes = await generateExpensePdf({
+    reimbursementNumber: refNumber,
+    name: profile.name ?? "",
+    address: addressParts.join(", ") || "Ikke oppgitt",
+    phone: profile.phone ?? "",
+    email: profile.email ?? "",
+    bankAccount: expense.bank_account,
+    invoiceDate: formatDate(new Date()),
+    campusAndUnit: `${expense.departmentRel?.Name ?? expense.department} - ${expense.campusRel?.name ?? expense.campus}`,
+    purpose: expense.description ?? "",
+    attachments: ordered.map((att) => ({
+      description: att.description ?? "",
+      date: att.date ? formatDate(new Date(att.date)) : "",
+      amount: att.amount ?? 0,
+    })),
+    subtotal: expense.total,
+    total: expense.total,
+  });
+
+  const files = await Promise.all(
+    ordered
+      .filter((att) => att.url)
+      .map(async (att) => ({
+        bytes: await fetchFileBytes(storage, att.url as string),
+        contentType: att.type,
+      }))
+  );
+
+  const mergedBytes = await mergePdf(new Uint8Array(coverBytes), files);
+  const { documentId } = await uploadDocument(mergedBytes, "application/pdf");
+
+  const posted = await postExpenseTransaction({
+    date: today,
+    comment: `Refusjon ${refNumber}`,
+    documentId,
+    bankAccount: expense.bank_account,
+    invoiceNumber: refNumber,
+    receipts,
+    campusId: expense.campus,
+    customerId: payee.customerId,
+    departmentDimensionValue: expense.departmentRel?.Id ?? null,
+    periods,
+    today,
+  });
+  return { builtShifts: built.shifts, payee, posted, receipts };
 }
 
 /**
@@ -545,77 +647,9 @@ async function postClaimedExpense(
   sleep: Sleep
 ): Promise<void> {
   const expenseId = expense.$id;
-  let posted: PostedExpenseTransaction;
-  let receipts: ExpenseReceiptLine[];
-  let builtShifts: DateShift[];
+  let ledger: LedgerPosting;
   try {
-    // One Oslo "today" per posting: used for date resolution, the closed-period
-    // retry limit and the voucher header date.
-    const today = todayInOslo();
-    const profile = await db.getRow<Users>("app", "user", expense.userId);
-    const options = await loadAllCostTypes(db);
-    const ordered = sortedAttachments(expense.expenseAttachments ?? []);
-    const { locks, periods } = await loadFiscalContext();
-    const built = buildReceiptLines(ordered, options, {
-      locks,
-      periods,
-      today,
-    });
-    receipts = built.lines;
-    builtShifts = built.shifts;
-
-    if (receipts.length === 0) {
-      throw new Error("No receipt lines with a positive amount to post");
-    }
-
-    const refNumber = reimbursementNumber(expense.$sequence);
-    const addressParts = [profile.address, profile.zip, profile.city].filter(
-      Boolean
-    );
-
-    const coverBytes = await generateExpensePdf({
-      reimbursementNumber: refNumber,
-      name: profile.name ?? "",
-      address: addressParts.join(", ") || "Ikke oppgitt",
-      phone: profile.phone ?? "",
-      email: profile.email ?? "",
-      bankAccount: expense.bank_account,
-      invoiceDate: formatDate(new Date()),
-      campusAndUnit: `${expense.departmentRel?.Name ?? expense.department} - ${expense.campusRel?.name ?? expense.campus}`,
-      purpose: expense.description ?? "",
-      attachments: ordered.map((att) => ({
-        description: att.description ?? "",
-        date: att.date ? formatDate(new Date(att.date)) : "",
-        amount: att.amount ?? 0,
-      })),
-      subtotal: expense.total,
-      total: expense.total,
-    });
-
-    const files = await Promise.all(
-      ordered
-        .filter((att) => att.url)
-        .map(async (att) => ({
-          bytes: await fetchFileBytes(storage, att.url as string),
-          contentType: att.type,
-        }))
-    );
-
-    const mergedBytes = await mergePdf(new Uint8Array(coverBytes), files);
-    const { documentId } = await uploadDocument(mergedBytes, "application/pdf");
-
-    posted = await postExpenseTransaction({
-      date: today,
-      comment: `Refusjon ${refNumber}`,
-      documentId,
-      bankAccount: expense.bank_account,
-      invoiceNumber: refNumber,
-      receipts,
-      campusId: expense.campus,
-      departmentDimensionValue: expense.departmentRel?.Id ?? null,
-      periods,
-      today,
-    });
+    ledger = await buildAndPostLedgerTransaction(db, storage, expense);
   } catch (error) {
     console.error(`[expense-posting] failed for ${expenseId}:`, error);
     // Keep the claim in place (both `posting_lock` and the marker on
@@ -625,11 +659,13 @@ async function postClaimedExpense(
     await recordFailure(db, expenseId, error);
     throw error;
   }
+  const { builtShifts, payee, posted, receipts } = ledger;
 
   // Finago has the transaction. From here on nothing may mark the row failed.
   await writeSuccess(db, expenseId, posted.transactionId, sleep);
 
   await recordBooking(db, expenseId, {
+    customerId: payee.customerId,
     lines: receipts,
     shifts: [...builtShifts, ...posted.shifts],
     transactionId: posted.transactionId,
