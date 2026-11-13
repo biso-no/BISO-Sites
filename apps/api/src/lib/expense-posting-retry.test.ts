@@ -19,7 +19,7 @@ const oslo = vi.hoisted(() => ({ todayInOslo: vi.fn() }));
 // The payee lookup calls Finago; every test books on one known customer.
 const payee = vi.hoisted(() => ({
   resolveReimbursementCustomer: vi.fn(async () => ({
-    bankAccountAdded: false,
+    bankAccountChange: "unchanged" as const,
     created: false,
     customerId: 4992,
   })),

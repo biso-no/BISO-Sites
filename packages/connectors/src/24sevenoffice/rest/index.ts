@@ -14,6 +14,8 @@ export {
   resolveBookingDate,
 } from "./booking-dates";
 export {
+  type BankAccountChange,
+  type BankAccountType,
   CUSTOMER_DIMENSION_TYPE,
   type CustomerApi,
   type FinagoBankAccount,

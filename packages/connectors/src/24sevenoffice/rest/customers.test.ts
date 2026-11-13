@@ -21,6 +21,7 @@ function fakeApi(
     createPersonCustomer: mock(async () => options.createdId ?? 9001),
     findCustomersByEmail: mock(async () => options.customers ?? []),
     listBankAccounts: mock(async () => options.accounts ?? []),
+    makeBankAccountDefault: mock(async () => undefined),
   } satisfies CustomerApi;
 }
 
@@ -72,7 +73,7 @@ describe("normalizeBankAccount", () => {
 describe("resolveReimbursementCustomer", () => {
   test("uses the customer with that email, never a membership record", async () => {
     const api = fakeApi({
-      accounts: [{ isDefault: true, number: "12345678903" }],
+      accounts: [{ isDefault: true, number: "12345678903", type: "bban" }],
       customers: [
         {
           emails: ["s1715738@bi.no"],
@@ -84,7 +85,7 @@ describe("resolveReimbursementCustomer", () => {
     });
 
     await expect(resolveReimbursementCustomer(params, api)).resolves.toEqual({
-      bankAccountAdded: false,
+      bankAccountChange: "unchanged",
       created: false,
       customerId: 4992,
     });
@@ -127,7 +128,7 @@ describe("resolveReimbursementCustomer", () => {
     const result = await resolveReimbursementCustomer(params, api);
 
     expect(result).toEqual({
-      bankAccountAdded: true,
+      bankAccountChange: "added",
       created: true,
       customerId: 9001,
     });
@@ -138,43 +139,98 @@ describe("resolveReimbursementCustomer", () => {
     });
   });
 
-  test("adds a missing bank account as default only when there is none", async () => {
-    const empty = fakeApi({
-      customers: [
-        { emails: ["s1715738@bi.no"], id: 4992, name: "Markus Heien" },
-      ],
-    });
-    await resolveReimbursementCustomer(params, empty);
-    expect(empty.addBankAccount).toHaveBeenCalledWith(4992, {
-      isDefault: true,
-      number: "12345678903",
-      type: "bban",
-    });
+  const customer = {
+    emails: ["s1715738@bi.no"],
+    id: 4992,
+    name: "Markus Heien",
+  };
+  const profileAccountAsDefault = {
+    isDefault: true,
+    number: "12345678903",
+    type: "bban",
+  };
 
-    const withDefault = fakeApi({
-      accounts: [{ isDefault: true, number: "11112222333" }],
-      customers: [
-        { emails: ["s1715738@bi.no"], id: 4992, name: "Markus Heien" },
-      ],
-    });
-    await resolveReimbursementCustomer(params, withDefault);
-    expect(withDefault.addBankAccount).toHaveBeenCalledWith(4992, {
-      isDefault: false,
-      number: "12345678903",
-      type: "bban",
-    });
+  test("case 1: no bank account on file: the profile's is added as default", async () => {
+    const api = fakeApi({ customers: [customer] });
+
+    const result = await resolveReimbursementCustomer(params, api);
+
+    expect(result.bankAccountChange).toBe("added");
+    expect(api.addBankAccount).toHaveBeenCalledWith(
+      4992,
+      profileAccountAsDefault
+    );
   });
 
-  test("treats a formatted copy of a known account as the same account", async () => {
+  test("case 2: another account on file: the profile's is added as default", async () => {
     const api = fakeApi({
-      accounts: [{ isDefault: true, number: "1234.56.78903" }],
-      customers: [
-        { emails: ["s1715738@bi.no"], id: 4992, name: "Markus Heien" },
-      ],
+      accounts: [{ isDefault: true, number: "11112222333", type: "bban" }],
+      customers: [customer],
     });
+
     const result = await resolveReimbursementCustomer(params, api);
-    expect(result.bankAccountAdded).toBe(false);
+
+    expect(result.bankAccountChange).toBe("added");
+    expect(api.addBankAccount).toHaveBeenCalledWith(
+      4992,
+      profileAccountAsDefault
+    );
+    expect(api.makeBankAccountDefault).not.toHaveBeenCalled();
+  });
+
+  test("case 3: several accounts, the profile's not default: it becomes default", async () => {
+    const api = fakeApi({
+      accounts: [
+        { isDefault: true, number: "11112222333", type: "bban" },
+        { isDefault: false, number: "1234.56.78903", type: "bban" },
+        { isDefault: false, number: "44445555666", type: "bban" },
+      ],
+      customers: [customer],
+    });
+
+    const result = await resolveReimbursementCustomer(params, api);
+
+    expect(result.bankAccountChange).toBe("made_default");
+    // Finago keys the account by the number as stored.
+    expect(api.makeBankAccountDefault).toHaveBeenCalledWith(4992, {
+      number: "1234.56.78903",
+      type: "bban",
+    });
     expect(api.addBankAccount).not.toHaveBeenCalled();
+  });
+
+  test("case 3: several accounts without the profile's: it is added as default", async () => {
+    const api = fakeApi({
+      accounts: [
+        { isDefault: true, number: "11112222333", type: "bban" },
+        { isDefault: false, number: "44445555666", type: "bban" },
+      ],
+      customers: [customer],
+    });
+
+    const result = await resolveReimbursementCustomer(params, api);
+
+    expect(result.bankAccountChange).toBe("added");
+    expect(api.addBankAccount).toHaveBeenCalledWith(
+      4992,
+      profileAccountAsDefault
+    );
+  });
+
+  test("leaves the accounts alone when the profile's is already default", async () => {
+    const api = fakeApi({
+      accounts: [
+        { isDefault: false, number: "11112222333", type: "bban" },
+        { isDefault: true, number: "1234.56.78903", type: "bban" },
+      ],
+      customers: [customer],
+    });
+
+    const result = await resolveReimbursementCustomer(params, api);
+
+    expect(result.bankAccountChange).toBe("unchanged");
+    expect(api.addBankAccount).not.toHaveBeenCalled();
+    expect(api.makeBankAccountDefault).not.toHaveBeenCalled();
   });
 
   test("adds an IBAN as an iban account", async () => {
