@@ -55,6 +55,24 @@ catalog:
 
 ## Icons
 
-`color.png` (192×192) and `outline.png` (32×32) are **solid-colour placeholders**.
-Replace with the real BISO marks and re-zip before publishing if desired:
-`(cd apps/api/teams-manifest && zip biso-expense-approvals.zip manifest.json color.png outline.png)`.
+- `color.png` (192×192): the BISO logo on BISO navy `#001731`, from
+  `apps/docs/public/biso-logo-on-navy.png`.
+- `outline.png` (32×32): the L and chevron of the mark in white on
+  transparency, without the wordmark, which can't be read at that size. Teams
+  allows only white and transparent pixels here.
+
+`accentColor` is `#001731` too. The other BISO colour is `#3DA9E0`, the blue
+in the mark.
+
+## Updating the published app
+
+Teams only accepts a new package when `version` in `manifest.json` is higher
+than the published one, so bump it with every change. Then zip and upload:
+
+```
+(cd apps/api/teams-manifest && zip biso-expense-approvals.zip manifest.json color.png outline.png)
+```
+
+**Teams Admin Center** → Teams apps → Manage apps → open **BISO Expense
+Approvals** → **Upload file** with the new zip. Teams clients can take a few
+hours to show the new icon.

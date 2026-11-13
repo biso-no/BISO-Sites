@@ -1,7 +1,7 @@
 {
   "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.16/MicrosoftTeams.schema.json",
   "manifestVersion": "1.16",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "id": "287d6b99-0b85-49d0-afa2-c75920bb5f9a",
   "developer": {
     "name": "BI Student Organisation",
@@ -21,7 +21,7 @@
     "color": "color.png",
     "outline": "outline.png"
   },
-  "accentColor": "#0B5FFF",
+  "accentColor": "#001731",
   "bots": [
     {
       "botId": "62b0ae22-d882-4516-ab5f-37de1b5f7de8",
@@ -31,5 +31,5 @@
     }
   ],
   "permissions": ["identity", "messageTeamMembers"],
-  "validDomains": ["api.biso.no", "web.biso.no"]
+  "validDomains": ["api.biso.no", "biso.no"]
 }
