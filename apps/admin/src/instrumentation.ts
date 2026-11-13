@@ -10,8 +10,9 @@
 
 import { logServerRequestError } from "@repo/shared/utils/server-error-logging";
 import type { Instrumentation } from "next";
+import { ADMIN_SESSION_COOKIE } from "./lib/session-cookie";
 
-const EXPECTED_SESSION_COOKIE = "biso_session_admin";
+const EXPECTED_SESSION_COOKIE = ADMIN_SESSION_COOKIE;
 
 // Vars the admin app genuinely cannot function without.
 const REQUIRED_ENV = ["APPWRITE_API_KEY", "NEXT_PUBLIC_BASE_URL"] as const;
@@ -37,10 +38,10 @@ export function register() {
   }
 
   // Security-critical: the admin app shares the .biso.no domain with the public
-  // web app (cookie "a_session_biso"). The shared createSessionClient resolves
-  // the session cookie name from APPWRITE_SESSION_COOKIE and falls back to the
-  // web cookie when unset — so a missing/incorrect value here would make admin
-  // read the user's private web session. Refuse to start in that state.
+  // web app. The shared createSessionClient resolves the session cookie name
+  // from APPWRITE_SESSION_COOKIE and falls back to "a_session_biso", the web
+  // app's old cookie, when unset — so a missing/incorrect value here could make
+  // admin read a visitor's web session. Refuse to start in that state.
   const sessionCookie = process.env.APPWRITE_SESSION_COOKIE?.trim();
   if (sessionCookie !== EXPECTED_SESSION_COOKIE) {
     throw new Error(

@@ -45,7 +45,7 @@ describe("the session machinery is untouched", () => {
     expect(source).toContain("SESSION_COOKIE");
     expect(source).toContain("LEGACY_SESSION_COOKIE");
     // The cookie name itself lives in one place and must stay
-    // `biso_web_session` — never `a_session_biso`, which is byte-for-byte
+    // `biso_session_web` — never `a_session_biso`, which is byte-for-byte
     // the cookie Appwrite issues for project `biso` and broke admin sign-in
     // with 409 user_already_exists.
     expect(source).not.toContain('"a_session_biso"');
@@ -53,7 +53,7 @@ describe("the session machinery is untouched", () => {
 
   it("keeps the cookie names where they are defined", () => {
     const prefs = read("lib/cookie-prefs.ts");
-    expect(prefs).toContain("biso_web_session");
+    expect(prefs).toContain("biso_session_web");
   });
 });
 

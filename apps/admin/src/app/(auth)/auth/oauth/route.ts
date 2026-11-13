@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { NextRequest } from "next/server";
 import { syncM365Permissions } from "@/lib/m365-sync"; // Import the utility
+import { ADMIN_SESSION_COOKIE } from "@/lib/session-cookie";
 import { isProd, sanitizeRedirectTarget } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
 
   const fetchedCookies = await cookies();
 
-  fetchedCookies.set("biso_session_admin", session.secret, {
+  fetchedCookies.set(ADMIN_SESSION_COOKIE, session.secret, {
     path: "/",
     httpOnly: true,
     sameSite: isProd ? "none" : "lax",

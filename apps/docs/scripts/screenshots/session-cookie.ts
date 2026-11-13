@@ -1,9 +1,9 @@
 /**
- * The admin reads its session from this cookie. The admin checks the name at
- * start-up (`apps/admin/src/instrumentation.ts`) and reads it in
- * `apps/admin/src/lib/auth-utils.ts`; a test keeps this copy in step.
+ * The admin reads its session from this cookie. The admin defines the name
+ * once, in `apps/admin/src/lib/session-cookie.ts`; a test keeps this copy in
+ * step.
  */
-export const ADMIN_SESSION_COOKIE = "biso_admin_session";
+export const ADMIN_SESSION_COOKIE = "biso_session_admin";
 
 /** A cookie in the shape Playwright's `context.addCookies()` takes. */
 export interface AdminSessionCookie {

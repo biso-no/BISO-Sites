@@ -2,6 +2,7 @@
 import { appwriteErrorStatus } from "@repo/api/errors";
 import { createSessionClient } from "@repo/api/server";
 import { cookies } from "next/headers";
+import { ADMIN_SESSION_COOKIE } from "./session-cookie";
 import { isAuthenticatedAppwriteUser } from "./utils";
 
 const UNAUTHORIZED = 401;
@@ -39,7 +40,7 @@ export async function getAuthStatus(): Promise<{
   isAnonymous: boolean;
 }> {
   const availableCookies = await cookies();
-  const adminCookie = availableCookies.get("biso_admin_session");
+  const adminCookie = availableCookies.get(ADMIN_SESSION_COOKIE);
   if (!adminCookie) {
     return { ...LOGGED_OUT };
   }

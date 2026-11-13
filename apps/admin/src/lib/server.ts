@@ -11,7 +11,7 @@ const TRAILING_SLASH_REGEX = /\/+$/;
 /**
  * The cookie name Appwrite itself issues for project `biso`
  * (`a_session_<projectId>`). Never ours — admin's session lives in
- * `biso_admin_session`.
+ * `ADMIN_SESSION_COOKIE` (`lib/session-cookie.ts`).
  */
 const APPWRITE_OWN_SESSION_COOKIE = `a_session_${
   process.env.NEXT_PUBLIC_APPWRITE_PROJECT || "biso"

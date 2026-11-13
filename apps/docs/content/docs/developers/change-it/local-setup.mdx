@@ -54,8 +54,8 @@ cp apps/admin/.env.example apps/admin/.env.local
 
 | App | Template | Must be set, or the app refuses to start |
 |---|---|---|
-| web | `apps/web/.env.example` | `APPWRITE_SESSION_COOKIE=biso_web_session` |
-| admin | `apps/admin/.env.example` | `APPWRITE_API_KEY`, `NEXT_PUBLIC_BASE_URL`, and `APPWRITE_SESSION_COOKIE=biso_admin_session` |
+| web | `apps/web/.env.example` | `APPWRITE_SESSION_COOKIE=biso_session_web` |
+| admin | `apps/admin/.env.example` | `APPWRITE_API_KEY`, `NEXT_PUBLIC_BASE_URL`, and `APPWRITE_SESSION_COOKIE=biso_session_admin` |
 | api | `apps/api/.env.example` | Nothing. The API has no start-up checks. |
 | docs | `apps/docs/.env.example` | Nothing. Sign-in, private details and the assistant need more: see `apps/docs/CLAUDE.md`. |
 
@@ -189,7 +189,7 @@ Things to know when a test fails:
 
 ### The website or the admin stops at start-up: session cookie
 
-**Symptom:** `[web] APPWRITE_SESSION_COOKIE must be "biso_web_session" but is "(unset)"`, or the same line from `[admin]` with `biso_admin_session`.
+**Symptom:** `[web] APPWRITE_SESSION_COOKIE must be "biso_session_web" but is "(unset)"`, or the same line from `[admin]` with `biso_session_admin`.
 
 **Fix:** set `APPWRITE_SESSION_COOKIE` to exactly that value in the app's `.env.local`. Never use `a_session_biso` here. The website's start-up check explains why.
 

@@ -8,12 +8,8 @@ const readRepoFile = (path: string): string =>
   readFileSync(join(REPO_ROOT, path), "utf8");
 
 test("uses the cookie name the admin reads", () => {
-  const instrumentation = readRepoFile("apps/admin/src/instrumentation.ts");
-  expect(instrumentation).toContain(
-    `const EXPECTED_SESSION_COOKIE = "${ADMIN_SESSION_COOKIE}";`
-  );
-  expect(readRepoFile("apps/admin/src/lib/auth-utils.ts")).toContain(
-    `availableCookies.get("${ADMIN_SESSION_COOKIE}")`
+  expect(readRepoFile("apps/admin/src/lib/session-cookie.ts")).toContain(
+    `export const ADMIN_SESSION_COOKIE = "${ADMIN_SESSION_COOKIE}";`
   );
 });
 
