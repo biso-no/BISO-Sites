@@ -4,6 +4,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { decideApprovalStep } from "@/lib/expense-approval";
+import { bookAfterFinalApproval } from "@/lib/expense-book-on-approval";
 import { isInternalRequest } from "@/lib/internal-auth";
 
 export const dynamic = "force-dynamic";
@@ -61,6 +62,7 @@ export async function POST(req: NextRequest) {
         { status: HTTP_BAD_REQUEST }
       );
     }
+    bookAfterFinalApproval(result);
     return NextResponse.json({ result });
   } catch (error) {
     console.error("[expenses/admin/decide] Decision failed:", error);

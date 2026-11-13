@@ -5,6 +5,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
 import { decideApproval, getApprovalContext } from "@/lib/expense-approval";
+import { bookAfterFinalApproval } from "@/lib/expense-book-on-approval";
 
 export async function GET(req: NextRequest) {
   const origin = req.headers.get("origin");
@@ -66,6 +67,7 @@ export async function POST(req: NextRequest) {
       origin
     );
   }
+  bookAfterFinalApproval(result);
 
   return applyCorsHeaders(NextResponse.json({ success: true, result }), origin);
 }

@@ -4,8 +4,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const approval = vi.hoisted(() => ({ decideApprovalStep: vi.fn() }));
 const auth = vi.hoisted(() => ({ isInternalRequest: vi.fn() }));
 
+const booking = vi.hoisted(() => ({ bookAfterFinalApproval: vi.fn() }));
+
 vi.mock("@/lib/expense-approval", () => approval);
 vi.mock("@/lib/internal-auth", () => auth);
+vi.mock("@/lib/expense-book-on-approval", () => booking);
 
 import { POST } from "./route";
 
@@ -85,5 +88,6 @@ describe("POST /api/expenses/admin/decide", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ result });
     expect(approval.decideApprovalStep).toHaveBeenCalledWith(VALID);
+    expect(booking.bookAfterFinalApproval).toHaveBeenCalledWith(result);
   });
 });
