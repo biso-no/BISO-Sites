@@ -16,11 +16,13 @@ describe("buildExpenseTransactionInput", () => {
     supplierAccountNumber: 2400,
     date: "2026-06-25",
     bankAccount: "1234.56.78901",
+    customerId: 4992,
     receipts: [
       { accountNumber: 7140, amount: 100.5, taxCode: 0 },
       { accountNumber: 7310, amount: 49.5 },
     ],
   };
+  const customerDimension = { dimensionType: 5, value: "4992" };
 
   test("balances all lines to zero", () => {
     const input = buildExpenseTransactionInput(base);
@@ -45,14 +47,35 @@ describe("buildExpenseTransactionInput", () => {
     expect(credit?.invoice?.bankAccount).toBe("1234.56.78901");
   });
 
-  test("applies dimensions to every line", () => {
+  test("applies dimensions to every line, and the customer to supplier debt only", () => {
     const dimensions = [
       { dimensionType: 2, value: "101" },
       { dimensionType: 101, value: "1" },
     ];
     const input = buildExpenseTransactionInput({ ...base, dimensions });
-    for (const line of input.lines) {
+    for (const line of input.lines.filter((l) => l.amount > 0)) {
       expect(line.dimensions).toEqual(dimensions);
+    }
+    for (const line of input.lines.filter((l) => l.amount < 0)) {
+      expect(line.dimensions).toEqual([...dimensions, customerDimension]);
+    }
+  });
+
+  test("puts the customer on every supplier-debt line", () => {
+    const input = buildExpenseTransactionInput({
+      ...base,
+      receipts: [
+        { accountNumber: 7140, amount: 100, date: "2026-06-01" },
+        { accountNumber: 7310, amount: 50, date: "2026-07-01" },
+      ],
+    });
+    const credits = input.lines.filter((l) => l.amount < 0);
+    expect(credits).toHaveLength(2);
+    for (const credit of credits) {
+      expect(credit.dimensions).toEqual([customerDimension]);
+    }
+    for (const debit of input.lines.filter((l) => l.amount > 0)) {
+      expect(debit.dimensions).toBeUndefined();
     }
   });
 
@@ -87,7 +110,7 @@ describe("buildExpenseTransactionInput", () => {
     for (const credit of credits) {
       expect(credit.invoice?.bankAccount).toBe("1234.56.78901");
       expect(credit.invoice?.number).toBe("INV-7");
-      expect(credit.dimensions).toEqual(dimensions);
+      expect(credit.dimensions).toEqual([...dimensions, customerDimension]);
     }
     expect(input.lines.filter((l) => l.amount > 0).map((l) => l.date)).toEqual([
       "2026-08-14",

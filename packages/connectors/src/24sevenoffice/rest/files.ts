@@ -19,6 +19,17 @@ export interface UploadDocumentResult {
 
 const POLL_INTERVAL_MS = 1000;
 const POLL_TIMEOUT_MS = 60_000;
+// The spec names "Completed", but the live API answers "Processed" once the
+// document exists. Either one, with a documentId, means it is ready.
+const DONE_STATES: ReadonlySet<string> = new Set(["completed", "processed"]);
+
+/** Whether a fileUpload status means the document is ready to attach. */
+export function isUploadDone(
+  status: string | null | undefined,
+  documentId: number | null | undefined
+): boolean {
+  return DONE_STATES.has(status?.toLowerCase() ?? "") && Boolean(documentId);
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -84,7 +95,7 @@ export async function uploadDocument(
     }
 
     const state = status.status?.toLowerCase();
-    if (state === "completed" && status.documentId) {
+    if (isUploadDone(state, status.documentId) && status.documentId) {
       return { documentId: status.documentId, fileId: init.fileId };
     }
     if (state === "failed") {

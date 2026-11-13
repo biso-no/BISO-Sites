@@ -112,12 +112,12 @@ async function postToDemo(expenseId: string): Promise<void> {
   }
 
   console.log("\nPosting to DEMO…");
-  const { builtShifts, posted, receipts } = await buildAndPostLedgerTransaction(
-    db,
-    storage,
-    expense
-  );
+  const { builtShifts, payee, posted, receipts } =
+    await buildAndPostLedgerTransaction(db, storage, expense);
   console.log(`\n✓ Posted. Transaction id ${posted.transactionId}`);
+  console.log(
+    `  customer ${payee.customerId}${payee.created ? " (created now)" : ""}${payee.bankAccountAdded ? ", bank account added" : ""}`
+  );
 
   const shifts = [...builtShifts, ...posted.shifts];
   for (const shift of shifts) {

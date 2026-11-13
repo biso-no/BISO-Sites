@@ -13,6 +13,7 @@ import {
   periodContaining,
 } from "./booking-dates";
 import { finago } from "./client";
+import { CUSTOMER_DIMENSION_TYPE } from "./customers";
 import {
   CAMPUS_DIMENSION_TYPE,
   DEPARTMENT_DIMENSION_TYPE,
@@ -53,6 +54,11 @@ export interface BuildExpenseTransactionParams {
   /** Recipient bank account used for the bank payout. */
   bankAccount: string;
   comment?: string;
+  /**
+   * The Finago customer the reimbursement is paid to. Set on every
+   * supplier-debt line, so the debt sits on that person's ledger.
+   */
+  customerId: number;
   date: string;
   /** Dimensions (department + campus) applied to every line. */
   dimensions?: DimensionT[];
@@ -105,12 +111,19 @@ export function buildExpenseTransactionInput(
   });
   const dates = [...centsByDate.keys()].sort();
 
+  const creditDimensions: DimensionT[] = [
+    ...(dimensions ?? []),
+    {
+      dimensionType: CUSTOMER_DIMENSION_TYPE,
+      value: String(params.customerId),
+    },
+  ];
   const creditLines: TransactionLineT[] = dates.map((date) => ({
     accountNumber: params.supplierAccountNumber,
     amount: -((centsByDate.get(date) ?? 0) / CENTS),
     date,
     tax: { number: 0 },
-    dimensions,
+    dimensions: creditDimensions,
     invoice: {
       bankAccount: params.bankAccount,
       dueDate: params.dueDate,
@@ -132,6 +145,8 @@ export interface PostExpenseTransactionParams {
   /** Campus id ("1".."5") for the campus dimension. */
   campusId?: string | null;
   comment?: string;
+  /** The Finago customer the reimbursement is paid to. */
+  customerId: number;
   date: string;
   /** The department's 24SevenOffice dimension value (departments.Id). */
   departmentDimensionValue?: string | null;
@@ -314,6 +329,7 @@ export async function postExpenseTransaction(
         supplierAccountNumber,
         date: params.date,
         comment: params.comment,
+        customerId: params.customerId,
         documentId: params.documentId,
         bankAccount: params.bankAccount,
         dueDate: params.dueDate,

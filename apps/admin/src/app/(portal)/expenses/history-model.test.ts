@@ -37,6 +37,21 @@ describe("describeEvent booked and approver changes", () => {
     ).toEqual({ key: "booked", values: { id: "tx-55" } });
   });
 
+  test("booked shows the customer the debt was booked on", () => {
+    expect(
+      describeEvent(
+        event({
+          action: "booked",
+          actorKind: "system",
+          note: "tx-55 customer 4992",
+        })
+      )
+    ).toEqual({
+      key: "bookedWithCustomer",
+      values: { customer: "4992", id: "tx-55" },
+    });
+  });
+
   test("booked without a note has no id to show", () => {
     expect(describeEvent(event({ action: "booked" }))).toEqual({
       key: "bookedPlain",

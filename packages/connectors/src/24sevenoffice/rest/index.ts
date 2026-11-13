@@ -14,6 +14,18 @@ export {
   resolveBookingDate,
 } from "./booking-dates";
 export {
+  CUSTOMER_DIMENSION_TYPE,
+  type CustomerApi,
+  type FinagoBankAccount,
+  type FinagoCustomer,
+  isMembershipCustomer,
+  normalizeBankAccount,
+  payeeName,
+  type ReimbursementCustomer,
+  resolveReimbursementCustomer,
+  restCustomerApi,
+} from "./customers";
+export {
   CAMPUS_DIMENSION_TYPE,
   DEPARTMENT_DIMENSION_TYPE,
   type DimensionElement,

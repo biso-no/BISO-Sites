@@ -20,7 +20,9 @@ import {
   listFiscalPeriods,
   type PostedExpenseTransaction,
   postExpenseTransaction,
+  type ReimbursementCustomer,
   resolveBookingDate,
+  resolveReimbursementCustomer,
   uploadDocument,
 } from "@repo/connectors/24sevenoffice";
 import {
@@ -363,6 +365,7 @@ async function recordBooking(
   db: AdminDb,
   expenseId: string,
   booking: {
+    customerId: number;
     lines: ExpenseReceiptLine[];
     shifts: DateShift[];
     transactionId: string;
@@ -389,7 +392,8 @@ async function recordBooking(
       expenseId,
       actorKind: "system",
       action: "booked",
-      note: booking.transactionId,
+      // The transaction id stays the first word: readers take it from there.
+      note: `${booking.transactionId} customer ${booking.customerId}`,
     },
   ]);
 }
@@ -536,6 +540,8 @@ export function loadExpenseForPosting(
 export interface LedgerPosting {
   /** Date shifts made while building the lines (missing, future or locked-year dates). */
   builtShifts: DateShift[];
+  /** The Finago customer the supplier debt is booked on. */
+  payee: ReimbursementCustomer;
   posted: PostedExpenseTransaction;
   receipts: ExpenseReceiptLine[];
 }
@@ -568,6 +574,14 @@ export async function buildAndPostLedgerTransaction(
   if (receipts.length === 0) {
     throw new Error("No receipt lines with a positive amount to post");
   }
+
+  // Before the document upload, so a missing email or bank account fails the
+  // booking without leaving an unused file in Finago.
+  const payee = await resolveReimbursementCustomer({
+    bankAccount: expense.bank_account,
+    email: profile.email ?? "",
+    name: profile.name ?? "",
+  });
 
   const refNumber = reimbursementNumber(expense.$sequence);
   const addressParts = [profile.address, profile.zip, profile.city].filter(
@@ -613,11 +627,12 @@ export async function buildAndPostLedgerTransaction(
     invoiceNumber: refNumber,
     receipts,
     campusId: expense.campus,
+    customerId: payee.customerId,
     departmentDimensionValue: expense.departmentRel?.Id ?? null,
     periods,
     today,
   });
-  return { builtShifts: built.shifts, posted, receipts };
+  return { builtShifts: built.shifts, payee, posted, receipts };
 }
 
 /**
@@ -644,12 +659,13 @@ async function postClaimedExpense(
     await recordFailure(db, expenseId, error);
     throw error;
   }
-  const { builtShifts, posted, receipts } = ledger;
+  const { builtShifts, payee, posted, receipts } = ledger;
 
   // Finago has the transaction. From here on nothing may mark the row failed.
   await writeSuccess(db, expenseId, posted.transactionId, sleep);
 
   await recordBooking(db, expenseId, {
+    customerId: payee.customerId,
     lines: receipts,
     shifts: [...builtShifts, ...posted.shifts],
     transactionId: posted.transactionId,

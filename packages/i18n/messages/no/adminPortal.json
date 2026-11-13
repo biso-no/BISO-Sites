@@ -1548,6 +1548,7 @@
       "approverResolved": "Fant godkjenner: {email}",
       "notified": "Varslet {email}",
       "booked": "Bokført i regnskapet (transaksjon {id})",
+      "bookedWithCustomer": "Bokført i regnskapet (transaksjon {id}, kunde {customer})",
       "bookedPlain": "Bokført i regnskapet",
       "bookingFailed": "Bokføring feilet: {note}",
       "dateShifted": "Bokføringsdato flyttet fra {from} til {to}. {note}",

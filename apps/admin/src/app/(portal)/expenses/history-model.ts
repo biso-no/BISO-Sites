@@ -43,6 +43,8 @@ const ROLE_PHRASES: Record<string, string> = {
 const ON_BEHALF_NOTE = /^On behalf of (.+?)(?: · Reason: ([\s\S]*))?$/;
 /** The ledger transaction id leads the note; a status-write warning may follow it. */
 const TRANSACTION_ID = /^\S+/;
+/** The Finago customer the debt was booked on, when the note names one. */
+const BOOKED_CUSTOMER = /\bcustomer (\d+)\b/;
 const REASON_NOTE = /^Reason: ([\s\S]*)$/;
 
 function parseDecisionNote(note: string | null): {
@@ -118,7 +120,12 @@ export function describeEvent(
     case "notified":
       return { key: "notified", values: { email: event.after ?? "" } };
     case "booked": {
-      const id = TRANSACTION_ID.exec(event.note?.trim() ?? "")?.[0];
+      const note = event.note?.trim() ?? "";
+      const id = TRANSACTION_ID.exec(note)?.[0];
+      const customer = BOOKED_CUSTOMER.exec(note)?.[1];
+      if (id && customer) {
+        return { key: "bookedWithCustomer", values: { customer, id } };
+      }
       return id
         ? { key: "booked", values: { id } }
         : { key: "bookedPlain", values: {} };

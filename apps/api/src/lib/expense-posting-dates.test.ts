@@ -17,6 +17,14 @@ const finago = vi.hoisted(() => ({
   postExpenseTransaction: vi.fn(),
   uploadDocument: vi.fn(),
 }));
+// The payee lookup calls Finago; every test books on one known customer.
+const payee = vi.hoisted(() => ({
+  resolveReimbursementCustomer: vi.fn(async () => ({
+    bankAccountAdded: false,
+    created: false,
+    customerId: 4992,
+  })),
+}));
 
 vi.mock("@repo/api/server", () => ({
   createAdminClient: vi.fn(async () => ({ db, storage })),
@@ -31,6 +39,7 @@ vi.mock("@repo/connectors/24sevenoffice", async () => {
     getFiscalYearLocks: finago.getFiscalYearLocks,
     listFiscalPeriods: finago.listFiscalPeriods,
     postExpenseTransaction: finago.postExpenseTransaction,
+    resolveReimbursementCustomer: payee.resolveReimbursementCustomer,
     uploadDocument: finago.uploadDocument,
   };
 });
@@ -125,6 +134,46 @@ describe("postApprovedExpense booking dates", () => {
     finago.uploadDocument.mockResolvedValue({ documentId: 1 });
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+
+  it("books the supplier debt on the submitter's Finago customer", async () => {
+    finago.getFiscalYearLocks.mockResolvedValue([]);
+    finago.listFiscalPeriods.mockResolvedValue([]);
+    finago.postExpenseTransaction.mockResolvedValue({
+      transactionId: "tx-9",
+      shifts: [],
+    });
+
+    await postApprovedExpense("exp-1");
+
+    expect(payee.resolveReimbursementCustomer).toHaveBeenCalledWith({
+      bankAccount: expense.bank_account,
+      email: "t@example.test",
+      name: "Test Student",
+    });
+    expect(finago.postExpenseTransaction.mock.calls[0][0].customerId).toBe(
+      4992
+    );
+    const booked = eventCalls().find((c) => c[3].action === "booked");
+    expect(booked?.[3].note).toBe("tx-9 customer 4992");
+  });
+
+  it("fails the booking before anything reaches Finago when no customer can be found", async () => {
+    finago.getFiscalYearLocks.mockResolvedValue([]);
+    finago.listFiscalPeriods.mockResolvedValue([]);
+    payee.resolveReimbursementCustomer.mockRejectedValueOnce(
+      new Error("The submitter has no email address")
+    );
+
+    await expect(postApprovedExpense("exp-1")).rejects.toThrow(
+      "no email address"
+    );
+
+    expect(finago.uploadDocument).not.toHaveBeenCalled();
+    expect(finago.postExpenseTransaction).not.toHaveBeenCalled();
+    expect(db.updateRow).toHaveBeenCalledWith("app", "expense", "exp-1", {
+      status: "failed",
+    });
   });
 
   it("posts each line on its booking date and records the shift", async () => {
@@ -386,7 +435,7 @@ describe("postApprovedExpense booking dates", () => {
       })
     );
     expect(eventCalls().map((c) => c[3].action)).toEqual(["booked"]);
-    expect(eventCalls()[0][3].note).toBe("tx-9");
+    expect(eventCalls()[0][3].note).toBe("tx-9 customer 4992");
   });
 
   it("records booking_failed when the stale-lease reaper marks a row failed", async () => {
