@@ -226,6 +226,68 @@ function purposeToPrompt(purpose: ScanPurpose): string {
   return AUTO_PROMPT;
 }
 
+/**
+ * The longest side the model reads an image at. The current models scale a
+ * larger image down to this anyway, and the API rejects one over 8000 px on a
+ * side or over 10 MB base64-encoded. Phone cameras pass both limits, so a
+ * larger photo is shrunk before the read. The stored receipt keeps the
+ * original file.
+ */
+const MODEL_IMAGE_MAX_EDGE = 2576;
+/** Re-encode past this: base64 adds a third, and the API takes 10 MB. */
+const MODEL_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const SHRUNK_JPEG_QUALITY = 90;
+
+export interface ModelFile {
+  data: Buffer;
+  mediaType: string;
+}
+
+/**
+ * The file as the model gets it. An image over `MODEL_IMAGE_MAX_EDGE` on its
+ * long side, or over `MODEL_IMAGE_MAX_BYTES`, becomes an upright JPEG within
+ * both. Anything else, PDFs included, goes as uploaded. So does an image that
+ * can't be read here: the model call then decides.
+ */
+export async function fitFileForModel(
+  buffer: Buffer,
+  mimeType: string
+): Promise<ModelFile> {
+  const asUploaded: ModelFile = { data: buffer, mediaType: mimeType };
+  if (!mimeType.startsWith("image/")) {
+    return asUploaded;
+  }
+  try {
+    // Loaded here so a missing native binary only skips the shrinking.
+    const { default: sharp } = await import("sharp");
+    const { width = 0, height = 0 } = await sharp(buffer).metadata();
+    const fits =
+      Math.max(width, height) <= MODEL_IMAGE_MAX_EDGE &&
+      buffer.length <= MODEL_IMAGE_MAX_BYTES;
+    if (fits) {
+      return asUploaded;
+    }
+    const data = await sharp(buffer)
+      .autoOrient()
+      .resize({
+        fit: "inside",
+        height: MODEL_IMAGE_MAX_EDGE,
+        width: MODEL_IMAGE_MAX_EDGE,
+        withoutEnlargement: true,
+      })
+      .flatten({ background: "#ffffff" })
+      .jpeg({ quality: SHRUNK_JPEG_QUALITY })
+      .toBuffer();
+    return { data, mediaType: "image/jpeg" };
+  } catch (error) {
+    console.error(
+      "[receipt-scan] Could not shrink the image, sending it as uploaded:",
+      error
+    );
+    return asUploaded;
+  }
+}
+
 export async function extractReceipt(input: {
   /** Stops the model call; the call then throws. */
   abortSignal?: AbortSignal;
@@ -233,6 +295,7 @@ export async function extractReceipt(input: {
   mimeType: string;
   purpose: ScanPurpose;
 }): Promise<ExtractedReceipt> {
+  const file = await fitFileForModel(input.buffer, input.mimeType);
   const { object } = await generateObject({
     abortSignal: input.abortSignal,
     model: balancedModel,
@@ -242,7 +305,7 @@ export async function extractReceipt(input: {
         role: "user",
         content: [
           { type: "text", text: purposeToPrompt(input.purpose) },
-          { type: "file", data: input.buffer, mediaType: input.mimeType },
+          { type: "file", data: file.data, mediaType: file.mediaType },
         ],
       },
     ],
