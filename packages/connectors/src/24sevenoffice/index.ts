@@ -8,7 +8,7 @@
  */
 
 // Authentication (lower-level, usually not needed directly)
-export { getValidSession, hasSession } from "./auth";
+export { getSessionCompanyName, getValidSession, hasSession } from "./auth";
 // Category management
 export {
   assignMembershipCategory,
@@ -80,14 +80,17 @@ export {
   type ExpenseReceiptLine,
   type FiscalPeriod,
   getDepartments,
+  getOrganizationName,
   isClosedPeriodError,
   type LedgerAccount,
   listAccounts,
   listFiscalPeriods,
   listTaxes,
+  listTransactionLines,
   nextPeriodStart,
   type PostExpenseTransactionParams,
   type PostedExpenseTransaction,
+  type PostedTransactionLine,
   periodContaining,
   postExpenseTransaction,
   postLedgerTransaction,

@@ -28,6 +28,11 @@ export {
   listFiscalPeriods,
   toFiscalPeriods,
 } from "./fiscal-periods";
+export { getOrganizationName } from "./organization";
+export {
+  listTransactionLines,
+  type PostedTransactionLine,
+} from "./transaction-lines";
 export {
   type BuildExpenseTransactionParams,
   type BuildShopTransactionParams,
