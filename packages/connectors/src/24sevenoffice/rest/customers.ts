@@ -27,10 +27,16 @@ export interface FinagoCustomer {
   name: string;
 }
 
+export type BankAccountType = "bban" | "iban" | "bankgiro" | "plusgiro";
+
 export interface FinagoBankAccount {
   isDefault: boolean;
   number: string;
+  type: BankAccountType;
 }
+
+/** What a booking did to the customer's bank accounts. */
+export type BankAccountChange = "added" | "made_default" | "unchanged";
 
 /** The REST calls the customer lookup needs, injectable for tests. */
 export interface CustomerApi {
@@ -45,10 +51,15 @@ export interface CustomerApi {
   }): Promise<number>;
   findCustomersByEmail(email: string): Promise<FinagoCustomer[]>;
   listBankAccounts(customerId: number): Promise<FinagoBankAccount[]>;
+  /** Makes an existing account the default. Finago clears the old default. */
+  makeBankAccountDefault(
+    customerId: number,
+    account: { number: string; type: BankAccountType }
+  ): Promise<void>;
 }
 
 export interface ReimbursementCustomer {
-  bankAccountAdded: boolean;
+  bankAccountChange: BankAccountChange;
   created: boolean;
   customerId: number;
 }
@@ -93,8 +104,12 @@ export function normalizeBankAccount(raw: string): string {
 /**
  * Finds the reimbursement customer for a person by email, or creates one, and
  * makes sure the bank account they gave is on it. Several matches use the
- * oldest (lowest number). The account becomes the default only when the
- * customer has none, so an existing default is never changed.
+ * oldest (lowest number).
+ *
+ * The bank account from the person's profile is what they're paid to, so it is
+ * made the customer's default: added as the default when missing, switched to
+ * default when it's there but another one is. Finago clears the old default
+ * itself, and keeps the other accounts.
  */
 export async function resolveReimbursementCustomer(
   params: { bankAccount: string; email: string; name: string },
@@ -132,18 +147,27 @@ export async function resolveReimbursementCustomer(
   }
 
   const accounts = await api.listBankAccounts(customerId);
-  const known = accounts.some(
+  const existing = accounts.find(
     (account) => normalizeBankAccount(account.number) === bankAccount
   );
-  if (!known) {
+  let bankAccountChange: BankAccountChange = "unchanged";
+  if (!existing) {
     await api.addBankAccount(customerId, {
-      isDefault: accounts.length === 0,
+      isDefault: true,
       number: bankAccount,
       type: IBAN_START.test(bankAccount) ? "iban" : "bban",
     });
+    bankAccountChange = "added";
+  } else if (!existing.isDefault) {
+    // The stored number, as Finago keys the account by it.
+    await api.makeBankAccountDefault(customerId, {
+      number: existing.number,
+      type: existing.type,
+    });
+    bankAccountChange = "made_default";
   }
 
-  return { bankAccountAdded: !known, created, customerId };
+  return { bankAccountChange, created, customerId };
 }
 
 function lowerEmails(
@@ -211,7 +235,30 @@ export const restCustomerApi: CustomerApi = {
     return data.map((account) => ({
       isDefault: Boolean(account.isDefault),
       number: account.number,
+      type: account.type,
     }));
+  },
+
+  async makeBankAccountDefault(customerId, account) {
+    const { error } = await finago.PATCH(
+      "/customers/{customerId}/bankaccounts/{accountNumber}",
+      {
+        body: { isDefault: true, number: account.number, type: account.type },
+        params: {
+          header: { Authorization: "" },
+          path: {
+            accountNumber: account.number,
+            customerId: String(customerId),
+          },
+        },
+      }
+    );
+    if (error) {
+      throw apiError(
+        `make a bank account the default for customer ${customerId}`,
+        error
+      );
+    }
   },
 
   async addBankAccount(customerId, account) {

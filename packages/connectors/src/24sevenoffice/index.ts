@@ -67,6 +67,8 @@ export { mergeMembershipRow, parsePrice } from "./membership-sync-merge";
 export { getMembershipProducts, getProducts } from "./products";
 // Finago REST API
 export {
+  type BankAccountChange,
+  type BankAccountType,
   type BookingDateReason,
   type BuildExpenseTransactionParams,
   type BuildShopTransactionParams,

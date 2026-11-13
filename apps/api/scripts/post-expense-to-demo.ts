@@ -18,6 +18,11 @@ const DEMO_REST_ORG_ID = "628779637070457";
 const DEMO_SOAP_IDENTITY_ID = "2ae8da79-0002-403b-a0df-0001007c0007";
 const DEMO_NAME_SUFFIX = "(DEMO)";
 const LIST_LIMIT = 25;
+const BANK_ACCOUNT_NOTE = {
+  added: ", profile bank account added as default",
+  made_default: ", profile bank account made the default",
+  unchanged: ", profile bank account already the default",
+} as const;
 
 // Set before the connector is loaded, so no call can reach production.
 process.env.TFSO_REST_ORG_ID = DEMO_REST_ORG_ID;
@@ -116,7 +121,7 @@ async function postToDemo(expenseId: string): Promise<void> {
     await buildAndPostLedgerTransaction(db, storage, expense);
   console.log(`\n✓ Posted. Transaction id ${posted.transactionId}`);
   console.log(
-    `  customer ${payee.customerId}${payee.created ? " (created now)" : ""}${payee.bankAccountAdded ? ", bank account added" : ""}`
+    `  customer ${payee.customerId}${payee.created ? " (created now)" : ""}${BANK_ACCOUNT_NOTE[payee.bankAccountChange]}`
   );
 
   const shifts = [...builtShifts, ...posted.shifts];
