@@ -109,6 +109,10 @@ end to end, and what the system does on its own against what staff must do.
   source of truth, not the old pages and not memory.
 - Plain English, sentence case, short sentences. Display headings are
   uppercased by CSS, so the source stays sentence case.
+- **Braces.** MDX reads `{count}` in prose as JavaScript. It compiles and
+  passes `check-types`, then fails the build at prerender with "count is not
+  defined". Write `\{count}` for an on-screen placeholder, or put it in
+  backticks. `lib/content-structure.test.ts` catches the plain `{word}` form.
 
 `app/brand.test.ts` blocks specific patterns: gradients, `backdrop-blur`,
 `whileInView`, `next/font/google`, `hover:-translate-y` and `--font-inter`.

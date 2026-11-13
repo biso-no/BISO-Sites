@@ -36,3 +36,47 @@ test("every page and folder is listed in its folder's meta.json", () => {
     missingIn(CONTENT_ROOT).map((p) => p.replace(CONTENT_ROOT, ""))
   ).toEqual([]);
 });
+
+const FENCE = /^\s*(```|~~~)/;
+const INLINE_CODE = /`[^`]*`/g;
+const ESM_LINE = /^(import|export)\s/;
+// `{count}` in prose is a JavaScript expression to MDX. It compiles, then
+// fails the build at prerender with "count is not defined". Write `\{count}`.
+const BARE_PLACEHOLDER = /(?<![\\=])\{[A-Za-z_]\w*\}/;
+
+function barePlaceholdersIn(dir: string): string[] {
+  const found: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      found.push(...barePlaceholdersIn(path));
+      continue;
+    }
+    if (!MDX.test(entry.name)) {
+      continue;
+    }
+    let inFence = false;
+    for (const [index, line] of readFileSync(path, "utf8")
+      .split("\n")
+      .entries()) {
+      if (FENCE.test(line)) {
+        inFence = !inFence;
+        continue;
+      }
+      if (inFence || ESM_LINE.test(line)) {
+        continue;
+      }
+      const match = line.replace(INLINE_CODE, "").match(BARE_PLACEHOLDER);
+      if (match) {
+        found.push(`${path}:${index + 1} ${match[0]}`);
+      }
+    }
+  }
+  return found;
+}
+
+test("no page has an unescaped {placeholder} outside code", () => {
+  expect(
+    barePlaceholdersIn(CONTENT_ROOT).map((p) => p.replace(CONTENT_ROOT, ""))
+  ).toEqual([]);
+});
