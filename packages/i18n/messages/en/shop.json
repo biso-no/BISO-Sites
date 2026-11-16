@@ -45,12 +45,8 @@
   "card": {
     "membersOnly": "Members Only",
     "save": "Save {amount} NOK",
-    "onlyLeft": "Only {count} left!",
-    "onlyAvailable": "Only {count} available!",
     "outOfStock": "Out of Stock",
     "inStock": "In Stock",
-    "available": "{count} available",
-    "reserved": "{count} reserved in carts",
     "checking": "Checking availability...",
     "membersPay": "Members pay only {price}",
     "viewDetails": "View Details",
@@ -298,7 +294,6 @@
   },
   "toast": {
     "outOfStock": "This item is out of stock",
-    "onlyAvailable": "Only {count} available (others reserved in carts)",
     "limitExceeded": "Purchase limit exceeded",
     "reserveFailed": "Failed to reserve stock. Please try again.",
     "addedToCart": "Added to cart"

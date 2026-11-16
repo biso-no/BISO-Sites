@@ -133,11 +133,7 @@ export function AddToCartClient({
 
       {stock === null ? null : (
         <div className="mt-5">
-          <StockStatusCard
-            availableStock={availableStock}
-            isLoading={false}
-            totalStock={stock}
-          />
+          <StockStatusCard availableStock={availableStock} isLoading={false} />
         </div>
       )}
 

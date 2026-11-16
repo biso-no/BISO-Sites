@@ -202,8 +202,9 @@ describe("checkout quote", () => {
     );
 
     expect(response.status).toBe(409);
-    await expect(response.json()).resolves.toMatchObject({
-      message: expect.stringContaining("available"),
-    });
+    const { message } = await response.json();
+    expect(message).toContain("not enough");
+    // The shop never says how many are left, not even when refusing a cart.
+    expect(message).not.toContain("1");
   });
 });

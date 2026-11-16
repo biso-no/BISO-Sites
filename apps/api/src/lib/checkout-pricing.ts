@@ -188,11 +188,12 @@ export async function ensureLineAvailability({
     const availableForCaller =
       computeAvailableStock(product.stock, totalReserved) + callerHold;
 
+    // The shop says in stock or out of stock, never how many are left.
     if (requestedQuantity > availableForCaller) {
       throw new CheckoutValidationError(
         availableForCaller <= 0
           ? `${productName} is out of stock.`
-          : `Only ${availableForCaller} of ${productName} available (${requestedQuantity} requested).`,
+          : `There are not enough of ${productName} in stock. Lower the quantity and try again.`,
         409
       );
     }
