@@ -45,12 +45,8 @@
   "card": {
     "membersOnly": "Kun for medlemmer",
     "save": "Spar {amount} NOK",
-    "onlyLeft": "Bare {count} igjen!",
-    "onlyAvailable": "Bare {count} tilgjengelig!",
     "outOfStock": "Utsolgt",
     "inStock": "På lager",
-    "available": "{count} tilgjengelig",
-    "reserved": "{count} reservert i handlekurver",
     "checking": "Sjekker tilgjengelighet...",
     "membersPay": "Medlemmer betaler kun {price}",
     "viewDetails": "Vis detaljer",
@@ -298,7 +294,6 @@
   },
   "toast": {
     "outOfStock": "Denne varen er utsolgt",
-    "onlyAvailable": "Kun {count} tilgjengelig (andre er reservert i handlekurver)",
     "limitExceeded": "Kjøpsgrensen er nådd",
     "reserveFailed": "Kunne ikke reservere varen. Prøv igjen.",
     "addedToCart": "Lagt i handlekurven"

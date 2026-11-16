@@ -37,7 +37,7 @@ function buildNamedOptions({
 }
 
 /**
- * RD-032: the five toasts here were the last hardcoded English strings in the
+ * RD-032: the toasts here were the last hardcoded English strings in the
  * shop. They are built from `shop.toast.*` now, so the message has to be
  * resolved by the caller — a hook cannot reach `getTranslations`.
  */
@@ -46,17 +46,6 @@ interface ToastCopy {
   limitExceeded: string;
   outOfStock: string;
   reserveFailed: string;
-  stockAvailable: (count: number) => string;
-}
-
-function getStockErrorMessage(
-  currentStock: number | null,
-  copy: ToastCopy
-): string {
-  if (currentStock === 0) {
-    return copy.outOfStock;
-  }
-  return copy.stockAvailable(currentStock ?? 0);
 }
 
 async function checkStockAvailability(
@@ -168,7 +157,6 @@ export function useProductActions(
     limitExceeded: t("limitExceeded"),
     outOfStock: t("outOfStock"),
     reserveFailed: t("reserveFailed"),
-    stockAvailable: (count: number) => t("onlyAvailable", { count }),
   };
   const { addItem } = useCart();
   const [addedToCart, setAddedToCart] = useState(false);
@@ -207,7 +195,7 @@ export function useProductActions(
       hasStock
     );
     if (!stockCheck.available) {
-      toast.error(getStockErrorMessage(stockCheck.currentStock, copy));
+      toast.error(copy.outOfStock);
       setAvailableStock(stockCheck.currentStock);
       return;
     }

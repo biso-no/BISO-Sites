@@ -16,8 +16,6 @@ interface CartItemProps {
   onUpdateQuantity: (id: string, amount: number) => void;
 }
 
-const LOW_STOCK_THRESHOLD = 10;
-
 /** The two stepper buttons and the remove button share one icon-button shape. */
 const ICON_BUTTON =
   "flex size-9 items-center justify-center rounded-biso-pill text-ink transition-colors hover:text-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-ink";
@@ -70,11 +68,6 @@ function QuantityControl({
           <Plus aria-hidden="true" className="size-4" />
         </button>
       </fieldset>
-      {stock !== null && stock <= LOW_STOCK_THRESHOLD ? (
-        <span className="type-body-sm text-warning">
-          {t("card.onlyAvailable", { count: stock })}
-        </span>
-      ) : null}
       {maxPerOrder && quantity >= maxPerOrder ? (
         <span className="type-body-sm text-danger">
           {t("cart.item.maxPerOrder", { count: maxPerOrder })}

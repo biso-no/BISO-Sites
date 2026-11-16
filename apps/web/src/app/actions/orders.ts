@@ -304,11 +304,12 @@ async function ensureStockAvailability(
   if (effectiveAvailable >= requestedQuantity) {
     return;
   }
-  if (effectiveAvailable === 0) {
-    throw new Error(`${product.title || slug || productId} is out of stock.`);
-  }
+  // The shop says in stock or out of stock, never how many are left.
+  const name = product.title || slug || productId;
   throw new Error(
-    `Only ${effectiveAvailable} of ${product.title || slug || productId} available (${requestedQuantity} requested).`
+    effectiveAvailable <= 0
+      ? `${name} is out of stock.`
+      : `There are not enough of ${name} in stock. Lower the quantity and try again.`
   );
 }
 
