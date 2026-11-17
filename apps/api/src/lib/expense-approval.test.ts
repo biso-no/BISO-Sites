@@ -1572,6 +1572,47 @@ describe("receipts without an account", () => {
     expect(result).toMatchObject({ decision: "rejected", ok: true });
   });
 
+  async function setupAdminStep(attachments: object[]) {
+    setup(attachments);
+    const expense = await db.getRow("app", "expenses", "expense-1");
+    db.getRow.mockImplementation((_db: string, table: string) =>
+      Promise.resolve(table === "expense_approvals" ? STEP : expense)
+    );
+  }
+
+  const ADMIN_ACTOR = {
+    email: "admin@biso.no",
+    kind: "admin" as const,
+    name: "Admin",
+  };
+
+  it("admin approve refuses while a receipt has no account", async () => {
+    await setupAdminStep([UNSET, SET]);
+
+    const result = await decideApprovalStep({
+      actor: ADMIN_ACTOR,
+      approvalId: "approval-1",
+      decision: "approved",
+      onBehalf: false,
+    });
+
+    expect(result).toMatchObject({ code: "account_missing", ok: false });
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+  });
+
+  it("admin reject still works while a receipt has no account", async () => {
+    await setupAdminStep([UNSET]);
+
+    const result = await decideApprovalStep({
+      actor: ADMIN_ACTOR,
+      approvalId: "approval-1",
+      decision: "rejected",
+      onBehalf: false,
+    });
+
+    expect(result).toMatchObject({ decision: "rejected", ok: true });
+  });
+
   it("approves by link once every receipt has an account", async () => {
     setup([SET, SUPPORTING]);
 

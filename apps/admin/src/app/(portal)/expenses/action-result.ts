@@ -14,6 +14,7 @@ export type ExpenseActionError =
   | "supporting_receipt"
   | "not_current_step"
   | "not_pending"
+  | "account_missing"
   | "reason_required"
   | "invalid_email"
   | "already_decided"
@@ -35,6 +36,7 @@ export type ExpenseActionResult<T> =
   | { error: ExpenseActionError; message?: string };
 
 const API_CODES: Record<string, ExpenseActionError> = {
+  account_missing: "account_missing",
   ai_disabled: "ai_disabled",
   already_booked: "already_booked",
   booking_failed: "booking_failed",

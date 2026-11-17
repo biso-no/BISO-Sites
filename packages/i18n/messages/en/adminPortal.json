@@ -1587,6 +1587,7 @@
       "failed": "Could not save. Try again.",
       "not_current_step": "This step is no longer waiting for a decision.",
       "not_pending": "This reimbursement is no longer waiting for approval.",
+      "account_missing": "A receipt has no ledger account. Set the account before approving.",
       "reason_required": "Write a reason of up to 1,000 characters.",
       "invalid_email": "Use a @biso.no email address.",
       "already_decided": "This step was already decided differently. The page has been refreshed.",

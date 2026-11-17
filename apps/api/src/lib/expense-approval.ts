@@ -1213,6 +1213,15 @@ export async function decideApprovalStep(params: {
     }
     throw error;
   }
+  // Same guard as the link path: Approve must not book an account nobody
+  // chose. Rejecting stays open.
+  if (
+    params.decision === "approved" &&
+    row.status === ExpenseApprovalsStatus.PENDING &&
+    (await expenseLacksAccount(db, row.expense_id))
+  ) {
+    return { ok: false, code: "account_missing", error: ACCOUNT_MISSING_ERROR };
+  }
   return await decideStep(db, row, {
     actor: {
       ...params.actor,

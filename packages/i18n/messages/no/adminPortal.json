@@ -1587,6 +1587,7 @@
       "failed": "Kunne ikke lagre. Prøv igjen.",
       "not_current_step": "Dette trinnet venter ikke lenger på en avgjørelse.",
       "not_pending": "Denne refusjonen venter ikke lenger på godkjenning.",
+      "account_missing": "En kvittering mangler konto. Velg konto før du godkjenner.",
       "reason_required": "Skriv en begrunnelse på opptil 1 000 tegn.",
       "invalid_email": "Bruk en e-postadresse som slutter på @biso.no.",
       "already_decided": "Dette trinnet er allerede avgjort på en annen måte. Siden er oppdatert.",
