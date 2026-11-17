@@ -1601,7 +1601,8 @@
       "same_approver": "Den personen er allerede godkjenner for dette trinnet.",
       "retry_in_progress": "Noen andre prøver allerede denne bokføringen på nytt.",
       "booking_failed": "Bokføringen mislyktes igjen.",
-      "status_write_failed": "Finago har bokføringen, men lagring av status feilet. Trykk Prøv igjen for å fullføre lagringen; ingenting bokføres to ganger."
+      "status_write_failed": "Finago har bokføringen, men lagring av status feilet. Trykk Prøv igjen for å fullføre lagringen; ingenting bokføres to ganger.",
+      "has_steps": "Dette utlegget har allerede godkjenningstrinn."
     },
     "decision": {
       "title": "Avgjørelse",
@@ -1626,6 +1627,11 @@
       "changedNoNotice": "Godkjenner byttet, men varselet kunne ikke sendes. Det ligger under godkjenningsproblemer.",
       "directoryNotSaved": "Den lagrede godkjenneren for fremtidige utlegg kunne ikke oppdateres.",
       "directorySkipped": "Endret bare for dette utlegget. Daglig leder settes under Innstillinger → Godkjennere."
+    },
+    "rebuild": {
+      "button": "Bygg godkjenningsflyten på nytt",
+      "done": "Godkjenningsflyten er bygget på nytt.",
+      "noneFound": "Fant ingen godkjenner. Sett opp godkjennerne først, og prøv igjen."
     },
     "retry": {
       "button": "Prøv bokføring på nytt",

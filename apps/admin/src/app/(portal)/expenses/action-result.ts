@@ -20,6 +20,7 @@ export type ExpenseActionError =
   | "already_decided"
   | "already_booked"
   | "not_failed"
+  | "has_steps"
   | "posting_disabled"
   | "in_progress"
   | "self_approver"
@@ -40,6 +41,7 @@ const API_CODES: Record<string, ExpenseActionError> = {
   ai_disabled: "ai_disabled",
   already_booked: "already_booked",
   booking_failed: "booking_failed",
+  has_steps: "has_steps",
   in_progress: "in_progress",
   invalid_email: "invalid_email",
   not_current_step: "not_current_step",

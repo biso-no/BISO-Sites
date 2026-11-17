@@ -60,6 +60,7 @@ import {
   decideApproval,
   decideApprovalStep,
   getApprovalContext,
+  rebuildApprovalChain,
   resendApprovalNotification,
   stepLabel,
 } from "./expense-approval";
@@ -2273,5 +2274,86 @@ describe("resendApprovalNotification", () => {
     expect(db.listRows).not.toHaveBeenCalled();
     expect(teams.sendProactiveCard).not.toHaveBeenCalled();
     expect(teams.sendApprovalEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe("rebuildApprovalChain", () => {
+  const ACTOR = { email: "boss@biso.no", kind: "admin" as const, name: "Boss" };
+  const expenseRow = (over: Record<string, unknown> = {}) => ({
+    $id: "expense-1",
+    $sequence: 42,
+    campus: "1",
+    campusRel: { name: "Oslo" },
+    department: "dept-1",
+    departmentRel: { Name: "Marketing" },
+    description: "Travel",
+    status: "pending",
+    submitter_is_controller: true,
+    submitter_is_financial_manager: false,
+    total: 100,
+    userId: "user-9",
+    ...over,
+  });
+  const loads = (expense: object, stepRows: object[] = []) => {
+    db.getRow.mockImplementation(async (_db: string, table: string) =>
+      table === "user" ? { $id: "user-9", name: "Ada" } : expense
+    );
+    db.listRows.mockResolvedValue({ rows: stepRows, total: stepRows.length });
+  };
+
+  it("rebuilds the chain of a pending expense with no steps", async () => {
+    loads(expenseRow());
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [
+        {
+          aadId: null,
+          directoryKey: "campus:1:finance",
+          email: "fin@biso.no",
+          role: "finance",
+          source: "default",
+          step: 1,
+        },
+      ],
+    });
+
+    expect(
+      await rebuildApprovalChain({ actor: ACTOR, expenseId: "expense-1" })
+    ).toEqual({ ok: true, stepsCreated: 1 });
+    expect(resolution.resolveExpenseApprovers).toHaveBeenCalledWith(
+      expect.objectContaining({
+        submitterIsController: true,
+        submitterIsFinancialManager: false,
+      }),
+      expect.anything()
+    );
+    expect(db.createRow).toHaveBeenCalledWith(
+      "app",
+      "expense_approvals",
+      expect.anything(),
+      expect.objectContaining({ approver_email: "fin@biso.no" })
+    );
+  });
+
+  it("refuses when steps exist", async () => {
+    loads(expenseRow(), [{ $id: "s1" }]);
+
+    expect(
+      await rebuildApprovalChain({ actor: ACTOR, expenseId: "expense-1" })
+    ).toMatchObject({ code: "has_steps", ok: false });
+    expect(resolution.resolveExpenseApprovers).not.toHaveBeenCalled();
+  });
+
+  it("refuses a rejected expense", async () => {
+    loads(expenseRow({ status: "rejected" }));
+
+    expect(
+      await rebuildApprovalChain({ actor: ACTOR, expenseId: "expense-1" })
+    ).toEqual({
+      code: "not_pending",
+      error: "This reimbursement is no longer waiting for approval.",
+      ok: false,
+    });
+    expect(db.listRows).not.toHaveBeenCalled();
   });
 });

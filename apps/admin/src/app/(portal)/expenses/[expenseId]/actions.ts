@@ -405,3 +405,29 @@ export async function retryExpenseBooking(input: {
     return failure(error);
   }
 }
+
+/** Builds the approval chain again for a pending expense that has no steps. Global admins only. */
+export async function rebuildExpenseChain(
+  expenseId: string
+): Promise<ExpenseActionResult<{ stepsCreated: number }>> {
+  try {
+    const loaded = await loadForEdit(expenseId);
+    if (!(loaded?.viewer.isGlobalAdmin && loaded.permissions.canRebuildChain)) {
+      return { error: "forbidden" };
+    }
+
+    const response = await callExpensesApi<{
+      result: { stepsCreated: number };
+    }>("/api/expenses/admin/rebuild-chain", {
+      actor: apiActorOf(loaded),
+      expenseId,
+    });
+    if (!response.ok) {
+      return apiFailure("expense-rebuild-chain", response);
+    }
+    revalidateExpense(expenseId);
+    return { data: { stepsCreated: response.data.result.stepsCreated } };
+  } catch (error) {
+    return failure(error);
+  }
+}

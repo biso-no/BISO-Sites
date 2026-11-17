@@ -27,6 +27,7 @@ mock.module("next/cache", () => ({ revalidatePath: mock(() => undefined) }));
 const {
   changeExpenseApprover,
   decideExpenseStep,
+  rebuildExpenseChain,
   retryExpenseBooking,
   updateExpenseBankAccount,
   updateExpenseReceipt,
@@ -655,5 +656,36 @@ describe("changeExpenseApprover api codes", () => {
         expenseId: "ex1",
       })
     ).toEqual({ error: "self_approver" });
+  });
+});
+
+describe("rebuildExpenseChain", () => {
+  test("only global admins can rebuild a chain", async () => {
+    db.getRow.mockResolvedValue(expense());
+    db.listRows.mockResolvedValue({ rows: [] });
+    getExpenseViewer.mockResolvedValue(viewer({ isCampusAdmin: true }));
+    expect(await rebuildExpenseChain("ex1")).toEqual({ error: "forbidden" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("calls the rebuild route for a global admin", async () => {
+    db.getRow.mockResolvedValue(expense());
+    db.listRows.mockResolvedValue({ rows: [] });
+    getExpenseViewer.mockResolvedValue(
+      viewer({ emails: ["boss@example.com"], isGlobalAdmin: true })
+    );
+    fetchMock.mockResolvedValue(
+      Response.json({ result: { ok: true, stepsCreated: 2 } })
+    );
+    expect(await rebuildExpenseChain("ex1")).toEqual({
+      data: { stepsCreated: 2 },
+    });
+    expect(apiUrl()).toBe(
+      "https://api.example.test/api/expenses/admin/rebuild-chain"
+    );
+    expect(apiBody()).toMatchObject({
+      actor: { kind: "admin" },
+      expenseId: "ex1",
+    });
   });
 });

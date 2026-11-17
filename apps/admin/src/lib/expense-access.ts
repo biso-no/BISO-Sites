@@ -35,6 +35,7 @@ export interface ExpensePermissions {
   canDecide: boolean;
   canEdit: boolean;
   canEditBankAccount: boolean;
+  canRebuildChain: boolean;
   canRetryBooking: boolean;
   canView: boolean;
   currentStepId: string | null;
@@ -84,6 +85,15 @@ function isStepClosedToSubmitter(
   return false;
 }
 
+/** A pending expense left with no approval steps can be rebuilt by a global admin. */
+function canRebuildChain(
+  isGlobal: boolean,
+  status: string,
+  steps: ExpenseAccessStep[]
+): boolean {
+  return isGlobal && status === "pending" && steps.length === 0;
+}
+
 export function expensePermissions(
   viewer: ExpenseViewer,
   expense: ExpenseAccessExpense,
@@ -125,6 +135,7 @@ export function expensePermissions(
     canDecide: acts && step !== null && (approverHere || actor),
     canEdit,
     canEditBankAccount: canEdit && actor,
+    canRebuildChain: canRebuildChain(isGlobal, expense.status, steps),
     canRetryBooking: expense.status === "failed" && actor,
     canView,
     currentStepId: step?.$id ?? null,

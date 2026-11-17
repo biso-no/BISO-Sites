@@ -92,6 +92,7 @@ export default async function ExpenseDetailPage({
       />
       <ExpenseSteps
         canChangeApprover={detail.permissions.canChangeApprover}
+        canRebuildChain={detail.permissions.canRebuildChain}
         expenseId={detail.id}
         steps={detail.steps}
       />

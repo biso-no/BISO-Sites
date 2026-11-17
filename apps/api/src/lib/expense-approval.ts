@@ -1336,6 +1336,81 @@ export async function resendApprovalNotification(
   return { ok: true };
 }
 
+type RebuildExpenseRow = ExpenseSummaryRow & {
+  submitter_is_controller: boolean;
+  submitter_is_financial_manager: boolean;
+};
+
+/**
+ * Builds the approval chain again for a pending expense that has none (no
+ * approver could be found at submit). Uses the submitter's flags saved on the
+ * expense, so the plan is the one the submission would have got.
+ */
+export async function rebuildApprovalChain(params: {
+  actor: ApprovalActor;
+  expenseId: string;
+}): Promise<
+  | { ok: true; stepsCreated: number }
+  | {
+      ok: false;
+      code: "not_pending" | "has_steps" | "not_found";
+      error: string;
+    }
+> {
+  const { db } = await createAdminClient();
+  const expense = await db
+    .getRow<RebuildExpenseRow>("app", "expense", params.expenseId, [
+      Query.select([
+        ...EXPENSE_SUMMARY_SELECT,
+        "submitter_is_controller",
+        "submitter_is_financial_manager",
+      ]),
+    ])
+    .catch((error: unknown) => {
+      if (appwriteErrorStatus(error) === HTTP_NOT_FOUND) {
+        return null;
+      }
+      throw error;
+    });
+  if (!expense) {
+    return { ok: false, code: "not_found", error: "Expense not found." };
+  }
+  if (expense.status !== ExpensesStatus.PENDING) {
+    return { ok: false, code: "not_pending", error: NOT_PENDING_ERROR };
+  }
+  const existing = await db.listRows<ExpenseApprovals>(
+    "app",
+    "expense_approvals",
+    [Query.equal("expense_id", params.expenseId), Query.limit(1)]
+  );
+  if (existing.rows.length > 0) {
+    return {
+      ok: false,
+      code: "has_steps",
+      error: "This reimbursement already has approval steps.",
+    };
+  }
+
+  const submitter = await db
+    .getRow<Users>("app", "user", expense.userId, [
+      Query.select(["$id", "name"]),
+    ])
+    .catch((error: unknown) => {
+      if (appwriteErrorStatus(error) === HTTP_NOT_FOUND) {
+        return null;
+      }
+      throw error;
+    });
+  const result = await createApprovalChain({
+    ...buildContextFromExpense(expense, reimbursementNumber(expense.$sequence)),
+    submitterIsController: expense.submitter_is_controller,
+    submitterIsFinancialManager: expense.submitter_is_financial_manager,
+    submitterName: submitter?.name || "BISO member",
+    submitterUserId: expense.userId,
+  });
+  return { ok: true, stepsCreated: result.stepsCreated };
+}
+
 /**
  * Mints a fresh token for `stepRow` and notifies its approver. Loads the expense
  * unless the caller already has it.

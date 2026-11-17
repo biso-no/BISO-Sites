@@ -371,3 +371,21 @@ describe("maskBankAccount", () => {
     expect(maskBankAccount(null)).toBe("••••");
   });
 });
+
+describe("canRebuildChain", () => {
+  test("only a global admin, only a pending expense with no steps", () => {
+    const admin = viewer({ isGlobalAdmin: true });
+    expect(expensePermissions(admin, expense(), []).canRebuildChain).toBe(true);
+    expect(expensePermissions(admin, expense(), steps).canRebuildChain).toBe(
+      false
+    );
+    expect(
+      expensePermissions(admin, expense({ status: "rejected" }), [])
+        .canRebuildChain
+    ).toBe(false);
+    expect(
+      expensePermissions(viewer({ isCampusAdmin: true }), expense(), [])
+        .canRebuildChain
+    ).toBe(false);
+  });
+});

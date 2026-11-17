@@ -1601,7 +1601,8 @@
       "same_approver": "That person is already the approver for this step.",
       "retry_in_progress": "Someone else is already retrying this booking.",
       "booking_failed": "The booking failed again.",
-      "status_write_failed": "Finago has the booking, but saving the status failed. Press Retry to finish saving it; nothing is booked twice."
+      "status_write_failed": "Finago has the booking, but saving the status failed. Press Retry to finish saving it; nothing is booked twice.",
+      "has_steps": "This reimbursement already has approval steps."
     },
     "decision": {
       "title": "Decision",
@@ -1626,6 +1627,11 @@
       "changedNoNotice": "Approver changed, but the notice could not be sent. It is listed under approval issues.",
       "directoryNotSaved": "The saved approver for future expenses could not be updated.",
       "directorySkipped": "Changed for this reimbursement only. The general manager is set in Settings → Approvers."
+    },
+    "rebuild": {
+      "button": "Rebuild approval chain",
+      "done": "The approval chain was rebuilt.",
+      "noneFound": "No approver could be found. Set up the approvers first, then try again."
     },
     "retry": {
       "button": "Retry booking",
