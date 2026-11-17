@@ -568,6 +568,27 @@ describe("ExpenseSplitView reopened draft description", () => {
     expect(summaryCalls()).toHaveLength(1);
   });
 
+  it("a reopened draft's description survives later receipt changes", async () => {
+    fetchApi.mockResolvedValue({ success: true, summary: "Overwritten." });
+    await renderDraft("Saved earlier");
+
+    await update(() => state().addReceipt(receipt()));
+    await wait(SETTLE_MS * 2);
+    await update(() =>
+      state().addReceipt(
+        receipt({ id: "r2", fileId: "f2", costType: "social" })
+      )
+    );
+    await wait(SETTLE_MS * 2);
+    await update(() =>
+      state().updateReceipt("r1", { costType: "social", typeState: "chosen" })
+    );
+    await wait(SETTLE_MS * 2);
+    await settle();
+    expect(summaryCalls()).toHaveLength(0);
+    expect(state().description).toBe("Saved earlier");
+  });
+
   it("a reopened draft keeps a saved description", async () => {
     fetchApi.mockResolvedValue({ success: true, summary: "Food." });
     await renderDraft("Saved earlier");
