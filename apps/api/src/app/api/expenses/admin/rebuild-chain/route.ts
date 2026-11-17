@@ -49,7 +49,10 @@ export async function POST(req: NextRequest) {
     if (!result.ok) {
       return NextResponse.json(
         { code: result.code, error: result.error },
-        { status: HTTP_BAD_REQUEST }
+        {
+          status:
+            result.code === "failed" ? HTTP_INTERNAL_ERROR : HTTP_BAD_REQUEST,
+        }
       );
     }
     return NextResponse.json({ result });

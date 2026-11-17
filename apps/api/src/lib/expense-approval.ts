@@ -340,7 +340,8 @@ async function recordResolutionIssuesSafely(
  * rows hold the claim, so a racing duplicate submit records none.
  */
 export async function createApprovalChain(
-  context: ApprovalChainContext
+  context: ApprovalChainContext,
+  options: { keepPendingOnFailure?: boolean } = {}
 ): Promise<CreateChainResult> {
   const { db } = await createAdminClient();
 
@@ -474,16 +475,19 @@ export async function createApprovalChain(
         })
       )
     );
-    await db
-      .updateRow("app", "expense", context.expenseId, {
-        status: ExpensesStatus.DRAFT,
-      })
-      .catch((cause) => {
-        console.error(
-          `[expense-approval] rollback: could not return expense ${context.expenseId} to draft:`,
-          cause
-        );
-      });
+    // A rebuild works on an expense that was already submitted: it stays pending.
+    if (!options.keepPendingOnFailure) {
+      await db
+        .updateRow("app", "expense", context.expenseId, {
+          status: ExpensesStatus.DRAFT,
+        })
+        .catch((cause) => {
+          console.error(
+            `[expense-approval] rollback: could not return expense ${context.expenseId} to draft:`,
+            cause
+          );
+        });
+    }
     throw error;
   }
 
@@ -802,6 +806,8 @@ const NOTE_SEPARATOR = " · ";
 const NOT_CURRENT_STEP_ERROR = "This step is not waiting for a decision.";
 const NOT_PENDING_ERROR =
   "This reimbursement is no longer waiting for approval.";
+const HAS_STEPS_ERROR = "This reimbursement already has approval steps.";
+const HTTP_CONFLICT = 409;
 const ACCOUNT_MISSING_ERROR =
   "A receipt has no account yet. Set it in admin before approving.";
 
@@ -1336,6 +1342,19 @@ export async function resendApprovalNotification(
   return { ok: true };
 }
 
+/** True when a unique index already holds the row (a racing request got there first). */
+function isRowConflictError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+  const { code, type } = error as { code?: unknown; type?: unknown };
+  return (
+    code === HTTP_CONFLICT ||
+    type === "row_already_exists" ||
+    type === "document_already_exists"
+  );
+}
+
 type RebuildExpenseRow = ExpenseSummaryRow & {
   submitter_is_controller: boolean;
   submitter_is_financial_manager: boolean;
@@ -1353,7 +1372,7 @@ export async function rebuildApprovalChain(params: {
   | { ok: true; stepsCreated: number }
   | {
       ok: false;
-      code: "not_pending" | "has_steps" | "not_found";
+      code: "not_pending" | "has_steps" | "not_found" | "failed";
       error: string;
     }
 > {
@@ -1387,7 +1406,7 @@ export async function rebuildApprovalChain(params: {
     return {
       ok: false,
       code: "has_steps",
-      error: "This reimbursement already has approval steps.",
+      error: HAS_STEPS_ERROR,
     };
   }
 
@@ -1401,13 +1420,47 @@ export async function rebuildApprovalChain(params: {
       }
       throw error;
     });
-  const result = await createApprovalChain({
-    ...buildContextFromExpense(expense, reimbursementNumber(expense.$sequence)),
-    submitterIsController: expense.submitter_is_controller,
-    submitterIsFinancialManager: expense.submitter_is_financial_manager,
-    submitterName: submitter?.name || "BISO member",
-    submitterUserId: expense.userId,
-  });
+  let result: CreateChainResult;
+  try {
+    result = await createApprovalChain(
+      {
+        ...buildContextFromExpense(
+          expense,
+          reimbursementNumber(expense.$sequence)
+        ),
+        submitterIsController: expense.submitter_is_controller,
+        submitterIsFinancialManager: expense.submitter_is_financial_manager,
+        submitterName: submitter?.name || "BISO member",
+        submitterUserId: expense.userId,
+      },
+      { keepPendingOnFailure: true }
+    );
+  } catch (error) {
+    if (isRowConflictError(error)) {
+      return { ok: false, code: "has_steps", error: HAS_STEPS_ERROR };
+    }
+    console.error("[expense-approval] rebuild failed:", error);
+    return {
+      ok: false,
+      code: "failed",
+      error:
+        "The approval chain could not be rebuilt. The expense is still pending with no steps. Try again.",
+    };
+  }
+  await recordExpenseEvents(db, [
+    {
+      action: "edited",
+      actorEmail: params.actor.email,
+      actorKind: params.actor.kind,
+      actorName: params.actor.name,
+      expenseId: params.expenseId,
+      field: "approval_chain",
+      note:
+        result.stepsCreated === 0
+          ? "rebuilt in admin: no approver found"
+          : `rebuilt in admin: ${result.stepsCreated} steps`,
+    },
+  ]);
   return { ok: true, stepsCreated: result.stepsCreated };
 }
 

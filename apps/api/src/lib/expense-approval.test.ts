@@ -2335,6 +2335,94 @@ describe("rebuildApprovalChain", () => {
     );
   });
 
+  const FIN_STEP = {
+    aadId: null,
+    directoryKey: "campus:1:finance",
+    email: "fin@biso.no",
+    role: "finance",
+    source: "default",
+    step: 1,
+  };
+
+  it("logs the rebuild with the actor and the step count", async () => {
+    loads(expenseRow());
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [FIN_STEP],
+    });
+    await rebuildApprovalChain({ actor: ACTOR, expenseId: "expense-1" });
+    expect(events.recordExpenseEvents).toHaveBeenLastCalledWith(db, [
+      {
+        action: "edited",
+        actorEmail: "boss@biso.no",
+        actorKind: "admin",
+        actorName: "Boss",
+        expenseId: "expense-1",
+        field: "approval_chain",
+        note: "rebuilt in admin: 1 steps",
+      },
+    ]);
+  });
+
+  it("logs a rebuild that found no approver", async () => {
+    loads(expenseRow());
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [],
+    });
+    expect(
+      await rebuildApprovalChain({ actor: ACTOR, expenseId: "expense-1" })
+    ).toEqual({ ok: true, stepsCreated: 0 });
+    expect(events.recordExpenseEvents).toHaveBeenLastCalledWith(db, [
+      expect.objectContaining({
+        action: "edited",
+        actorName: "Boss",
+        field: "approval_chain",
+        note: "rebuilt in admin: no approver found",
+      }),
+    ]);
+  });
+
+  it("keeps the expense pending when the rebuild fails", async () => {
+    loads(expenseRow());
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [FIN_STEP],
+    });
+    teams.sendApprovalEmail.mockRejectedValue(new Error("mail down"));
+    db.deleteRow.mockResolvedValue({});
+    const errorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    const result = await rebuildApprovalChain({
+      actor: ACTOR,
+      expenseId: "expense-1",
+    });
+
+    errorSpy.mockRestore();
+    expect(result).toMatchObject({ code: "failed", ok: false });
+    expect(db.deleteRow).toHaveBeenCalledTimes(1);
+    expect(
+      db.updateRow.mock.calls.some(([, , , data]) => data.status === "draft")
+    ).toBe(false);
+    expect(events.recordExpenseEvents).not.toHaveBeenCalled();
+  });
+
+  it("reports has_steps when a racing rebuild holds the claim", async () => {
+    loads(expenseRow());
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [FIN_STEP],
+    });
+    db.createRow.mockRejectedValueOnce(
+      Object.assign(new Error("exists"), { code: 409 })
+    );
+    expect(
+      await rebuildApprovalChain({ actor: ACTOR, expenseId: "expense-1" })
+    ).toMatchObject({ code: "has_steps", ok: false });
+  });
+
   it("refuses when steps exist", async () => {
     loads(expenseRow(), [{ $id: "s1" }]);
 
