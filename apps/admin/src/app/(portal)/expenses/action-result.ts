@@ -13,6 +13,7 @@ export type ExpenseActionError =
   | "invalid_bank_account"
   | "supporting_receipt"
   | "not_current_step"
+  | "not_pending"
   | "reason_required"
   | "invalid_email"
   | "already_decided"
@@ -42,6 +43,7 @@ const API_CODES: Record<string, ExpenseActionError> = {
   not_current_step: "not_current_step",
   not_failed: "not_failed",
   not_found: "not_found",
+  not_pending: "not_pending",
   posting_disabled: "posting_disabled",
   retry_in_progress: "retry_in_progress",
   same_approver: "same_approver",

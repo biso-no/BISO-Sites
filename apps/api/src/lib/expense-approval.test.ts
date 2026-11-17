@@ -60,6 +60,7 @@ import {
   decideApproval,
   decideApprovalStep,
   getApprovalContext,
+  resendApprovalNotification,
   stepLabel,
 } from "./expense-approval";
 
@@ -765,6 +766,7 @@ describe("decideApproval", () => {
       $id: "expense-1",
       $sequence: 42,
       campus: "1",
+      status: "pending",
       total: 100,
       userId: "user-1",
     });
@@ -959,8 +961,8 @@ describe("decideApprovalStep", () => {
     });
 
     expect(result).toEqual({
-      code: "not_current_step",
-      error: "This step is not waiting for a decision.",
+      code: "not_pending",
+      error: "This reimbursement is no longer waiting for approval.",
       ok: false,
     });
     expect(db.incrementRowColumn).not.toHaveBeenCalled();
@@ -1193,11 +1195,63 @@ describe("token decision paths", () => {
     db.getRow.mockResolvedValue({
       $id: "expense-1",
       $sequence: 42,
+      status: "pending",
       userId: "user-1",
     });
     db.incrementRowColumn.mockResolvedValue({ decision_lock: 1 });
     db.decrementRowColumn.mockResolvedValue({});
   }
+
+  it("refuses a token decision when the expense is no longer pending", async () => {
+    setup(row());
+    db.getRow.mockResolvedValue({
+      $id: "expense-1",
+      $sequence: 42,
+      status: "rejected",
+      userId: "user-1",
+    });
+
+    expect(await decide("approved")).toEqual({
+      code: "not_pending",
+      error: "This reimbursement is no longer waiting for approval.",
+      ok: false,
+    });
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+  });
+
+  it("a rejection resolves the expense's open approval issues", async () => {
+    setup(row());
+    const baseList = db.listRows.getMockImplementation();
+    db.listRows.mockImplementation(
+      (dbId: string, table: string, queries: unknown[]) =>
+        table === "expense_approval_issues"
+          ? Promise.resolve({ rows: [{ $id: "issue-1" }, { $id: "issue-2" }] })
+          : baseList?.(dbId, table, queries)
+    );
+
+    await decide("rejected");
+
+    const issueCall = db.listRows.mock.calls.find(
+      ([, table]) => table === "expense_approval_issues"
+    );
+    expect(issueCall?.[2]).toEqual(
+      expect.arrayContaining([
+        Query.equal("expense_id", "expense-1"),
+        Query.equal("status", "open"),
+      ])
+    );
+    for (const id of ["issue-1", "issue-2"]) {
+      expect(db.updateRow).toHaveBeenCalledWith(
+        "app",
+        "expense_approval_issues",
+        id,
+        expect.objectContaining({
+          resolved_by: "system: expense rejected",
+          status: "resolved",
+        })
+      );
+    }
+  });
 
   it("returns the expiry error and never claims an expired link", async () => {
     setup(row({ expires_at: new Date(Date.now() - 1000).toISOString() }));
@@ -1229,7 +1283,7 @@ describe("token decision paths", () => {
       Promise.resolve(
         table === "expense_approvals"
           ? row({ status: "approved" })
-          : { $id: "expense-1", $sequence: 42 }
+          : { $id: "expense-1", $sequence: 42, status: "pending" }
       )
     );
 
@@ -1307,7 +1361,11 @@ describe("token decisions history", () => {
             : [approval],
       })
     );
-    db.getRow.mockResolvedValue({ $id: "expense-1", $sequence: 42 });
+    db.getRow.mockResolvedValue({
+      $id: "expense-1",
+      $sequence: 42,
+      status: "pending",
+    });
     db.incrementRowColumn.mockResolvedValue({ decision_lock: 1 });
 
     await decideApproval({
@@ -2124,5 +2182,20 @@ describe("card data and card updates", () => {
     });
 
     expect(teams.updateProactiveCard).not.toHaveBeenCalled();
+  });
+});
+
+describe("resendApprovalNotification", () => {
+  it("resend refuses an expense that is not pending", async () => {
+    db.getRow.mockResolvedValue({ $id: "expense-1", status: "rejected" });
+
+    expect(await resendApprovalNotification("expense-1")).toEqual({
+      code: "not_pending",
+      error: "This reimbursement is no longer waiting for approval.",
+      ok: false,
+    });
+    expect(db.listRows).not.toHaveBeenCalled();
+    expect(teams.sendProactiveCard).not.toHaveBeenCalled();
+    expect(teams.sendApprovalEmail).not.toHaveBeenCalled();
   });
 });

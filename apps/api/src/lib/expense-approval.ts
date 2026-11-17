@@ -655,6 +655,7 @@ export type ApprovalErrorCode =
   | "link_expired"
   | "not_found"
   | "not_current_step"
+  | "not_pending"
   | "in_progress"
   | "self_approver"
   | "same_approver"
@@ -799,6 +800,8 @@ const GRAPH_LOOKUP_TIMEOUT_MS = 6000;
 const CARD_UPDATE_TIMEOUT_MS = 5000;
 const NOTE_SEPARATOR = " · ";
 const NOT_CURRENT_STEP_ERROR = "This step is not waiting for a decision.";
+const NOT_PENDING_ERROR =
+  "This reimbursement is no longer waiting for approval.";
 const ACCOUNT_MISSING_ERROR =
   "A receipt has no account yet. Set it in admin before approving.";
 
@@ -929,6 +932,10 @@ async function decideStep(
     return decidedResult(row, refNumber);
   }
 
+  if (expense.status !== ExpensesStatus.PENDING) {
+    return { ok: false, code: "not_pending", error: NOT_PENDING_ERROR };
+  }
+
   if (input.requireCurrentStep && !(await isCurrentStep(db, row, expense))) {
     return {
       ok: false,
@@ -1005,6 +1012,36 @@ async function decideStep(
 }
 
 /**
+ * Closes the expense's open approval issues once it is rejected, so the IT
+ * queue stops offering fixes for a dead expense. Best-effort.
+ */
+async function resolveOpenIssues(
+  db: AdminDb,
+  expenseId: string
+): Promise<void> {
+  try {
+    const open = await db.listRows<Models.Row>(
+      "app",
+      "expense_approval_issues",
+      [
+        Query.equal("expense_id", expenseId),
+        Query.equal("status", "open"),
+        Query.limit(100),
+      ]
+    );
+    for (const issue of open.rows) {
+      await db.updateRow("app", "expense_approval_issues", issue.$id, {
+        status: "resolved",
+        resolved_by: "system: expense rejected",
+        resolved_at: new Date().toISOString(),
+      });
+    }
+  } catch (error) {
+    console.error("[expense-approval] could not resolve open issues:", error);
+  }
+}
+
+/**
  * After a step's decision is written: a rejection rejects the expense, an
  * approval confirms the directory entry and notifies the next step, or
  * finalizes the expense.
@@ -1020,6 +1057,7 @@ async function applyDecisionOutcome(
     await db.updateRow("app", "expense", row.expense_id, {
       status: ExpensesStatus.REJECTED,
     });
+    await resolveOpenIssues(db, row.expense_id);
     await notifySubmitter(expense.userId, refNumber, "rejected", input.reason);
     return {
       ok: true,
@@ -1260,8 +1298,17 @@ async function recordNotificationIssue(
  */
 export async function resendApprovalNotification(
   expenseId: string
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; code?: "not_pending" }> {
   const { db } = await createAdminClient();
+  const expense = await db.getRow<Models.Row & { status: ExpensesStatus }>(
+    "app",
+    "expense",
+    expenseId,
+    [Query.select(["$id", "status"])]
+  );
+  if (expense.status !== ExpensesStatus.PENDING) {
+    return { ok: false, code: "not_pending", error: NOT_PENDING_ERROR };
+  }
   const pending = await db.listRows<ExpenseApprovals>(
     "app",
     "expense_approvals",
