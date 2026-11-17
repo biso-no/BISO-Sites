@@ -1964,6 +1964,35 @@ describe("changeStepApprover", () => {
     expect(db.createRow).not.toHaveBeenCalled();
   });
 
+  it("re-routing a general-manager step does not change the directory", async () => {
+    setup({
+      approval: {
+        approver_role: "national",
+        campus_id: "5",
+        directory_key: "campus:5:national",
+      },
+    });
+
+    const result = await changeStepApprover({
+      actor: ACTOR,
+      approvalId: "approval-1",
+      email: "new@biso.no",
+    });
+
+    expect(result).toEqual({ directorySaved: false, notified: true, ok: true });
+    const directoryWrites = [
+      ...db.createRow.mock.calls,
+      ...db.updateRow.mock.calls,
+    ].filter(([, table]) => table === "expense_approvers");
+    expect(directoryWrites).toEqual([]);
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "expense_approvals",
+      "approval-1",
+      expect.objectContaining({ approver_email: "new@biso.no" })
+    );
+  });
+
   it("reports directorySaved false when the directory write fails", async () => {
     setup();
     vi.spyOn(console, "error").mockImplementation(() => undefined);

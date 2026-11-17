@@ -1485,17 +1485,23 @@ export async function changeStepApprover(params: {
     approver_email: email,
   } as Partial<ExpenseApprovals>);
 
-  const target = directoryTarget(row, expense);
-  const directorySaved = await setAdminDirectoryApprover(db, {
-    aadId: person?.aadId ?? null,
-    campusId: target.campusId,
-    departmentId: target.departmentId,
-    displayName: person?.displayName ?? null,
-    email,
-    key: target.key,
-    role: row.approver_role,
-    scope: target.scope,
-  });
+  // The general manager is one organisation-wide directory entry (a step with
+  // role "national", also as a fallback for a missing president/controller);
+  // one expense must not rewrite it.
+  let directorySaved = false;
+  if (row.approver_role !== "national") {
+    const target = directoryTarget(row, expense);
+    directorySaved = await setAdminDirectoryApprover(db, {
+      aadId: person?.aadId ?? null,
+      campusId: target.campusId,
+      departmentId: target.departmentId,
+      displayName: person?.displayName ?? null,
+      email,
+      key: target.key,
+      role: row.approver_role,
+      scope: target.scope,
+    });
+  }
 
   await recordExpenseEvents(db, [
     {
