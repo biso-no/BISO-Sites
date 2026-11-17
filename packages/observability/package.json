@@ -9,7 +9,10 @@
     "check-types": "tsc --noEmit"
   },
   "exports": {
-    "./scrub": "./src/scrub.ts"
+    "./scrub": "./src/scrub.ts",
+    "./options": "./src/options.ts",
+    "./build": "./src/build.ts",
+    "./user": "./src/user.ts"
   },
   "dependencies": {
     "@repo/shared": "workspace:*",
@@ -17,6 +20,7 @@
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }
