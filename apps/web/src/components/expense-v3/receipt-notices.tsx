@@ -13,11 +13,14 @@ import type { Receipt } from "./store";
 export function ReceiptNotices({
   className,
   compact = false,
+  onRetry,
   receipt,
 }: {
   className?: string;
   /** One small line per notice, for the overview row. */
   compact?: boolean;
+  /** Reads the receipt again; given only when the file is still at hand. */
+  onRetry?: () => void;
   receipt: Receipt;
 }) {
   const t = useTranslations("expenses.composer.receiptNotices");
@@ -45,7 +48,18 @@ export function ReceiptNotices({
               compact ? "mt-px size-3" : "mt-0.5 size-3.5"
             )}
           />
-          <span className="min-w-0">{t(notice)}</span>
+          <span className="min-w-0">
+            {t(notice)}
+            {notice === "scan_failed" && onRetry ? (
+              <button
+                className="ml-2 font-medium underline underline-offset-2"
+                onClick={onRetry}
+                type="button"
+              >
+                {t("retry")}
+              </button>
+            ) : null}
+          </span>
         </li>
       ))}
     </ul>

@@ -64,6 +64,7 @@
     "backToReport": "Tilbake til rapporten",
     "toast": {
       "receiptFailed": "Kunne ikke behandle kvitteringen",
+      "scanFailed": "Klarte ikke å lese kvitteringen — fyll inn selv.",
       "statementLinked": "Kontoutskriften er koblet til {name}",
       "statementLinkedFallback": "kvitteringen",
       "selectBeforeUpload": "Velg campus og enhet før du laster opp kvitteringer",
@@ -204,7 +205,9 @@
       "missing_seller": "Kvitteringen mangler selger",
       "missing_date": "Kvitteringen mangler dato",
       "missing_total": "Kvitteringen mangler totalbeløp",
-      "possible_duplicate": "Ser ut som en kvittering som allerede er sendt inn"
+      "possible_duplicate": "Ser ut som en kvittering som allerede er sendt inn",
+      "scan_failed": "Vi klarte ikke å lese kvitteringen. Fyll inn selv, eller prøv igjen.",
+      "retry": "Prøv igjen"
     }
   }
 }

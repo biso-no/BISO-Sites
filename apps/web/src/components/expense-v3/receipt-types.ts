@@ -117,14 +117,21 @@ export function typeChoice(
       };
 }
 
-export type ReceiptNotice = ReceiptIssueCode | "possible_duplicate";
+export type ReceiptNotice =
+  | ReceiptIssueCode
+  | "possible_duplicate"
+  | "scan_failed";
 
 /** The receipt-check and duplicate notices a receipt shows; none on a statement. */
 export function receiptNotices(receipt: Receipt): ReceiptNotice[] {
   if (receipt.parentId || receipt.documentType === "bank-statement") {
     return [];
   }
-  const notices: ReceiptNotice[] = [...(receipt.receiptIssues ?? [])];
+  const notices: ReceiptNotice[] = [];
+  if (receipt.scanFailed) {
+    notices.push("scan_failed");
+  }
+  notices.push(...(receipt.receiptIssues ?? []));
   if (receipt.possibleDuplicate) {
     notices.push("possible_duplicate");
   }

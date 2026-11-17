@@ -45,6 +45,8 @@ export interface Receipt {
   progress: number;
   purchaseContext?: string;
   receiptIssues?: ReceiptIssueCode[];
+  /** The scan failed or timed out; the student fills the details in. */
+  scanFailed?: boolean;
   status: ReceiptStatus;
   typeState?: TypeState;
   vendor?: string; // Explicitly track vendor

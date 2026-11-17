@@ -4,6 +4,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const fetchApi = vi.hoisted(() => vi.fn());
+const fetchFormData = vi.hoisted(() => vi.fn());
+const wallet = vi.hoisted(() => ({
+  upload: (_files: File[]) => undefined as unknown,
+}));
 const intl = vi.hoisted(() => ({ locale: "en" }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
@@ -27,19 +31,28 @@ vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 vi.mock("@repo/shared/utils/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/actions/expense", () => ({ uploadExpenseAttachment: vi.fn() }));
 vi.mock("@/lib/actions/user", () => ({ updateProfile: vi.fn() }));
-vi.mock("@/lib/api-client", () => ({ apiClient: { fetch: fetchApi } }));
+vi.mock("@/lib/api-client", () => ({
+  apiClient: { fetch: fetchApi, fetchFormData },
+}));
 vi.mock("./event-match", () => ({
   EVENT_NAME_MAX: 100,
   EventMatch: () => null,
   useNearbyEvent: () => ({ dismiss: vi.fn(), suggestion: null }),
 }));
-vi.mock("./receipt-wallet", () => ({ ReceiptWallet: () => null }));
+vi.mock("./receipt-wallet", () => ({
+  ReceiptWallet: ({ onUpload }: { onUpload: (files: File[]) => void }) => {
+    wallet.upload = onUpload;
+    return null;
+  },
+}));
 vi.mock("./generative-receipt-preview", () => ({
   GenerativeReceiptPreview: () => null,
 }));
 
+import { uploadExpenseAttachment } from "@/lib/actions/expense";
 import { ApiError } from "@/lib/api-error";
 import { ExpenseSplitView } from "./expense-split-view";
+import { missingTypes } from "./receipt-types";
 import { type Receipt, useExpenseStore } from "./store";
 import type { ExpenseTypeOption } from "./types";
 
@@ -486,5 +499,113 @@ describe("ExpenseSplitView reopened draft", () => {
     const toggle =
       container.querySelector<HTMLInputElement>("#controller-toggle");
     expect(toggle?.checked).toBe(true);
+  });
+});
+
+describe("ExpenseSplitView failed scan", () => {
+  const file = () => new File(["x"], "pizza.jpg", { type: "image/jpeg" });
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    fetchApi.mockReset();
+    fetchFormData.mockReset();
+    vi.mocked(uploadExpenseAttachment).mockReset();
+    intl.locale = "en";
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.stubGlobal(
+      "URL",
+      Object.assign(URL, { createObjectURL: () => "blob:x" })
+    );
+  });
+
+  afterEach(async () => {
+    await act(() => {
+      root?.unmount();
+    });
+    root = null;
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  const uploadOk = () =>
+    vi
+      .mocked(uploadExpenseAttachment)
+      .mockResolvedValue({ success: true, file: { $id: "f9" } } as never);
+
+  const upload = async () => {
+    await act(async () => {
+      wallet.upload([file()]);
+      await vi.advanceTimersByTimeAsync(0);
+    });
+  };
+
+  it("a receipt whose scan fails becomes ready for manual entry", async () => {
+    uploadOk();
+    fetchFormData.mockRejectedValue(new Error("boom"));
+    await renderView();
+    await upload();
+
+    const [added] = state().receipts;
+    expect(added.status).toBe("ready");
+    expect(added.scanFailed).toBe(true);
+    expect(added.costType).toBeUndefined();
+    expect(added.typeState).toBe("needs_choice");
+  });
+
+  it("a failed upload stays an error", async () => {
+    vi.mocked(uploadExpenseAttachment).mockResolvedValue({
+      success: false,
+      error: "no",
+    } as never);
+    await renderView();
+    await upload();
+
+    expect(state().receipts[0].status).toBe("error");
+    expect(fetchFormData).not.toHaveBeenCalled();
+  });
+
+  it("a supporting document whose scan fails needs no type", () => {
+    expect(
+      missingTypes([
+        receipt({ id: "p", costType: "travel" }),
+        receipt({
+          amount: 0,
+          costType: undefined,
+          id: "s",
+          parentId: "p",
+          scanFailed: true,
+          typeState: "needs_choice",
+        }),
+      ])
+    ).toEqual([]);
+  });
+
+  it("try again reads the receipt and keeps what the student typed", async () => {
+    uploadOk();
+    fetchFormData.mockRejectedValueOnce(new Error("boom"));
+    const container = await renderView();
+    await upload();
+    await update(() =>
+      state().updateReceipt(state().receipts[0].id, { amount: 120 })
+    );
+
+    fetchFormData.mockResolvedValueOnce({
+      success: true,
+      data: { amount: 99, currency: "NOK", date: "2026-11-01" },
+    });
+    const retry = [...container.querySelectorAll("button")].find(
+      (button) => button.textContent === "retry"
+    );
+    await act(async () => {
+      retry?.click();
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+
+    const [after] = state().receipts;
+    expect(after.amount).toBe(120);
+    expect(after.date).toBe("2026-11-01");
+    expect(after.scanFailed).toBe(false);
+    expect(after.status).toBe("ready");
   });
 });

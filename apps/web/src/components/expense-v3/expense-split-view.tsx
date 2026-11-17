@@ -271,6 +271,50 @@ function buildReceiptFromOcr(
   };
 }
 
+const AMOUNT_FIELDS = new Set([
+  "amount",
+  "originalAmount",
+  "exchangeRate",
+  "currency",
+]);
+const TYPE_FIELDS = new Set([
+  "costType",
+  "typeState",
+  "aiCostType",
+  "aiConfidence",
+]);
+
+/**
+ * What a retried scan may fill in: only what the student has not filled in
+ * or chosen themselves.
+ */
+function fillEmptyFields(
+  updates: Partial<Receipt>,
+  current: Receipt | undefined
+): Partial<Receipt> {
+  if (!current) {
+    return updates;
+  }
+  const keepAmount = current.amount > 0;
+  const keepType = current.typeState === "chosen";
+  const entries = Object.entries(updates).filter(([key]) => {
+    if (keepAmount && AMOUNT_FIELDS.has(key)) {
+      return false;
+    }
+    if (keepType && TYPE_FIELDS.has(key)) {
+      return false;
+    }
+    if (key === "date") {
+      return !current.date;
+    }
+    if (key === "description") {
+      return !current.description;
+    }
+    return true;
+  });
+  return Object.fromEntries(entries) as Partial<Receipt>;
+}
+
 interface AssignmentGateProps {
   campuses: Campus[];
   onAssign: (campusId: string, departmentId: string) => void;
@@ -647,6 +691,90 @@ export function ExpenseSplitView({
     typeOptions,
   ]);
 
+  // The files of this session's receipts, so a failed scan can be retried.
+  const filesRef = useRef(new Map<string, File>());
+
+  // Reads an uploaded receipt. A scan that fails or times out leaves the
+  // receipt ready for manual entry instead of blocking it.
+  const scanReceipt = useCallback(
+    async (
+      id: string,
+      file: File,
+      isRetry = false
+    ): Promise<{ id: string; ocrData: OcrData } | null> => {
+      try {
+        // OCR — race against a 30s timeout so the receipt never hangs in "processing"
+        const ocrFormData = new FormData();
+        ocrFormData.append("file", file);
+
+        const ocrResult = await Promise.race([
+          apiClient.fetchFormData<{
+            success: boolean;
+            data: OcrData;
+          }>("/api/expenses/ocr", {
+            method: "POST",
+            body: ocrFormData,
+          }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("OCR timed out")), 30_000)
+          ),
+        ]);
+
+        if (!(ocrResult.success && ocrResult.data)) {
+          throw new Error("OCR processing returned no data");
+        }
+
+        // "Analyzing" phase (artificial delay for the Generative UI feel if it was too fast)
+        store.updateReceipt(id, { status: "analyzing", progress: 70 });
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+
+        const updates = buildReceiptFromOcr(
+          ocrResult.data,
+          file.name,
+          typeOptions
+        );
+        store.updateReceipt(
+          id,
+          isRetry
+            ? fillEmptyFields(
+                updates,
+                useExpenseStore.getState().receipts.find((r) => r.id === id)
+              )
+            : updates
+        );
+        store.updateReceipt(id, { scanFailed: false });
+        return { id, ocrData: ocrResult.data };
+      } catch (error) {
+        console.error(error);
+        store.updateReceipt(id, {
+          status: "ready",
+          progress: 100,
+          scanFailed: true,
+          ...typeFromOcr({}, typeOptions, false),
+        });
+        toast.error(t("composer.toast.scanFailed"));
+        return null;
+      }
+    },
+    [store, t, typeOptions]
+  );
+
+  const retryScan = useCallback(
+    async (receiptId: string): Promise<void> => {
+      const file = filesRef.current.get(receiptId);
+      if (!file) {
+        return;
+      }
+      store.updateReceipt(receiptId, {
+        status: "processing",
+        progress: 40,
+        scanFailed: false,
+      });
+      await scanReceipt(receiptId, file, true);
+    },
+    [scanReceipt, store]
+  );
+
   // Process File Logic
   const processFile = useCallback(
     async (
@@ -669,6 +797,7 @@ export function ExpenseSplitView({
         currency: "NOK",
       };
 
+      filesRef.current.set(tempId, file);
       store.addReceipt(receipt);
 
       // Removed auto-selection and view switching to keep user in current context
@@ -708,40 +837,7 @@ export function ExpenseSplitView({
           return null;
         }
 
-        // 2. OCR — race against a 30s timeout so the receipt never hangs in "processing"
-        const ocrFormData = new FormData();
-        ocrFormData.append("file", file);
-
-        const ocrResult = await Promise.race([
-          apiClient.fetchFormData<{
-            success: boolean;
-            data: OcrData;
-          }>("/api/expenses/ocr", {
-            method: "POST",
-            body: ocrFormData,
-          }),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("OCR timed out")), 30_000)
-          ),
-        ]);
-
-        if (!(ocrResult.success && ocrResult.data)) {
-          throw new Error("OCR processing returned no data");
-        }
-
-        // 3. "Analyzing" Phase (Artificial delay for Generative UI feel if it was too fast)
-        store.updateReceipt(tempId, { status: "analyzing", progress: 70 });
-
-        // Simulate "thinking" time for the user to appreciate the UI
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-
-        const receiptUpdates = buildReceiptFromOcr(
-          ocrResult.data,
-          file.name,
-          typeOptions
-        );
-        store.updateReceipt(tempId, receiptUpdates);
-        return { id: tempId, ocrData: ocrResult.data };
+        return await scanReceipt(tempId, file);
       } catch (error) {
         console.error(error);
         store.updateReceipt(tempId, {
@@ -752,7 +848,7 @@ export function ExpenseSplitView({
         return null;
       }
     },
-    [store, ocrEnabled, t, typeOptions]
+    [store, ocrEnabled, scanReceipt, t, typeOptions]
   );
 
   const reconcileBatch = useCallback(
@@ -840,6 +936,10 @@ export function ExpenseSplitView({
       t,
     ]
   );
+
+  // Only a receipt added in this session still has its file to scan again.
+  const getRetryScan = (receiptId: string) =>
+    filesRef.current.has(receiptId) ? () => retryScan(receiptId) : undefined;
 
   const hasReceiptsInProgress = () =>
     store.receipts.some((receipt) => receipt.status !== "ready");
@@ -1046,6 +1146,7 @@ export function ExpenseSplitView({
             </div>
             {store.receipts.find((r) => r.id === store.selectedReceiptId) && (
               <GenerativeReceiptPreview
+                getRetryScan={getRetryScan}
                 onUpdate={(updates) =>
                   store.updateReceipt(store.selectedReceiptId!, updates)
                 }
@@ -1071,6 +1172,7 @@ export function ExpenseSplitView({
                 suggestion={nearbyEvent.suggestion}
               />
             }
+            getRetryScan={getRetryScan}
             isGeneratingSummary={store.isGeneratingSummary}
             isSavingDraft={store.phase === "saving"}
             isSubmitting={store.phase === "submitting"}

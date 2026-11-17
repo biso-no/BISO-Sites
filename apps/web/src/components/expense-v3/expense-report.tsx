@@ -136,6 +136,8 @@ function RowTypeControl({
 
 interface ReceiptRowProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
+  /** The way to scan the receipt again, when its file is still at hand. */
+  getRetryScan?: (id: string) => (() => void) | undefined;
   onSelect: (id: string) => void;
   onUpdate: (id: string, updates: Partial<Receipt>) => void;
   receipt: Receipt;
@@ -146,6 +148,7 @@ interface ReceiptRowProps {
 }
 
 export function ReceiptRow({
+  getRetryScan,
   receipt,
   selectedId,
   onSelect,
@@ -225,7 +228,12 @@ export function ReceiptRow({
                   slot="inline"
                   typeOptions={typeOptions}
                 />
-                <ReceiptNotices className="mt-1" compact receipt={receipt} />
+                <ReceiptNotices
+                  className="mt-1"
+                  compact
+                  onRetry={getRetryScan?.(receipt.id)}
+                  receipt={receipt}
+                />
               </div>
             </div>
             {receipt.status === "analyzing" && (
@@ -512,6 +520,7 @@ interface ExpenseReportProps {
   description: string;
   /** The event suggestion or the chosen event, shown under the questions. */
   eventMatch?: ReactNode;
+  getRetryScan?: (id: string) => (() => void) | undefined;
   isGeneratingSummary: boolean;
   isSavingDraft: boolean;
   isSubmitting: boolean;
@@ -669,6 +678,7 @@ export function ExpenseReport({
   occasionFromAi = false,
   onOccasionChange,
   eventMatch,
+  getRetryScan,
 }: ExpenseReportProps) {
   const t = useTranslations("expenses");
   const locale = useLocale();
@@ -1062,6 +1072,7 @@ export function ExpenseReport({
                   receipts.map((receipt) => (
                     <ReceiptRow
                       fileInputRef={fileInputRef}
+                      getRetryScan={getRetryScan}
                       key={receipt.id}
                       onSelect={onSelect}
                       onUpdate={onUpdate}
