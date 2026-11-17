@@ -136,6 +136,26 @@ describe("postApprovedExpense booking dates", () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
   });
 
+  it("books the department from the plain column when the relation is missing", async () => {
+    db.getRow.mockImplementation(async (_d: string, table: string) =>
+      table === "user"
+        ? { name: "Test Student", email: "t@example.test" }
+        : { ...expense, department: "25", departmentRel: null }
+    );
+    finago.getFiscalYearLocks.mockResolvedValue([]);
+    finago.listFiscalPeriods.mockResolvedValue([]);
+    finago.postExpenseTransaction.mockResolvedValue({
+      transactionId: "tx-9",
+      shifts: [],
+    });
+
+    await postApprovedExpense("exp-1");
+
+    expect(
+      finago.postExpenseTransaction.mock.calls[0][0].departmentDimensionValue
+    ).toBe("25");
+  });
+
   it("books the supplier debt on the submitter's Finago customer", async () => {
     finago.getFiscalYearLocks.mockResolvedValue([]);
     finago.listFiscalPeriods.mockResolvedValue([]);
@@ -308,7 +328,7 @@ describe("postApprovedExpense booking dates", () => {
     });
     db.createRow.mockRejectedValue(new Error("appwrite down"));
 
-    await expect(postApprovedExpense("exp-1")).resolves.toBeUndefined();
+    await expect(postApprovedExpense("exp-1")).resolves.toBe("posted");
     expect(db.updateRow).toHaveBeenCalledWith(
       "app",
       "expense",
@@ -336,7 +356,7 @@ describe("postApprovedExpense booking dates", () => {
         : Promise.resolve({})
     );
 
-    await expect(postApprovedExpense("exp-1")).resolves.toBeUndefined();
+    await expect(postApprovedExpense("exp-1")).resolves.toBe("posted");
     expect(db.updateRow).not.toHaveBeenCalledWith(
       "app",
       "expense",
@@ -359,7 +379,7 @@ describe("postApprovedExpense booking dates", () => {
         : Promise.resolve({})
     );
 
-    await expect(postApprovedExpense("exp-1")).resolves.toBeUndefined();
+    await expect(postApprovedExpense("exp-1")).resolves.toBe("posted");
     expect(db.updateRow).toHaveBeenCalledWith(
       "app",
       "expense_attachments",
@@ -424,7 +444,7 @@ describe("postApprovedExpense booking dates", () => {
       }
     );
 
-    await expect(postApprovedExpense("exp-1")).resolves.toBeUndefined();
+    await expect(postApprovedExpense("exp-1")).resolves.toBe("posted");
     expect(db.updateRow).toHaveBeenCalledWith(
       "app",
       "expense",
@@ -713,7 +733,7 @@ describe("postApprovedExpense booking dates", () => {
       scans.findScan.mockRejectedValue(new Error("scan lookup down"));
       examples.writeExamples.mockRejectedValue(new Error("appwrite down"));
 
-      await expect(postApprovedExpense("exp-1")).resolves.toBeUndefined();
+      await expect(postApprovedExpense("exp-1")).resolves.toBe("posted");
       expect(db.updateRow).toHaveBeenCalledWith(
         "app",
         "expense",

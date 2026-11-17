@@ -514,6 +514,49 @@ describe("retry claim races", () => {
   });
 });
 
+describe("postApprovedExpense claims", () => {
+  const withRow = (row: object) =>
+    db.getRow.mockImplementation((_d: string, table: string) =>
+      Promise.resolve(
+        table === "user"
+          ? { email: "t@example.test", name: "Student" }
+          : { ...expense, ...row }
+      )
+    );
+
+  it("skips a fresh claim that has no marker without taking another lock", async () => {
+    withRow({ $updatedAt: new Date().toISOString(), posting_lock: 1 });
+
+    await expect(postApprovedExpense("exp-1")).resolves.toBe("skipped");
+
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+    expect(finago.postExpenseTransaction).not.toHaveBeenCalled();
+  });
+
+  it("marks a stale claim without a marker failed", async () => {
+    withRow({
+      $updatedAt: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
+      posting_lock: 1,
+    });
+
+    await expect(postApprovedExpense("exp-1")).rejects.toThrow(
+      "Stale posting claim"
+    );
+
+    expect(db.updateRow).toHaveBeenCalledWith("app", "expense", "exp-1", {
+      status: "failed",
+    });
+    expect(eventActions()).toContain("booking_failed");
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+  });
+
+  it("returns posted after a booking", async () => {
+    withRow({ posting_lock: 0 });
+
+    await expect(postApprovedExpense("exp-1")).resolves.toBe("posted");
+  });
+});
+
 describe("postApprovedExpense hardening", () => {
   it("skips an expense that is no longer approved without claiming it", async () => {
     for (const status of ["failed", "success", "pending"]) {

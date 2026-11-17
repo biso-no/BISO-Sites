@@ -488,13 +488,21 @@ async function shouldSkipClaimedExpense(
     $id: string;
     $updatedAt: string;
     ledger_transaction_id?: string | null;
+    posting_lock?: number | null;
   }
 ): Promise<boolean> {
   const expenseId = expense.$id;
-  if (!expense.ledger_transaction_id) {
+  // A lock taken without a marker is a claim whose marker write failed or whose
+  // run died in between: Finago was never called, but it ages like a marker claim.
+  const claimedWithoutMarker =
+    !expense.ledger_transaction_id && (expense.posting_lock ?? 0) > 0;
+  if (!(expense.ledger_transaction_id || claimedWithoutMarker)) {
     return false;
   }
-  if (expense.ledger_transaction_id !== POSTING_CLAIM_MARKER) {
+  if (
+    expense.ledger_transaction_id &&
+    expense.ledger_transaction_id !== POSTING_CLAIM_MARKER
+  ) {
     return true; // a real 24SO transaction id — already posted.
   }
   // A "posting" marker means a run claimed this row. While the claim is fresh,
@@ -637,7 +645,8 @@ export async function buildAndPostLedgerTransaction(
     receipts,
     campusId: expense.campus,
     customerId: payee.customerId,
-    departmentDimensionValue: expense.departmentRel?.Id ?? null,
+    departmentDimensionValue:
+      expense.departmentRel?.Id ?? expense.department ?? null,
     periods,
     today,
   });
@@ -698,7 +707,7 @@ async function postClaimedExpense(
 export async function postApprovedExpense(
   expenseId: string,
   options: { sleep?: Sleep } = {}
-): Promise<void> {
+): Promise<"posted" | "skipped"> {
   const sleep = options.sleep ?? defaultSleep;
   const { db, storage } = await createAdminClient();
 
@@ -707,10 +716,10 @@ export async function postApprovedExpense(
   // A stale listing may name an expense that has moved on (retried, booked,
   // failed): only an approved expense is claimed.
   if (expense.status !== ExpensesStatus.APPROVED) {
-    return;
+    return "skipped";
   }
   if (await shouldSkipClaimedExpense(db, expense)) {
-    return;
+    return "skipped";
   }
 
   try {
@@ -740,7 +749,7 @@ export async function postApprovedExpense(
     value: 1,
   });
   if ((claimed.posting_lock ?? 0) !== 1) {
-    return; // lost the race — another run claimed first
+    return "skipped"; // lost the race — another run claimed first
   }
 
   // Mark the slow phase on `ledger_transaction_id` too, so the cheap early check
@@ -750,6 +759,7 @@ export async function postApprovedExpense(
   });
 
   await postClaimedExpense(db, storage, expense, sleep);
+  return "posted";
 }
 
 export type RetryErrorCode =
