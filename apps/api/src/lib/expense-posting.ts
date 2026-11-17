@@ -775,28 +775,98 @@ type RetryResult =
 
 const NOTE_TRANSACTION_ID = /^\S+/;
 
-/** The transaction id of an earlier `booked` event, or null when there is none. */
-async function bookedTransactionId(
+async function findBookedEvent(
   db: AdminDb,
   expenseId: string
-): Promise<string | null> {
+): Promise<ExpenseEvents | undefined> {
   const { rows } = await db.listRows<ExpenseEvents>("app", "expense_events", [
     Query.equal("expense_id", expenseId),
     Query.equal("action", "booked"),
     Query.limit(1),
   ]);
-  const event = rows[0];
-  if (!event) {
-    return null;
+  return rows[0];
+}
+
+/** The transaction id of an earlier `booked` event, or null when unreadable. */
+async function bookedTransactionId(
+  db: AdminDb,
+  expenseId: string
+): Promise<string | null> {
+  const event = await findBookedEvent(db, expenseId);
+  return event?.note?.match(NOTE_TRANSACTION_ID)?.[0] ?? null;
+}
+
+// Finago already has the booking: save what it accepted and never post again.
+// Touches neither `posting_lock` nor the booked dates, and writes no examples.
+async function finishBookedExpense(
+  db: AdminDb,
+  expenseId: string,
+  transactionId: string,
+  actor: ApprovalActor
+): Promise<void> {
+  try {
+    await db.updateRow("app", "expense", expenseId, {
+      ledger_transaction_id: transactionId,
+      status: ExpensesStatus.SUCCESS,
+    });
+  } catch (error) {
+    throw new BookingStatusWriteError(
+      error instanceof Error ? error.message : String(error)
+    );
   }
-  return event.note?.match(NOTE_TRANSACTION_ID)?.[0] ?? "an earlier booking";
+  await recordExpenseEvents(db, [
+    {
+      expenseId,
+      actorKind: actor.kind,
+      actorEmail: actor.email,
+      actorName: actor.name,
+      action: "edited",
+      field: "status",
+      before: ExpensesStatus.FAILED,
+      after: ExpensesStatus.SUCCESS,
+      note: `finished saving the booking ${transactionId} from admin`,
+    },
+  ]);
+}
+
+// Null when Finago has no booking for this expense, so a retry may post.
+async function finishIfBooked(
+  db: AdminDb,
+  expense: Expenses,
+  actor: ApprovalActor
+): Promise<RetryResult | null> {
+  const expenseId = expense.$id;
+  const stored = expense.ledger_transaction_id;
+  const hasStored = Boolean(stored) && stored !== POSTING_CLAIM_MARKER;
+  const booked = hasStored ? stored : await bookedTransactionId(db, expenseId);
+  if (booked) {
+    try {
+      await finishBookedExpense(db, expenseId, booked, actor);
+    } catch (error) {
+      return {
+        ok: false,
+        code: "status_write_failed",
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+    return { ok: true, status: ExpensesStatus.SUCCESS };
+  }
+  if (await findBookedEvent(db, expenseId)) {
+    return {
+      ok: false,
+      code: "already_booked",
+      error: "Already booked as an earlier booking.",
+    };
+  }
+  return null;
 }
 
 /**
  * Re-runs the booking of a failed expense, after a person has checked Finago.
- * Refuses when the expense is not failed, has a stored transaction id, or has a
- * `booked` history event (Finago already has it, e.g. after a failed status
- * write that the stale-lease reaper later turned `failed`). Overlapping retries
+ * Refuses when the expense is not failed. When it has a stored transaction id or
+ * a `booked` history event with a readable id (Finago already has it, e.g. after
+ * a failed status write that the stale-lease reaper later turned `failed`), it
+ * only saves `success` and never posts again. Overlapping retries
  * are serialized by an atomic `posting_lock` increment: only the one that takes
  * the next value while the row is still `failed` goes on. The lock is never
  * reset, and the fresh `posting` marker keeps the scheduled run away; a crash is
@@ -816,21 +886,9 @@ export async function retryExpenseBooking(params: {
       error: "Only failed bookings can be retried.",
     };
   }
-  const stored = expense.ledger_transaction_id;
-  if (stored && stored !== POSTING_CLAIM_MARKER) {
-    return {
-      ok: false,
-      code: "already_booked",
-      error: `Already booked as ${stored}.`,
-    };
-  }
-  const booked = await bookedTransactionId(db, expenseId);
-  if (booked) {
-    return {
-      ok: false,
-      code: "already_booked",
-      error: `Already booked as ${booked}.`,
-    };
+  const alreadyBooked = await finishIfBooked(db, expense, actor);
+  if (alreadyBooked) {
+    return alreadyBooked;
   }
   try {
     await assertApprovedExpenseChain(db, expenseId);

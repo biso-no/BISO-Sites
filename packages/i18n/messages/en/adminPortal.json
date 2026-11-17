@@ -1601,7 +1601,7 @@
       "same_approver": "That person is already the approver for this step.",
       "retry_in_progress": "Someone else is already retrying this booking.",
       "booking_failed": "The booking failed again.",
-      "status_write_failed": "Finago has the booking, but saving the status failed. Do not retry; contact IT."
+      "status_write_failed": "Finago has the booking, but saving the status failed. Press Retry to finish saving it; nothing is booked twice."
     },
     "decision": {
       "title": "Decision",

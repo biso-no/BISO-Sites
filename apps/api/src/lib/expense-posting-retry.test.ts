@@ -120,7 +120,7 @@ beforeEach(() => {
 });
 
 describe("retryExpenseBooking", () => {
-  it("refuses retry when a transaction id is stored", async () => {
+  it("finishes a failed expense that has a stored transaction id", async () => {
     db.getRow.mockResolvedValue({
       ...expense,
       ledger_transaction_id: "tx-77",
@@ -132,13 +132,11 @@ describe("retryExpenseBooking", () => {
       expenseId: "exp-1",
     });
 
-    expect(result).toEqual({
-      code: "already_booked",
-      error: "Already booked as tx-77.",
-      ok: false,
+    expect(result).toEqual({ ok: true, status: "success" });
+    expect(db.updateRow).toHaveBeenCalledWith("app", "expense", "exp-1", {
+      ledger_transaction_id: "tx-77",
+      status: "success",
     });
-    expect(db.updateRow).not.toHaveBeenCalled();
-    expect(db.createRow).not.toHaveBeenCalled();
     expect(finago.postExpenseTransaction).not.toHaveBeenCalled();
   });
 
@@ -485,16 +483,57 @@ describe("retry claim races", () => {
     expect(finago.postExpenseTransaction).toHaveBeenCalledTimes(2);
   });
 
-  it("refuses when a booked event exists and writes nothing", async () => {
-    fakeRow(failed);
+  const bookedEvents = (note: string) =>
     db.listRows.mockImplementation((_d: string, table: string) =>
       Promise.resolve({
-        rows:
-          table === "expense_events"
-            ? [{ action: "booked", note: "tx-55 (status write failed: x)" }]
-            : [],
+        rows: table === "expense_events" ? [{ action: "booked", note }] : [],
       })
     );
+
+  it("finishes a failed expense whose booking is in Finago", async () => {
+    fakeRow(failed);
+    bookedEvents("tx-123 (status write failed: x)");
+
+    const result = await retryExpenseBooking({
+      actor: ACTOR,
+      expenseId: "exp-1",
+    });
+
+    expect(result).toEqual({ ok: true, status: "success" });
+    expect(db.updateRow).toHaveBeenCalledWith("app", "expense", "exp-1", {
+      ledger_transaction_id: "tx-123",
+      status: "success",
+    });
+    const edited = db.createRow.mock.calls.find(
+      ([, table, , data]) =>
+        table === "expense_events" && data.action === "edited"
+    )?.[3];
+    expect(edited).toMatchObject({
+      actor_email: "it@biso.no",
+      actor_kind: "admin",
+      after: "success",
+      before: "failed",
+      field: "status",
+    });
+    const query = db.listRows.mock.calls[0]?.[2] as string[];
+    expect(query.join(" ")).toContain("booked");
+  });
+
+  it("finishing never posts again or takes the lock", async () => {
+    fakeRow(failed);
+    bookedEvents("tx-123 (status write failed: x)");
+
+    await retryExpenseBooking({ actor: ACTOR, expenseId: "exp-1" });
+
+    expect(finago.postExpenseTransaction).not.toHaveBeenCalled();
+    expect(finago.uploadDocument).not.toHaveBeenCalled();
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+  });
+
+  it("reports status_write_failed when finishing cannot save", async () => {
+    fakeRow(failed);
+    bookedEvents("tx-123 (status write failed: x)");
+    db.updateRow.mockRejectedValue(new Error("db down"));
 
     const result = await retryExpenseBooking({
       actor: ACTOR,
@@ -502,15 +541,26 @@ describe("retry claim races", () => {
     });
 
     expect(result).toEqual({
-      code: "already_booked",
-      error: "Already booked as tx-55.",
+      code: "status_write_failed",
+      error: "db down",
       ok: false,
     });
+    expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  it("still refuses a booked event without a readable id", async () => {
+    fakeRow(failed);
+    bookedEvents("");
+
+    const result = await retryExpenseBooking({
+      actor: ACTOR,
+      expenseId: "exp-1",
+    });
+
+    expect(result).toMatchObject({ code: "already_booked", ok: false });
     expect(db.incrementRowColumn).not.toHaveBeenCalled();
     expect(db.updateRow).not.toHaveBeenCalled();
     expect(db.createRow).not.toHaveBeenCalled();
-    const query = db.listRows.mock.calls[0]?.[2] as string[];
-    expect(query.join(" ")).toContain("booked");
   });
 });
 

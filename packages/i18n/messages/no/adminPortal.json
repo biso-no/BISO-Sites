@@ -1601,7 +1601,7 @@
       "same_approver": "Den personen er allerede godkjenner for dette trinnet.",
       "retry_in_progress": "Noen andre prøver allerede denne bokføringen på nytt.",
       "booking_failed": "Bokføringen mislyktes igjen.",
-      "status_write_failed": "Finago har bokføringen, men lagring av status feilet. Ikke prøv på nytt; kontakt IT."
+      "status_write_failed": "Finago har bokføringen, men lagring av status feilet. Trykk Prøv igjen for å fullføre lagringen; ingenting bokføres to ganger."
     },
     "decision": {
       "title": "Avgjørelse",
