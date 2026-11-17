@@ -7,6 +7,7 @@ import {
   spyOn,
   test,
 } from "bun:test";
+import { Query } from "@repo/api";
 import type { ExpenseActionError } from "../action-result";
 
 const db = {
@@ -86,10 +87,7 @@ const steps = [
   },
 ];
 
-let freshAttachments: { amount: number }[] = [];
-
 beforeEach(() => {
-  freshAttachments = [{ amount: 100.46 }, { amount: 70 }, { amount: 0 }];
   for (const fn of Object.values(db)) {
     fn.mockReset();
   }
@@ -105,9 +103,6 @@ beforeEach(() => {
   db.listRows.mockImplementation((_d: string, table: string) => {
     if (table === "expense_approvals") {
       return Promise.resolve({ rows: steps });
-    }
-    if (table === "expense_attachments") {
-      return Promise.resolve({ rows: freshAttachments });
     }
     return Promise.resolve({ rows: [] });
   });
@@ -179,6 +174,14 @@ describe("updateExpenseReceipt", () => {
   });
 
   test("recomputes the total after an amount change", async () => {
+    db.getRow.mockResolvedValueOnce(expense()).mockResolvedValueOnce({
+      $id: "ex1",
+      expenseAttachments: [
+        { $id: "a1", amount: 100.46 },
+        { $id: "a2", amount: 70 },
+        { $id: "stmt", amount: 0 },
+      ],
+    });
     const result = await updateExpenseReceipt({
       attachmentId: "a1",
       changes: { amount: 100.456 },
@@ -206,6 +209,40 @@ describe("updateExpenseReceipt", () => {
       attachment_id: "a1",
     });
     expect(events[1]).toMatchObject({ after: "170.46", before: "250" });
+  });
+
+  test("recomputes the total from every receipt of the expense", async () => {
+    // Receipts without an expense_id column value still count: the total
+    // is read through the expense's expenseAttachments relation.
+    db.getRow.mockResolvedValueOnce(expense()).mockResolvedValueOnce({
+      $id: "ex1",
+      expenseAttachments: [
+        { $id: "a1", amount: 100 },
+        { $id: "a2", amount: 50.5 },
+        { $id: "stmt", amount: 0 },
+      ],
+    });
+    const result = await updateExpenseReceipt({
+      attachmentId: "a1",
+      changes: { amount: 100 },
+      expenseId: "ex1",
+    });
+    expect(result).toEqual({ data: { total: 150.5 } });
+    expect(db.getRow.mock.calls[1]).toEqual([
+      "app",
+      "expense",
+      "ex1",
+      [
+        Query.select([
+          "$id",
+          "expenseAttachments.$id",
+          "expenseAttachments.amount",
+        ]),
+      ],
+    ]);
+    expect(db.updateRow).toHaveBeenCalledWith("app", "expense", "ex1", {
+      total: 150.5,
+    });
   });
 
   test("a no-op change writes nothing", async () => {

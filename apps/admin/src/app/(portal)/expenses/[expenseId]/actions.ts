@@ -170,17 +170,20 @@ export async function updateExpenseReceipt(input: {
     if (plan.patch.amount !== undefined) {
       // From the stored rows, not the copy loaded above: another edit may
       // have landed in between.
-      const fresh = await db.listRows<ExpenseAttachments>(
-        "app",
-        "expense_attachments",
-        [
-          Query.equal("expense_id", expense.$id),
-          Query.select(["amount"]),
-          Query.limit(MAX_ROWS),
-        ]
-      );
+      // Read through the relation: older receipts are linked only by the
+      // expense's expenseAttachments, not by an expense_id column value.
+      const fresh = await db.getRow<Expenses>("app", "expense", expense.$id, [
+        Query.select([
+          "$id",
+          "expenseAttachments.$id",
+          "expenseAttachments.amount",
+        ]),
+      ]);
       total = round2(
-        fresh.rows.reduce((sum, row) => sum + Math.max(row.amount ?? 0, 0), 0)
+        (fresh.expenseAttachments ?? []).reduce(
+          (sum, row) => sum + Math.max(row.amount ?? 0, 0),
+          0
+        )
       );
       await db.updateRow("app", "expense", expense.$id, { total });
       events.push({
