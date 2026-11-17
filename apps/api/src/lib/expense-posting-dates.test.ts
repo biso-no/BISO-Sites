@@ -601,6 +601,7 @@ describe("postApprovedExpense booking dates", () => {
           ai_cost_type: "food",
           ai_confidence: 0.9,
           account_source: "approver",
+          type_source: "student",
         },
         {
           ...expense.expenseAttachments[1],

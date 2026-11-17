@@ -80,7 +80,8 @@ export interface AttachmentDecision {
   hints: ApproverHint[];
   needsAiAccount: boolean;
   taxCode: number | null;
-  typeSource: "ai" | "student" | "legacy_app";
+  // null: the server defaulted the type; nobody chose it.
+  typeSource: "ai" | "student" | "legacy_app" | null;
 }
 
 function withType(
@@ -118,7 +119,7 @@ function defaulted(
     hints.push({ attachmentId, code: "account_missing" });
   }
   return withType(
-    { ...decision, hints, typeSource: "student" },
+    { ...decision, hints, typeSource: null },
     DEFAULT_COST_TYPE_SLUG,
     types
   );
@@ -372,17 +373,20 @@ const AccountChoiceSchema = z.object({
 
 const MAX_REASON_LENGTH = 300;
 
+export const ACCOUNT_CHOICE_TIMEOUT_MS = 8000;
+
 export async function chooseAccountForText(input: {
   accounts: CostAccountOption[];
   receipt: ExtractedReceipt | null;
   text: string;
   types: CostTypeOption[];
+  abortSignal?: AbortSignal;
 }): Promise<{
   accountNumber: number;
   confidence: number;
   reason: string;
 } | null> {
-  const { accounts, receipt, text, types } = input;
+  const { abortSignal, accounts, receipt, text, types } = input;
   if (accounts.length === 0) {
     return null;
   }
@@ -404,6 +408,7 @@ export async function chooseAccountForText(input: {
   ].join("\n");
   try {
     const { object } = await generateObject({
+      abortSignal,
       model: fastModel,
       prompt,
       reasoning: "low",
@@ -778,6 +783,7 @@ async function chooseFreeformAccounts(
             receipt: scan?.receipt ?? null,
             text: decision.costTypeText,
             types,
+            abortSignal: AbortSignal.timeout(ACCOUNT_CHOICE_TIMEOUT_MS),
           });
       if (!choice) {
         return {

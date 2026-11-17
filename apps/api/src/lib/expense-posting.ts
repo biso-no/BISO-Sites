@@ -412,7 +412,16 @@ function exampleSource(
  * its default type unasked, so its type counts only when the AI was sure of
  * the same one.
  */
-function teachesType(att: ExpenseAttachments): boolean {
+export function teachesType(
+  att: Pick<
+    ExpenseAttachments,
+    "type_source" | "cost_type" | "ai_cost_type" | "ai_confidence"
+  >
+): boolean {
+  // No source means the server defaulted the type; nobody chose it.
+  if (!att.type_source) {
+    return false;
+  }
   if (att.type_source !== "legacy_app") {
     return true;
   }

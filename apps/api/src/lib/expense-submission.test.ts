@@ -164,8 +164,35 @@ describe("decideAttachment", () => {
       [type("meeting-food", 7350), type("other", 7790)],
       true
     );
-    // "social" is no longer active, so the AI's pick doesn't count either.
-    expect(retired.typeSource).toBe("student");
+    // "social" is no longer active, so the AI's pick doesn't count either and
+    // the server defaults the type.
+    expect(retired.typeSource).toBeNull();
+  });
+
+  it("a server default is not recorded as the student's choice", () => {
+    const d = decideAttachment(input({ amount: 100 }), types, true);
+    expect(d.typeSource).toBeNull();
+    expect(d.costType).toBe("other");
+    expect(d.hints).toContainEqual({
+      attachmentId: "a1",
+      code: "type_defaulted",
+    });
+  });
+
+  it("an old app payload with an unknown slug defaults without the app marker", () => {
+    const d = decideAttachment(
+      input({ chosen: false, clientCostType: "no-such-slug" }),
+      types,
+      true
+    );
+    expect(d.costType).toBe("other");
+    expect(d.typeSource).toBeNull();
+  });
+
+  it("own text stays the student's choice", () => {
+    const d = decideAttachment(input({ clientText: "Flowers" }), types, true);
+    expect(d.typeSource).toBe("student");
+    expect(d.costTypeText).toBe("Flowers");
   });
 
   it("keeps the student's own text and asks for an AI account", () => {
@@ -260,7 +287,7 @@ describe("decideAttachment", () => {
       true
     );
     expect(d.costType).toBe("other");
-    expect(d.typeSource).toBe("student");
+    expect(d.typeSource).toBeNull();
     expect(d.hints).toEqual([{ attachmentId: "a1", code: "type_defaulted" }]);
     expect(d.accountNumber).toBe(7790);
   });
@@ -297,7 +324,7 @@ describe("decideAttachment", () => {
       false
     );
     expect(unchosen.costType).toBe("other");
-    expect(unchosen.typeSource).toBe("student");
+    expect(unchosen.typeSource).toBeNull();
     expect(unchosen.aiCostType).toBeNull();
   });
 
@@ -1307,6 +1334,9 @@ describe("enrichSubmission", () => {
       excludeExpenseId: "expense-1",
       fileHash: hashOf("file-1"),
     });
+    expect(generateObject).toHaveBeenCalledWith(
+      expect.objectContaining({ abortSignal: expect.any(AbortSignal) })
+    );
     expect(attachmentWrite("att-2")).toMatchObject({
       account_number: 7420,
       account_source: "ai_freeform",
