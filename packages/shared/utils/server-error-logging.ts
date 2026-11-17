@@ -15,7 +15,7 @@ interface LogServerRequestErrorInput {
   request?: ServerRequest;
 }
 
-const SENSITIVE_HEADERS = new Set([
+export const SENSITIVE_HEADERS = new Set([
   "authorization",
   "cookie",
   "proxy-authorization",

@@ -1,0 +1,23 @@
+{
+  "name": "@repo/observability",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "lint": "biome lint .",
+    "test": "vitest run",
+    "check-types": "tsc --noEmit"
+  },
+  "exports": {
+    "./scrub": "./src/scrub.ts"
+  },
+  "dependencies": {
+    "@repo/shared": "workspace:*",
+    "@sentry/core": "catalog:"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

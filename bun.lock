@@ -334,6 +334,19 @@
         "typescript": "catalog:",
       },
     },
+    "packages/observability": {
+      "name": "@repo/observability",
+      "version": "0.0.0",
+      "dependencies": {
+        "@repo/shared": "workspace:*",
+        "@sentry/core": "catalog:",
+      },
+      "devDependencies": {
+        "@repo/typescript-config": "workspace:*",
+        "typescript": "catalog:",
+        "vitest": "catalog:",
+      },
+    },
     "packages/payment": {
       "name": "@repo/payment",
       "version": "0.0.0",
@@ -568,6 +581,9 @@
     "@radix-ui/react-toolbar": "^1.1.11",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@react-pdf/renderer": "^4.3.3",
+    "@sentry/bun": "11.13.0",
+    "@sentry/core": "11.13.0",
+    "@sentry/nextjs": "11.13.0",
     "@tailwindcss/postcss": "^4.2.2",
     "@tailwindcss/typography": "^0.5.19",
     "@tanstack/react-form": "^1.28.6",
@@ -1257,6 +1273,8 @@
 
     "@repo/i18n": ["@repo/i18n@workspace:packages/i18n"],
 
+    "@repo/observability": ["@repo/observability@workspace:packages/observability"],
+
     "@repo/payment": ["@repo/payment@workspace:packages/payment"],
 
     "@repo/shared": ["@repo/shared@workspace:packages/shared"],
@@ -1302,6 +1320,10 @@
     "@rolldown/pluginutils": ["@rolldown/pluginutils@1.0.0-rc.12", "", {}, "sha512-HHMwmarRKvoFsJorqYlFeFRzXZqCt2ETQlEDOb9aqssrnVBB1/+xgTGtuTrIk5vzLNX1MjMtTf7W9z3tsSbrxw=="],
 
     "@schummar/icu-type-parser": ["@schummar/icu-type-parser@1.21.5", "", {}, "sha512-bXHSaW5jRTmke9Vd0h5P7BtWZG9Znqb8gSDxZnxaGSJnGwPLDPfS+3g0BKzeWqzgZPsIVZkM7m2tbo18cm5HBw=="],
+
+    "@sentry/conventions": ["@sentry/conventions@0.33.0", "", {}, "sha512-5aa3g/VOnMoL8yHbfkYIWBYC3BLgMudgRNBTKNMrcMEj1mE9aKIt/CYCG7sasijhiSU4nTcSEzyM2voIVzLCng=="],
+
+    "@sentry/core": ["@sentry/core@11.13.0", "", { "dependencies": { "@sentry/conventions": "^0.33.0" } }, "sha512-dRJI8RwAZvtEtW62awlZdSt8EN6fuyb3cTED78A/IgIkhNcAhhR41x+B2GuMOOJ5lrb/dOCuWLBhZwwyHW2/pg=="],
 
     "@shikijs/core": ["@shikijs/core@4.0.2", "", { "dependencies": { "@shikijs/primitive": "4.0.2", "@shikijs/types": "4.0.2", "@shikijs/vscode-textmate": "^10.0.2", "@types/hast": "^3.0.4", "hast-util-to-html": "^9.0.5" } }, "sha512-hxT0YF4ExEqB8G/qFdtJvpmHXBYJ2lWW7qTHDarVkIudPFE6iCIrqdgWxGn5s+ppkGXI0aEGlibI0PAyzP3zlw=="],
 
