@@ -48,7 +48,9 @@ export function ChangeApproverDialog({
       } else {
         toast.warning(t("changedNoNotice"));
       }
-      if (!result.data.directorySaved) {
+      if (result.data.directorySkipped) {
+        toast.info(t("directorySkipped"));
+      } else if (!result.data.directorySaved) {
         toast.warning(t("directoryNotSaved"));
       }
       setOpen(false);

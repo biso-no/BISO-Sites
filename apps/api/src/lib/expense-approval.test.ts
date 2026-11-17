@@ -1693,6 +1693,7 @@ describe("changeStepApprover", () => {
     });
 
     expect(result).toEqual({ directorySaved: true, notified: true, ok: true });
+    expect(result).not.toHaveProperty("directorySkipped");
     const stepWrites = db.updateRow.mock.calls
       .filter(([, table]) => table === "expense_approvals")
       .map(([, , , data]) => data);
@@ -1979,7 +1980,12 @@ describe("changeStepApprover", () => {
       email: "new@biso.no",
     });
 
-    expect(result).toEqual({ directorySaved: false, notified: true, ok: true });
+    expect(result).toEqual({
+      directorySaved: false,
+      directorySkipped: true,
+      notified: true,
+      ok: true,
+    });
     const directoryWrites = [
       ...db.createRow.mock.calls,
       ...db.updateRow.mock.calls,

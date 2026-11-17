@@ -1624,7 +1624,8 @@
       "save": "Bytt og send",
       "changed": "Godkjenner byttet og varslet",
       "changedNoNotice": "Godkjenner byttet, men varselet kunne ikke sendes. Det ligger under godkjenningsproblemer.",
-      "directoryNotSaved": "Den lagrede godkjenneren for fremtidige utlegg kunne ikke oppdateres."
+      "directoryNotSaved": "Den lagrede godkjenneren for fremtidige utlegg kunne ikke oppdateres.",
+      "directorySkipped": "Endret bare for dette utlegget. Daglig leder settes under Innstillinger → Godkjennere."
     },
     "retry": {
       "button": "Prøv bokføring på nytt",

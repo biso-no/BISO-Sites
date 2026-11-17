@@ -1624,7 +1624,8 @@
       "save": "Change and send",
       "changed": "Approver changed and notified",
       "changedNoNotice": "Approver changed, but the notice could not be sent. It is listed under approval issues.",
-      "directoryNotSaved": "The saved approver for future expenses could not be updated."
+      "directoryNotSaved": "The saved approver for future expenses could not be updated.",
+      "directorySkipped": "Changed for this reimbursement only. The general manager is set in Settings → Approvers."
     },
     "retry": {
       "button": "Retry booking",

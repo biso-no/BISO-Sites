@@ -331,7 +331,11 @@ export async function changeExpenseApprover(input: {
   email: string;
   expenseId: string;
 }): Promise<
-  ExpenseActionResult<{ directorySaved: boolean; notified: boolean }>
+  ExpenseActionResult<{
+    directorySaved: boolean;
+    directorySkipped: boolean;
+    notified: boolean;
+  }>
 > {
   try {
     const loaded = await loadForEdit(input.expenseId);
@@ -347,7 +351,11 @@ export async function changeExpenseApprover(input: {
     }
 
     const response = await callExpensesApi<{
-      result: { directorySaved: boolean; notified: boolean };
+      result: {
+        directorySaved: boolean;
+        directorySkipped?: boolean;
+        notified: boolean;
+      };
     }>("/api/expenses/admin/change-approver", {
       actor: apiActorOf(loaded),
       approvalId: input.approvalId,
@@ -357,8 +365,14 @@ export async function changeExpenseApprover(input: {
       return apiFailure("expense-change-approver", response);
     }
     revalidateExpense(input.expenseId);
-    const { directorySaved, notified } = response.data.result;
-    return { data: { directorySaved, notified } };
+    const { directorySaved, directorySkipped, notified } = response.data.result;
+    return {
+      data: {
+        directorySaved,
+        directorySkipped: directorySkipped === true,
+        notified,
+      },
+    };
   } catch (error) {
     return failure(error);
   }

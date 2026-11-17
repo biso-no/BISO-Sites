@@ -1426,7 +1426,12 @@ export async function changeStepApprover(params: {
   email: string;
   actor: ApprovalActor;
 }): Promise<
-  | { ok: true; notified: boolean; directorySaved: boolean }
+  | {
+      ok: true;
+      notified: boolean;
+      directorySaved: boolean;
+      directorySkipped?: boolean;
+    }
   | { ok: false; error: string; code: ApprovalErrorCode }
 > {
   const { db } = await createAdminClient();
@@ -1489,7 +1494,8 @@ export async function changeStepApprover(params: {
   // role "national", also as a fallback for a missing president/controller);
   // one expense must not rewrite it.
   let directorySaved = false;
-  if (row.approver_role !== "national") {
+  const directorySkipped = row.approver_role === "national";
+  if (!directorySkipped) {
     const target = directoryTarget(row, expense);
     directorySaved = await setAdminDirectoryApprover(db, {
       aadId: person?.aadId ?? null,
@@ -1517,6 +1523,7 @@ export async function changeStepApprover(params: {
     },
   ]);
 
+  const skipped = directorySkipped ? { directorySkipped: true } : {};
   const stepRow: ExpenseApprovals = {
     ...row,
     approver_aad_id: person?.aadId ?? null,
@@ -1526,9 +1533,9 @@ export async function changeStepApprover(params: {
     await reissueAndNotify(stepRow, expense);
   } catch (error) {
     await recordNotificationIssue(expense, stepRow, error);
-    return { ok: true, notified: false, directorySaved };
+    return { ok: true, notified: false, directorySaved, ...skipped };
   }
-  return { ok: true, notified: true, directorySaved };
+  return { ok: true, notified: true, directorySaved, ...skipped };
 }
 
 function buildContextFromExpense(

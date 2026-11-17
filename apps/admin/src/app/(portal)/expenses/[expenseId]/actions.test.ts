@@ -452,6 +452,28 @@ describe("changeExpenseApprover", () => {
     expect(result).toEqual({ error: "not_current_step" });
   });
 
+  test("passes directorySkipped through for a general-manager step", async () => {
+    globalAdmin();
+    fetchMock.mockResolvedValue(
+      Response.json({
+        result: {
+          directorySaved: false,
+          directorySkipped: true,
+          notified: true,
+          ok: true,
+        },
+      })
+    );
+    const result = await changeExpenseApprover({
+      approvalId: "s1",
+      email: "new@biso.no",
+      expenseId: "ex1",
+    });
+    expect(result).toEqual({
+      data: { directorySaved: false, directorySkipped: true, notified: true },
+    });
+  });
+
   test("accepts a biso address in any case and reports notified", async () => {
     globalAdmin();
     fetchMock.mockResolvedValue(
@@ -465,7 +487,11 @@ describe("changeExpenseApprover", () => {
       expenseId: "ex1",
     });
     expect(result).toEqual({
-      data: { directorySaved: false, notified: false },
+      data: {
+        directorySaved: false,
+        directorySkipped: false,
+        notified: false,
+      },
     });
     expect(apiUrl()).toBe(
       "https://api.example.test/api/expenses/admin/change-approver"
