@@ -1,6 +1,6 @@
 # Sentry across the BISO platform — design
 
-Date: 2026-11-17. Owner: BISO IT. Status: draft for owner review.
+Date: 2026-11-17. Owner: BISO IT. Status: draft for owner review (builder check done, owner answers folded in).
 Branches: BISO-Sites `feat/sentry` (worktree `.claude/worktrees/sentry`);
 BISO-Flutter gets its own branch when its stage starts.
 
@@ -42,7 +42,8 @@ without the owner. The owner wants to use as much of Sentry as fits.
   backup. Sentry has no agent for that; it stays on the "not monitored" list.
 - Monitoring the self-hosted Appwrite server's own internals.
 - A staging environment.
-- Profiling (see Approaches → features skipped).
+- Server-side profiling. The Sites run on Bun, and Sentry's Node profiler
+  needs V8 (see Approaches → extra features).
 
 ## Anti-goals (would make this a failure even if it "works")
 
@@ -62,10 +63,19 @@ without the owner. The owner wants to use as much of Sentry as fits.
 
 - **Scope:** the whole platform, including the Flutter app (BISO-Flutter repo)
   and the three Appwrite functions.
-- **Session replay, option 2:** record every session that hits an error, plus a
-  small share (start at 5%) of normal sessions. Everything masked: all text and
-  inputs show as `***`, media blocked. Users are identified by Appwrite user id
-  only, never name or email. The privacy page gets a line about it.
+- **Session replay, option 2:** record sessions that hit an error, plus a
+  share of normal sessions. Everything masked: all text and inputs show as
+  `***`, media blocked. Users are identified by Appwrite user id only, never
+  name or email. The privacy page explains it.
+- **Consent prompt:** replays need the visitor's consent (section 4 has the
+  design; what it gates is Claude's call).
+- **Plan (from the owner's screenshot of the Sponsored Business plan):** per
+  month 5M errors, 1B spans, 100K replays, 5 TB logs, 5 TB application
+  metrics, 10 GB attachments, 500 cron monitors, 25 uptime monitors, 3K
+  continuous profile hours, 150 UI profile hours, 1K size-analysis builds,
+  5 Seer users. Pay-as-you-go limit $0, so over-quota data is dropped, never
+  billed. Seer starts using Seer credits from 2026-12-08.
+- **Runtime:** "We use Bun 1.4" (see Assumptions).
 - **Alerts:** email to the owner from day one; Teams via Sentry's integration
   when the owner installs it.
 - **Uptime:** Sentry uptime checks on the health endpoints; Better Stack stays.
@@ -106,11 +116,13 @@ without the owner. The owner wants to use as much of Sentry as fits.
 Included: user feedback ("Report a problem"), logs, AI monitoring without
 prompt/answer content, a few business counters (metrics), releases + GitHub
 suspect commits, app vitals (app start, frozen frames, ANR), server-side data
-scrubbing, spike protection.
-Skipped: profiling (needs a native add-on in the Appwrite server build; tracing
-already shows slow spots), Seer (a setting, not code; the owner turns it on if
-the plan includes it), mobile size analysis and snapshot testing (beta /
-iOS-native only).
+scrubbing, spike protection. After seeing the plan: **browser UI profiling** on
+web and admin and **app profiling** where sentry_flutter supports it (150 UI
+profile hours are included), and **size analysis** of the Android and iOS
+builds uploaded from the release workflow (1K builds included).
+Skipped: server profiling (V8-only, the Sites run on Bun), Seer (a setting,
+not code; the owner turns it on and watches the credit change on 2026-12-08),
+snapshot testing (iOS-native only).
 
 ## Constraints and facts the builder must respect
 
@@ -142,12 +154,19 @@ iOS-native only).
   headers (`SENSITIVE_HEADERS`). Reuse that list.
 - `packages/api/server.ts` logs `[appwrite] slow request` (≥2 s) and
   `[appwrite] request timed out` (8 s). Those become Sentry logs/metrics.
-- Functions run on Appwrite's Bun runtime; `scheduled-dispatch` is on
-  **`bun-1.0`** (`appwrite.config.json`: schedule `*/5 * * * *`), the other two
-  on an unrecorded Bun version. `@sentry/bun` 11 needs Bun ≥1.3.14, so the
-  functions can't use it (see section 4). `@sentry/nextjs` 11 needs Node
-  20.19+/22.12+ on the Sites; the Site runtimes aren't recorded in the repo
-  (owner confirms, see Open questions).
+- **Runtime:** the owner runs Bun 1.4 (local `bun --version` is 1.4.0; root
+  `packageManager` still says `bun@1.3.1`). Read as: the Sites serve the
+  standalone build with Bun 1.4. `@sentry/nextjs` targets Node: error capture
+  through `onRequestError` works anywhere, but its automatic server tracing
+  relies on Node hooks and Node's `fetch`, which Bun may not honour. **Stage 1
+  starts with a spike** that runs the web standalone build under Bun 1.4 with a
+  development DSN and records what arrives (errors with mapped stack traces,
+  request spans, outbound fetch spans, logs). If spans are missing, the
+  fallback is spans added by hand where it matters: the Appwrite timing wrapper
+  in `packages/api/server.ts`, the payment and AI call sites.
+- Functions: `appwrite.config.json` records `scheduled-dispatch` on `bun-1.0`
+  (schedule `*/5 * * * *`); the other two on an unrecorded Bun. `@sentry/bun`
+  11 needs Bun ≥1.3.14 (see section 5 for why the functions don't use it).
 - `scheduled-dispatch` installs with
   `bun install` and has no build step (no workspace imports);
   `content-notifier` and `member-roster-sync` ship a `bun build` bundle.
@@ -189,7 +208,10 @@ iOS-native only).
   fødselsnummer (11 digits), and email addresses on all projects.
 - **Spike protection** on; inbound filters on (browser extensions, legacy
   browsers, web crawlers, localhost for production).
-- **Uptime monitors:** `https://biso.no/api/health`,
+- **Uptime monitors** (25 included; one exists already: "BISO API",
+  `https://api.biso.no/api/health` every 10 min, in the old `appwrite` project
+  — left alone, the owner may delete it once the new ones run):
+  `https://biso.no/api/health`,
   `https://admin.biso.no/api/health`, `https://api.biso.no/api/health` every
   1–5 min, plus `https://api.biso.no/api/health/ready` every 5 min (catches
   Appwrite down behind a running app; costs one Appwrite request per check).
@@ -233,18 +255,24 @@ and feedback (Claude's call; costs one small Site request per envelope).
 
 Starting sample rates (all in the shared package, tunable in one place):
 
-| App | Errors | Traces | Replay sessions | Replay on error | Feedback |
-|---|---|---|---|---|---|
-| web | 100% | 10% | 5% | 100% | footer + account menu |
-| admin | 100% | 25% | 5% | 100% | user menu |
-| api | 100% | 10% | — | — | — |
-| docs | 100% | 5% | — | — | — |
+| App | Errors | Server traces | Browser traces | Replay (consenting visitors only) | UI profiling | Feedback |
+|---|---|---|---|---|---|---|
+| web | 100% | 100% | 25% | 25% of sessions, 100% on error | 10% of traced | footer + account menu |
+| admin | 100% | 100% | 100% | 25% of sessions, 100% on error | 10% of traced | user menu |
+| api | 100% | 100% | — | — | — | — |
+| docs | 100% | 100% | 25% | — | — | — |
+
+The plan has room for far more spans than BISO produces, so server traces are
+100%. Browser traces on web and docs stay lower because every browser envelope
+goes through the tunnel route, which is a request on the shared Site.
 
 - **Replay:** `maskAllText`, `maskAllInputs`, `blockAllMedia` on; network
-  request/response details off; **`stickySession: false`** so Replay keeps
-  nothing in the visitor's browser storage (a full page reload starts a new
-  replay; client-side navigation doesn't). This is the no-consent-banner path;
-  see Open questions.
+  request/response details off; `stickySession: false` (Replay keeps nothing in
+  browser storage). The replay integration is **lazy-loaded only after
+  consent** (section 4), so visitors who decline don't download it.
+- **UI profiling:** browser profiling in Chromium needs a
+  `Document-Policy: js-profiling` response header on HTML pages; add it in
+  `next.config` headers for web and admin.
 - **Feedback:** Sentry's feedback integration with no auto-injected floating
   button; opened from a "Report a problem" / "Rapporter et problem" link
   (labels in `@repo/i18n`, nb + en). Name/email fields hidden (the user id is
@@ -273,11 +301,46 @@ Starting sample rates (all in the shared package, tunable in one place):
   global admins a "Send test error to Sentry" button for go-live and handover
   checks (Claude's call).
 
-### 4. Appwrite functions
+### 4. Consent prompt (web, admin, app)
 
-- **No Sentry SDK in the functions (Claude's call after the builder check).**
-  `@sentry/bun` 11 needs Bun ≥1.3.14 and `scheduled-dispatch` runs on
-  `bun-1.0`. Instead, a small dependency-free reporter (one file, plain
+Owner decision: ask before recording. Claude's calls:
+
+- **What it gates:** session replay only, both the share of normal visits and
+  the recording around an error. Someone who says no is never recorded. Error
+  reports, tracing, logs and "Report a problem" run for everyone: they store
+  nothing in the browser and are covered by the privacy page.
+- **No answer = no.** Nothing is recorded until the visitor accepts.
+- **Web and admin:** one shared component (in `@repo/ui` or the new package),
+  a small bar at the bottom of the page, not a modal, shown once, in the page's
+  language. "Allow" and "No thanks" look equally prominent. Rendered
+  client-side only, so crawlers and the uptime checks never see it.
+
+  ```
+  ┌────────────────────────────────────────────────────────────────────┐
+  │ Help us make biso.no better                                        │
+  │ May we record your visit to see where things break or confuse?     │
+  │ Everything you type or read is hidden. Read more (privacy)         │
+  │                                     [ No thanks ]   [ Allow ]      │
+  └────────────────────────────────────────────────────────────────────┘
+  ```
+- **Stored choice:** a first-party cookie on `.biso.no` (shared by web and
+  admin), value `granted`/`denied` plus a text version, 12 months. Storing a
+  consent choice needs no consent. Bumping the version asks again.
+- **Change your mind:** a "Privacy settings" / "Personverninnstillinger" link
+  in the web footer and admin user menu reopens the prompt; withdrawing stops
+  a running replay at once.
+- **App:** a one-time bottom sheet after onboarding (not during it), same text
+  and buttons, and a switch in Profile. The choice is stored with the app's
+  other preferences. Replay starts only when it's on.
+- Copy in nb and en lives in `@repo/i18n` (app: its ARB files). Follow the
+  brand-copy rules: plain, no slogans, no self-praise.
+
+### 5. Appwrite functions
+
+- **No Sentry SDK in the functions (Claude's call).** The repo records
+  `scheduled-dispatch` on `bun-1.0`, below what `@sentry/bun` 11 needs, and the
+  dispatcher drives every scheduled job: an SDK that fails to load there stops
+  all of them. Instead, a small dependency-free reporter (one file, plain
   `fetch`) that sends cron check-ins over Sentry's HTTP check-in API and errors
   as envelopes to project `biso-functions`, tag `function`. It works on any Bun
   version, needs no build step, and carries the same scrubbing rules (a copy
@@ -293,7 +356,7 @@ Starting sample rates (all in the shared package, tunable in one place):
   - `member-roster-sync` (its nightly schedule, ≥600 s runtime).
   - Failure threshold 2 consecutive (noise guard), recovery 1.
 
-### 5. Flutter app (BISO-Flutter)
+### 6. Flutter app (BISO-Flutter)
 
 - `sentry_flutter`; init in `main()` around the existing startup. DSN as an app
   constant (DSNs are public; the binary ships it anyway) with a
@@ -304,7 +367,8 @@ Starting sample rates (all in the shared package, tunable in one place):
 - `SentryNavigatorObserver` on GoRouter (screen loads, TTID/TTFD).
 - The app's own `http` calls to `api.biso.no` through `SentryHttpClient`
   (traces continue into the api). Appwrite SDK calls stay untouched.
-- Replay: sessions 5%, on error 100%, defaults mask text, inputs and images.
+- Replay only after consent (section 4): sessions 25%, on error 100%;
+  defaults mask text, inputs and images.
   **Also mask** the member pass (QR is custom-painted), the scanner camera
   preview, and any web view. `attachScreenshot` off (not masked).
   View hierarchy only if it carries no text values.
@@ -316,9 +380,12 @@ Starting sample rates (all in the shared package, tunable in one place):
   debug symbols, Android mappings and iOS dSYMs with `sentry_dart_plugin`
   using a `SENTRY_AUTH_TOKEN` repo secret. Skip the upload step when the secret
   is missing so CI keeps working.
+- App profiling at a low rate on the platforms sentry_flutter supports.
+- Size analysis: upload the Android AAB and the iOS build from `release.yml`
+  (skipped without the token).
 - Firebase background isolate: out of scope.
 
-### 6. Releases
+### 7. Releases
 
 - Release name per app: `<project-slug>@<git sha>` for the Next apps and
   functions; the pubspec version for the app.
@@ -329,7 +396,7 @@ Starting sample rates (all in the shared package, tunable in one place):
   release as the uploaded source maps.
 - Commits associated when the GitHub integration exists.
 
-### 7. Alerts (email to the owner; Teams action added when installed)
+### 8. Alerts (email to the owner; Teams action added when installed)
 
 1. New high/medium-priority issue in production, any project (once per issue,
    30-minute action interval).
@@ -344,7 +411,7 @@ Starting sample rates (all in the shared package, tunable in one place):
 8. New user feedback.
 Anything else lives on the dashboard, not in the inbox.
 
-### 8. Dashboard "BISO platform health"
+### 9. Dashboard "BISO platform health"
 
 Errors per project (24 h), new issues, web vitals p75 (LCP, INP) on web,
 slowest server routes p95 (web, api), Appwrite outbound p95 and timeouts,
@@ -354,34 +421,38 @@ feedback count. Defined as JSON in the repo (e.g. `scripts/sentry/`), created
 through Sentry's API with an owner-provided token, or built by hand from the
 JSON if the API needs scopes the owner doesn't want to grant.
 
-### 9. Privacy page and docs
+### 10. Privacy page and docs
 
 - Privacy page (nb + en): Sentry (EU region) is used to find and fix errors;
-  what is recorded (errors, technical data, masked session recordings of a
-  share of visits and of visits with errors, the user's id if signed in), what
-  isn't (typed text, names, emails), retention (Sentry's 90 days).
+  what is recorded for everyone (errors, technical and performance data, the
+  user's id if signed in), what is recorded only with consent (masked session
+  recordings), what never is (typed text, names, emails), how to change the
+  choice, retention (the org's setting; Business plans default to 90 days,
+  check before writing it).
 - Developer docs: rewrite `monitoring-and-health.mdx` around Sentry (where to
   look, the alerts, the dashboard, the "isn't monitored" list shrinks);
   `deploying.mdx` and `secrets-and-environment` get the new env vars and the
   source map token; `when-things-break` starts from Sentry. Flutter docs per
   its CLAUDE.md rule.
 
-### 10. Go-live (owner, written as a checklist at the end)
+### 11. Go-live (owner, written as a checklist at the end)
 
 Create an org auth token; add `SENTRY_AUTH_TOKEN` to each Site's build env and
 the BISO-Flutter repo secrets; add the DSN vars to each Site and function;
 install GitHub and Teams integrations; apply org scrubbing settings the API
-couldn't; turn on Seer if wanted; confirm each Site runs Node 22 (or ≥20.19);
+couldn't; turn on Seer if wanted (credits from 2026-12-08); delete the old "BISO API"
+uptime check once the new ones run; move `scheduled-dispatch` off `bun-1.0`
+if the console still shows it (not required by this design);
 update the App Store privacy labels and Google Play data-safety form for
 crash, performance and diagnostic data; deploy; press "Send test error";
 confirm in Sentry; watch quota use after two weeks and tune the rates.
 
 ## Suggested stages
 
-1. Sentry projects + shared package (with scrubber tests) + errors, tracing,
-   source maps and releases in web, admin, api, docs.
-2. Replay, feedback, logs, AI monitoring, metrics, operations-page check,
-   privacy page.
+1. Bun-runtime spike, then Sentry projects + shared package (with scrubber
+   tests) + errors, tracing, source maps and releases in web, admin, api, docs.
+2. Consent prompt, replay, UI profiling, feedback, logs, AI monitoring,
+   metrics, operations-page check, privacy page.
 3. Functions + cron monitors.
 4. Flutter app (BISO-Flutter).
 5. Uptime monitors, alerts, dashboard, developer docs, go-live checklist.
@@ -403,12 +474,8 @@ by API or by hand; how `scheduled-dispatch` gets the shared privacy code
 without a build step; Flutter widgets to mask beyond the defaults; exact alert
 thresholds.
 
-## Open questions (owner)
+## Assumptions to confirm
 
-1. Consent for the 5% normal-session replays: privacy-page notice with
-   `stickySession: false` (no browser storage), or a consent prompt.
-2. What the Sentry for Good plan includes (errors, spans, replays, logs, cron
-   and uptime monitors, retention, pay-as-you-go budget). Decides one cron
-   monitor per dispatch target vs. one for the dispatcher, and the starting
-   sample rates.
-3. Which runtime each Site runs (expected Node 22).
+- "We use Bun 1.4" means the four Sites serve the app with Bun 1.4. If a Site
+  actually runs Node, server tracing simply works better; nothing else
+  changes.
