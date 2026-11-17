@@ -174,3 +174,111 @@ describe("scrubMetric", () => {
     expect(scrubMetric(metric).attributes).toEqual({ who: REDACTED, n: 1 });
   });
 });
+
+const throwing = (target: object, key: string) =>
+  Object.defineProperty(target, key, {
+    enumerable: true,
+    get() {
+      throw new Error("boom");
+    },
+  });
+
+describe("fallbacks drop rather than leak", () => {
+  it("scrubEvent keeps only identity fields", () => {
+    const event = {
+      event_id: "e1",
+      level: "error",
+      message: "secret ola@biso.no",
+      user: { id: "u1", email: "a@b.no" },
+      breadcrumbs: [{ message: "x" }],
+      extra: { k: "v" },
+      tags: { app: "web", other: "o" },
+    };
+    throwing(event, "request");
+    const out = scrubEvent(event as unknown as ErrorEvent);
+    expect(out).not.toHaveProperty("request");
+    expect(out).not.toHaveProperty("user");
+    expect(out).not.toHaveProperty("breadcrumbs");
+    expect(out).not.toHaveProperty("extra");
+    expect(out.event_id).toBe("e1");
+    expect(out.tags).toEqual({ app: "web" });
+    expect(out.message).toBe(REDACTED);
+    expect(JSON.stringify(out)).not.toContain("secret");
+  });
+
+  it("scrubBreadcrumb drops data", () => {
+    const crumb = { message: "secret", category: "c" };
+    throwing(crumb, "data");
+    const out = scrubBreadcrumb(crumb);
+    expect(out).toEqual({
+      category: "c",
+      message: REDACTED,
+      type: undefined,
+      level: undefined,
+      timestamp: undefined,
+    });
+  });
+
+  it("scrubLog drops attributes", () => {
+    const log = { level: "info", message: "secret" };
+    throwing(log, "attributes");
+    expect(scrubLog(log as Log)).toEqual({ level: "info", message: REDACTED });
+  });
+
+  it("scrubSpan drops attributes", () => {
+    const span = { name: "secret", trace_id: "t", span_id: "s" };
+    throwing(span, "attributes");
+    const out = scrubSpan(span as unknown as StreamedSpanJSON);
+    expect(out.name).toBe(REDACTED);
+    expect(out.attributes).toEqual({});
+  });
+
+  it("scrubMetric drops attributes", () => {
+    const metric = { name: "m", type: "counter", value: 1 };
+    throwing(metric, "attributes");
+    const out = scrubMetric(metric as Metric);
+    expect(out).not.toHaveProperty("attributes");
+    expect(out.name).toBe("m");
+  });
+});
+
+describe("header scrubbing", () => {
+  it("cleans referer, redacts IP headers, keeps benign headers", () => {
+    expect(
+      redactHeaders({
+        referer: "https://biso.no/auth/verify?secret=abc",
+        "x-forwarded-for": "1.2.3.4",
+        accept: "text/html",
+      })
+    ).toEqual({
+      referer: "https://biso.no/auth/verify",
+      "x-forwarded-for": REDACTED,
+      accept: "text/html",
+    });
+  });
+});
+
+describe("scrubEvent free-form fields", () => {
+  it("scrubs extra, tags, contexts, logentry and drops frame vars", () => {
+    const event = {
+      extra: { who: "ola@biso.no", nested: { acct: "1234.56.78903" } },
+      tags: { q: "x@y.no" },
+      contexts: { app: { url: "/a?secret=1" } },
+      logentry: { message: "fnr 01019912345" },
+      exception: {
+        values: [{ stacktrace: { frames: [{ vars: { password: "p" } }] } }],
+      },
+    } as unknown as ErrorEvent;
+    const out = scrubEvent(event);
+    expect(out.extra).toEqual({
+      who: REDACTED,
+      nested: { acct: REDACTED },
+    });
+    expect(out.tags).toEqual({ q: REDACTED });
+    expect(out.contexts).toEqual({ app: { url: "/a" } });
+    expect(out.logentry?.message).toBe("fnr [redacted]");
+    expect(
+      out.exception?.values?.[0]?.stacktrace?.frames?.[0]
+    ).not.toHaveProperty("vars");
+  });
+});
