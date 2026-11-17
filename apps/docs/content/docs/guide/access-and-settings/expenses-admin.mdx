@@ -66,7 +66,7 @@ When it's your turn, the **Avgjørelse** (Decision) box shows **Godkjenn** (Appr
 
 A global admin or the controller who isn't the approver on the step sees **Godkjenn på vegne av** (Approve on behalf of) and **Avslå på vegne av** (Reject on behalf of), with the role's name. The step is recorded as decided on behalf of that role, and the history says so.
 
-Approve is refused while a receipt has no account. Set the account on the receipt first, as in the Teams and email link. Approve and reject are also refused once the reimbursement is no longer waiting for approval, with **This reimbursement is no longer waiting for approval.**
+Approve is refused while a receipt has no ledger account. You see **En kvittering mangler konto. Velg konto før du godkjenner.** (A receipt has no ledger account. Set the account before approving.) Set the account on that receipt in the admin with **Rediger** (Edit), then approve. Approve and reject are also refused once the reimbursement is no longer waiting for approval. You see **Denne refusjonen venter ikke lenger på godkjenning.** (This reimbursement is no longer waiting for approval.)
 
 The decision goes through the same chain as an approval in Teams. The next step's approver is told, and the last approval starts the booking.
 
@@ -77,7 +77,7 @@ Choose **Bytt godkjenner** (Change approver) and type the new person's address. 
 
 The new approver gets a fresh approval link and the old link stops working. Changing the general manager's step, or a step where the general manager stands in for a missing president or controller, changes it for this reimbursement only. The general manager is set under **Utlegg**, **Innstillinger**, **Godkjennere**. Other changes also update the saved approver for later reimbursements with the same role, so check you mean it. Global admins can change any step. The controller can change department steps only, not the controller or president step.
 
-A global admin also sees **Bygg godkjenningskjeden på nytt** (Rebuild approval chain) on a reimbursement that is waiting for approval but has no approval steps. It builds the steps again, and the history records the rebuild.
+A global admin also sees **Bygg godkjenningsflyten på nytt** (Rebuild approval chain) on a reimbursement that is waiting for approval but has no approval steps. It builds the steps again, and the history records the rebuild.
 
 </Step>
 <Step title="Retry a failed booking">
@@ -99,8 +99,8 @@ Choose **Prøv på nytt** (Retry). You see **Bokført i Finago** (Booked in Fina
 
 - After a decision, the reimbursement moves to the next step, or to booking after the last approval. Booking runs on its own, without anyone starting it.
 - A successful booking shows **Bokført** (Booked) and the transaction number in 24SevenOffice.
-- A failed booking is never retried by itself, because 24SevenOffice may already have it.
-- A booking that stopped without finishing is marked **Bokføring feilet** (Booking failed) after 15 minutes, so it doesn't stay stuck. Booking uses the department of the reimbursement even when its department link is missing.
+- A failed booking is never retried by itself, because 24SevenOffice may already have it. Marking a stuck one as failed is not a retry.
+- A booking that stopped without finishing is marked **Bokføring feilet** (Booking failed) the next time the scheduled run or a retry meets it, once the claim is older than 15 minutes, so it doesn't stay stuck. It's only marked failed, not retried. Booking falls back to the department stored on the reimbursement itself when its department link is missing.
 - Edits, decisions, approver changes and retries are written to the reimbursement's history with your name.
 - After a decision made in the admin, the next approver gets the Teams card and the email, and a rejection notifies the student.
 - When a step is decided in the admin or on the web approval page, the Teams card that was sent to that step's approver changes to show who decided and what. The buttons go away. This happens after the reimbursement has moved on, so a slow Teams never holds it up. A decision made in Teams already updates its own card. If the card can't be updated within 5 seconds, it stays as it was, and the decision still stands.

@@ -85,7 +85,7 @@ The department's approver account doesn't have the department in **Avdeling** (D
 
 An open issue whose reason starts **Could not notify** has **Send varsel på nytt** (Resend notification). Choose it.
 
-Resend is refused unless the reimbursement is still waiting for approval. You see **This reimbursement is no longer waiting for approval.** instead.
+Resend is refused unless the reimbursement is still waiting for approval. You see **Denne refusjonen venter ikke lenger på godkjenning.** (This reimbursement is no longer waiting for approval.) instead.
 
 The approver gets a new approval link, in Teams if possible and by email. You see **Godkjenningsvarsel sendt på nytt** (Approval notification re-sent), and the issue is marked **Løst** (Resolved).
 
@@ -120,7 +120,7 @@ The campus controller, president and general manager, and the National controlle
 
 - **Standard** (Seed): BISO's standard role mailbox, saved by the admin the first time a reimbursement needed it.
 - **AI**: chosen by the AI lookup. **AI-sikkerhet** (AI confidence) shows how sure it was. Check these rows and confirm or change them.
-- **Admin**: someone saved it in this tab, or changed the approver on a reimbursement.
+- **Admin**: someone saved it in this tab, or changed the approver on a reimbursement. The exception is the general manager's step, or a step where the general manager stands in for a missing president or controller: changing that applies to that reimbursement only. The general manager is set in **Godkjennere** (Approvers). See [Review and decide reimbursements](/guide/access-and-settings/expenses-admin).
 - **Bekreftet** (Confirmed): an AI or standard entry whose person has since approved a reimbursement on their own step.
 
 **Sist bekreftet** (Last confirmed) is the time that person last approved a step from this entry. An **Admin** entry keeps its source when its person approves. It only gets a confirmed time. **Sist brukt** (Last used) is the last time the entry was picked for a reimbursement.
@@ -131,7 +131,7 @@ A new email means a new person. Saving it clears the entry's confirmed time and 
 
 **Deactivate and reactivate.** Use the switch **Aktiv** (Active) on a row. A deactivated entry means "don't use this person":
 
-- The system never switches it on again, and the AI doesn't look the role up again. Only a person does, with the switch, by saving the entry, or by changing the approver on a reimbursement.
+- The system never switches it on again, and the AI doesn't look the role up again. Only a person does, with the switch, by saving the entry, or by changing the approver on a reimbursement (except the general manager's step, which changes that reimbursement only).
 - A department step with a deactivated entry is skipped, so the reimbursement goes on to the campus controller. An issue is recorded, as above.
 - A deactivated controller or national entry still routes to the campus's standard mailbox, because a campus must always have one. An issue is recorded.
 
