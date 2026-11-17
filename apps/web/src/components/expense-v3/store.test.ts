@@ -69,3 +69,31 @@ describe("approval switches", () => {
     });
   });
 });
+
+describe("assignment and the accepted event", () => {
+  const assign = (departmentId: string) =>
+    useExpenseStore.getState().setAssignment({
+      campusId: "5",
+      campusName: "Oslo",
+      departmentId,
+      departmentName: departmentId,
+    });
+
+  beforeEach(() => useExpenseStore.getState().reset());
+
+  it("changing the department clears the accepted event", () => {
+    assign("dept-1");
+    useExpenseStore.getState().setEvent("ev-1", "Fadderuka");
+    assign("dept-2");
+    expect(useExpenseStore.getState().eventId).toBeNull();
+    expect(useExpenseStore.getState().eventName).toBe("");
+  });
+
+  it("keeps the event when the same department is picked again", () => {
+    assign("dept-1");
+    useExpenseStore.getState().setEvent("ev-1", "Fadderuka");
+    assign("dept-1");
+    expect(useExpenseStore.getState().eventId).toBe("ev-1");
+    expect(useExpenseStore.getState().eventName).toBe("Fadderuka");
+  });
+});

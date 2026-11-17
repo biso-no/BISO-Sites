@@ -245,6 +245,8 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => ({
       const changed =
         state.selectedCampusId !== data.campusId ||
         state.selectedDepartmentId !== data.departmentId;
+      const departmentChanged =
+        state.selectedDepartmentId !== data.departmentId;
       return {
         selectedCampusId: data.campusId,
         selectedCampusName: data.campusName,
@@ -253,6 +255,8 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => ({
         ...(changed
           ? { submitterIsController: false, submitterIsFinancialManager: false }
           : {}),
+        // An event belongs to the department it was matched for.
+        ...(departmentChanged ? { eventId: null, eventName: "" } : {}),
       };
     }),
 

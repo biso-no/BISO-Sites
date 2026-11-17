@@ -3,6 +3,7 @@
 import type { Campus, Users } from "@repo/api/types/appwrite";
 import { approvalSwitchFor } from "@repo/shared/utils/expense-approvers";
 import { RECEIPT_FILE_ACCEPT } from "@repo/shared/utils/expense-attachments";
+import { EXPENSE_DESCRIPTION_MAX } from "@repo/shared/utils/expense-cost-types";
 import { ScrollArea } from "@repo/ui/components/ui/scroll-area";
 import {
   Select,
@@ -975,6 +976,7 @@ export function ExpenseReport({
                 className={cn(fieldClass, "min-h-[80px] resize-none")}
                 disabled={isGeneratingSummary}
                 id="expense-description"
+                maxLength={EXPENSE_DESCRIPTION_MAX}
                 onChange={(e) => onDescriptionChange(e.target.value)}
                 placeholder={t("composer.report.descriptionPlaceholder")}
                 value={description}

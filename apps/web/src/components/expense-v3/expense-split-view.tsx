@@ -530,7 +530,7 @@ export function ExpenseSplitView({
   // starts, and a count of requests so only the latest answer is applied.
   const lastSummaryKeyRef = useRef("");
   const summaryRequestRef = useRef(0);
-  const skipNextSummaryRef = useRef(Boolean(initialDraft));
+  const skipNextSummaryRef = useRef(Boolean(initialDraft?.description?.trim()));
   const nearbyEvent = useNearbyEvent(
     store.selectedDepartmentId,
     store.receipts
@@ -646,7 +646,7 @@ export function ExpenseSplitView({
       return;
     }
 
-    skipNextSummaryRef.current = true;
+    skipNextSummaryRef.current = Boolean(initialDraft.description?.trim());
 
     const campus = campuses.find((item) => item.$id === initialDraft.campus);
     const department = campus?.departments?.find(

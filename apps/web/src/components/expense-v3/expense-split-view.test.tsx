@@ -502,6 +502,83 @@ describe("ExpenseSplitView reopened draft", () => {
   });
 });
 
+async function renderDraft(description: string) {
+  document.body.innerHTML = "";
+  const container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+  await act(() => {
+    root?.render(
+      createElement(ExpenseSplitView, {
+        campuses: CAMPUSES,
+        initialDraft: {
+          $id: "expense-1",
+          bank_account: "12345678903",
+          campus: "5",
+          department: "dept-1",
+          description,
+          eventName: null,
+          event_id: null,
+          expenseAttachments: [],
+          occasion: null,
+          submitter_is_controller: false,
+          submitter_is_financial_manager: false,
+          total: 0,
+        },
+        initialProfile: { bank_account: "12345678903", name: "Kari" },
+        typeOptions: OPTIONS,
+      } as never)
+    );
+  });
+}
+
+describe("ExpenseSplitView reopened draft description", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    fetchApi.mockReset();
+    intl.locale = "en";
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+
+  afterEach(async () => {
+    await act(() => {
+      root?.unmount();
+    });
+    root = null;
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("a reopened draft with an empty description gets one once every receipt has a type", async () => {
+    fetchApi.mockResolvedValue({ success: true, summary: "Food." });
+    await renderDraft("");
+
+    await update(() =>
+      state().addReceipt(
+        receipt({ costType: undefined, typeState: "needs_choice" })
+      )
+    );
+    await wait(SETTLE_MS * 2);
+    expect(summaryCalls()).toHaveLength(0);
+
+    await update(() =>
+      state().updateReceipt("r1", { costType: "travel", typeState: "chosen" })
+    );
+    await wait(SETTLE_MS);
+    expect(summaryCalls()).toHaveLength(1);
+  });
+
+  it("a reopened draft keeps a saved description", async () => {
+    fetchApi.mockResolvedValue({ success: true, summary: "Food." });
+    await renderDraft("Saved earlier");
+
+    await update(() => state().addReceipt(receipt()));
+    await wait(SETTLE_MS * 2);
+    expect(summaryCalls()).toHaveLength(0);
+    expect(state().description).toBe("Saved earlier");
+  });
+});
+
 describe("ExpenseSplitView failed scan", () => {
   const file = () => new File(["x"], "pizza.jpg", { type: "image/jpeg" });
 
