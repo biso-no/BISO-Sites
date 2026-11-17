@@ -548,6 +548,37 @@ describe("postApprovedExpense claims", () => {
     });
     expect(eventActions()).toContain("booking_failed");
     expect(db.incrementRowColumn).not.toHaveBeenCalled();
+    expect(finago.postExpenseTransaction).not.toHaveBeenCalled();
+  });
+
+  it("returns skipped without a marker or booking when the increment loses the race", async () => {
+    withRow({ posting_lock: 0 });
+    db.incrementRowColumn.mockResolvedValue({ posting_lock: 2 });
+
+    await expect(postApprovedExpense("exp-1")).resolves.toBe("skipped");
+
+    expect(db.updateRow).not.toHaveBeenCalled();
+    expect(finago.postExpenseTransaction).not.toHaveBeenCalled();
+  });
+
+  it("skips the run after a failed marker write without taking another lock", async () => {
+    withRow({ posting_lock: 0 });
+    db.incrementRowColumn.mockResolvedValue({ posting_lock: 1 });
+    db.updateRow.mockRejectedValueOnce(new Error("appwrite down"));
+
+    await expect(postApprovedExpense("exp-1")).rejects.toThrow("appwrite down");
+    expect(finago.postExpenseTransaction).not.toHaveBeenCalled();
+
+    db.incrementRowColumn.mockClear();
+    withRow({
+      $updatedAt: new Date().toISOString(),
+      ledger_transaction_id: null,
+      posting_lock: 1,
+    });
+
+    await expect(postApprovedExpense("exp-1")).resolves.toBe("skipped");
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+    expect(finago.postExpenseTransaction).not.toHaveBeenCalled();
   });
 
   it("returns posted after a booking", async () => {
