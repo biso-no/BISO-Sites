@@ -271,6 +271,14 @@ function buildReceiptFromOcr(
   };
 }
 
+/** What only the scan sets; a retry may update these. */
+const SCAN_ONLY_FIELDS = new Set([
+  "status",
+  "progress",
+  "documentType",
+  "receiptIssues",
+  "possibleDuplicate",
+]);
 const AMOUNT_FIELDS = new Set([
   "amount",
   "originalAmount",
@@ -298,19 +306,17 @@ function fillEmptyFields(
   const keepAmount = current.amount > 0;
   const keepType = current.typeState === "chosen";
   const entries = Object.entries(updates).filter(([key]) => {
-    if (keepAmount && AMOUNT_FIELDS.has(key)) {
-      return false;
+    if (SCAN_ONLY_FIELDS.has(key)) {
+      return true;
     }
-    if (keepType && TYPE_FIELDS.has(key)) {
-      return false;
+    if (AMOUNT_FIELDS.has(key)) {
+      return !keepAmount;
     }
-    if (key === "date") {
-      return !current.date;
+    if (TYPE_FIELDS.has(key)) {
+      return !keepType;
     }
-    if (key === "description") {
-      return !current.description;
-    }
-    return true;
+    const value: unknown = current[key as keyof Receipt];
+    return value === undefined || value === null || value === "";
   });
   return Object.fromEntries(entries) as Partial<Receipt>;
 }
@@ -733,16 +739,15 @@ export function ExpenseSplitView({
           file.name,
           typeOptions
         );
-        store.updateReceipt(
-          id,
-          isRetry
+        store.updateReceipt(id, {
+          ...(isRetry
             ? fillEmptyFields(
                 updates,
                 useExpenseStore.getState().receipts.find((r) => r.id === id)
               )
-            : updates
-        );
-        store.updateReceipt(id, { scanFailed: false });
+            : updates),
+          scanFailed: false,
+        });
         return { id, ocrData: ocrResult.data };
       } catch (error) {
         console.error(error);
@@ -750,7 +755,11 @@ export function ExpenseSplitView({
           status: "ready",
           progress: 100,
           scanFailed: true,
-          ...typeFromOcr({}, typeOptions, false),
+          // A failed retry changes nothing the student chose.
+          ...(useExpenseStore.getState().receipts.find((r) => r.id === id)
+            ?.typeState === "chosen"
+            ? {}
+            : typeFromOcr({}, typeOptions, false)),
         });
         toast.error(t("composer.toast.scanFailed"));
         return null;
@@ -1114,7 +1123,10 @@ export function ExpenseSplitView({
         )}
       >
         <ReceiptWallet
-          onRemove={store.removeReceipt}
+          onRemove={(id) => {
+            filesRef.current.delete(id);
+            store.removeReceipt(id);
+          }}
           onSelect={(id) => {
             store.setSelectedReceiptId(id);
             setMobileView("report");

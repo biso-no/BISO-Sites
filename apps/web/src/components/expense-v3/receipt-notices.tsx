@@ -3,6 +3,7 @@
 import { cn } from "@repo/ui/lib/utils";
 import { AlertTriangle } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { focusRingClass } from "./form-styles";
 import { receiptNotices } from "./receipt-types";
 import type { Receipt } from "./store";
 
@@ -52,7 +53,11 @@ export function ReceiptNotices({
             {t(notice)}
             {notice === "scan_failed" && onRetry ? (
               <button
-                className="ml-2 font-medium underline underline-offset-2"
+                className={cn(
+                  "ml-2 font-semibold underline underline-offset-2",
+                  focusRingClass
+                )}
+                data-row-control=""
                 onClick={onRetry}
                 type="button"
               >

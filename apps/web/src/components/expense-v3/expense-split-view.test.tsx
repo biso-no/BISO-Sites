@@ -587,12 +587,20 @@ describe("ExpenseSplitView failed scan", () => {
     const container = await renderView();
     await upload();
     await update(() =>
-      state().updateReceipt(state().receipts[0].id, { amount: 120 })
+      state().updateReceipt(state().receipts[0].id, {
+        amount: 120,
+        vendor: "My shop",
+      })
     );
 
     fetchFormData.mockResolvedValueOnce({
       success: true,
-      data: { amount: 99, currency: "NOK", date: "2026-11-01" },
+      data: {
+        amount: 99,
+        currency: "NOK",
+        date: "2026-11-01",
+        vendor: "OCR shop",
+      },
     });
     const retry = [...container.querySelectorAll("button")].find(
       (button) => button.textContent === "retry"
@@ -604,8 +612,51 @@ describe("ExpenseSplitView failed scan", () => {
 
     const [after] = state().receipts;
     expect(after.amount).toBe(120);
+    expect(after.vendor).toBe("My shop");
     expect(after.date).toBe("2026-11-01");
     expect(after.scanFailed).toBe(false);
     expect(after.status).toBe("ready");
+  });
+
+  const retryButton = (container: HTMLElement) =>
+    [...container.querySelectorAll("button")].find(
+      (button) => button.textContent === "retry"
+    );
+
+  it("a failed retry keeps what the student entered", async () => {
+    uploadOk();
+    fetchFormData.mockRejectedValue(new Error("boom"));
+    const container = await renderView();
+    await upload();
+    const id = state().receipts[0].id;
+    await update(() =>
+      state().updateReceipt(id, {
+        amount: 120,
+        costType: "travel",
+        typeState: "chosen",
+      })
+    );
+
+    await act(async () => {
+      retryButton(container)?.click();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    const [after] = state().receipts;
+    expect(after.status).toBe("ready");
+    expect(after.scanFailed).toBe(true);
+    expect(after.amount).toBe(120);
+    expect(after.costType).toBe("travel");
+    expect(after.typeState).toBe("chosen");
+  });
+
+  it("the try again button does not open the receipt", async () => {
+    uploadOk();
+    fetchFormData.mockRejectedValue(new Error("boom"));
+    const container = await renderView();
+    await upload();
+
+    const button = retryButton(container);
+    expect(button?.closest("[data-row-control]")).not.toBeNull();
   });
 });
