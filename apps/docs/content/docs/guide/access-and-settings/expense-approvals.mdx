@@ -85,6 +85,8 @@ The department's approver account doesn't have the department in **Avdeling** (D
 
 An open issue whose reason starts **Could not notify** has **Send varsel på nytt** (Resend notification). Choose it.
 
+Resend is refused unless the reimbursement is still waiting for approval. You see **This reimbursement is no longer waiting for approval.** instead.
+
 The approver gets a new approval link, in Teams if possible and by email. You see **Godkjenningsvarsel sendt på nytt** (Approval notification re-sent), and the issue is marked **Løst** (Resolved).
 
 If it fails, you see an English message with the reason. While **Direct ledger posting (24SO + Teams approval)** is off, it's always `expenses_ledger_posting disabled`.
@@ -95,6 +97,8 @@ If it fails, you see an English message with the reason. While **Direct ledger p
 Choose **Marker som løst** (Mark resolved). You see **Avviket er markert som løst** (Issue marked as resolved), and the status changes to **Løst** (Resolved).
 
 This only changes the status. It doesn't check that the department was fixed, and it doesn't send the reimbursement anywhere. A resolved issue can't be opened again.
+
+When a reimbursement is rejected, its open approval issues are closed on their own.
 
 </Step>
 </Steps>
