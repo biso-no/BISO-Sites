@@ -8,6 +8,7 @@ export function ExpenseHistory({ events }: { events: ExpenseDetailEvent[] }) {
   const t = useTranslations("adminPortal.expenses");
   const locale = useLocale();
   const labels = {
+    none: t("history.noneValue"),
     reason: t("history.reason"),
     roles: {
       controller: t("roles.controller"),

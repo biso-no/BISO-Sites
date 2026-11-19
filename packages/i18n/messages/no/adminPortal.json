@@ -1556,7 +1556,8 @@
       "dateShifted": "Bokføringsdato flyttet fra {from} til {to}. {note}",
       "bookingRetried": "Bokføring prøvd på nytt",
       "unknown": "Ukjent hendelse ({action})",
-      "reason": "Årsak"
+      "reason": "Årsak",
+      "noneValue": "ingen"
     },
     "edit": {
       "edit": "Rediger",

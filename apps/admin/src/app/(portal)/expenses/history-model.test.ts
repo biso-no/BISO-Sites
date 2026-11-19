@@ -208,6 +208,7 @@ describe("describeEvent", () => {
 
 describe("describeEvent with labels", () => {
   const labels: HistoryLabels = {
+    none: "ingen",
     reason: "Årsak",
     roles: {
       controller: "Controller",
@@ -271,6 +272,24 @@ describe("describeEvent with labels", () => {
         labels
       ).values.role
     ).toBe("the janitor");
+  });
+
+  test("a project set or cleared names the empty side", () => {
+    expect(
+      describeEvent(
+        event({ after: "KD 2026", before: null, field: "project" }),
+        labels
+      )
+    ).toEqual({
+      key: "edited.project",
+      values: { after: "KD 2026", before: "ingen" },
+    });
+    expect(
+      describeEvent(
+        event({ after: "", before: "KD 2026", field: "project" }),
+        labels
+      ).values
+    ).toEqual({ after: "ingen", before: "KD 2026" });
   });
 
   test("edited total has its own key", () => {

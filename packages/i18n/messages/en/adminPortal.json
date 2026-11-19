@@ -1556,7 +1556,8 @@
       "dateShifted": "Posting date moved from {from} to {to}. {note}",
       "bookingRetried": "Booking retried",
       "unknown": "Unknown event ({action})",
-      "reason": "Reason"
+      "reason": "Reason",
+      "noneValue": "none"
     },
     "edit": {
       "edit": "Edit",
