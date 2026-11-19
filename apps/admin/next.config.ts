@@ -1,6 +1,11 @@
 import path from "node:path";
+import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
+// Relative, not `@repo/observability/build`: Next transpiles this file with
+// tsconfig `paths`, which maps `@repo/*` to `../../packages/*` and misses the
+// package `exports` (the source lives under `src/`).
+import { sentryBuildOptions } from "../../packages/observability/src/build";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
@@ -16,6 +21,7 @@ const baseConfig: NextConfig = {
     "@repo/shared",
     "@repo/ai",
     "@repo/editor",
+    "@repo/observability",
     "@repo/payment",
     "@repo/tours",
     "@repo/typescript-config",
@@ -23,7 +29,17 @@ const baseConfig: NextConfig = {
   reactStrictMode: true,
   output: "standalone",
   outputFileTracingRoot: path.join(import.meta.dirname, "../../"),
-  productionBrowserSourceMaps: false,
+  // The Site runs on Bun, which resolves `@sentry/nextjs` through its `bun`
+  // export condition. Tracing follows only the `node` condition, so the Bun
+  // entry and what it loads would be missing from the standalone output.
+  outputFileTracingIncludes: {
+    "/*": [
+      "../../node_modules/@sentry/nextjs/build/cjs/**/*.js",
+      "../../node_modules/@sentry/bun/package.json",
+      "../../node_modules/@sentry/bun/build/cjs/**/*.js",
+      "../../node_modules/@sentry/server-utils/build/cjs/**/*.js",
+    ],
+  },
   images: {
     remotePatterns: [
       {
@@ -135,4 +151,9 @@ const baseConfig: NextConfig = {
   },
 };
 
-export default withNextIntl(baseConfig);
+// Sentry's wrapper goes outermost. It turns on browser source maps for the
+// upload and deletes them from the output afterwards.
+export default withSentryConfig(
+  withNextIntl(baseConfig),
+  sentryBuildOptions("admin")
+);

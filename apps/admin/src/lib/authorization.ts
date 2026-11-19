@@ -4,6 +4,7 @@ import { type Models, Query } from "@repo/api";
 import { orNullIfRowNotFound } from "@repo/api/errors";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Departments } from "@repo/api/types/appwrite";
+import { setSentryUser } from "@repo/observability/user";
 import {
   keepSyncedTeams,
   M365_TEAM_SYNC_TABLE_ID,
@@ -182,6 +183,7 @@ export const getUserAuthContext = cache(
     try {
       const { account, teams } = await createSessionClient();
       const user = await account.get();
+      setSentryUser(user.$id);
       const [teamMemberships, syncedTeamIds] = await Promise.all([
         teams.list([Query.limit(200)]),
         loadSyncedTeamIds(user.$id),
