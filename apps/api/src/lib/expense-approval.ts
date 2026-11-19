@@ -501,10 +501,31 @@ export async function ensureApprovalChain(
     }
     return;
   }
-  // A failed delete throws, so the check stays running and tries again.
-  await Promise.all(
-    rows.map((row) => db.deleteRow("app", "expense_approvals", row.$id))
-  );
+  // One at a time: each row is read again just before its delete, because an
+  // approver may have opened the link since the list above. A row being
+  // decided (`decision_lock`) or already used (`consumed_at`) stops the
+  // rebuild and gets the resend issue instead. A failed read or delete
+  // throws, so the check stays running and tries again.
+  for (const row of rows) {
+    const current = await db.getRow<ExpenseApprovals>(
+      "app",
+      "expense_approvals",
+      row.$id
+    );
+    if (current.decision_lock > 0 || current.consumed_at) {
+      await writeNotificationIssue(
+        db,
+        current,
+        {
+          campusId: context.campusId,
+          department: context.departmentName ?? "(none)",
+        },
+        "an approver opened the link while the chain was being rebuilt"
+      );
+      return;
+    }
+    await db.deleteRow("app", "expense_approvals", row.$id);
+  }
   await createApprovalChain(context, options);
 }
 
