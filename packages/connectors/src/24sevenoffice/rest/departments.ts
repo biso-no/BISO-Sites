@@ -15,10 +15,12 @@ export const CAMPUS_DIMENSION_TYPE = 101;
 export type DimensionElement = components["schemas"]["DimensionElement"];
 
 /**
- * Fetches all department dimension elements from Finago.
+ * Fetches all (active) elements of one dimension type from Finago.
  * Follows Link-header pagination automatically.
  */
-export async function getDepartments(): Promise<DimensionElement[]> {
+export async function listDimensionElements(
+  dimensionType: number
+): Promise<DimensionElement[]> {
   const results: DimensionElement[] = [];
   let continuationToken: string | undefined;
 
@@ -27,7 +29,7 @@ export async function getDepartments(): Promise<DimensionElement[]> {
       "/dimensions/{dimensionType}/elements",
       {
         params: {
-          path: { dimensionType: DEPARTMENT_DIMENSION_TYPE },
+          path: { dimensionType },
           query: continuationToken ? { continuationToken } : undefined,
           // Authorization is required by the generated types; the client
           // middleware overwrites this with a live token before each request.
@@ -35,11 +37,10 @@ export async function getDepartments(): Promise<DimensionElement[]> {
         },
       }
     );
-    console.log("Response:", response);
 
     if (error) {
       throw new Error(
-        `[Finago] Failed to fetch departments: ${JSON.stringify(error)}`
+        `[Finago] Failed to fetch dimension ${dimensionType} elements: ${JSON.stringify(error)}`
       );
     }
 
@@ -55,6 +56,11 @@ export async function getDepartments(): Promise<DimensionElement[]> {
   return results;
 }
 
+/** Fetches all department dimension elements from Finago. */
+export function getDepartments(): Promise<DimensionElement[]> {
+  return listDimensionElements(DEPARTMENT_DIMENSION_TYPE);
+}
+
 /**
  * Parses the `continuationToken` query parameter from a Link header's `next` relation.
  * Example header: `<https://...?continuationToken=abc>; rel="next"`
@@ -62,7 +68,7 @@ export async function getDepartments(): Promise<DimensionElement[]> {
 const LINK_URL_REGEX = /<([^>]+)>/;
 const LINK_REL_REGEX = /rel="([^"]+)"/;
 
-function parseNextContinuationToken(
+export function parseNextContinuationToken(
   linkHeader: string | null
 ): string | undefined {
   if (!linkHeader) {
