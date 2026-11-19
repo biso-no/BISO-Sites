@@ -10,28 +10,49 @@ export type ReplayConsent = "granted" | "denied" | "unknown";
 
 const ONE_YEAR_SECONDS = 31_536_000;
 
-/** Reads the choice from a `Cookie` header or `document.cookie` string. */
+function decodeEntry(raw: string): "granted" | "denied" | "unknown" {
+  let value: string;
+  try {
+    // Next's cookies().set percent-encodes the value ("v1:granted" -> "v1%3Agranted").
+    value = decodeURIComponent(raw);
+  } catch {
+    return "unknown";
+  }
+  if (value === `${REPLAY_CONSENT_VERSION}:granted`) {
+    return "granted";
+  }
+  if (value === `${REPLAY_CONSENT_VERSION}:denied`) {
+    return "denied";
+  }
+  return "unknown";
+}
+
+/**
+ * Reads the choice from a `Cookie` header or `document.cookie` string. When
+ * the cookie appears more than once (host-only plus `.biso.no`), any valid
+ * "denied" wins, then any valid "granted", else no answer.
+ */
 export function parseReplayConsent(
   cookieString: string | undefined
 ): ReplayConsent {
   if (!cookieString) {
     return "unknown";
   }
+  let result: ReplayConsent = "unknown";
   for (const part of cookieString.split(";")) {
     const [name, ...rest] = part.trim().split("=");
     if (name !== REPLAY_CONSENT_COOKIE) {
       continue;
     }
-    const value = rest.join("=");
-    if (value === `${REPLAY_CONSENT_VERSION}:granted`) {
-      return "granted";
-    }
-    if (value === `${REPLAY_CONSENT_VERSION}:denied`) {
+    const entry = decodeEntry(rest.join("="));
+    if (entry === "denied") {
       return "denied";
     }
-    return "unknown";
+    if (entry === "granted") {
+      result = "granted";
+    }
   }
-  return "unknown";
+  return result;
 }
 
 export function serializeReplayConsent(choice: "granted" | "denied"): string {
