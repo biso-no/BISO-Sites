@@ -129,7 +129,9 @@ Each debit line carries the base dimensions (department, campus) plus `{ dimensi
 
 **Files:** Modify `apps/api/src/lib/expense-card-details.ts` (receipt rows gain `projectName`; shown once when all receipts share it), the Teams card builder in `packages/connectors/src/teams-bot/cards.ts`, the email HTML builder, the web approval page `apps/web/src/app/(public)/fs/approve/[token]/approval-client.tsx`, the api `studentView` (strip project fields), `packages/shared/utils/expense-examples.ts` (`exampleFields` stores `project_id`/`project_name`).
 
-- [ ] **Step 1: Failing tests:** `the card shows one project when every receipt shares it`; `the card shows each receipt's project when they differ`; `the student never sees the project`; `an example keeps the receipt's project`.
+Also (carried from the Stage 2 final review, ledger ruling): an AI pick nobody saw at upload — `type_source` null with `cost_type === ai_cost_type` and `ai_confidence ≥ AI_TYPE_CONFIDENCE_THRESHOLD` — teaches once the example is **confirmed** (booked after an approver saw it), like a booked old-app replacement. A server default (no confident AI agreement) never teaches, confirmed or not. Change `typeTeaches`/`exampleTeaches` in `packages/shared/utils/expense-examples.ts` accordingly.
+
+- [ ] **Step 1: Failing tests:** `the card shows one project when every receipt shares it`; `the card shows each receipt's project when they differ`; `the student never sees the project`; `an example keeps the receipt's project`; `an unseen AI pick teaches once booked`; `an unseen AI pick does not teach before booking`; `a server default never teaches, even when booked`.
 - [ ] **Step 2–4:** RED → implement → GREEN.
 - [ ] **Step 5: Commit** `feat(expenses): approvers see the project and examples remember it`.
 
