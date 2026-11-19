@@ -29,7 +29,7 @@ import {
 import { receiptFileId } from "@repo/shared/utils/receipt-file-id";
 import { tool } from "ai";
 import { z } from "zod";
-import { todayInOslo } from "../receipt-date";
+import { receiptDateInOslo, todayInOslo } from "../receipt-date";
 import { cleanExampleText, fitFileForModel } from "../receipt-scan";
 
 type AdminClient = Awaited<ReturnType<typeof createAdminClient>>;
@@ -63,6 +63,9 @@ const EVENT_FETCH_LIMIT = 100;
 const PROJECT_FETCH_LIMIT = 5000;
 const USAGE_FETCH_LIMIT = 500;
 const MAX_SERIES = 10;
+const MAX_EDITIONS = 12;
+const EVENT_HISTORY_YEARS = 3;
+const LEDGER_PAGES = 4;
 const MAX_RECEIPT_DATES = 5;
 const MAX_CANDIDATES = 30;
 const DAY_LENGTH = 10;
@@ -252,35 +255,80 @@ function titleOf(event: Events): string {
   return text(refs.find((ref) => ref?.title?.trim())?.title);
 }
 
-async function departmentEvents(
+interface SiteEvent {
+  date: string;
+  departmentId: string | null;
+  title: string;
+}
+
+/** Published (never draft or cancelled) events matching `queries`, as Oslo days with clean titles. */
+async function queryEvents(
   db: ToolDeps["db"],
-  departmentId: string
-): Promise<{ date: string; title: string }[]> {
+  queries: string[],
+  order: "asc" | "desc"
+): Promise<SiteEvent[]> {
   const { rows } = await db.listRows<Events>("app", "events", [
-    Query.equal("department_id", departmentId),
     Query.equal("status", EventsStatus.PUBLISHED),
-    Query.orderAsc("start_date"),
-    Query.select(["$id", "start_date", "translation_refs.title"]),
+    ...queries,
+    order === "asc"
+      ? Query.orderAsc("start_date")
+      : Query.orderDesc("start_date"),
+    Query.select([
+      "$id",
+      "start_date",
+      "department_id",
+      "translation_refs.title",
+    ]),
     Query.limit(EVENT_FETCH_LIMIT),
   ]);
   return rows.flatMap((event) => {
     const title = titleOf(event);
-    return event.start_date && title
-      ? [{ date: event.start_date.slice(0, DAY_LENGTH), title }]
+    const date = receiptDateInOslo(event.start_date);
+    return date && title
+      ? [{ date, departmentId: event.department_id ?? null, title }]
       : [];
   });
+}
+
+/** The department's events of the last years, newest first so the cap drops the oldest. */
+function departmentEvents(
+  db: ToolDeps["db"],
+  departmentId: string,
+  today: string
+): Promise<SiteEvent[]> {
+  const since = `${Number(today.slice(0, 4)) - EVENT_HISTORY_YEARS}-01-01T00:00:00.000`;
+  return queryEvents(
+    db,
+    [
+      Query.equal("department_id", departmentId),
+      Query.greaterThanEqual("start_date", since),
+    ],
+    "desc"
+  );
+}
+
+const REGEX_SPECIALS = /[.*+?^${}()|[\]\\]/g;
+
+/** Whether the title holds the whole series phrase, not inside a longer word. */
+function titleNamesSeries(title: string, series: string): boolean {
+  const phrase = series.trim().replace(REGEX_SPECIALS, "\\$&");
+  if (!phrase) {
+    return false;
+  }
+  return new RegExp(
+    `(?<![\\p{L}\\p{N}])${phrase}(?![\\p{L}\\p{N}])`,
+    "iu"
+  ).test(title);
 }
 
 /** Website event dates per edition: a department event naming the series, in the edition's year. */
 function websiteDates(
   editions: FinagoProjects[],
   series: string,
-  events: { date: string; title: string }[]
+  events: SiteEvent[]
 ): Map<string, string> {
   const dates = new Map<string, string>();
-  const named = events.filter((event) =>
-    event.title.toLowerCase().includes(series)
-  );
+  const named = events.filter((event) => titleNamesSeries(event.title, series));
   for (const edition of editions) {
     const hit = named.find((e) => Number(e.date.slice(0, 4)) === edition.year);
     if (hit) {
@@ -310,6 +358,7 @@ function listProjects({ db, today }: ToolDeps) {
     }),
     execute: ({ departmentId, receiptDates }) =>
       guarded("list_projects", TOOL_TIMEOUT_MS, async () => {
+        const notes: string[] = [];
         const [projects, usage, department, events] = await allOrThrow([
           db
             .listRows<FinagoProjects>("app", "finago_projects", [
@@ -325,8 +374,18 @@ function listProjects({ db, today }: ToolDeps) {
           (async () =>
             await db.getRow<Departments>("app", "departments", departmentId, [
               Query.select(["project_share"]),
-            ]))().catch(() => null),
-          departmentEvents(db, departmentId).catch(() => []),
+            ]))().catch(() => {
+            notes.push("The department's project share could not be read");
+            return null;
+          }),
+          departmentEvents(db, departmentId, today ?? todayInOslo()).catch(
+            () => {
+              notes.push(
+                "Website events could not be read, so event dates come from finance and bookings only"
+              );
+              return [] as SiteEvent[];
+            }
+          ),
         ]);
         // Every row, active or not: a closed past edition is what makes the
         // next year's a candidate (the function itself returns active ones).
@@ -369,22 +428,27 @@ function listProjects({ db, today }: ToolDeps) {
                   series,
                   websiteEventDates,
                 }).editions
-              ).map((e) => ({
-                active: editions.find((p) => p.project_id === e.projectId)
-                  ?.active,
-                eventDate: e.eventDate,
-                eventDateSource: e.eventDateSource,
-                name: text(e.name),
-                projectId: e.projectId,
-                year: e.year,
-              })),
+              )
+                .slice(-MAX_EDITIONS)
+                .map((e) => ({
+                  active: editions.find((p) => p.project_id === e.projectId)
+                    ?.active,
+                  eventDate: e.eventDate,
+                  eventDateSource: e.eventDateSource,
+                  name: text(e.name),
+                  projectId: e.projectId,
+                  year: e.year,
+                })),
               series: text(series),
               timings: timings.map((t) =>
                 presentTiming(t.receiptDate, t.timing)
               ),
             };
           }),
-          shareClass: shareClass(department?.project_share ?? null),
+          notes,
+          shareClass: department
+            ? shareClass(department.project_share ?? null)
+            : "unknown",
         };
       }),
   });
@@ -404,39 +468,22 @@ function findEvents({ db }: ToolDeps) {
     }),
     execute: (input) =>
       guarded("find_events", TOOL_TIMEOUT_MS, async () => {
-        const { rows } = await db.listRows<Events>("app", "events", [
-          Query.equal("status", EventsStatus.PUBLISHED),
-          Query.between(
-            "start_date",
-            `${input.from}T00:00:00.000`,
-            `${input.to}T23:59:59.999`
-          ),
-          ...(input.departmentId
-            ? [Query.equal("department_id", input.departmentId)]
-            : []),
-          Query.orderAsc("start_date"),
-          Query.select([
-            "$id",
-            "start_date",
-            "department_id",
-            "translation_refs.title",
-          ]),
-          Query.limit(EVENT_FETCH_LIMIT),
-        ]);
+        const found = await queryEvents(
+          db,
+          [
+            Query.between(
+              "start_date",
+              `${input.from}T00:00:00.000`,
+              `${input.to}T23:59:59.999`
+            ),
+            ...(input.departmentId
+              ? [Query.equal("department_id", input.departmentId)]
+              : []),
+          ],
+          "asc"
+        );
         const needle = input.text?.trim().toLowerCase();
-        const events = rows
-          .flatMap((event) => {
-            const title = titleOf(event);
-            return event.start_date && title
-              ? [
-                  {
-                    date: event.start_date.slice(0, DAY_LENGTH),
-                    departmentId: event.department_id ?? null,
-                    title,
-                  },
-                ]
-              : [];
-          })
+        const events = found
           .filter((e) => !needle || e.title.toLowerCase().includes(needle))
           .slice(0, MAX_EVENTS);
         return { events };
@@ -454,15 +501,29 @@ function searchAccounts({ db }: ToolDeps) {
     execute: ({ text: query }) =>
       guarded("search_accounts", TOOL_TIMEOUT_MS, async () => {
         const needle = query.trim().toLowerCase();
-        const { rows } = await db.listRows<LedgerAccounts>(
-          "app",
-          "ledger_accounts",
-          [Query.equal("active", true), Query.limit(LEDGER_LIMIT)]
-        );
+        // The cost range holds at most 4000 numbers; read it in pages of 1000.
+        const rows: LedgerAccounts[] = [];
+        for (let page = 0; page < LEDGER_PAGES; page += 1) {
+          const { rows: part } = await db.listRows<LedgerAccounts>(
+            "app",
+            "ledger_accounts",
+            [
+              Query.equal("active", true),
+              Query.greaterThanEqual("account_number", FIRST_COST_ACCOUNT),
+              Query.lessThan("account_number", END_COST_ACCOUNT),
+              Query.orderAsc("account_number"),
+              Query.limit(LEDGER_LIMIT),
+              Query.offset(page * LEDGER_LIMIT),
+            ]
+          );
+          rows.push(...part);
+          if (part.length < LEDGER_LIMIT) {
+            break;
+          }
+        }
         const accounts = rows
           .filter(
             (row) =>
-              row.active &&
               row.account_number >= FIRST_COST_ACCOUNT &&
               row.account_number < END_COST_ACCOUNT &&
               (String(row.account_number).startsWith(needle) ||
@@ -495,6 +556,7 @@ type ReceiptResult = { error: string } | { base64: string; mediaType: string };
  * run logs stays small.
  */
 export function createViewReceiptTool(deps: ToolDeps, expenseId: string) {
+  // The explicit generics are needed: `toModelOutput` can't infer them from `execute`.
   let calls = 0;
   return tool<{ receiptId: string }, ReceiptResult, Record<string, never>>({
     description:
@@ -502,9 +564,11 @@ export function createViewReceiptTool(deps: ToolDeps, expenseId: string) {
     inputSchema: z.object({ receiptId: z.string().min(1).max(50) }),
     execute: ({ receiptId }) =>
       guarded("view_receipt", VIEW_RECEIPT_TIMEOUT_MS, async () => {
+        // Reserved before the first await, so parallel calls can't all pass.
         if (calls >= MAX_VIEW_RECEIPT_CALLS) {
           return { error: "Receipt view limit reached" };
         }
+        calls += 1;
         const { rows } = await deps.db.listRows<ExpenseAttachments>(
           "app",
           "expense_attachments",
@@ -513,9 +577,10 @@ export function createViewReceiptTool(deps: ToolDeps, expenseId: string) {
         const attachment = rows.find((row) => row.$id === receiptId);
         const fileId = receiptFileId(attachment?.url);
         if (!(attachment && fileId)) {
+          calls -= 1;
           return { error: "That receipt is not part of this expense" };
         }
-        calls += 1;
+        // Appwrite's download is typed loosely; at runtime it is an ArrayBuffer.
         const bytes = await deps.storage.getFileDownload(
           EXPENSES_BUCKET,
           fileId

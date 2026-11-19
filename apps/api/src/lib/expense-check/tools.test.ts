@@ -196,6 +196,75 @@ describe("list_projects", () => {
     expect(result.series[0].editions[1].eventDate).toBe("2026-10-09");
   });
 
+  it("notes missing events and an unknown share instead of hiding them", async () => {
+    listRows.mockImplementation((_d: string, table: string) =>
+      table === "events"
+        ? Promise.reject(new Error("no events"))
+        : Promise.resolve({ rows: [] })
+    );
+    getRow.mockRejectedValue(new Error("no dept"));
+    const { list_projects } = createCheckTools(deps);
+    const result = await run(list_projects, {
+      departmentId: "dep1",
+      receiptDates: [],
+    });
+    expect(result.shareClass).toBe("unknown");
+    expect(result.notes).toHaveLength(2);
+  });
+
+  it("matches the series as a whole word only", async () => {
+    const eventsFor = (titles: string[]) =>
+      titles.map((title, i) => ({
+        $id: String(i),
+        start_date: "2026-10-09T10:00:00.000+00:00",
+        translation_refs: [{ locale: "no", title }],
+      }));
+    const timingFor = async (titles: string[]) => {
+      listRows.mockImplementation((_d: string, table: string) => {
+        if (table === "finago_projects") {
+          return Promise.resolve({
+            rows: [project({ name: "KD 2026", project_id: "p26" })],
+          });
+        }
+        if (table === "finago_project_usage") {
+          return Promise.resolve({
+            rows: [
+              {
+                department_id: "dep1",
+                last_line_date: "2026-01-01",
+                project_id: "p26",
+              },
+            ],
+          });
+        }
+        return Promise.resolve({
+          rows: table === "events" ? eventsFor(titles) : [],
+        });
+      });
+      getRow.mockResolvedValue({ project_share: 0.5 });
+      const { list_projects } = createCheckTools(deps);
+      const result = await run(list_projects, {
+        departmentId: "dep1",
+        receiptDates: ["2026-09-01"],
+      });
+      return result.series[0].editions[0].eventDateSource;
+    };
+    expect(await timingFor(["Workday", "kdfest"])).not.toBe("website");
+    expect(await timingFor(["KD fest"])).toBe("website");
+    expect(await timingFor(["Karrieredagene KD 2026"])).toBe("website");
+  });
+
+  it("asks for the newest events, newest first", async () => {
+    listRows.mockResolvedValue({ rows: [] });
+    getRow.mockResolvedValue({ project_share: 0.5 });
+    const { list_projects } = createCheckTools(deps);
+    await run(list_projects, { departmentId: "dep1", receiptDates: [] });
+    const call = listRows.mock.calls.find((c) => c[1] === "events");
+    const joined = (call?.[2] as string[]).join(" ");
+    expect(joined).toContain("orderDesc");
+    expect(joined).toContain("2023-01-01");
+  });
+
   it("errors on a failing lookup", async () => {
     listRows.mockRejectedValue(new Error("boom"));
     const { list_projects } = createCheckTools(deps);
@@ -286,6 +355,27 @@ describe("view_receipt", () => {
     const result = await run(tool, { receiptId: "other" });
     expect(result).toEqual({ error: expect.any(String) });
     expect(getFileDownload).not.toHaveBeenCalled();
+  });
+
+  it("allows at most three downloads across parallel calls", async () => {
+    listRows.mockResolvedValue(attachments);
+    getFileDownload.mockResolvedValue(new Uint8Array([1]).buffer);
+    const tool = createViewReceiptTool(deps, "exp1");
+    const results = await Promise.all(
+      [1, 2, 3, 4].map(() => run(tool, { receiptId: "att1" }))
+    );
+    expect(results.filter((r) => r.error)).toHaveLength(1);
+    expect(getFileDownload).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not spend a view on a refused receipt", async () => {
+    listRows.mockResolvedValue(attachments);
+    getFileDownload.mockResolvedValue(new Uint8Array([1]).buffer);
+    const tool = createViewReceiptTool(deps, "exp1");
+    for (let i = 0; i < 5; i++) {
+      await run(tool, { receiptId: "nope" });
+    }
+    expect((await run(tool, { receiptId: "att1" })).error).toBeUndefined();
   });
 
   it("allows at most three views per run", async () => {
