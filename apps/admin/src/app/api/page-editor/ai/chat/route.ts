@@ -1,5 +1,6 @@
 import { balancedModel } from "@repo/ai/models";
 import { buildSystemPrompt, pageEditorTools } from "@repo/editor/ai";
+import { traceAiStream } from "@repo/observability/ai";
 import {
   convertToModelMessages,
   createUIMessageStreamResponse,
@@ -28,19 +29,35 @@ export async function POST(request: Request) {
     return new Response("Bad request: missing messages", { status: 400 });
   }
 
-  const result = streamText({
-    model: balancedModel,
-    instructions: buildSystemPrompt(
-      pageContext ?? "(no page context provided)"
-    ),
-    messages: await convertToModelMessages(messages),
-    tools: pageEditorTools,
-    // Headroom for: preamble + edits -> a state check -> more edits -> the
-    // closing summary. The loop ends naturally on the first step with no tool
-    // calls, so this is only a runaway guard. At 5 a multi-block build hit the
-    // cap on a tool step and the user never got the summary.
-    stopWhen: isStepCount(12),
-  });
+  const modelMessages = await convertToModelMessages(messages);
+  const result = traceAiStream(
+    {
+      functionId: "admin.page-editor-chat",
+      model: balancedModel,
+      operation: "chat",
+      signal: request.signal,
+    },
+    (span) =>
+      streamText({
+        model: balancedModel,
+        instructions: buildSystemPrompt(
+          pageContext ?? "(no page context provided)"
+        ),
+        messages: modelMessages,
+        tools: pageEditorTools,
+        // Headroom for: preamble + edits -> a state check -> more edits -> the
+        // closing summary. The loop ends naturally on the first step with no
+        // tool calls, so this is only a runaway guard. At 5 a multi-block
+        // build hit the cap on a tool step and the user never got the summary.
+        stopWhen: isStepCount(12),
+        onEnd: span.onEnd,
+        onError: (event) => {
+          span.onError(event);
+          // The AI SDK's own handler, which setting this one replaces.
+          console.error(event.error);
+        },
+      })
+  );
 
   return createUIMessageStreamResponse({
     stream: toUIMessageStream({

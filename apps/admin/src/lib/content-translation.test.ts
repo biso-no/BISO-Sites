@@ -15,6 +15,12 @@ const generateObjectSpy = mock(async (_input: unknown) => ({
 
 mock.module("next/server", () => ({ after: afterSpy }));
 mock.module("ai", () => ({ generateObject: generateObjectSpy }));
+const { traceAiCall, traceAiStream } = await import("@repo/observability/ai");
+const traceAiCallSpy = mock(traceAiCall);
+mock.module("@repo/observability/ai", () => ({
+  traceAiCall: traceAiCallSpy,
+  traceAiStream,
+}));
 
 const {
   getAutoTranslationDescription,
@@ -104,6 +110,21 @@ describe("content translation service", () => {
     expect(request.prompt).toContain("title");
     expect(request.prompt).toContain("body");
     expect(request.prompt).not.toContain('"key":"lead"');
+  });
+
+  test("names the model call admin.content-translation for Sentry", async () => {
+    await translateContentFields({
+      contentType: "news article",
+      fields: [{ format: "plain", key: "title", value: "Norsk tittel" }],
+      sourceLocale: "no",
+      targetLocale: "en",
+    });
+    const request = generateObjectSpy.mock.calls[0]?.[0] as { model: unknown };
+    expect(traceAiCallSpy.mock.calls.at(-1)?.[0]).toEqual({
+      functionId: "admin.content-translation",
+      model: request.model,
+      operation: "generate_object",
+    });
   });
 
   test("tells the model to keep every tag and attribute value as written", async () => {
