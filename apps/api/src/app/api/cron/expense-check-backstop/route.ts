@@ -64,9 +64,17 @@ async function takeOver(
     value: 1,
   });
   const claim = claimed.check_claim;
+  // Exclusive takeover: only the tick whose increment came straight after the
+  // value it listed owns the row. An overlapping tick (or a run that claimed
+  // since) pushed the counter further, so this one steps aside.
+  const listedClaim = expense.check_claim ?? 0;
+  if (claim !== listedClaim + 1) {
+    counts.skipped += 1;
+    return;
+  }
   const secondTime =
     expense.check_state === ExpensesCheckState.RUNNING &&
-    (expense.check_claim ?? 0) >= TAKEN_OVER_CLAIM;
+    listedClaim >= TAKEN_OVER_CLAIM;
   if (secondTime) {
     counts.fallbackOnly += 1;
   }
@@ -105,6 +113,9 @@ export async function POST(request: Request) {
           Query.lessThan("check_started_at", cutoff),
         ]),
       ]),
+      // A running row's `$updatedAt` is its start write (the run's next
+      // write is the last one), so it orders the same as the start time; a
+      // queued row has only `$updatedAt`. One order covers both.
       Query.orderAsc("$updatedAt"),
       Query.limit(BATCH_SIZE),
     ]);

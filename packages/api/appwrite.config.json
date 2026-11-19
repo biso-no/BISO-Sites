@@ -1382,6 +1382,28 @@
                     "orders": [
                         "ASC"
                     ]
+                },
+                {
+                    "key": "idx_check_state",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "check_state"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "idx_check_started_at",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "check_started_at"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
                 }
             ]
         },

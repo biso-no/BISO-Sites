@@ -588,6 +588,15 @@ describe("admin expenses schema", () => {
     ).toBe(true);
   });
 
+  test("expense indexes the backstop's check filters", () => {
+    expect(hasKeyIndex("expense", "idx_check_state", ["check_state"])).toBe(
+      true
+    );
+    expect(
+      hasKeyIndex("expense", "idx_check_started_at", ["check_started_at"])
+    ).toBe(true);
+  });
+
   test("expense has campus and department list indexes", () => {
     expect(hasKeyIndex("expense", "idx_campus", ["campus"])).toBe(true);
     expect(hasKeyIndex("expense", "idx_department", ["department"])).toBe(true);

@@ -97,7 +97,7 @@ describe("POST /api/cron/expense-check-backstop", () => {
     expect(text).toContain("5");
   });
 
-  it("a fresh running check is left alone", async () => {
+  it("asks only for checks stale for ten minutes, so a fresh one is left alone", async () => {
     // The list holds only stale rows; a fresh one never comes back, and the
     // cutoff it was asked with is ten minutes ago.
     stuck([]);
@@ -139,6 +139,16 @@ describe("POST /api/cron/expense-check-backstop", () => {
       claim: 3,
     });
     expect(await response.json()).toMatchObject({ fallbackOnly: 1, ran: 2 });
+  });
+
+  it("steps aside when an overlapping tick took the row first", async () => {
+    stuck([{ $id: "expense-1", check_claim: 1 }]);
+    db.incrementRowColumn.mockResolvedValue({ check_claim: 3 });
+
+    const response = await POST(request());
+
+    expect(run.runExpenseCheck).not.toHaveBeenCalled();
+    expect(await response.json()).toMatchObject({ ran: 0, skipped: 1 });
   });
 
   it("goes on after one expense fails, and counts it", async () => {
