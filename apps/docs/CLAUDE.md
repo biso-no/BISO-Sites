@@ -18,7 +18,7 @@ Docs is live at `docs.biso.no`. `GO-LIVE.md` is the ordered checklist the owner 
 put it there. Follow it again if docs ever has to be set up from scratch.
 
 Old URLs are redirected through `redirects.json`. Rules there are
-`{ source, destination }` only. `next.config.mjs` serves all of them as
+`{ source, destination }` only. `next.config.ts` serves all of them as
 temporary (307) redirects, so don't add a `permanent` key. The first matching
 rule wins, so put specific rules above the section fallbacks. If you move or
 rename a page, add a redirect. The tests fail on redirect chains.
