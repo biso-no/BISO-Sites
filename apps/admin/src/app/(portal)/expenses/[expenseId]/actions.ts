@@ -15,6 +15,11 @@ import {
   type ExpenseEventInput,
   recordExpenseEvents,
 } from "@repo/shared/utils/expense-events";
+import {
+  type ExamplesDb,
+  readExampleScan,
+  syncExample,
+} from "@repo/shared/utils/expense-examples";
 import { revalidatePath } from "next/cache";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 import {
@@ -78,6 +83,7 @@ async function loadForEdit(expenseId: string): Promise<Loaded | null> {
         "bank_account",
         "submitter_is_financial_manager",
         "submitter_is_controller",
+        "department",
         "expenseAttachments.*",
       ]),
     ]),
@@ -129,6 +135,26 @@ function actorOf(loaded: Loaded): {
 }
 
 /** Corrects one receipt of an expense. Each change is logged in the history. */
+/** Keeps the receipt's learning example in step with an edit; never fails the edit. */
+async function refreshExample(
+  db: Loaded["db"],
+  expense: Expenses,
+  saved: ExpenseAttachments
+): Promise<void> {
+  try {
+    const examplesDb = db as unknown as ExamplesDb;
+    await syncExample(examplesDb, {
+      attachment: saved,
+      departmentId: expense.department || null,
+      scan: saved.file_hash
+        ? await readExampleScan(examplesDb, saved.file_hash)
+        : null,
+    });
+  } catch (error) {
+    console.error("[expense-edit] example sync failed", error);
+  }
+}
+
 export async function updateExpenseReceipt(input: {
   attachmentId: string;
   changes: ReceiptChanges;
@@ -207,6 +233,7 @@ export async function updateExpenseReceipt(input: {
     }
 
     await recordExpenseEvents(db, events);
+    await refreshExample(db, expense, { ...current, ...plan.patch });
     revalidatePath(`/expenses/${expense.$id}`);
     return { data: { total } };
   } catch (error) {

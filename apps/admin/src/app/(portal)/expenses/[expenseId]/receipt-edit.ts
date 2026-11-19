@@ -5,6 +5,7 @@
 import {
   type ExpenseAttachments,
   ExpenseAttachmentsAccountSource,
+  ExpenseAttachmentsTypeSource,
 } from "@repo/api/types/appwrite";
 import { osloDayOf } from "@/lib/oslo-day";
 import type { ExpenseActionError } from "../action-result";
@@ -113,6 +114,9 @@ function applyCostType(
     ExpenseAttachmentsAccountSource[
       ctx.source === "admin" ? "ADMIN" : "APPROVER"
     ];
+  // A person picked this type, so it may teach later classifications.
+  work.patch.type_source =
+    ExpenseAttachmentsTypeSource[ctx.source === "admin" ? "ADMIN" : "APPROVER"];
   work.accountNumber = type.accountNumber;
   return null;
 }

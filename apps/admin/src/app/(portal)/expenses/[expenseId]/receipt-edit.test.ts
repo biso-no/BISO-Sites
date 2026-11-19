@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   type ExpenseAttachments,
   ExpenseAttachmentsAccountSource,
+  ExpenseAttachmentsTypeSource,
 } from "@repo/api/types/appwrite";
 import {
   type ExpenseTypeOption,
@@ -69,11 +70,48 @@ describe("planReceiptEdit", () => {
       cost_type: "office",
       cost_type_text: null,
       tax_code: 1,
+      type_source: ExpenseAttachmentsTypeSource.APPROVER,
     });
     expect(plan.events).toEqual([
       { after: "office", before: "food", field: "cost_type" },
       { after: "6800", before: "7140", field: "account_number" },
     ]);
+  });
+
+  test("a type change by an admin records admin", () => {
+    const plan = ok(
+      planReceiptEdit(
+        current(),
+        { costType: "office" },
+        ctx({ source: "admin" })
+      )
+    );
+    expect(plan.patch.type_source).toBe(ExpenseAttachmentsTypeSource.ADMIN);
+  });
+
+  test("a legacy app receipt corrected by an approver teaches", () => {
+    const plan = ok(
+      planReceiptEdit(
+        current({ type_source: ExpenseAttachmentsTypeSource.LEGACY_APP }),
+        { costType: "office" },
+        ctx()
+      )
+    );
+    expect(plan.patch.type_source).toBe(ExpenseAttachmentsTypeSource.APPROVER);
+  });
+
+  test("an account-only edit does not mark the type as human-chosen", () => {
+    const plan = ok(
+      planReceiptEdit(
+        current({ type_source: ExpenseAttachmentsTypeSource.LEGACY_APP }),
+        { accountNumber: 7300 },
+        ctx()
+      )
+    );
+    expect(plan.patch).not.toHaveProperty("type_source");
+    expect(plan.patch.account_source).toBe(
+      ExpenseAttachmentsAccountSource.APPROVER
+    );
   });
 
   test("account change keeps the type and takes the account's tax code", () => {

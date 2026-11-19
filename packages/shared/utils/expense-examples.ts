@@ -257,7 +257,7 @@ export async function syncExample(
 }
 
 /** Mirrors how the api reads a stored scan; only vendor and description matter here. */
-async function readScan(
+export async function readExampleScan(
   db: ExamplesDb,
   fileHash: string
 ): Promise<ExampleScan | null> {
@@ -320,7 +320,7 @@ export async function syncExamplesForExpense(
     const departmentId = departmentIdOf(expense);
     for (const attachment of expense.expenseAttachments ?? []) {
       const scan = attachment.file_hash
-        ? await readScan(db, attachment.file_hash)
+        ? await readExampleScan(db, attachment.file_hash)
         : null;
       await syncExample(db, {
         accountNumber: opts.accountByAttachment?.get(attachment.$id),

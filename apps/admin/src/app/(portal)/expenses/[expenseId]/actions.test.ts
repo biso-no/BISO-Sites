@@ -252,6 +252,57 @@ describe("updateExpenseReceipt", () => {
     });
   });
 
+  test("saving an edit updates the receipt's example", async () => {
+    const legacy = {
+      ...attachment("a1", 200),
+      type_source: "legacy_app",
+    };
+    db.getRow.mockResolvedValue({
+      ...expense(),
+      department: "dept1",
+      expenseAttachments: [legacy, attachment("a2", 50)],
+    });
+    db.listRows.mockImplementation((_d: string, table: string) => {
+      if (table === "expense_approvals") {
+        return Promise.resolve({ rows: steps });
+      }
+      if (table === "expense_cost_types") {
+        return Promise.resolve({
+          rows: [
+            {
+              account_number: 6800,
+              active: true,
+              label: "Office",
+              slug: "office",
+              tax_code: 1,
+            },
+          ],
+        });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+    const result = await updateExpenseReceipt({
+      attachmentId: "a1",
+      changes: { costType: "office" },
+      expenseId: "ex1",
+    });
+    expect(result).toHaveProperty("data");
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "expense_attachments",
+      "a1",
+      expect.objectContaining({ type_source: "approver" })
+    );
+    const example = db.createRow.mock.calls.find(
+      (call) => call[1] === "expense_type_examples"
+    );
+    expect(example?.[3]).toMatchObject({
+      department_id: "dept1",
+      final_cost_type: "office",
+      type_source: "approver",
+    });
+  });
+
   test("a no-op change writes nothing", async () => {
     const result = await updateExpenseReceipt({
       attachmentId: "a1",
