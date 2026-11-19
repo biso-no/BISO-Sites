@@ -1261,6 +1261,14 @@
     "teamsUnavailable": "Could not load team health. Check Appwrite connectivity.",
     "runbook": "Runbook",
     "missingSuffix": "missing",
+    "sentryTest": {
+      "button": "Send test error to Sentry",
+      "sending": "Sending...",
+      "eventId": "Sent. Event id:",
+      "notConfigured": "Sentry is not configured, nothing was sent.",
+      "forbidden": "Only global admins can send a test error.",
+      "failed": "Could not send the test error."
+    },
     "status": {
       "configured": "Configured",
       "incomplete": "Incomplete",

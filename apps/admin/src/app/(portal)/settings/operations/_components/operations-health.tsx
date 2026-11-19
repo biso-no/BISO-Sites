@@ -5,11 +5,13 @@ import type {
 } from "@/lib/integration-health";
 import type { TeamHealthReport } from "@/lib/team-health";
 import { STUDIO, studioSurface } from "../../../_components/studio";
+import { SentryTestButton, type SentryTestLabels } from "./sentry-test-button";
 
 export interface OperationsLabels {
   integrationsTitle: string;
   missingSuffix: string;
   runbook: string;
+  sentryTest: SentryTestLabels;
   status: {
     configured: string;
     incomplete: string;
@@ -108,6 +110,9 @@ export function OperationsHealth({
                 >
                   {labels.runbook}
                 </Link>
+                {entry.id === "sentry" && (
+                  <SentryTestButton labels={labels.sentryTest} />
+                )}
               </div>
               <StatusPill
                 label={labels.status[entry.status]}
