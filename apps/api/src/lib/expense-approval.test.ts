@@ -53,6 +53,10 @@ const graph = vi.hoisted(() => ({ getUser: vi.fn() }));
 vi.mock("./graph", () => ({ getGraphService: () => graph }));
 vi.mock("./expense-approver-resolution", () => resolution);
 vi.mock("@repo/shared/utils/expense-events", () => events);
+const examples = vi.hoisted(() => ({
+  deleteExamplesForExpense: vi.fn(),
+}));
+vi.mock("@repo/shared/utils/expense-examples", () => examples);
 const flags = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
 vi.mock("@repo/shared/utils/feature-flags-server", () => flags);
 
@@ -1255,6 +1259,20 @@ describe("token decision paths", () => {
         })
       );
     }
+  });
+
+  it("a rejection deletes the expense's examples, an approval does not", async () => {
+    setup(row());
+    await decide("rejected");
+    expect(examples.deleteExamplesForExpense).toHaveBeenCalledWith(
+      db,
+      "expense-1"
+    );
+
+    examples.deleteExamplesForExpense.mockClear();
+    setup(row());
+    await decide("approved");
+    expect(examples.deleteExamplesForExpense).not.toHaveBeenCalled();
   });
 
   it("returns the expiry error and never claims an expired link", async () => {

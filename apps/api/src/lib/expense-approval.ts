@@ -34,6 +34,7 @@ import {
   NO_APPROVER_ISSUE_REASON,
 } from "@repo/shared/utils/expense-approvers";
 import { recordExpenseEvents } from "@repo/shared/utils/expense-events";
+import { deleteExamplesForExpense } from "@repo/shared/utils/expense-examples";
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { reimbursementNumber } from "@repo/shared/utils/reimbursement-number";
 import { type GuardedApproverStep, guardChain } from "./expense-approval-guard";
@@ -1081,6 +1082,8 @@ async function applyDecisionOutcome(
       status: ExpensesStatus.REJECTED,
     });
     await resolveOpenIssues(db, row.expense_id);
+    // A rejected receipt teaches nothing; the delete logs its own failures.
+    await deleteExamplesForExpense(db, row.expense_id);
     await notifySubmitter(expense.userId, refNumber, "rejected", input.reason);
     return {
       ok: true,

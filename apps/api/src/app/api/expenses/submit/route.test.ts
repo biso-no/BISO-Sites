@@ -44,6 +44,11 @@ vi.mock("@/lib/expense-approval", () => ({
   createApprovalChain: vi.fn(async () => undefined),
 }));
 
+const examples = vi.hoisted(() => ({
+  syncExamplesForExpense: vi.fn(),
+}));
+vi.mock("@repo/shared/utils/expense-examples", () => examples);
+
 const enrichment = vi.hoisted(() => {
   class OccasionRequiredError extends Error {}
   return { enrichSubmission: vi.fn(), OccasionRequiredError };
@@ -123,6 +128,8 @@ describe("expense submit route", () => {
       async (key: string) => key !== "expenses_ledger_posting"
     );
     vi.mocked(createApprovalChain).mockClear();
+    examples.syncExamplesForExpense.mockReset();
+    examples.syncExamplesForExpense.mockResolvedValue(undefined);
     enrichment.enrichSubmission.mockReset();
     enrichment.enrichSubmission.mockResolvedValue(undefined);
     // The profile, then the saved draft (read before and after enrichment).
@@ -139,6 +146,59 @@ describe("expense submit route", () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+  });
+
+  it("writes unconfirmed examples after a successful email submit", async () => {
+    const response = await POST(submitRequest(SUBMIT_BODY));
+
+    expect(response.status).toBe(200);
+    expect(examples.syncExamplesForExpense).toHaveBeenCalledTimes(1);
+    expect(examples.syncExamplesForExpense).toHaveBeenCalledWith(
+      adminDb,
+      "expense-1",
+      { confirmed: false }
+    );
+  });
+
+  it("writes unconfirmed examples after a successful approval submit", async () => {
+    vi.mocked(isFeatureEnabled).mockResolvedValue(true);
+
+    const response = await POST(submitRequest(SUBMIT_BODY));
+
+    expect(response.status).toBe(200);
+    expect(examples.syncExamplesForExpense).toHaveBeenCalledTimes(1);
+    expect(examples.syncExamplesForExpense).toHaveBeenCalledWith(
+      adminDb,
+      "expense-1",
+      { confirmed: false }
+    );
+  });
+
+  it("a submit that fails at chain creation writes no examples; the later successful resubmit writes exactly one per receipt", async () => {
+    vi.mocked(isFeatureEnabled).mockResolvedValue(true);
+    vi.mocked(createApprovalChain).mockRejectedValueOnce(new Error("boom"));
+    // Every submit loads the profile first, then the saved draft.
+    sessionDb.getRow.mockReset();
+    sessionDb.getRow.mockImplementation(async (_db, table) =>
+      table === "user" ? PROFILE : SAVED_EXPENSE
+    );
+
+    const failed = await POST(submitRequest(SUBMIT_BODY));
+    expect(failed.status).toBe(500);
+    expect(examples.syncExamplesForExpense).not.toHaveBeenCalled();
+
+    const retried = await POST(submitRequest(SUBMIT_BODY));
+    expect(retried.status).toBe(200);
+    expect(examples.syncExamplesForExpense).toHaveBeenCalledTimes(1);
+  });
+
+  it("writes no examples when the email submit fails", async () => {
+    messaging.createEmail.mockRejectedValue(new Error("mail down"));
+
+    const response = await POST(submitRequest(SUBMIT_BODY));
+
+    expect(response.status).toBe(500);
+    expect(examples.syncExamplesForExpense).not.toHaveBeenCalled();
   });
 
   it("creates submitted expense rows through the admin client with submitter permissions", async () => {

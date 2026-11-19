@@ -4,6 +4,7 @@ import { InputFile } from "@repo/api/file";
 import { createAdminClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
 import { type Expenses, ExpensesStatus } from "@repo/api/types/appwrite";
+import { syncExamplesForExpense } from "@repo/shared/utils/expense-examples";
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
@@ -514,6 +515,10 @@ async function submitExpense(req: NextRequest) {
   } else {
     await submitByEmail(admin, submission);
   }
+
+  // Only a submit that went through teaches anything; the write logs and
+  // swallows its own failures, so it never fails the submit.
+  await syncExamplesForExpense(admin.db, expense.$id, { confirmed: false });
 
   return {
     success: true,
