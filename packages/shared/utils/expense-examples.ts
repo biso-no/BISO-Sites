@@ -57,6 +57,8 @@ export interface ExampleRow {
   description: string;
   final_cost_type: string | null;
   final_text: string | null;
+  project_id: string | null;
+  project_name: string | null;
   source: ExampleSource;
   type_source: ExpenseTypeExamples["type_source"];
   vendor_key: string;
@@ -110,24 +112,10 @@ export function normalizeVendor(vendor: string | null | undefined): string {
   return cleaned.slice(0, VENDOR_KEY_MAX);
 }
 
-/**
- * Whether a receipt's type may teach later classifications. An old app sends
- * its default type unasked, so its type counts only when the AI was sure of
- * the same one.
- */
-export function typeTeaches(
-  att: Pick<
-    ExpenseAttachments,
-    "type_source" | "cost_type" | "ai_cost_type" | "ai_confidence"
-  >
+/** True when the AI was sure of the type the receipt carries. */
+function aiConfidentlyAgrees(
+  att: Pick<ExpenseAttachments, "cost_type" | "ai_cost_type" | "ai_confidence">
 ): boolean {
-  // No source means the server defaulted the type; nobody chose it.
-  if (!att.type_source) {
-    return false;
-  }
-  if (att.type_source !== "legacy_app") {
-    return true;
-  }
   return (
     !!att.cost_type &&
     att.ai_cost_type === att.cost_type &&
@@ -136,10 +124,30 @@ export function typeTeaches(
 }
 
 /**
- * Whether a stored example may go into a prompt or be scored. An old app's
- * type that only the AI checked (or replaced) was seen by nobody, so it waits
- * until the reimbursement is booked. An example with neither shop nor
- * description says nothing about the receipt.
+ * Whether a receipt's type may teach later classifications. An old app sends
+ * its default type unasked, and a receipt with no source was defaulted by the
+ * server unless the AI chose the same type, so such a type counts only when
+ * the AI was sure of it. Nobody saw that pick at upload: the example waits
+ * for booking (see `exampleTeaches`).
+ */
+export function typeTeaches(
+  att: Pick<
+    ExpenseAttachments,
+    "type_source" | "cost_type" | "ai_cost_type" | "ai_confidence"
+  >
+): boolean {
+  if (att.type_source && att.type_source !== "legacy_app") {
+    return true;
+  }
+  return aiConfidentlyAgrees(att);
+}
+
+/**
+ * Whether a stored example may go into a prompt or be scored. A type that only
+ * the AI chose or checked (an old app's, or one the server would have
+ * defaulted) was seen by nobody, so it waits until the reimbursement is
+ * booked. An example with neither shop nor description says nothing about the
+ * receipt.
  */
 export function exampleTeaches(
   row: Pick<
@@ -154,7 +162,8 @@ export function exampleTeaches(
   if (!row.final_cost_type) {
     return false;
   }
-  if (row.confirmed !== true && row.type_source === "legacy_app") {
+  const unseen = !row.type_source || row.type_source === "legacy_app";
+  if (row.confirmed !== true && unseen) {
     return false;
   }
   return Boolean(row.vendor_key?.trim() || row.description?.trim());
@@ -197,6 +206,8 @@ export function exampleFields(input: ExampleInput): ExampleRow | null {
     description: (input.scan?.description ?? "").slice(0, DESCRIPTION_MAX),
     final_cost_type: teaches ? att.cost_type || null : null,
     final_text: ownText,
+    project_id: att.project_id ?? null,
+    project_name: att.project_name ?? null,
     source: exampleSource(att),
     type_source: (att.type_source ?? null) as ExampleRow["type_source"],
     vendor_key: normalizeVendor(input.scan?.vendor),

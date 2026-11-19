@@ -415,6 +415,7 @@ async function loadReceiptParts(
       account: accountLabel(row.account_number, accountNames),
       amount: row.amount ?? 0,
       date: row.date?.slice(0, ISO_DATE_CHARS) ?? "",
+      projectName: row.project_name?.trim() || null,
       text: row.description ?? "",
       type: typeLabel(row, typeLabels),
     })),

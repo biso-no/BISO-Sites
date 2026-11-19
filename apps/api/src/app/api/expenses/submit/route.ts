@@ -18,6 +18,7 @@ import {
   mergeLegacyDraft,
   parseExpensePayload,
 } from "@/lib/expense-payload";
+import { withoutProject } from "@/lib/expense-student-view";
 import {
   enrichSubmission,
   OccasionRequiredError,
@@ -458,13 +459,13 @@ async function enrichOrReject(
   }
 }
 
-/** Server-owned booking details never go back to the student. */
+/** Server-owned booking details (accounts, projects) never go back to the student. */
 function studentView(expense: Expenses): Expenses {
   return {
     ...expense,
     expenseAttachments: (expense.expenseAttachments ?? []).map(
       (attachment) => ({
-        ...attachment,
+        ...withoutProject(attachment),
         account_number: null,
         account_source: null,
         tax_code: null,

@@ -108,10 +108,26 @@ describe("loadApprovalCardDetails", () => {
         account: "6555 Reise",
         amount: 250,
         date: "2026-11-02",
+        projectName: null,
         text: "Ruter",
         type: "Taxi",
       },
       expect.objectContaining({ account: null, amount: 90, type: '"Pizza"' }),
+    ]);
+  });
+
+  it("carries each receipt's project name", async () => {
+    seed({
+      attachments: [
+        { ...TAXI, project_id: "p1", project_name: "Fadderuke 2026" },
+        { ...TAXI, $id: "a2", sort_order: 1 },
+      ],
+      costTypes: COST_TYPES,
+    });
+    const { receipts } = await loadApprovalCardDetails(asDb(), "e1");
+    expect(receipts.map((r) => r.projectName)).toEqual([
+      "Fadderuke 2026",
+      null,
     ]);
   });
 

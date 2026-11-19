@@ -28,6 +28,7 @@ function row(id: string, over: Record<string, unknown> = {}) {
     amount: 100,
     description: `desc ${id}`,
     final_cost_type: "food",
+    type_source: "student",
     vendor_key: "rema",
     ...over,
   };

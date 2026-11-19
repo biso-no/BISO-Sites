@@ -319,6 +319,7 @@
     "reference": "Referanse",
     "amount": "Beløp",
     "department": "Enhet",
+    "project": "Prosjekt",
     "receipts": "Kvitteringer",
     "receipt": "Kvittering",
     "viewReceipt": "Se kvittering",

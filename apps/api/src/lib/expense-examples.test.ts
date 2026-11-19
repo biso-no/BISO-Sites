@@ -146,7 +146,7 @@ describe("selectExamples", () => {
   it("confirmed examples come before unconfirmed ones", async () => {
     listRows.mockResolvedValue({
       rows: [
-        row({ confirmed: false, description: "u1" }),
+        row({ confirmed: false, description: "u1", type_source: "student" }),
         row({ confirmed: true, description: "c1" }),
       ],
     });

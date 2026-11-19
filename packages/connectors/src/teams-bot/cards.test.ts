@@ -308,3 +308,41 @@ describe("buildApprovalEmailHtml", () => {
     expect(html).toContain("&lt;script&gt;");
   });
 });
+
+describe("project on the approval card and email", () => {
+  const one = [
+    { ...receipt(1), projectName: "Fadderuke 2026" },
+    { ...receipt(2), projectName: "Fadderuke 2026" },
+  ];
+  const mixed = [
+    { ...receipt(1), projectName: "Fadderuke 2026" },
+    { ...receipt(2), projectName: "Julebord 2026" },
+  ];
+  const email = (receipts: ApprovalCardReceipt[]) =>
+    buildApprovalEmailHtml({
+      ...baseData({ receipts }),
+      approveUrl: "https://x/a",
+      rejectUrl: "https://x/r",
+    });
+
+  test("the card shows one project when every receipt shares it", () => {
+    const card = JSON.stringify(buildApprovalCard(baseData({ receipts: one })));
+    expect(card.split("Fadderuke 2026")).toHaveLength(2);
+    expect(email(one).split("Fadderuke 2026")).toHaveLength(2);
+  });
+
+  test("the card shows each receipt's project when they differ", () => {
+    const all = texts(buildApprovalCard(baseData({ receipts: mixed })));
+    expect(all.some((t) => t.includes("Fadderuke 2026"))).toBe(true);
+    expect(all.some((t) => t.includes("Julebord 2026"))).toBe(true);
+    const html = email(mixed);
+    expect(html).toContain("Fadderuke 2026");
+    expect(html).toContain("Julebord 2026");
+  });
+
+  test("no project means no project line", () => {
+    const all = texts(buildApprovalCard(baseData()));
+    expect(all.some((t) => t.includes("Project"))).toBe(false);
+    expect(email([receipt(1)])).not.toContain("Project");
+  });
+});

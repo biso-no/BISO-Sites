@@ -45,6 +45,29 @@ const render = (context: ApprovalContext): string =>
 const BUTTON = /<button/g;
 
 describe("ApprovalBody", () => {
+  it("shows a shared project once and differing ones per receipt", () => {
+    const r = (id: string, projectName: string | null) => ({
+      amount: 10,
+      date: null,
+      description: "x",
+      fileId: null,
+      id,
+      projectName,
+      type: "receipt",
+    });
+    const same = render({
+      ...CONTEXT,
+      receipts: [r("1", "Fadderuke 2026"), r("2", "Fadderuke 2026")],
+    });
+    expect(same.split("Fadderuke 2026")).toHaveLength(2);
+    const mixed = render({
+      ...CONTEXT,
+      receipts: [r("1", "Fadderuke 2026"), r("2", "Julebord 2026")],
+    });
+    expect(mixed).toContain("Fadderuke 2026");
+    expect(mixed).toContain("Julebord 2026");
+  });
+
   it("offers Approve and Reject when every receipt has an account", () => {
     const html = render(CONTEXT);
     expect(html.match(BUTTON)).toHaveLength(2);

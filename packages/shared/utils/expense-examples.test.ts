@@ -92,7 +92,12 @@ describe("typeTeaches", () => {
   });
 
   it("never teaches a server default", () => {
-    expect(typeTeaches(att({ type_source: null }))).toBe(false);
+    expect(typeTeaches(att({ ai_cost_type: "other", type_source: null }))).toBe(
+      false
+    );
+    expect(typeTeaches(att({ ai_confidence: 0.5, type_source: null }))).toBe(
+      false
+    );
   });
 
   it("teaches a legacy app type only when it matches a confident AI type", () => {
@@ -150,14 +155,71 @@ describe("exampleFields", () => {
 
   it("a defaulted receipt teaches no type", () => {
     expect(
-      exampleFields({ ...base, attachment: att({ type_source: null }) })
+      exampleFields({
+        ...base,
+        attachment: att({ ai_cost_type: "other", type_source: null }),
+      })
     ).toBeNull();
+  });
+
+  it("an example keeps the receipt's project", () => {
+    const row = exampleFields({
+      ...base,
+      attachment: att({ project_id: "p1", project_name: "Fadderuke 2026" }),
+    });
+    expect(row).toMatchObject({
+      project_id: "p1",
+      project_name: "Fadderuke 2026",
+    });
+    expect(exampleFields({ ...base, attachment: att() })).toMatchObject({
+      project_id: null,
+      project_name: null,
+    });
+  });
+
+  describe("an AI pick nobody saw", () => {
+    const unseen = att({ type_source: null });
+
+    it("an unseen AI pick does not teach before booking", () => {
+      const row = exampleFields({
+        ...base,
+        attachment: unseen,
+        confirmed: false,
+      });
+      expect(row).toMatchObject({
+        confirmed: false,
+        final_cost_type: "social",
+      });
+      expect(exampleTeaches(row as never)).toBe(false);
+    });
+
+    it("an unseen AI pick teaches once booked", () => {
+      const row = exampleFields({
+        ...base,
+        attachment: unseen,
+        confirmed: true,
+      });
+      expect(exampleTeaches(row as never)).toBe(true);
+    });
+
+    it("a server default never teaches, even when booked", () => {
+      const row = exampleFields({
+        ...base,
+        attachment: att({ ai_confidence: 0.4, type_source: null }),
+        confirmed: true,
+      });
+      expect(row).toBeNull();
+    });
   });
 
   it("own text becomes an example without a type", () => {
     const row = exampleFields({
       ...base,
-      attachment: att({ cost_type_text: "Team dinner", type_source: null }),
+      attachment: att({
+        ai_cost_type: "other",
+        cost_type_text: "Team dinner",
+        type_source: null,
+      }),
     });
     expect(row?.final_text).toBe("Team dinner");
     expect(row?.final_cost_type).toBeNull();
@@ -287,7 +349,11 @@ describe("syncExample", () => {
     const db = makeDb();
     const id = await syncExample(db, {
       ...input,
-      attachment: att({ example_id: "ex-1", type_source: null }),
+      attachment: att({
+        ai_cost_type: "other",
+        example_id: "ex-1",
+        type_source: null,
+      }),
     });
     expect(id).toBeNull();
     expect(db.deleteRow).toHaveBeenCalledWith(
@@ -318,6 +384,8 @@ describe("syncExample", () => {
         "description",
         "final_cost_type",
         "final_text",
+        "project_id",
+        "project_name",
         "source",
         "type_source",
         "vendor_key",
@@ -430,7 +498,11 @@ describe("orphans and missing rows", () => {
     const db = makeDb();
     db.deleteRow.mockRejectedValue({ code: 404 });
     await syncExample(db, {
-      attachment: att({ example_id: "ex-1", type_source: null }),
+      attachment: att({
+        ai_cost_type: "other",
+        example_id: "ex-1",
+        type_source: null,
+      }),
       confirmed: false,
       departmentId: null,
       scan,

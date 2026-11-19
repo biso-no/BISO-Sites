@@ -319,6 +319,7 @@
     "reference": "Reference",
     "amount": "Amount",
     "department": "Department",
+    "project": "Project",
     "receipts": "Receipts",
     "receipt": "Receipt",
     "viewReceipt": "View receipt",

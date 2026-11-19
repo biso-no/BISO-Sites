@@ -520,6 +520,8 @@ export interface ApprovalReceipt {
   description: string;
   fileId: string | null;
   id: string;
+  /** The Finago project the receipt is booked on, or null. */
+  projectName: string | null;
   type: string;
 }
 
@@ -625,6 +627,7 @@ export async function getApprovalContext(
       // Don't expose file ids once the link has expired — the file proxy rejects
       // them anyway, but this keeps the expired context from leaking ids.
       fileId: expired ? null : att.url,
+      projectName: att.project_name?.trim() || null,
       type: att.type,
     })),
   };

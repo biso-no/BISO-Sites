@@ -17,7 +17,14 @@ interface ApprovalReceipt {
   description: string;
   fileId: string | null;
   id: string;
+  projectName?: string | null;
   type: string;
+}
+
+/** The project every receipt shares (shown once), or null when none or mixed. */
+function sharedProjectName(receipts: ApprovalReceipt[]): string | null {
+  const names = new Set(receipts.map((r) => r.projectName?.trim() || null));
+  return names.size === 1 ? ([...names][0] ?? null) : null;
 }
 
 export interface ApprovalContext {
@@ -247,6 +254,8 @@ export function ApprovalBody({
     );
   }
 
+  const sharedProject = sharedProjectName(context.receipts);
+
   return (
     <>
       <div className="rounded-biso-md border border-edge bg-surface-raised p-5">
@@ -260,6 +269,9 @@ export function ApprovalBody({
             label={t("department")}
             value={`${context.departmentLabel} — ${context.campusLabel}`}
           />
+          {sharedProject ? (
+            <Field label={t("project")} value={sharedProject} />
+          ) : null}
         </dl>
         {context.description ? (
           <p className="type-body mt-4 text-ink">{context.description}</p>
@@ -283,6 +295,11 @@ export function ApprovalBody({
                 {receipt.date ? `${receipt.date} · ` : ""}
                 {formatAmount(receipt.amount)} {context.currency}
               </p>
+              {!sharedProject && receipt.projectName ? (
+                <p className="type-data text-ink-muted">
+                  {t("project")}: {receipt.projectName}
+                </p>
+              ) : null}
             </div>
             {receipt.fileId ? (
               <a
