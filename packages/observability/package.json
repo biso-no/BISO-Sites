@@ -15,7 +15,8 @@
     "./user": "./src/user.ts",
     "./relay": "./src/relay.ts",
     "./metrics": "./src/metrics.ts",
-    "./ai": "./src/ai.ts"
+    "./ai": "./src/ai.ts",
+    "./consent": "./src/consent.ts"
   },
   "dependencies": {
     "@sentry/core": "catalog:"
