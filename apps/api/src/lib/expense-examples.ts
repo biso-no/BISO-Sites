@@ -1,4 +1,4 @@
-import { ID, Query } from "@repo/api";
+import { Query } from "@repo/api";
 import type { createAdminClient } from "@repo/api/server";
 import type { ExpenseTypeExamples } from "@repo/api/types/appwrite";
 import type { CostTypeOption } from "@repo/shared/utils/expense-cost-types";
@@ -11,7 +11,6 @@ const MAX_EXAMPLES = 10;
 const MAX_VENDOR_EXAMPLES = 6;
 const VENDOR_FETCH_LIMIT = 20;
 const RECENT_FETCH_LIMIT = 100;
-const DESCRIPTION_MAX = 255;
 
 function toExample(row: ExpenseTypeExamples): TypeExample | null {
   if (!row.final_cost_type) {
@@ -112,41 +111,5 @@ export async function selectExamples(
     return [...matched, ...filler];
   } catch {
     return [];
-  }
-}
-
-export interface BookedExampleInput {
-  accountNumber: number;
-  aiConfidence: number | null;
-  aiCostType: string | null;
-  amount: number;
-  description: string;
-  finalCostType: string | null;
-  finalText: string | null;
-  source: "student" | "approver" | "admin";
-  vendor: string | null;
-}
-
-/** Anonymous by design: no submitter, name or expense id is ever stored. */
-export async function writeExamples(
-  db: Db,
-  rows: BookedExampleInput[]
-): Promise<void> {
-  for (const row of rows) {
-    try {
-      await db.createRow("app", "expense_type_examples", ID.unique(), {
-        account_number: row.accountNumber,
-        ai_confidence: row.aiConfidence,
-        ai_cost_type: row.aiCostType,
-        amount: row.amount,
-        description: row.description.slice(0, DESCRIPTION_MAX),
-        final_cost_type: row.finalCostType,
-        final_text: row.finalText,
-        source: row.source,
-        vendor_key: normalizeVendor(row.vendor),
-      });
-    } catch (error) {
-      console.error("Failed to write expense type example", error);
-    }
   }
 }

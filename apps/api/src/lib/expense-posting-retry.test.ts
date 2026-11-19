@@ -42,7 +42,6 @@ vi.mock("./pdf/expense-pdf", () => ({
   }),
 }));
 vi.mock("./receipt-scan", () => ({ findScan: vi.fn() }));
-vi.mock("./expense-examples", () => ({ writeExamples: vi.fn() }));
 vi.mock("./expense-approval-chain", () => ({
   assertApprovedExpenseChain: vi.fn(async () => undefined),
 }));
@@ -615,6 +614,64 @@ describe("retry claim races", () => {
     });
     const query = db.listRows.mock.calls[0]?.[2] as string[];
     expect(query.join(" ")).toContain("booked");
+  });
+
+  it("finishing a saved booking confirms its examples", async () => {
+    const withType = {
+      ...failed,
+      expenseAttachments: [
+        {
+          ...expense.expenseAttachments[0],
+          cost_type: "food",
+          type_source: "student",
+        },
+      ],
+    };
+    fakeRow(withType);
+    bookedEvents("tx-123 (status write failed: x)");
+
+    const result = await retryExpenseBooking({
+      actor: ACTOR,
+      expenseId: "exp-1",
+    });
+
+    expect(result).toEqual({ ok: true, status: "success" });
+    const created = db.createRow.mock.calls.find(
+      ([, table]) => table === "expense_type_examples"
+    );
+    expect(created?.[3]).toMatchObject({
+      account_number: 7140,
+      confirmed: true,
+      final_cost_type: "food",
+    });
+    expect(finago.postExpenseTransaction).not.toHaveBeenCalled();
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+  });
+
+  it("finishing succeeds even when confirming examples fails", async () => {
+    fakeRow({
+      ...failed,
+      expenseAttachments: [
+        {
+          ...expense.expenseAttachments[0],
+          cost_type: "food",
+          type_source: "student",
+        },
+      ],
+    });
+    bookedEvents("tx-123 (status write failed: x)");
+    db.createRow.mockImplementation((_d: string, table: string) =>
+      table === "expense_type_examples"
+        ? Promise.reject(new Error("appwrite down"))
+        : Promise.resolve({})
+    );
+
+    const result = await retryExpenseBooking({
+      actor: ACTOR,
+      expenseId: "exp-1",
+    });
+
+    expect(result).toEqual({ ok: true, status: "success" });
   });
 
   it("finishing never posts again or takes the lock", async () => {

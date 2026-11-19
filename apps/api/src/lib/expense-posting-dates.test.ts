@@ -53,12 +53,8 @@ vi.mock("./pdf/expense-pdf", () => ({
 }));
 
 const scans = vi.hoisted(() => ({ findScan: vi.fn() }));
-const examples = vi.hoisted(() => ({ writeExamples: vi.fn() }));
 
 vi.mock("./receipt-scan", () => ({ findScan: scans.findScan }));
-vi.mock("./expense-examples", () => ({
-  writeExamples: examples.writeExamples,
-}));
 
 vi.mock("./expense-approval-chain", () => ({
   assertApprovedExpenseChain: vi.fn(async () => undefined),
@@ -118,7 +114,6 @@ describe("postApprovedExpense booking dates", () => {
       ...Object.values(storage),
       ...Object.values(finago),
       ...Object.values(scans),
-      ...Object.values(examples),
     ]) {
       fn.mockReset();
     }
@@ -630,7 +625,10 @@ describe("postApprovedExpense booking dates", () => {
       ],
     };
 
-    function arrangeBooked() {
+    const exampleCalls = (method: "createRow" | "updateRow") =>
+      db[method].mock.calls.filter((c) => c[1] === "expense_type_examples");
+
+    function arrangeBooked(rows: Record<string, unknown> = withExampleFields) {
       finago.getFiscalYearLocks.mockResolvedValue([]);
       finago.listFiscalPeriods.mockResolvedValue([]);
       finago.postExpenseTransaction.mockResolvedValue({
@@ -640,98 +638,74 @@ describe("postApprovedExpense booking dates", () => {
       db.getRow.mockImplementation(async (_d: string, table: string) =>
         table === "user"
           ? { name: "Test Student", email: "t@example.test" }
-          : withExampleFields
+          : rows
       );
-      scans.findScan.mockResolvedValue({
-        receipt: { vendor: "Pizzabakeren", description: "Two pizzas" },
+      db.listRows.mockResolvedValue({
+        rows: [
+          {
+            result: JSON.stringify({
+              receipt: {
+                description: "Two pizzas",
+                receiptIssues: [],
+                vendor: "Pizzabakeren",
+              },
+            }),
+          },
+        ],
       });
-      examples.writeExamples.mockResolvedValue(undefined);
     }
 
-    it("writes one example per posted receipt", async () => {
+    it("booking confirms the expense's examples with the booked accounts", async () => {
       arrangeBooked();
 
       await postApprovedExpense("exp-1");
 
-      expect(scans.findScan).toHaveBeenCalledTimes(1);
-      expect(scans.findScan).toHaveBeenCalledWith(db, "hash-1");
-      expect(examples.writeExamples).toHaveBeenCalledWith(db, [
-        {
-          accountNumber: 7140,
-          aiConfidence: 0.9,
-          aiCostType: "food",
-          amount: 100,
-          description: "Two pizzas",
-          finalCostType: "food",
-          finalText: null,
-          source: "approver",
-          vendor: "Pizzabakeren",
-        },
-      ]);
+      const [call] = exampleCalls("createRow");
+      expect(call[3]).toMatchObject({
+        account_number: 7140,
+        confirmed: true,
+        description: "Two pizzas",
+        final_cost_type: "food",
+        vendor_key: "pizzabakeren",
+      });
+      expect(exampleCalls("createRow")).toHaveLength(1);
     });
 
-    it("never takes the student's description without a stored scan", async () => {
+    it("a receipt booked on an account an approver changed keeps the account as the approver's", async () => {
       arrangeBooked();
-      scans.findScan.mockResolvedValue(null);
 
       await postApprovedExpense("exp-1");
 
-      const rows = examples.writeExamples.mock.calls[0][1];
-      expect(rows[0].description).toBe("");
-      expect(rows[0].vendor).toBeNull();
+      expect(exampleCalls("createRow")[0][3]).toMatchObject({
+        account_number: 7140,
+        account_source: "approver",
+        source: "approver",
+      });
     });
 
-    it("learns from an old app's type only when the AI was sure of it", async () => {
-      arrangeBooked();
-      const legacy = (id: string, over: Record<string, unknown>) => ({
-        ...expense.expenseAttachments[0],
-        $id: id,
-        account_source: "type",
-        cost_type: "social",
-        file_hash: `hash-${id}`,
-        type_source: "legacy_app",
-        ...over,
+    it("confirms an example the attachment already links", async () => {
+      arrangeBooked({
+        ...withExampleFields,
+        expenseAttachments: [
+          { ...withExampleFields.expenseAttachments[0], example_id: "ex-1" },
+        ],
       });
-      db.getRow.mockImplementation(async (_d: string, table: string) =>
-        table === "user"
-          ? { name: "Test Student", email: "t@example.test" }
-          : {
-              ...expense,
-              expenseAttachments: [
-                legacy("agreed", {
-                  ai_confidence: 0.8,
-                  ai_cost_type: "social",
-                }),
-                legacy("unsure", {
-                  ai_confidence: 0.7,
-                  ai_cost_type: "social",
-                }),
-                legacy("other-type", {
-                  ai_confidence: 0.95,
-                  ai_cost_type: "travel",
-                }),
-                legacy("no-ai", { ai_confidence: null, ai_cost_type: null }),
-              ],
-            }
-      );
 
       await postApprovedExpense("exp-1");
 
-      expect(scans.findScan).toHaveBeenCalledTimes(1);
-      expect(scans.findScan).toHaveBeenCalledWith(db, "hash-agreed");
-      const rows = examples.writeExamples.mock.calls[0][1];
-      expect(rows).toHaveLength(1);
-      expect(rows[0]).toMatchObject({
-        aiConfidence: 0.8,
-        aiCostType: "social",
-        finalCostType: "social",
-      });
+      const [call] = exampleCalls("updateRow");
+      expect(call[2]).toBe("ex-1");
+      expect(call[3]).toMatchObject({ confirmed: true });
+      expect(exampleCalls("createRow")).toHaveLength(0);
     });
 
     it("keeps success when example writes fail", async () => {
       arrangeBooked();
-      scans.findScan.mockRejectedValue(new Error("scan lookup down"));
-      examples.writeExamples.mockRejectedValue(new Error("appwrite down"));
+      db.createRow.mockImplementation((_d: string, table: string) =>
+        table === "expense_type_examples"
+          ? Promise.reject(new Error("appwrite down"))
+          : Promise.resolve({})
+      );
 
       await expect(postApprovedExpense("exp-1")).resolves.toBe("posted");
       expect(db.updateRow).toHaveBeenCalledWith(

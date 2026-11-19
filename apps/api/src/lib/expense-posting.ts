@@ -35,16 +35,14 @@ import {
   recordExpenseEvents,
   writeExpenseEvent,
 } from "@repo/shared/utils/expense-events";
-import { typeTeaches } from "@repo/shared/utils/expense-examples";
+import { syncExamplesForExpense } from "@repo/shared/utils/expense-examples";
 import { reimbursementNumber } from "@repo/shared/utils/reimbursement-number";
 import { PDFDocument } from "pdf-lib";
 import type { ApprovalActor } from "./expense-approval";
 import { assertApprovedExpenseChain } from "./expense-approval-chain";
-import { type BookedExampleInput, writeExamples } from "./expense-examples";
 import { loadAllCostTypes } from "./expense-types";
 import { generateExpensePdf } from "./pdf/expense-pdf";
 import { receiptDateInOslo, todayInOslo } from "./receipt-date";
-import { findScan } from "./receipt-scan";
 
 const EXPENSES_BUCKET = "expenses";
 
@@ -451,56 +449,29 @@ async function recordBooking(
   ]);
 }
 
-function exampleSource(
-  accountSource: ExpenseAttachments["account_source"]
-): BookedExampleInput["source"] {
-  if (accountSource === "approver" || accountSource === "admin") {
-    return accountSource;
-  }
-  return "student";
-}
-
-// One anonymous example per posted receipt, so later classifications learn from
-// what actually got booked. Never stores a submitter, name or expense id, and
-// never the student's own description: examples go into other students' prompts.
-async function writeBookedExamples(
-  db: AdminDb,
-  attachments: ExpenseAttachments[],
-  lines: ExpenseReceiptLine[]
-): Promise<void> {
-  const rows: BookedExampleInput[] = [];
-  for (const line of lines) {
-    const att = attachments.find((a) => a.$id === line.ref);
-    if (!(att?.file_hash && typeTeaches(att))) {
-      continue;
-    }
-    const scan = await findScan(db, att.file_hash);
-    rows.push({
-      accountNumber: Number(line.accountNumber),
-      aiConfidence: att.ai_confidence ?? null,
-      aiCostType: att.ai_cost_type ?? null,
-      amount: line.amount,
-      description: scan?.receipt.description ?? "",
-      finalCostType: att.cost_type || null,
-      finalText: att.cost_type_text ?? null,
-      source: exampleSource(att.account_source),
-      vendor: scan?.receipt.vendor ?? null,
-    });
-  }
-  await writeExamples(db, rows);
-}
-
-async function writeBookedExamplesSafely(
+// Confirms what the AI learned from this expense now that it is booked. The
+// account is the one each receipt was actually posted on. Best-effort: Finago
+// has the booking, so nothing here may fail it (the sync logs its own errors).
+async function confirmBookedExamples(
   db: AdminDb,
   expenseId: string,
-  attachments: ExpenseAttachments[],
-  lines: ExpenseReceiptLine[]
+  lines?: ExpenseReceiptLine[]
 ): Promise<void> {
+  const accountByAttachment = lines
+    ? new Map(
+        lines.flatMap((line): [string, number][] =>
+          line.ref ? [[line.ref, Number(line.accountNumber)]] : []
+        )
+      )
+    : undefined;
   try {
-    await writeBookedExamples(db, attachments, lines);
+    await syncExamplesForExpense(db, expenseId, {
+      accountByAttachment,
+      confirmed: true,
+    });
   } catch (error) {
     console.error(
-      `[expense-posting] could not write examples for ${expenseId}:`,
+      `[expense-posting] could not confirm examples for ${expenseId}:`,
       error
     );
   }
@@ -717,12 +688,7 @@ async function postClaimedExpense(
     transactionId: posted.transactionId,
   });
 
-  await writeBookedExamplesSafely(
-    db,
-    expenseId,
-    expense.expenseAttachments ?? [],
-    receipts
-  );
+  await confirmBookedExamples(db, expenseId, receipts);
 }
 
 /**
@@ -852,7 +818,8 @@ async function bookedTransactionId(
 }
 
 // Finago already has the booking: save what it accepted and never post again.
-// Touches neither `posting_lock` nor the booked dates, and writes no examples.
+// Touches neither `posting_lock` nor the booked dates. Confirms the examples
+// from the stored accounts: there are no posted lines on this path.
 async function finishBookedExpense(
   db: AdminDb,
   expenseId: string,
@@ -882,6 +849,7 @@ async function finishBookedExpense(
       note: `finished saving the booking ${transactionId} from admin`,
     },
   ]);
+  await confirmBookedExamples(db, expenseId);
 }
 
 // Null when Finago has no booking for this expense, so a retry may post.

@@ -1,6 +1,6 @@
 import type { CostTypeOption } from "@repo/shared/utils/expense-cost-types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { selectExamples, writeExamples } from "./expense-examples";
+import { selectExamples } from "./expense-examples";
 
 const listRows = vi.fn();
 const createRow = vi.fn();
@@ -126,41 +126,5 @@ describe("selectExamples", () => {
   it("returns [] on db error", async () => {
     listRows.mockRejectedValue(new Error("boom"));
     expect(await selectExamples(db, { types, vendor: "Rema" })).toEqual([]);
-  });
-});
-
-describe("writeExamples", () => {
-  beforeEach(() => {
-    createRow.mockReset();
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-  });
-
-  const input = {
-    accountNumber: 7140,
-    aiConfidence: 0.8,
-    aiCostType: "food",
-    amount: 100,
-    description: "x".repeat(300),
-    finalCostType: "food",
-    finalText: null,
-    source: "approver" as const,
-    vendor: "Peppes Pizza AS",
-  };
-
-  it("writes one anonymous row per example", async () => {
-    createRow.mockResolvedValue({});
-    await writeExamples(db, [input, input]);
-    expect(createRow).toHaveBeenCalledTimes(2);
-    const [, table, , data] = createRow.mock.calls[0];
-    expect(table).toBe("expense_type_examples");
-    expect(data.vendor_key).toBe("peppes pizza");
-    expect(data.description).toHaveLength(255);
-    expect(Object.keys(data)).not.toContain("expense_id");
-  });
-
-  it("never throws and continues after a failure", async () => {
-    createRow.mockRejectedValueOnce(new Error("boom")).mockResolvedValue({});
-    await expect(writeExamples(db, [input, input])).resolves.toBeUndefined();
-    expect(createRow).toHaveBeenCalledTimes(2);
   });
 });
