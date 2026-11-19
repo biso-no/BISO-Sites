@@ -112,10 +112,15 @@ export function ExpenseHints({ hints }: { hints: ApproverHint[] }) {
         issue: issue ? t(`issues.${issue}` as never) : "",
       });
     }
-    const key =
-      hint.code === "possible_duplicate" && data.reimbursementNumber
-        ? "possible_duplicate_number"
-        : hint.code;
+    let key: string = hint.code;
+    if (hint.code === "possible_duplicate" && data.reimbursementNumber) {
+      key = "possible_duplicate_number";
+    } else if (
+      (hint.code === "type_unsure" || hint.code === "project_unsure") &&
+      data.reason
+    ) {
+      key = `${hint.code}_reason`;
+    }
     return t(`hintsText.${key}` as never, data as never);
   };
   return (

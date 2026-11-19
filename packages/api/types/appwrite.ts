@@ -40,6 +40,13 @@ export enum ExpensesStatus {
   FAILED = "failed",
 }
 
+export enum ExpensesCheckState {
+  QUEUED = "queued",
+  RUNNING = "running",
+  DONE = "done",
+  FALLBACK = "fallback",
+}
+
 export enum ContentTemplatesFamily {
   PAGE = "page",
   POLICY = "policy",
@@ -744,6 +751,10 @@ export type Expenses = Models.Row & {
   occasion: string | null;
   event_id: string | null;
   approver_hints: string | null;
+  check_state: ExpensesCheckState | null;
+  check_claim: number;
+  check_started_at: string | null;
+  check_finished_at: string | null;
 };
 
 export type ContentTemplates = Models.Row & {

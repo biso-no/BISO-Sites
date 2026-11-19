@@ -1523,7 +1523,15 @@
       "account_missing": "No account is set for this receipt type.",
       "app_type_replaced": "The app said \"{appType}\"; the AI chose \"{aiType}\".",
       "type_defaulted": "No type was chosen, so Other was used.",
-      "occasion_missing": "The occasion is missing."
+      "occasion_missing": "The occasion is missing.",
+      "type_unsure": "The AI was not sure which type this receipt is.",
+      "type_unsure_reason": "The AI was not sure which type this receipt is: {reason}",
+      "project_unsure": "The AI was not sure which project this belongs to.",
+      "project_unsure_reason": "The AI was not sure which project this belongs to: {reason}",
+      "project_missing": "No project was found for this expense.",
+      "project_not_created": "The project for {series} {year} has not been created yet.",
+      "ai_check_incomplete": "The AI check did not finish, so the AI has not looked at everything on this expense.",
+      "ai_check_disagrees": "The student chose a type the AI would not have picked. The AI suggests \"{aiType}\"."
     },
     "history": {
       "submitted": "Submitted the expense",

@@ -25,6 +25,12 @@ export const APPROVER_HINT_CODES = [
   "app_type_replaced",
   "type_defaulted",
   "occasion_missing",
+  "type_unsure",
+  "project_unsure",
+  "project_missing",
+  "project_not_created",
+  "ai_check_incomplete",
+  "ai_check_disagrees",
 ] as const;
 
 export type ApproverHintCode = (typeof APPROVER_HINT_CODES)[number];

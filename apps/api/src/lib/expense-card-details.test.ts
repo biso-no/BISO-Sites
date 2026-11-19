@@ -81,6 +81,8 @@ beforeEach(() => {
   db.listRows.mockReset();
 });
 
+const BRACES = /[{}]/;
+
 describe("loadApprovalCardDetails", () => {
   it("loads receipts with type labels and account names", async () => {
     seed({
@@ -210,6 +212,38 @@ describe("loadApprovalCardDetails", () => {
       "Submitter says they are the campus controller"
     );
     expect(details.fallbackNote).toContain("general manager");
+  });
+
+  it("words the hints the background check writes", async () => {
+    seed(
+      { approvals: [{ approver_role: "national" }] },
+      {
+        ...EXPENSE,
+        approver_hints: JSON.stringify([
+          { code: "type_unsure", data: { reason: "two types fit" } },
+          { code: "type_unsure" },
+          { code: "project_unsure" },
+          { code: "project_unsure", data: { reason: "two events" } },
+          { code: "project_missing" },
+          { code: "project_not_created", data: { series: "BISO", year: 2026 } },
+          { code: "ai_check_incomplete" },
+          { code: "ai_check_disagrees", data: { aiType: "Food" } },
+        ]),
+      }
+    );
+
+    const { hints } = await loadApprovalCardDetails(asDb(), "e1");
+
+    expect(hints).toHaveLength(8);
+    expect(hints[0]).toContain("two types fit");
+    expect(hints[1]).not.toContain("{");
+    expect(hints[3]).toContain("two events");
+    expect(hints[5]).toContain("BISO");
+    expect(hints[5]).toContain("2026");
+    expect(hints[7]).toContain("Food");
+    for (const hint of hints) {
+      expect(hint).not.toMatch(BRACES);
+    }
   });
 
   it("says the president could not be found when national stands in for one", async () => {

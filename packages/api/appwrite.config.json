@@ -1286,6 +1286,45 @@
                     "size": 4000,
                     "default": null,
                     "encrypt": false
+                },
+                {
+                    "key": "check_state",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "queued",
+                        "running",
+                        "done",
+                        "fallback"
+                    ]
+                },
+                {
+                    "key": "check_claim",
+                    "type": "integer",
+                    "required": false,
+                    "array": false,
+                    "default": 0,
+                    "min": 0,
+                    "max": 1000000
+                },
+                {
+                    "key": "check_started_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "check_finished_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
                 }
             ],
             "indexes": [

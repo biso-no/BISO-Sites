@@ -1523,7 +1523,15 @@
       "account_missing": "Det er ikke satt en konto for denne kvitteringstypen.",
       "app_type_replaced": "Appen sa «{appType}», men AI valgte «{aiType}».",
       "type_defaulted": "Ingen type ble valgt, så Annet ble brukt.",
-      "occasion_missing": "Anledning mangler."
+      "occasion_missing": "Anledning mangler.",
+      "type_unsure": "AI var usikker på hvilken type denne kvitteringen er.",
+      "type_unsure_reason": "AI var usikker på hvilken type denne kvitteringen er: {reason}",
+      "project_unsure": "AI var usikker på hvilket prosjekt dette hører til.",
+      "project_unsure_reason": "AI var usikker på hvilket prosjekt dette hører til: {reason}",
+      "project_missing": "Det ble ikke funnet noe prosjekt for dette utlegget.",
+      "project_not_created": "Prosjektet for {series} {year} er ikke opprettet ennå.",
+      "ai_check_incomplete": "AI-sjekken ble ikke ferdig, så AI har ikke sett på alt i dette utlegget.",
+      "ai_check_disagrees": "Studenten valgte en type som AI ikke ville valgt. AI foreslår «{aiType}»."
     },
     "history": {
       "submitted": "Sendte inn utlegget",

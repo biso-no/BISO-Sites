@@ -7,6 +7,7 @@ covers:
   - apps/api/package.json
   - apps/*/Dockerfile
   - apps/*/src/app/api/health/**
+  - apps/api/src/app/api/internal/after-probe/**
   - apps/docs/app/api/health/**
   - functions/*/README.md
   - functions/*/package.json
@@ -274,6 +275,23 @@ Each lists one Appwrite user with the app's API key, with a 3-second limit.
 Every `ready` call costs a Site execution and an Appwrite request, so don't point an uptime monitor at it every few seconds.
 
 Docs has `/api/health` only. Check `https://docs.biso.no/api/health`.
+
+### Check that background work survives
+
+The expense AI check runs in the background after a student submits (Next.js `after()`) and can take up to two minutes. Run the probe once after you raise the api Site's function timeout to 300 seconds, and again if you change the Site's runtime settings.
+
+```bash
+curl -s -X POST https://api.biso.no/api/internal/after-probe \
+  -H "Authorization: Bearer $CRON_SECRET"
+```
+
+It answers `{"started":true}` at once. In the api Site's logs in the Appwrite console, look for lines starting `[after-probe]`: `start`, then `alive 15`, `alive 30` and so on up to `alive 180`, then `done`.
+
+- `[after-probe] alive 180` appears: background work lives long enough. The AI check can be switched on.
+- The last `alive` line is lower than 180: the host cut the background task short at about that many seconds. Raise the Site's timeout, or the check will be cut off and approvers get the plain notification with the flag that the check did not finish.
+- No `[after-probe]` lines at all: the host stops work as soon as the response is sent, so `after()` does not run there.
+
+`401` means the secret is wrong, and `500` means the api Site has no `CRON_SECRET`.
 
 ### Then check by hand
 

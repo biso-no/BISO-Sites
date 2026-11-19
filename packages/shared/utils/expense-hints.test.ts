@@ -44,3 +44,32 @@ describe("parseApproverHints", () => {
     expect(parseApproverHints('"x"')).toEqual([]);
   });
 });
+
+describe("parseApproverHints background check codes", () => {
+  it("keeps the codes the AI check writes, with their data", () => {
+    const value = JSON.stringify([
+      { code: "type_unsure", data: { reason: "two types fit" } },
+      { code: "project_unsure" },
+      { code: "project_missing" },
+      { code: "project_not_created", data: { series: "BISO", year: 2026 } },
+      { code: "ai_check_incomplete" },
+      {
+        attachmentId: "a1",
+        code: "ai_check_disagrees",
+        data: { aiType: "food" },
+      },
+    ]);
+    expect(parseApproverHints(value)).toEqual([
+      { code: "type_unsure", data: { reason: "two types fit" } },
+      { code: "project_unsure" },
+      { code: "project_missing" },
+      { code: "project_not_created", data: { series: "BISO", year: 2026 } },
+      { code: "ai_check_incomplete" },
+      {
+        attachmentId: "a1",
+        code: "ai_check_disagrees",
+        data: { aiType: "food" },
+      },
+    ]);
+  });
+});

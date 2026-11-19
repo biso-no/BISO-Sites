@@ -54,6 +54,10 @@ const NATIONAL_CONTROLLER_FALLBACK_NOTE =
 // the two in step by hand.
 const HINT_TEXT: Record<string, string> = {
   account_missing: "No account is set for this receipt type.",
+  ai_check_disagrees:
+    'The student chose a type the AI would not have picked. The AI suggests "{aiType}".',
+  ai_check_incomplete:
+    "The AI check did not finish, so the AI has not looked at everything on this expense.",
   ai_account_unsure: "The AI was not sure which account to use.",
   amount_differs: "Entered amount is {entered}, but the receipt reads {read}.",
   app_type_replaced: 'The app said "{appType}"; the AI chose "{aiType}".',
@@ -62,8 +66,17 @@ const HINT_TEXT: Record<string, string> = {
   possible_duplicate: "Possible duplicate of another receipt.",
   possible_duplicate_number:
     "Possible duplicate of expense {reimbursementNumber}.",
+  project_missing: "No project was found for this expense.",
+  project_not_created:
+    "The project for {series} {year} has not been created yet.",
+  project_unsure: "The AI was not sure which project this belongs to.",
+  project_unsure_reason:
+    "The AI was not sure which project this belongs to: {reason}",
   receipt_issue: "Receipt problem: {issue}.",
   type_defaulted: "No type was chosen, so Other was used.",
+  type_unsure: "The AI was not sure which type this receipt is.",
+  type_unsure_reason:
+    "The AI was not sure which type this receipt is: {reason}",
 };
 
 // English copies of `adminPortal.expenses.issues.*` for `receipt_issue` hints.
@@ -122,6 +135,20 @@ function fill(template: string, data: Record<string, string | number>) {
   );
 }
 
+/** Which text a hint uses: some codes have a longer form when they carry data. */
+function hintTextKey(
+  code: string,
+  data: Record<string, string | number>
+): string {
+  if (code === "possible_duplicate" && data.reimbursementNumber) {
+    return "possible_duplicate_number";
+  }
+  if ((code === "type_unsure" || code === "project_unsure") && data.reason) {
+    return `${code}_reason`;
+  }
+  return code;
+}
+
 function hintSentence(hint: ApproverHint): string | null {
   const data = hint.data ?? {};
   if (hint.code === "receipt_issue") {
@@ -130,10 +157,7 @@ function hintSentence(hint: ApproverHint): string | null {
       issue: RECEIPT_ISSUE_TEXT[issue] ?? issue,
     });
   }
-  const key =
-    hint.code === "possible_duplicate" && data.reimbursementNumber
-      ? "possible_duplicate_number"
-      : hint.code;
+  const key = hintTextKey(hint.code, data);
   const template = HINT_TEXT[key];
   return template ? fill(template, data) : null;
 }

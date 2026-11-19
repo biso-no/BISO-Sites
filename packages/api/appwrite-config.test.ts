@@ -342,6 +342,28 @@ describe("expense AI schema", () => {
     );
   });
 
+  test("expense carries the background check state", () => {
+    const column = (key: string) =>
+      findTable("expense")?.columns?.find((c) => c.key === key);
+    expect(column("check_state")).toMatchObject({
+      default: null,
+      elements: ["queued", "running", "done", "fallback"],
+      format: "enum",
+      required: false,
+    });
+    expect(column("check_claim")).toMatchObject({
+      default: 0,
+      required: false,
+      type: "integer",
+    });
+    for (const key of ["check_started_at", "check_finished_at"]) {
+      expect(column(key), key).toMatchObject({
+        required: false,
+        type: "datetime",
+      });
+    }
+  });
+
   test("expense_cost_types has a Norwegian label and an occasion flag", () => {
     expect(columnKeys("expense_cost_types")).toEqual(
       expect.arrayContaining(["label_no", "ask_occasion"])
