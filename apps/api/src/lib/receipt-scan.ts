@@ -340,6 +340,15 @@ const WHITESPACE_RUN = /\s+/g;
 export function clean(value: string | number): string {
   return String(value).replace(WHITESPACE_RUN, " ").slice(0, MAX_PROMPT_VALUE);
 }
+
+// An example line is `"text" → type (marks)`: text with its own quotes or
+// arrows could close the quote and claim another type.
+const EXAMPLE_MARKUP = /["→]|->/g;
+
+function cleanExampleText(value: string): string {
+  return clean(value.replace(EXAMPLE_MARKUP, " ")).trim();
+}
+
 const CONFIDENCE_CAP_NOTE = 0.8;
 
 /**
@@ -373,7 +382,11 @@ export function buildClassificationPrompt({
       ...(example.confirmed ? [] : ["unconfirmed"]),
       ...(example.sameDepartment ? ["same department"] : []),
     ];
-    return `"${[example.vendorKey, example.description].filter(Boolean).map(clean).join(" / ")}" → ${example.finalType} (${marks.join(", ")})`;
+    const text = [example.vendorKey, example.description]
+      .map(cleanExampleText)
+      .filter(Boolean)
+      .join(" / ");
+    return `"${text}" → ${example.finalType} (${marks.join(", ")})`;
   });
   const show = (value: string | number | null) =>
     value === null || value === "" ? "unknown" : clean(value);
@@ -383,7 +396,7 @@ export function buildClassificationPrompt({
     "Expense types:",
     ...typeLines,
     ...(exampleLines.length > 0
-      ? ["", "Past receipts like these were booked as:", ...exampleLines]
+      ? ["", "Types given to past receipts like these:", ...exampleLines]
       : []),
     "",
     "Receipt:",
