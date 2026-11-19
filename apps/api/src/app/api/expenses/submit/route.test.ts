@@ -55,7 +55,12 @@ const runScheduled = async () => {
 
 const preparation = vi.hoisted(() => {
   class OccasionRequiredError extends Error {}
-  return { OccasionRequiredError, prepareSubmission: vi.fn() };
+  class SubmissionTakenError extends Error {}
+  return {
+    OccasionRequiredError,
+    prepareSubmission: vi.fn(),
+    SubmissionTakenError,
+  };
 });
 
 vi.mock("@/lib/expense-submission", () => preparation);
@@ -239,6 +244,41 @@ describe("expense submit route", () => {
     expect(adminDb.createRow).toHaveBeenCalledTimes(1);
     expect(submittedWrites()).toEqual([]);
     expect(scheduled.tasks).toHaveLength(0);
+  });
+
+  it("answers 409 when another submit took the draft while this one prepared", async () => {
+    preparation.prepareSubmission.mockRejectedValueOnce(
+      new preparation.SubmissionTakenError(
+        "This expense is already being submitted."
+      )
+    );
+
+    const response = await POST(submitRequest(SUBMIT_BODY));
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: "This expense is already being submitted.",
+      success: false,
+    });
+    expect(submittedWrites()).toEqual([]);
+    expect(scheduled.tasks).toHaveLength(0);
+  });
+
+  it("schedules the check before reading the answer, so a failed read can't lose it", async () => {
+    sessionDb.getRow.mockReset();
+    sessionDb.getRow
+      .mockResolvedValueOnce(PROFILE)
+      .mockResolvedValueOnce(SAVED_EXPENSE)
+      .mockRejectedValueOnce(new Error("db down"));
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const response = await POST(submitRequest(SUBMIT_BODY));
+
+    expect(response.status).toBe(500);
+    expect(submittedWrites()).toHaveLength(1);
+    expect(scheduled.tasks).toHaveLength(1);
+    await runScheduled();
+    expect(check.runExpenseCheck).toHaveBeenCalledWith("expense-1");
   });
 
   it("a submit that fails before it is pending schedules no check", async () => {

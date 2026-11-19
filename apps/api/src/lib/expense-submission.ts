@@ -5,6 +5,7 @@ import {
   type ExpenseAttachments,
   ExpenseAttachmentsTypeSource,
   type Expenses,
+  ExpensesStatus,
 } from "@repo/api/types/appwrite";
 import {
   AI_TYPE_CONFIDENCE_THRESHOLD,
@@ -534,6 +535,18 @@ export class OccasionRequiredError extends Error {
   }
 }
 
+/**
+ * The draft left `draft` while the submit was preparing it: another submit of
+ * the same draft got there first. Nothing was written; the submit route
+ * answers 409.
+ */
+export class SubmissionTakenError extends Error {
+  constructor() {
+    super("This expense is already being submitted.");
+    this.name = "SubmissionTakenError";
+  }
+}
+
 type SubmittedAttachment = Pick<
   ExpenseAttachments,
   "$id" | "amount" | "cost_type" | "cost_type_text" | "date" | "type" | "url"
@@ -1041,15 +1054,34 @@ function aiEvents(
   return [...classified, ...accounts];
 }
 
-/** The flags and the types they decide with. */
-async function loadDecisionSetup(db: Db) {
-  const flags = await getFeatureFlagStates();
+/**
+ * Whether the AI is on, and the types to decide with. A caller that already
+ * knows whether the AI may be used passes `aiEnabled`.
+ */
+async function loadDecisionSetup(db: Db, aiEnabled?: boolean) {
+  const flags =
+    aiEnabled === undefined ? await getFeatureFlagStates() : undefined;
   const allTypes = await loadAllCostTypes(db);
   return {
-    aiEnabled: flags.expenses_module && flags.expenses_ocr,
+    aiEnabled:
+      aiEnabled ?? Boolean(flags?.expenses_module && flags.expenses_ocr),
     allTypes,
     types: activeCostTypes(allTypes),
   };
+}
+
+/**
+ * Refuses a submit whose draft another submit took while this one prepared
+ * it. Read just before the first write, so the loser writes nothing over the
+ * winner's check.
+ */
+async function assertStillDraft(db: Db, expenseId: string): Promise<void> {
+  const { status } = await db.getRow<Expenses>("app", "expense", expenseId, [
+    Query.select(["$id", "status"]),
+  ]);
+  if (status !== ExpensesStatus.DRAFT) {
+    throw new SubmissionTakenError();
+  }
 }
 
 /** Whether any of these types asks for the occasion (retired ones too). */
@@ -1091,7 +1123,8 @@ function findDuplicates(
  * Throws `OccasionRequiredError` before writing anything when a decided
  * type asks for the occasion and there is none. An old app (no
  * `cost_type_chosen` anywhere) can't ask, so its submission gets an approver
- * hint instead.
+ * hint instead. Throws `SubmissionTakenError`, also before writing, when the
+ * expense is no longer a draft.
  */
 export async function prepareSubmission(
   admin: Pick<AdminClient, "db" | "storage">,
@@ -1148,6 +1181,7 @@ export async function prepareSubmission(
     expenseHints.push({ code: "occasion_missing" });
   }
 
+  await assertStillDraft(db, expense.$id);
   await Promise.all(
     receipts.map((receipt) =>
       db.updateRow(
@@ -1200,20 +1234,16 @@ const CLIENT_TYPE_SOURCES = new Set<StoredAttachment["type_source"]>([
 
 /**
  * Whether the check decides this receipt again: it has no type yet, its own
- * text still has no account, or the model read it only now and its type is
- * still what the client sent. A type the AI, a default or an approver set is
- * never decided again.
+ * text still has no account (with the AI off it then gets `account_missing`),
+ * or the model read it only now and its type is still what the client sent.
+ * A type the AI, a default or an approver set is never decided again.
  */
-function decidesAgain(
-  row: StoredAttachment,
-  readNow: boolean,
-  aiEnabled: boolean
-): boolean {
+function decidesAgain(row: StoredAttachment, readNow: boolean): boolean {
   if ((row.amount ?? 0) <= 0) {
     return false;
   }
   if (row.cost_type_text?.trim()) {
-    return aiEnabled && row.account_number === null;
+    return row.account_number === null;
   }
   if (!row.cost_type) {
     return true;
@@ -1316,11 +1346,19 @@ function checkedHints(input: {
  * writes the receipts, the approver hints (with `extraHints`, such as
  * `ai_check_incomplete`) and the AI's history. A receipt whose type someone
  * or something already settled keeps it. Safe to run again.
+ *
+ * `aiEnabled: false` makes no model call, whatever the flags say: the
+ * receipts still undecided then get the defaults and their hints
+ * (`type_defaulted`, `account_missing`).
  */
 export async function enrichUnsettled(
   admin: Pick<AdminClient, "db" | "storage">,
   expenseId: string,
-  options: { extraHints?: ApproverHint[]; now?: () => number } = {}
+  options: {
+    aiEnabled?: boolean;
+    extraHints?: ApproverHint[];
+    now?: () => number;
+  } = {}
 ): Promise<void> {
   const now = options.now ?? Date.now;
   const deadline = now() + FIXED_STEPS_BUDGET_MS;
@@ -1329,7 +1367,10 @@ export async function enrichUnsettled(
   const expense = await db.getRow<Expenses>("app", "expense", expenseId, [
     Query.select(CHECK_COLUMNS),
   ]);
-  const { aiEnabled, allTypes, types } = await loadDecisionSetup(db);
+  const { aiEnabled, allTypes, types } = await loadDecisionSetup(
+    db,
+    options.aiEnabled
+  );
   const rows: StoredAttachment[] = expense.expenseAttachments ?? [];
 
   const stored = await storedReads(db, rows);
@@ -1351,7 +1392,7 @@ export async function enrichUnsettled(
   const receipts = await chooseFreeformAccounts(
     db,
     rows
-      .filter((row) => decidesAgain(row, readNow.has(row.$id), aiEnabled))
+      .filter((row) => decidesAgain(row, readNow.has(row.$id)))
       .map((row): EnrichedReceipt => {
         const read = readOf(row);
         return {

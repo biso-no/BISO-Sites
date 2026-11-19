@@ -17,9 +17,10 @@ const flags = vi.hoisted(() => ({
     expenses_module: true,
     expenses_ocr: true,
   } as Record<string, boolean>,
+  getFeatureFlagStates: vi.fn(),
 }));
 vi.mock("@repo/shared/utils/feature-flags-server", () => ({
-  getFeatureFlagStates: vi.fn(async () => ({ ...flags.states })),
+  getFeatureFlagStates: flags.getFeatureFlagStates,
   isFeatureEnabled: vi.fn(async (key: string) => flags.states[key] ?? false),
 }));
 
@@ -31,7 +32,7 @@ vi.mock("../expense-submission", () => fixedSteps);
 
 const approval = vi.hoisted(() => {
   class ApprovalChainFailedError extends Error {}
-  return { ApprovalChainFailedError, createApprovalChain: vi.fn() };
+  return { ApprovalChainFailedError, ensureApprovalChain: vi.fn() };
 });
 vi.mock("../expense-approval", () => approval);
 
@@ -48,13 +49,17 @@ vi.mock("@repo/api/file", () => ({
 import { runExpenseCheck } from "./run";
 
 const NOW = Date.parse("2026-11-19T12:00:00.000Z");
+const FINISHED_AT = "2026-11-19T11:00:00.000Z";
+const INCOMPLETE = { code: "ai_check_incomplete" };
 
 const EXPENSE = {
   $id: "expense-1",
   $sequence: 42,
   campus: "1",
   campusRel: { name: "Oslo" },
-  check_state: "queued",
+  check_claim: 1,
+  check_finished_at: null as string | null,
+  check_state: "queued" as string | null,
   department: "dept-1",
   departmentRel: { Name: "Marketing" },
   description: "Travel",
@@ -81,6 +86,11 @@ const EXPENSE = {
 /** The claim column as the database keeps it: an atomic counter. */
 let claims = 0;
 
+/** The expense the run reads, with these claim and state columns. */
+function stored(over: Partial<typeof EXPENSE> = {}) {
+  db.getRow.mockResolvedValue({ ...EXPENSE, ...over });
+}
+
 function expenseWrites() {
   return db.updateRow.mock.calls
     .filter(([, table]) => table === "expense")
@@ -95,29 +105,35 @@ function callOrder(mock: { mock: { invocationCallOrder: number[] } }) {
   return mock.mock.invocationCallOrder[0] ?? 0;
 }
 
+function emailsTo(user: string) {
+  return messaging.createEmail.mock.calls.filter(([email]) =>
+    email.users.includes(user)
+  );
+}
+
+function silenceErrors() {
+  return vi.spyOn(console, "error").mockImplementation(() => undefined);
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   claims = 0;
   flags.states.expenses_ledger_posting = true;
   flags.states.expenses_module = true;
   flags.states.expenses_ocr = true;
+  flags.getFeatureFlagStates.mockImplementation(async () => ({
+    ...flags.states,
+  }));
   db.incrementRowColumn.mockImplementation(() => {
     // Each caller sees the value after its own increment, as Appwrite does.
     claims += 1;
-    return Promise.resolve({
-      $id: "expense-1",
-      check_claim: claims,
-      check_state: "queued",
-    });
+    return Promise.resolve({ $id: "expense-1", check_claim: claims });
   });
-  db.getRow.mockResolvedValue(EXPENSE);
+  stored();
   db.updateRow.mockResolvedValue({});
   fixedSteps.enrichUnsettled.mockResolvedValue(undefined);
   fixedSteps.flagCheckIncomplete.mockResolvedValue(undefined);
-  approval.createApprovalChain.mockResolvedValue({
-    notified: true,
-    stepsCreated: 2,
-  });
+  approval.ensureApprovalChain.mockResolvedValue(undefined);
   examples.syncExamplesForExpense.mockResolvedValue(undefined);
   messaging.createEmail.mockResolvedValue({});
   storage.createFile.mockResolvedValue({ $id: "pdf-1" });
@@ -126,6 +142,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.restoreAllMocks();
 });
 
 describe("runExpenseCheck", () => {
@@ -155,7 +172,7 @@ describe("runExpenseCheck", () => {
 
     expect(outcomes.filter((outcome) => outcome === "skipped")).toHaveLength(1);
     expect(fixedSteps.enrichUnsettled).toHaveBeenCalledTimes(1);
-    expect(approval.createApprovalChain).toHaveBeenCalledTimes(1);
+    expect(approval.ensureApprovalChain).toHaveBeenCalledTimes(1);
     expect(examples.syncExamplesForExpense).toHaveBeenCalledTimes(1);
 
     // The same with accounting's email instead of the chain.
@@ -166,11 +183,7 @@ describe("runExpenseCheck", () => {
       runExpenseCheck("expense-1"),
       runExpenseCheck("expense-1"),
     ]);
-    expect(
-      messaging.createEmail.mock.calls.filter(([email]) =>
-        email.users.includes("invoice-user")
-      )
-    ).toHaveLength(1);
+    expect(emailsTo("invoice-user")).toHaveLength(1);
   });
 
   it("a lost claim does nothing else", async () => {
@@ -179,68 +192,97 @@ describe("runExpenseCheck", () => {
     expect(await runExpenseCheck("expense-1")).toBe("skipped");
     expect(db.updateRow).not.toHaveBeenCalled();
     expect(fixedSteps.enrichUnsettled).not.toHaveBeenCalled();
-    expect(approval.createApprovalChain).not.toHaveBeenCalled();
+    expect(approval.ensureApprovalChain).not.toHaveBeenCalled();
     expect(messaging.createEmail).not.toHaveBeenCalled();
   });
 
   it("skips an expense whose check is not waiting", async () => {
     for (const state of [null, "done", "fallback"]) {
       claims = 0;
-      db.incrementRowColumn.mockResolvedValueOnce({
-        $id: "expense-1",
-        check_claim: 1,
-        check_state: state,
-      });
+      stored({ check_state: state });
       expect(await runExpenseCheck("expense-1")).toBe("skipped");
     }
     expect(db.updateRow).not.toHaveBeenCalled();
-    expect(approval.createApprovalChain).not.toHaveBeenCalled();
+    expect(approval.ensureApprovalChain).not.toHaveBeenCalled();
+  });
+
+  it("uses a caller's claim as it is", async () => {
+    stored({ check_claim: 3, check_state: "running" });
+
+    expect(
+      await runExpenseCheck("expense-1", { agent: async () => true, claim: 3 })
+    ).toBe("done");
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+    expect(approval.ensureApprovalChain).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips a caller's claim that somebody claimed after", async () => {
+    stored({ check_claim: 4, check_state: "running" });
+
+    expect(await runExpenseCheck("expense-1", { claim: 3 })).toBe("skipped");
+    expect(db.updateRow).not.toHaveBeenCalled();
+    expect(approval.ensureApprovalChain).not.toHaveBeenCalled();
   });
 
   it("a failed check falls back and still notifies", async () => {
     const agent = vi.fn(() => Promise.reject(new Error("model down")));
-    const logged = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    silenceErrors();
 
     const outcome = await runExpenseCheck("expense-1", {
       agent,
       now: () => NOW,
     });
 
-    logged.mockRestore();
     expect(outcome).toBe("fallback");
     expect(agent).toHaveBeenCalledWith("expense-1");
     expect(fixedSteps.enrichUnsettled).toHaveBeenCalledWith(
       expect.objectContaining({ db }),
       "expense-1",
-      expect.objectContaining({ extraHints: [{ code: "ai_check_incomplete" }] })
+      expect.objectContaining({ aiEnabled: true, extraHints: [INCOMPLETE] })
     );
-    expect(approval.createApprovalChain).toHaveBeenCalledTimes(1);
+    expect(approval.ensureApprovalChain).toHaveBeenCalledTimes(1);
     expect(finalState()).toEqual({
       check_finished_at: "2026-11-19T12:00:00.000Z",
       check_state: "fallback",
     });
   });
 
-  it("notifies with the flag when the fixed steps fail too", async () => {
-    fixedSteps.enrichUnsettled.mockRejectedValue(new Error("db down"));
-    const logged = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+  it("decides without the AI when the fixed steps fail, then notifies", async () => {
+    fixedSteps.enrichUnsettled.mockRejectedValueOnce(new Error("model down"));
+    silenceErrors();
 
     const outcome = await runExpenseCheck("expense-1", {
       agent: async () => true,
     });
 
-    logged.mockRestore();
+    expect(outcome).toBe("fallback");
+    // The defaults and their hints, with no model call.
+    expect(fixedSteps.enrichUnsettled).toHaveBeenLastCalledWith(
+      expect.anything(),
+      "expense-1",
+      expect.objectContaining({ aiEnabled: false, extraHints: [INCOMPLETE] })
+    );
+    expect(fixedSteps.flagCheckIncomplete).not.toHaveBeenCalled();
+    expect(callOrder(approval.ensureApprovalChain)).toBeGreaterThan(
+      fixedSteps.enrichUnsettled.mock.invocationCallOrder[1] ?? 0
+    );
+    expect(finalState()).toMatchObject({ check_state: "fallback" });
+  });
+
+  it("only flags the check when deciding without the AI fails too", async () => {
+    fixedSteps.enrichUnsettled.mockRejectedValue(new Error("db down"));
+    silenceErrors();
+
+    const outcome = await runExpenseCheck("expense-1", {
+      agent: async () => true,
+    });
+
     expect(outcome).toBe("fallback");
     expect(fixedSteps.flagCheckIncomplete).toHaveBeenCalledWith(
       db,
       "expense-1"
     );
-    expect(approval.createApprovalChain).toHaveBeenCalledTimes(1);
-    expect(finalState()).toMatchObject({ check_state: "fallback" });
+    expect(approval.ensureApprovalChain).toHaveBeenCalledTimes(1);
   });
 
   it("an answered check is done and adds no flag", async () => {
@@ -252,7 +294,7 @@ describe("runExpenseCheck", () => {
     expect(fixedSteps.enrichUnsettled).toHaveBeenCalledWith(
       expect.anything(),
       "expense-1",
-      expect.objectContaining({ extraHints: [] })
+      expect.objectContaining({ aiEnabled: true, extraHints: [] })
     );
     expect(finalState()).toMatchObject({ check_state: "done" });
   });
@@ -266,40 +308,52 @@ describe("runExpenseCheck", () => {
     expect(fixedSteps.enrichUnsettled).toHaveBeenCalledWith(
       expect.anything(),
       "expense-1",
-      expect.objectContaining({ extraHints: [] })
+      expect.objectContaining({ aiEnabled: false, extraHints: [] })
     );
+  });
+
+  it("checks without the AI when the flags can't be read, and still notifies", async () => {
+    flags.getFeatureFlagStates.mockRejectedValue(new Error("db down"));
+    const agent = vi.fn(async () => true);
+    silenceErrors();
+
+    expect(await runExpenseCheck("expense-1", { agent })).toBe("fallback");
+    expect(agent).not.toHaveBeenCalled();
+    expect(fixedSteps.enrichUnsettled).toHaveBeenCalledWith(
+      expect.anything(),
+      "expense-1",
+      expect.objectContaining({ aiEnabled: false, extraHints: [INCOMPLETE] })
+    );
+    expect(approval.ensureApprovalChain).toHaveBeenCalledTimes(1);
   });
 
   it("builds the approval chain from the expense as stored, after the check", async () => {
     await runExpenseCheck("expense-1", { agent: async () => true });
 
-    expect(approval.createApprovalChain).toHaveBeenCalledWith(
-      {
-        campusId: "1",
-        campusLabel: "Oslo",
-        currency: "NOK",
-        departmentId: "dept-1",
-        departmentLabel: "Marketing",
-        departmentName: "Marketing",
-        description: "Travel",
-        expenseId: "expense-1",
-        reimbursementNumber: "10042",
-        submitterIsController: true,
-        submitterIsFinancialManager: false,
-        submitterName: "Ada Lovelace",
-        submitterUserId: "user-1",
-        total: 100,
-      },
-      { keepPendingOnFailure: true, recordIssue: true }
-    );
+    expect(approval.ensureApprovalChain).toHaveBeenCalledWith({
+      campusId: "1",
+      campusLabel: "Oslo",
+      currency: "NOK",
+      departmentId: "dept-1",
+      departmentLabel: "Marketing",
+      departmentName: "Marketing",
+      description: "Travel",
+      expenseId: "expense-1",
+      reimbursementNumber: "10042",
+      submitterIsController: true,
+      submitterIsFinancialManager: false,
+      submitterName: "Ada Lovelace",
+      submitterUserId: "user-1",
+      total: 100,
+    });
     // Approvers hear of it only once the check has finished.
     expect(callOrder(fixedSteps.enrichUnsettled)).toBeLessThan(
-      callOrder(approval.createApprovalChain)
+      callOrder(approval.ensureApprovalChain)
     );
     // The state is written last, so a run that dies before notifying is
     // still running and the backstop finishes it.
     const stateWrite = db.updateRow.mock.invocationCallOrder.at(-1) ?? 0;
-    expect(stateWrite).toBeGreaterThan(callOrder(approval.createApprovalChain));
+    expect(stateWrite).toBeGreaterThan(callOrder(approval.ensureApprovalChain));
     expect(finalState()).toMatchObject({ check_state: "done" });
     // The Stage 2 example sync now follows the notification.
     expect(examples.syncExamplesForExpense).toHaveBeenCalledWith(
@@ -308,45 +362,29 @@ describe("runExpenseCheck", () => {
       { confirmed: false }
     );
     expect(callOrder(examples.syncExamplesForExpense)).toBeGreaterThan(
-      callOrder(approval.createApprovalChain)
+      callOrder(approval.ensureApprovalChain)
     );
   });
 
   it("finishes the check when the background chain fails", async () => {
-    approval.createApprovalChain.mockRejectedValue(
+    approval.ensureApprovalChain.mockRejectedValue(
       new approval.ApprovalChainFailedError("mail down")
     );
-    const logged = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    silenceErrors();
 
     const outcome = await runExpenseCheck("expense-1", {
       agent: async () => true,
     });
 
-    logged.mockRestore();
     // The issue is IT's to act on; the expense stays pending.
     expect(outcome).toBe("done");
     expect(finalState()).toMatchObject({ check_state: "done" });
-    expect(
-      expenseWrites().some((data) => data.status && data.status !== "pending")
-    ).toBe(false);
+    expect(expenseWrites().some((data) => "status" in data)).toBe(false);
     expect(examples.syncExamplesForExpense).toHaveBeenCalledTimes(1);
   });
 
-  it("treats a chain another run created as notified", async () => {
-    approval.createApprovalChain.mockRejectedValue(
-      Object.assign(new Error("Row already exists"), { code: 409 })
-    );
-
-    expect(
-      await runExpenseCheck("expense-1", { agent: async () => true })
-    ).toBe("done");
-    expect(finalState()).toMatchObject({ check_state: "done" });
-  });
-
   it("leaves the check running when the chain fails with nobody told", async () => {
-    approval.createApprovalChain.mockRejectedValue(new Error("db down"));
+    approval.ensureApprovalChain.mockRejectedValue(new Error("db down"));
 
     await expect(
       runExpenseCheck("expense-1", { agent: async () => true })
@@ -355,34 +393,98 @@ describe("runExpenseCheck", () => {
     expect(examples.syncExamplesForExpense).not.toHaveBeenCalled();
   });
 
-  it("the email goes out after the check", async () => {
+  it("a finished check that runs again repairs it and tells nobody again", async () => {
+    const agent = vi.fn(async () => true);
+    for (const posting of [true, false]) {
+      vi.clearAllMocks();
+      flags.states.expenses_ledger_posting = posting;
+      // A racing submit queued the finished check again.
+      stored({ check_claim: 5, check_finished_at: FINISHED_AT });
+
+      const outcome = await runExpenseCheck("expense-1", {
+        agent,
+        claim: 5,
+        now: () => NOW,
+      });
+
+      expect(outcome).toBe("fallback");
+      expect(agent).not.toHaveBeenCalled();
+      expect(fixedSteps.enrichUnsettled).toHaveBeenCalledWith(
+        expect.anything(),
+        "expense-1",
+        expect.objectContaining({ extraHints: [INCOMPLETE] })
+      );
+      expect(approval.ensureApprovalChain).not.toHaveBeenCalled();
+      expect(messaging.createEmail).not.toHaveBeenCalled();
+      expect(finalState()).toEqual({
+        check_finished_at: "2026-11-19T12:00:00.000Z",
+        check_state: "fallback",
+      });
+    }
+  });
+
+  it("the email goes out after the check, accounting's first", async () => {
     flags.states.expenses_ledger_posting = false;
 
     await runExpenseCheck("expense-1", { agent: async () => true });
 
-    expect(approval.createApprovalChain).not.toHaveBeenCalled();
-    expect(messaging.createEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ html: true, users: ["user-1"] })
+    expect(approval.ensureApprovalChain).not.toHaveBeenCalled();
+    const [toAccounting, toStudent] = messaging.createEmail.mock.calls.map(
+      ([email]) => email
     );
-    expect(messaging.createEmail).toHaveBeenCalledWith(
-      expect.objectContaining({
-        attachments: ["expenses:pdf-1", "expenses:file-1"],
-        html: true,
-        subject: "User Ada Lovelace has submitted expense 10042",
-        users: ["invoice-user"],
-      })
-    );
+    expect(toAccounting).toMatchObject({
+      attachments: ["expenses:pdf-1", "expenses:file-1"],
+      html: true,
+      subject: "User Ada Lovelace has submitted expense 10042",
+      users: ["invoice-user"],
+    });
+    expect(toStudent).toMatchObject({ html: true, users: ["user-1"] });
     expect(callOrder(fixedSteps.enrichUnsettled)).toBeLessThan(
       callOrder(messaging.createEmail)
     );
-    expect(expenseWrites()).toContainEqual({ status: "pending" });
+    // The submit wrote `pending`; the email writes no status.
+    expect(expenseWrites().some((data) => "status" in data)).toBe(false);
     expect(finalState()).toMatchObject({ check_state: "done" });
     expect(callOrder(examples.syncExamplesForExpense)).toBeGreaterThan(
       callOrder(messaging.createEmail)
     );
   });
 
-  it("an email that fails leaves the check running for the backstop", async () => {
+  it("a failed student copy fails nothing, and a re-run sends nothing again", async () => {
+    flags.states.expenses_ledger_posting = false;
+    messaging.createEmail
+      .mockResolvedValueOnce({})
+      .mockRejectedValueOnce(new Error("mail down"));
+    silenceErrors();
+
+    expect(
+      await runExpenseCheck("expense-1", { agent: async () => true })
+    ).toBe("done");
+    expect(emailsTo("invoice-user")).toHaveLength(1);
+    expect(finalState()).toMatchObject({ check_state: "done" });
+
+    // The backstop, or a racing submit's queue, runs it again.
+    const finished = finalState()?.check_finished_at as string;
+    stored({ check_claim: 2, check_finished_at: finished });
+    await runExpenseCheck("expense-1", { claim: 2 });
+
+    expect(emailsTo("invoice-user")).toHaveLength(1);
+    expect(emailsTo("user-1")).toHaveLength(1);
+  });
+
+  it("an accounting email that fails leaves the check running, and nobody got it", async () => {
+    flags.states.expenses_ledger_posting = false;
+    messaging.createEmail.mockRejectedValueOnce(new Error("mail down"));
+
+    await expect(
+      runExpenseCheck("expense-1", { agent: async () => true })
+    ).rejects.toThrow("mail down");
+    expect(emailsTo("user-1")).toHaveLength(0);
+    expect(finalState()).toBeUndefined();
+    expect(examples.syncExamplesForExpense).not.toHaveBeenCalled();
+  });
+
+  it("an email that can't be addressed leaves the check running for the backstop", async () => {
     flags.states.expenses_ledger_posting = false;
     vi.stubEnv("INVOICE_USER_ID", "");
 

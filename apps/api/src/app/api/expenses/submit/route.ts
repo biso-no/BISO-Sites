@@ -25,6 +25,7 @@ import { withoutProject } from "@/lib/expense-student-view";
 import {
   OccasionRequiredError,
   prepareSubmission,
+  SubmissionTakenError,
 } from "@/lib/expense-submission";
 
 // The answer needs no AI; the check after it (`after()`, see
@@ -245,7 +246,8 @@ async function saveDraftBeforeSubmission(
  * A missing occasion is the student's to fix, so it is answered as a 400 the
  * client can point at the field. The draft is saved by then, so the answer
  * names it: a client that had never saved the report updates that draft next
- * time instead of making a second one.
+ * time instead of making a second one. A draft another submit took while this
+ * one prepared it is answered 409, with nothing written.
  */
 async function prepareOrReject(
   admin: AdminClient,
@@ -261,6 +263,9 @@ async function prepareOrReject(
         expenseId: expense.$id,
         field: "occasion",
       });
+    }
+    if (error instanceof SubmissionTakenError) {
+      throw new SubmitRejection(HTTP_CONFLICT, error.message);
     }
     throw error;
   }
@@ -327,15 +332,16 @@ async function submitExpense(req: NextRequest) {
 
   await prepareOrReject(admin, await readExpense(), saved, profile.name);
   // One write, so a submit that fails before it leaves a draft the backstop
-  // never sees. Only a draft gets here (`loadOwnedDraft`); two submits that
-  // race past that check both answer, and the check's claim lets one notify.
+  // never sees. Only a draft gets here (`loadOwnedDraft`, and again just
+  // before prepare writes); the check's claim lets one run notify.
   await admin.db.updateRow<SubmittedRow>("app", "expense", draft.$id, {
     check_state: ExpensesCheckState.QUEUED,
     status: ExpensesStatus.PENDING,
   });
+  // Scheduled at once, so a failure from here on can't lose the check.
+  checkAfterAnswer(draft.$id);
   // Read again so the answer shows the expense as submitted.
   const expense = await readExpense();
-  checkAfterAnswer(draft.$id);
 
   return {
     success: true,

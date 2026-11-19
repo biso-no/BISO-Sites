@@ -8,11 +8,7 @@
 import { ID, Query } from "@repo/api";
 import { InputFile } from "@repo/api/file";
 import { createAdminClient } from "@repo/api/server";
-import {
-  type Expenses,
-  ExpensesCheckState,
-  ExpensesStatus,
-} from "@repo/api/types/appwrite";
+import { type Expenses, ExpensesCheckState } from "@repo/api/types/appwrite";
 import { syncExamplesForExpense } from "@repo/shared/utils/expense-examples";
 import type { ApproverHint } from "@repo/shared/utils/expense-hints";
 import {
@@ -22,7 +18,7 @@ import {
 import { reimbursementNumber } from "@repo/shared/utils/reimbursement-number";
 import {
   ApprovalChainFailedError,
-  createApprovalChain,
+  ensureApprovalChain,
 } from "../expense-approval";
 import { enrichUnsettled, flagCheckIncomplete } from "../expense-submission";
 import { generateExpensePdf } from "../pdf/expense-pdf";
@@ -43,10 +39,15 @@ export const noAgent: CheckAgent = async () => false;
 
 export interface CheckDeps {
   agent?: CheckAgent;
+  /**
+   * The caller's own `check_claim` increment result, such as the backstop's
+   * after it reset a stale claim. Without one the run increments the claim
+   * itself and must see 1.
+   */
+  claim?: number;
   now?: () => number;
 }
 
-const HTTP_CONFLICT = 409;
 const EXPENSES_BUCKET = "expenses";
 const INCOMPLETE: ApproverHint = { code: "ai_check_incomplete" };
 
@@ -73,55 +74,68 @@ const SUBMISSION_COLUMNS = [
   "expenseAttachments.*",
 ];
 
+/** The claim and state columns the run reads once it holds the claim. */
+const STATE_COLUMNS = [
+  "$id",
+  "check_claim",
+  "check_finished_at",
+  "check_state",
+];
+
+type FinishedOutcome = Exclude<CheckOutcome, "skipped">;
+
 /**
- * True when a unique index already holds the row: the approval chain's
- * unique (expense_id, step) index means another run created the chain.
+ * Whether the AI is on: true or false, or null when the flags can't be read.
+ * Then the AI counts as unavailable, and the check still notifies.
  */
-function isRowConflictError(error: unknown): boolean {
-  if (typeof error !== "object" || error === null) {
-    return false;
+async function readAiEnabled(): Promise<boolean | null> {
+  try {
+    const flags = await getFeatureFlagStates();
+    return flags.expenses_module && flags.expenses_ocr;
+  } catch (error) {
+    console.error(
+      "[expense-check] could not read the flags; checking without the AI:",
+      error
+    );
+    return null;
   }
-  const { code, type } = error as { code?: unknown; type?: unknown };
-  return (
-    code === HTTP_CONFLICT ||
-    type === "row_already_exists" ||
-    type === "document_already_exists"
-  );
 }
 
 /**
- * The agent's turn, then the fixed steps for whatever is still unsettled.
- * `fallback` when the agent gave no answer or the fixed steps failed; the
- * approvers then see `ai_check_incomplete`. With the AI off there is no
- * agent to ask, and the fixed steps make no model call.
+ * The fixed steps for whatever is still unsettled. When they fail, the
+ * decisions that need no AI are made instead (defaults, `type_defaulted`,
+ * `account_missing`), so every receipt has a type or a hint, and the check
+ * is flagged; the approvers are told either way.
  */
-async function checkExpense(
+async function runFixedSteps(
   admin: AdminClient,
   expenseId: string,
-  agent: CheckAgent,
-  now: () => number
-): Promise<Exclude<CheckOutcome, "skipped">> {
-  const flags = await getFeatureFlagStates();
-  const aiEnabled = flags.expenses_module && flags.expenses_ocr;
-  let answered = !aiEnabled;
-  if (aiEnabled) {
-    try {
-      answered = await agent(expenseId);
-    } catch (error) {
-      console.error(
-        `[expense-check] the agent failed for ${expenseId}; the fixed steps take over:`,
-        error
-      );
-    }
+  check: { aiEnabled: boolean; answered: boolean; now: () => number }
+): Promise<FinishedOutcome> {
+  try {
+    await enrichUnsettled(admin, expenseId, {
+      aiEnabled: check.aiEnabled,
+      extraHints: check.answered ? [] : [INCOMPLETE],
+      now: check.now,
+    });
+    return check.answered
+      ? ExpensesCheckState.DONE
+      : ExpensesCheckState.FALLBACK;
+  } catch (error) {
+    console.error(
+      `[expense-check] the fixed steps failed for ${expenseId}; deciding without the AI:`,
+      error
+    );
   }
   try {
     await enrichUnsettled(admin, expenseId, {
-      extraHints: answered ? [] : [INCOMPLETE],
-      now,
+      aiEnabled: false,
+      extraHints: [INCOMPLETE],
+      now: check.now,
     });
   } catch (error) {
     console.error(
-      `[expense-check] the fixed steps failed for ${expenseId}; notifying anyway:`,
+      `[expense-check] could not decide ${expenseId} without the AI; notifying anyway:`,
       error
     );
     await flagCheckIncomplete(admin.db, expenseId).catch((cause: unknown) => {
@@ -130,9 +144,39 @@ async function checkExpense(
         cause
       );
     });
-    return ExpensesCheckState.FALLBACK;
   }
-  return answered ? ExpensesCheckState.DONE : ExpensesCheckState.FALLBACK;
+  return ExpensesCheckState.FALLBACK;
+}
+
+/**
+ * The agent's turn (`askAgent`), then the fixed steps. `fallback` when the
+ * agent gave no answer, was not asked while the AI is on, or the flags could
+ * not be read; the approvers then see `ai_check_incomplete`. With the AI off
+ * there is no agent to ask, and the fixed steps make no model call.
+ */
+async function checkExpense(
+  admin: AdminClient,
+  expenseId: string,
+  check: { agent: CheckAgent; askAgent: boolean; now: () => number }
+): Promise<FinishedOutcome> {
+  const ai = await readAiEnabled();
+  const aiEnabled = ai === true;
+  let answered = ai === false;
+  if (aiEnabled && check.askAgent) {
+    try {
+      answered = await check.agent(expenseId);
+    } catch (error) {
+      console.error(
+        `[expense-check] the agent failed for ${expenseId}; the fixed steps take over:`,
+        error
+      );
+    }
+  }
+  return await runFixedSteps(admin, expenseId, {
+    aiEnabled,
+    answered,
+    now: check.now,
+  });
 }
 
 function formatDate(date: Date): string {
@@ -191,12 +235,14 @@ async function storeEmailAttachments(
 }
 
 /**
- * Direct booking off: emails the cover sheet and receipts to the submitter
- * and to accounting, then marks the expense `pending` (it already is). A
- * failure throws, so the check stays `running` and the backstop tries again.
+ * Direct booking off: emails the cover sheet and receipts to accounting,
+ * then a copy to the submitter. The expense is `pending` since the submit.
+ * Only a failure before accounting's email is sent throws, so the check stays
+ * `running` and the backstop tries again without anyone getting it twice;
+ * the submitter's copy is best-effort.
  */
 async function submitByEmail(
-  { db, messaging, storage }: AdminClient,
+  { messaging, storage }: AdminClient,
   expense: Expenses
 ): Promise<void> {
   // Appwrite Messaging only delivers to registered users, so accounting's inbox
@@ -210,19 +256,6 @@ async function submitByEmail(
   const refNumber = reimbursementNumber(expense.$sequence);
   const submitterName = expense.user?.name ?? "";
   const attachments = await storeEmailAttachments(storage, expense, refNumber);
-
-  await messaging.createEmail({
-    messageId: ID.unique(),
-    subject: `Expense ${refNumber} has been received`,
-    content: `
-    <h1>Expense received</h1>
-    <p>Expense ${expense.$id} has been received</p>
-    <p>Reimbursement number: ${refNumber}</p>
-`,
-    users: [expense.userId],
-    attachments,
-    html: true,
-  });
 
   await messaging.createEmail({
     messageId: ID.unique(),
@@ -240,43 +273,53 @@ async function submitByEmail(
     html: true,
   });
 
-  await db.updateRow("app", "expense", expense.$id, {
-    status: ExpensesStatus.PENDING,
-  });
+  try {
+    await messaging.createEmail({
+      messageId: ID.unique(),
+      subject: `Expense ${refNumber} has been received`,
+      content: `
+    <h1>Expense received</h1>
+    <p>Expense ${expense.$id} has been received</p>
+    <p>Reimbursement number: ${refNumber}</p>
+`,
+      users: [expense.userId],
+      attachments,
+      html: true,
+    });
+  } catch (error) {
+    console.error(
+      `[expense-check] could not send the submitter's copy of ${expense.$id}:`,
+      error
+    );
+  }
 }
 
 /**
  * Direct booking on: builds the approval chain and notifies its first step,
- * routed by the flags the submitter declared, as stored on the expense. A
- * chain that fails is recorded as an approval issue for IT (the expense stays
- * pending, and a global admin rebuilds the chain); a chain another run holds
- * already went out.
+ * routed by the flags the submitter declared, as stored on the expense, once
+ * (`ensureApprovalChain`). A chain that fails is recorded as an approval
+ * issue for IT (the expense stays pending, and a global admin rebuilds the
+ * chain).
  */
 async function submitForApproval(expense: Expenses): Promise<void> {
   try {
-    await createApprovalChain(
-      {
-        expenseId: expense.$id,
-        campusId: expense.campus,
-        departmentId: expense.department ?? null,
-        departmentName: expense.departmentRel?.Name ?? null,
-        submitterIsController: expense.submitter_is_controller,
-        submitterIsFinancialManager: expense.submitter_is_financial_manager,
-        reimbursementNumber: reimbursementNumber(expense.$sequence),
-        submitterName: expense.user?.name || "BISO member",
-        submitterUserId: expense.userId,
-        departmentLabel: expense.departmentRel?.Name ?? expense.department,
-        campusLabel: expense.campusRel?.name ?? expense.campus,
-        total: expense.total,
-        currency: "NOK",
-        description: expense.description ?? "",
-      },
-      { keepPendingOnFailure: true, recordIssue: true }
-    );
+    await ensureApprovalChain({
+      expenseId: expense.$id,
+      campusId: expense.campus,
+      departmentId: expense.department ?? null,
+      departmentName: expense.departmentRel?.Name ?? null,
+      submitterIsController: expense.submitter_is_controller,
+      submitterIsFinancialManager: expense.submitter_is_financial_manager,
+      reimbursementNumber: reimbursementNumber(expense.$sequence),
+      submitterName: expense.user?.name || "BISO member",
+      submitterUserId: expense.userId,
+      departmentLabel: expense.departmentRel?.Name ?? expense.department,
+      campusLabel: expense.campusRel?.name ?? expense.campus,
+      total: expense.total,
+      currency: "NOK",
+      description: expense.description ?? "",
+    });
   } catch (error) {
-    if (isRowConflictError(error)) {
-      return;
-    }
     if (error instanceof ApprovalChainFailedError) {
       console.error(
         `[expense-check] the approval chain failed for ${expense.$id}; an approval issue was recorded:`,
@@ -304,50 +347,81 @@ async function notifyAfterCheck(
 }
 
 /**
+ * Takes the check: the caller's claim when it brings one (and nobody claimed
+ * since), else an atomic `check_claim` increment that must read exactly 1.
+ * Returns the state columns, or null when the claim is lost or the check is
+ * not waiting (`queued` or `running`).
+ */
+async function claimCheck(
+  db: AdminClient["db"],
+  expenseId: string,
+  claim: number | undefined
+): Promise<Expenses | null> {
+  if (claim === undefined) {
+    // No `max` bound: a lost race is the `!== 1` answer, and a thrown error
+    // (the column not deployed, an outage) is a real failure.
+    const claimed = await db.incrementRowColumn<Expenses>({
+      databaseId: "app",
+      tableId: "expense",
+      rowId: expenseId,
+      column: "check_claim",
+      value: 1,
+    });
+    if ((claimed.check_claim ?? 0) !== 1) {
+      return null;
+    }
+  }
+  const row = await db.getRow<Expenses>("app", "expense", expenseId, [
+    Query.select(STATE_COLUMNS),
+  ]);
+  const lost = claim !== undefined && row.check_claim !== claim;
+  return lost || !OPEN_CHECK_STATES.has(row.check_state) ? null : row;
+}
+
+/**
  * Checks a submitted reimbursement, then notifies its approvers (or emails
  * accounting) exactly once.
  *
- * The claim is an atomic `check_claim` increment: only the run that observes
- * exactly 1 checks the expense, so two submits of the same draft, or a
- * submit and the backstop, run one check and one notification. A check that
- * is not waiting (`queued` or `running`) is left alone.
+ * Only the run holding the claim checks the expense (`claimCheck`), so two
+ * submits of the same draft, or a submit and the backstop, run one check. A
+ * check that is not waiting is left alone.
+ *
+ * A check that finished before (`check_finished_at`) and is waiting again,
+ * because a racing submit queued it, tells nobody again: its fixed steps run
+ * once more to repair what that submit wrote, and its state is written again.
  *
  * The state is written last: a run that dies before notifying is still
- * `running`, and the backstop finishes it. A notification that fails with
- * nobody told throws for the same reason; the example sync after it is
- * best-effort.
+ * `running`, and the backstop finishes it; notifying is safe to repeat
+ * (`ensureApprovalChain`, accounting's email first). A notification that
+ * fails with nobody told throws for the same reason; the example sync after
+ * it is best-effort.
  */
 export async function runExpenseCheck(
   expenseId: string,
   deps: CheckDeps = {}
 ): Promise<CheckOutcome> {
   const now = deps.now ?? Date.now;
-  const agent = deps.agent ?? noAgent;
   const admin = await createAdminClient();
   const { db } = admin;
 
-  // No `max` bound: a lost race is the `!== 1` answer, and a thrown error
-  // (the column not deployed, an outage) is a real failure.
-  const claimed = await db.incrementRowColumn<Expenses>({
-    databaseId: "app",
-    tableId: "expense",
-    rowId: expenseId,
-    column: "check_claim",
-    value: 1,
-  });
-  if (
-    (claimed.check_claim ?? 0) !== 1 ||
-    !OPEN_CHECK_STATES.has(claimed.check_state)
-  ) {
+  const claimed = await claimCheck(db, expenseId, deps.claim);
+  if (!claimed) {
     return "skipped";
   }
+  const told = Boolean(claimed.check_finished_at);
 
   await db.updateRow("app", "expense", expenseId, {
     check_state: ExpensesCheckState.RUNNING,
     check_started_at: new Date(now()).toISOString(),
   });
-  const outcome = await checkExpense(admin, expenseId, agent, now);
-  await notifyAfterCheck(admin, expenseId);
+  const outcome = await checkExpense(admin, expenseId, {
+    agent: deps.agent ?? noAgent,
+    askAgent: !told,
+    now,
+  });
+  if (!told) {
+    await notifyAfterCheck(admin, expenseId);
+  }
   await db.updateRow("app", "expense", expenseId, {
     check_state: outcome,
     check_finished_at: new Date(now()).toISOString(),

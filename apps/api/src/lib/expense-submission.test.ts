@@ -66,6 +66,7 @@ import {
   hintsJson,
   OccasionRequiredError,
   prepareSubmission,
+  SubmissionTakenError,
 } from "./expense-submission";
 import {
   type ExtractedReceipt,
@@ -819,6 +820,7 @@ function storeOf(expense: unknown, payload: { department?: string }) {
   let saved: Record<string, unknown> = {
     department: payload.department,
     occasion: null,
+    status: "draft",
     ...row,
   };
   const rows = new Map(
@@ -901,6 +903,8 @@ describe("prepareSubmission and the check's fixed steps", () => {
     findPossibleDuplicate.mockResolvedValue(null);
     recordExpenseEvents.mockResolvedValue(undefined);
     db.updateRow.mockResolvedValue({});
+    // Read just before the submit writes: still a draft.
+    db.getRow.mockResolvedValue({ $id: "expense-1", status: "draft" });
     storage.getFileDownload.mockImplementation(
       async (_bucket: string, fileId: string) => fileBytes(fileId)
     );
@@ -908,6 +912,82 @@ describe("prepareSubmission and the check's fixed steps", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("refuses a draft another submit took, before writing anything", async () => {
+    db.getRow.mockResolvedValue({ $id: "expense-1", status: "pending" });
+    const { expense, payload } = submission([
+      { cost_type: "social", cost_type_chosen: true, url: "file-1" },
+    ]);
+
+    await expect(
+      prepareSubmission(admin, expense, payload, "Ada Lovelace")
+    ).rejects.toBeInstanceOf(SubmissionTakenError);
+    expect(db.updateRow).not.toHaveBeenCalled();
+    expect(recordExpenseEvents).not.toHaveBeenCalled();
+  });
+
+  it("a second submit that prepares after the first one's check changes nothing", async () => {
+    findPossibleDuplicate.mockResolvedValue({
+      expenseId: "expense-0",
+      match: "file",
+      reimbursementNumber: "10042",
+    });
+    const { expense, payload } = submission([
+      { cost_type: "", cost_type_chosen: true, url: "file-1" },
+    ]);
+    // A's submit and check; A's route then marked the expense pending.
+    await submitAndCheck(expense, payload);
+    await db.updateRow("app", "expense", "expense-1", { status: "pending" });
+    const writes = db.updateRow.mock.calls.length;
+    const events = recordExpenseEvents.mock.calls.length;
+    const checked = { ...attachmentWrite("att-1") };
+    const hints = expenseWrite()?.approver_hints;
+
+    // B passed the draft check before A's pending write, and prepares now.
+    await expect(
+      prepareSubmission(admin, expense, payload, "Ada Lovelace")
+    ).rejects.toBeInstanceOf(SubmissionTakenError);
+
+    expect(db.updateRow).toHaveBeenCalledTimes(writes);
+    expect(recordExpenseEvents).toHaveBeenCalledTimes(events);
+    expect(attachmentWrite("att-1")).toEqual(checked);
+    expect(expenseWrite()?.approver_hints).toBe(hints);
+    expect(hints).toContain("possible_duplicate");
+  });
+
+  it("without the AI the check gives the defaults and their hints", async () => {
+    const { expense, payload } = submission([
+      { cost_type: "", cost_type_chosen: true, url: "file-1" },
+      { cost_type_chosen: true, cost_type_text: "Flowers", url: "file-2" },
+    ]);
+    storeOf(expense, payload);
+    await prepareSubmission(admin, expense, payload, "Ada Lovelace");
+    const downloads = storage.getFileDownload.mock.calls.length;
+
+    await enrichUnsettled(admin, "expense-1", {
+      aiEnabled: false,
+      extraHints: [{ code: "ai_check_incomplete" }],
+    });
+
+    expect(storage.getFileDownload).toHaveBeenCalledTimes(downloads);
+    expect(scanning.extractReceipt).not.toHaveBeenCalled();
+    expect(scanning.classifyReceipt).not.toHaveBeenCalled();
+    expect(generateObject).not.toHaveBeenCalled();
+    expect(attachmentWrite("att-1")).toMatchObject({
+      account_number: 6555,
+      cost_type: "other",
+      type_source: null,
+    });
+    expect(attachmentWrite("att-2")).toMatchObject({
+      account_number: null,
+      cost_type_text: "Flowers",
+    });
+    expect(JSON.parse(String(expenseWrite()?.approver_hints))).toEqual([
+      { attachmentId: "att-1", code: "type_defaulted" },
+      { attachmentId: "att-2", code: "account_missing" },
+      { code: "ai_check_incomplete" },
+    ]);
   });
 
   it("the submit answer makes no model call", async () => {

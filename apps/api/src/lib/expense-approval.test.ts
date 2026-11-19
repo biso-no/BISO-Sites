@@ -70,6 +70,7 @@ import {
   createApprovalChain,
   decideApproval,
   decideApprovalStep,
+  ensureApprovalChain,
   getApprovalContext,
   rebuildApprovalChain,
   resendApprovalNotification,
@@ -743,6 +744,139 @@ describe("approval chain", () => {
       }),
       { db }
     );
+  });
+});
+
+const RESEND_ISSUE_FOR_STEP_2 = /^Could not notify ctrl@biso\.no for step 2/;
+
+describe("ensureApprovalChain", () => {
+  const stepFor = (role: string, email: string, step: number) => ({
+    aadId: null,
+    directoryKey: `campus:1:${role}`,
+    email,
+    role,
+    source: "default",
+    step,
+  });
+  const TWO_STEPS = [
+    stepFor("finance", "fin@biso.no", 1),
+    stepFor("controller", "ctrl@biso.no", 2),
+  ];
+  const stepRow = (step: number, status = "pending") => ({
+    $id: `row-${step}`,
+    approver_email: step === 1 ? "fin@biso.no" : "ctrl@biso.no",
+    approver_role: step === 1 ? "finance" : "controller",
+    expense_id: "expense-1",
+    status,
+    step,
+  });
+  const SUBMITTED = {
+    $createdAt: "2026-11-19T10:00:00.000Z",
+    action: "submitted",
+  };
+  /** What an earlier, cut-off run left: these step rows and events. */
+  const leftBehind = (rows: object[], events: object[] = [SUBMITTED]) => {
+    db.listRows.mockImplementation(
+      (_db: string, table: string, queries: string[]) => {
+        if (table === "expense_events") {
+          const wanted = queries.find((query) => query.includes('"action"'));
+          const matching = events.filter(
+            (event) =>
+              wanted?.includes(`"${(event as { action: string }).action}"`) ??
+              false
+          );
+          return Promise.resolve({ rows: matching, total: matching.length });
+        }
+        return Promise.resolve({ rows, total: rows.length });
+      }
+    );
+    // Step 1 is taken: the earlier run's row holds the unique index.
+    db.createRow.mockRejectedValueOnce(
+      Object.assign(new Error("Row already exists"), { code: 409 })
+    );
+  };
+  const approvalRowsCreated = () =>
+    db.createRow.mock.calls
+      .filter(([, table]) => table === "expense_approvals")
+      .map(([, , , data]) => data.step);
+
+  beforeEach(() => {
+    db.deleteRow.mockResolvedValue({});
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: TWO_STEPS,
+    });
+  });
+
+  it("builds and notifies the chain on a first run", async () => {
+    await ensureApprovalChain(CONTEXT);
+
+    expect(approvalRowsCreated()).toEqual([1, 2]);
+    expect(teams.sendApprovalEmail).toHaveBeenCalledTimes(1);
+    expect(db.deleteRow).not.toHaveBeenCalled();
+  });
+
+  it("a re-run after a cut-off before notifying builds one fresh chain and notifies", async () => {
+    leftBehind([stepRow(1), stepRow(2)]);
+
+    await ensureApprovalChain(CONTEXT);
+
+    expect(db.deleteRow.mock.calls.map(([, , id]) => id)).toEqual([
+      "row-1",
+      "row-2",
+    ]);
+    // The refused step 1, then the chain in full.
+    expect(approvalRowsCreated()).toEqual([1, 1, 2]);
+    expect(teams.sendApprovalEmail).toHaveBeenCalledTimes(1);
+    expect(
+      db.updateRow.mock.calls.some(([, , , data]) => data.status === "draft")
+    ).toBe(false);
+  });
+
+  it("a re-run after the chain was notified tells nobody again", async () => {
+    leftBehind(
+      [stepRow(1), stepRow(2)],
+      [
+        SUBMITTED,
+        { $createdAt: "2026-11-19T10:01:00.000Z", action: "notified" },
+      ]
+    );
+
+    await ensureApprovalChain(CONTEXT);
+
+    expect(teams.sendApprovalEmail).not.toHaveBeenCalled();
+    expect(db.deleteRow).not.toHaveBeenCalled();
+    expect(approvalRowsCreated()).toEqual([1]);
+  });
+
+  it("a chain cut off between its inserts is built again in full", async () => {
+    leftBehind([stepRow(1)]);
+
+    await ensureApprovalChain(CONTEXT);
+
+    expect(db.deleteRow.mock.calls.map(([, , id]) => id)).toEqual(["row-1"]);
+    expect(approvalRowsCreated()).toEqual([1, 1, 2]);
+    expect(teams.sendApprovalEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it("a decided step gets a resend issue instead of a new chain", async () => {
+    leftBehind([stepRow(1, "approved"), stepRow(2)]);
+
+    await ensureApprovalChain(CONTEXT);
+
+    expect(db.deleteRow).not.toHaveBeenCalled();
+    expect(teams.sendApprovalEmail).not.toHaveBeenCalled();
+    const issues = db.createRow.mock.calls
+      .filter(([, table]) => table === "expense_approval_issues")
+      .map(([, , , data]) => data);
+    expect(issues).toEqual([
+      expect.objectContaining({
+        expense_id: "expense-1",
+        reason: expect.stringMatching(RESEND_ISSUE_FOR_STEP_2),
+        role_sought: "controller",
+        status: "open",
+      }),
+    ]);
   });
 });
 

@@ -421,6 +421,93 @@ export async function createApprovalChain(
   }
 }
 
+/**
+ * Whether an approver was told about this submission: a `notified` event no
+ * older than the latest `submitted` one. `createApprovalChain` writes it once
+ * the chain stands and its first step was notified.
+ */
+async function notifiedSinceSubmit(
+  db: AdminDb,
+  expenseId: string
+): Promise<boolean> {
+  const latest = (action: "notified" | "submitted") =>
+    db.listRows<ExpenseEvents>("app", "expense_events", [
+      Query.equal("expense_id", expenseId),
+      Query.equal("action", action),
+      Query.orderDesc("$createdAt"),
+      Query.limit(1),
+    ]);
+  const [notified, submitted] = await Promise.all([
+    latest("notified"),
+    latest("submitted"),
+  ]);
+  const notifiedAt = notified.rows[0]?.$createdAt;
+  const submittedAt = submitted.rows[0]?.$createdAt;
+  return Boolean(notifiedAt && (!submittedAt || notifiedAt >= submittedAt));
+}
+
+/**
+ * The background check's approval chain, in background mode
+ * (`keepPendingOnFailure`, `recordIssue`), told to its first approver exactly
+ * once, also when the check runs again after being cut off.
+ *
+ * A row conflict means an earlier run created step rows. A `notified` event
+ * since the submit means the link went out, and nothing more is done.
+ * Without one nobody holds a link: when every step is still pending, the
+ * rows are deleted and the chain is built again in full, which notifies. A
+ * step already decided means the chain moved on, so IT gets a "Could not
+ * notify" issue to resend the current step instead.
+ */
+export async function ensureApprovalChain(
+  context: ApprovalChainContext
+): Promise<void> {
+  const options = { keepPendingOnFailure: true, recordIssue: true };
+  try {
+    await createApprovalChain(context, options);
+    return;
+  } catch (error) {
+    if (!isRowConflictError(error)) {
+      throw error;
+    }
+  }
+
+  const { db } = await createAdminClient();
+  if (await notifiedSinceSubmit(db, context.expenseId)) {
+    return;
+  }
+  const { rows } = await db.listRows<ExpenseApprovals>(
+    "app",
+    "expense_approvals",
+    [
+      Query.equal("expense_id", context.expenseId),
+      Query.orderAsc("step"),
+      Query.limit(STEP_LOOKUP_LIMIT),
+    ]
+  );
+  const isPending = (row: ExpenseApprovals) =>
+    row.status === ExpenseApprovalsStatus.PENDING;
+  if (!rows.every(isPending)) {
+    const current = rows.find(isPending);
+    if (current) {
+      await writeNotificationIssue(
+        db,
+        current,
+        {
+          campusId: context.campusId,
+          department: context.departmentName ?? "(none)",
+        },
+        "no notification was recorded after the check"
+      );
+    }
+    return;
+  }
+  // A failed delete throws, so the check stays running and tries again.
+  await Promise.all(
+    rows.map((row) => db.deleteRow("app", "expense_approvals", row.$id))
+  );
+  await createApprovalChain(context, options);
+}
+
 async function buildApprovalChain(
   context: ApprovalChainContext,
   options: CreateChainOptions
@@ -898,6 +985,8 @@ const HAS_STEPS_ERROR = "This reimbursement already has approval steps.";
 const NOT_REBUILDABLE_ERROR =
   "Only a reimbursement left without an approval chain when it was submitted can have its approval chain rebuilt.";
 const ISSUE_LOOKUP_LIMIT = 100;
+/** More steps than any approval plan has. */
+const STEP_LOOKUP_LIMIT = 20;
 const HTTP_CONFLICT = 409;
 const ACCOUNT_MISSING_ERROR =
   "A receipt has no account yet. Set it in admin before approving.";
@@ -1368,6 +1457,28 @@ async function notifyPendingStep(
 }
 
 /**
+ * Writes the "Could not notify" issue for a step: the IT queue offers a
+ * resend for it, which re-issues the approval link.
+ */
+async function writeNotificationIssue(
+  db: AdminDb,
+  stepRow: ExpenseApprovals,
+  place: { campusId: string; department: string | null },
+  message: string
+): Promise<void> {
+  await db.createRow("app", "expense_approval_issues", ID.unique(), {
+    expense_id: stepRow.expense_id,
+    campus_id: place.campusId,
+    department: place.department,
+    role_sought: stepRow.approver_role,
+    reason: truncateReason(
+      `Could not notify ${stepRow.approver_email} for step ${stepRow.step} (${message}). Use resend to re-issue the approval link.`
+    ),
+    status: "open",
+  });
+}
+
+/**
  * Records a remediation issue when an approver could not be notified, so the IT
  * "approval issues" queue surfaces it and can trigger a resend.
  */
@@ -1377,17 +1488,15 @@ async function recordNotificationIssue(
   error: unknown
 ): Promise<void> {
   const { db } = await createAdminClient();
-  const message = error instanceof Error ? error.message : "unknown error";
-  await db.createRow("app", "expense_approval_issues", ID.unique(), {
-    expense_id: stepRow.expense_id,
-    campus_id: expense.campus,
-    department: expense.departmentRel?.Name ?? expense.department,
-    role_sought: stepRow.approver_role,
-    reason: truncateReason(
-      `Could not notify ${stepRow.approver_email} for step ${stepRow.step} (${message}). Use resend to re-issue the approval link.`
-    ),
-    status: "open",
-  });
+  await writeNotificationIssue(
+    db,
+    stepRow,
+    {
+      campusId: expense.campus,
+      department: expense.departmentRel?.Name ?? expense.department,
+    },
+    error instanceof Error ? error.message : "unknown error"
+  );
 }
 
 /**
@@ -1427,7 +1536,7 @@ export async function resendApprovalNotification(
 }
 
 /** True when a unique index already holds the row (a racing request got there first). */
-function isRowConflictError(error: unknown): boolean {
+export function isRowConflictError(error: unknown): boolean {
   if (typeof error !== "object" || error === null) {
     return false;
   }
