@@ -770,6 +770,9 @@ async function reconcileExpenseStatus(expenseId: string): Promise<void> {
 
   if (desired) {
     await db.updateRow("app", "expense", expenseId, { status: desired });
+    if (desired === ExpensesStatus.REJECTED) {
+      await deleteExamplesForExpense(db, expenseId);
+    }
   }
 }
 

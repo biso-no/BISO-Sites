@@ -44,6 +44,22 @@ vi.mock("@/lib/expense-approval", () => ({
   createApprovalChain: vi.fn(async () => undefined),
 }));
 
+const scheduled = vi.hoisted(() => ({
+  tasks: [] as (() => Promise<void>)[],
+}));
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  after: (task: () => Promise<void>) => {
+    scheduled.tasks.push(task);
+  },
+}));
+
+const runScheduled = async () => {
+  for (const task of scheduled.tasks) {
+    await task();
+  }
+};
+
 const examples = vi.hoisted(() => ({
   syncExamplesForExpense: vi.fn(),
 }));
@@ -128,6 +144,7 @@ describe("expense submit route", () => {
       async (key: string) => key !== "expenses_ledger_posting"
     );
     vi.mocked(createApprovalChain).mockClear();
+    scheduled.tasks.length = 0;
     examples.syncExamplesForExpense.mockReset();
     examples.syncExamplesForExpense.mockResolvedValue(undefined);
     enrichment.enrichSubmission.mockReset();
@@ -152,6 +169,8 @@ describe("expense submit route", () => {
     const response = await POST(submitRequest(SUBMIT_BODY));
 
     expect(response.status).toBe(200);
+    expect(examples.syncExamplesForExpense).not.toHaveBeenCalled();
+    await runScheduled();
     expect(examples.syncExamplesForExpense).toHaveBeenCalledTimes(1);
     expect(examples.syncExamplesForExpense).toHaveBeenCalledWith(
       adminDb,
@@ -166,6 +185,8 @@ describe("expense submit route", () => {
     const response = await POST(submitRequest(SUBMIT_BODY));
 
     expect(response.status).toBe(200);
+    expect(examples.syncExamplesForExpense).not.toHaveBeenCalled();
+    await runScheduled();
     expect(examples.syncExamplesForExpense).toHaveBeenCalledTimes(1);
     expect(examples.syncExamplesForExpense).toHaveBeenCalledWith(
       adminDb,
@@ -174,7 +195,7 @@ describe("expense submit route", () => {
     );
   });
 
-  it("a submit that fails at chain creation writes no examples; the later successful resubmit writes exactly one per receipt", async () => {
+  it("a submit that fails at chain creation writes no examples; the later successful resubmit writes one sync per successful submit", async () => {
     vi.mocked(isFeatureEnabled).mockResolvedValue(true);
     vi.mocked(createApprovalChain).mockRejectedValueOnce(new Error("boom"));
     // Every submit loads the profile first, then the saved draft.
@@ -185,10 +206,14 @@ describe("expense submit route", () => {
 
     const failed = await POST(submitRequest(SUBMIT_BODY));
     expect(failed.status).toBe(500);
+    expect(scheduled.tasks).toHaveLength(0);
+    await runScheduled();
     expect(examples.syncExamplesForExpense).not.toHaveBeenCalled();
 
     const retried = await POST(submitRequest(SUBMIT_BODY));
     expect(retried.status).toBe(200);
+    expect(scheduled.tasks).toHaveLength(1);
+    await runScheduled();
     expect(examples.syncExamplesForExpense).toHaveBeenCalledTimes(1);
   });
 
@@ -198,7 +223,7 @@ describe("expense submit route", () => {
     const response = await POST(submitRequest(SUBMIT_BODY));
 
     expect(response.status).toBe(500);
-    expect(examples.syncExamplesForExpense).not.toHaveBeenCalled();
+    expect(scheduled.tasks).toHaveLength(0);
   });
 
   it("creates submitted expense rows through the admin client with submitter permissions", async () => {

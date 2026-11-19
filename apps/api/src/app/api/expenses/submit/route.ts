@@ -6,7 +6,7 @@ import type { Users } from "@repo/api/types/appwrite";
 import { type Expenses, ExpensesStatus } from "@repo/api/types/appwrite";
 import { syncExamplesForExpense } from "@repo/shared/utils/expense-examples";
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
-import { type NextRequest, NextResponse } from "next/server";
+import { after, type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
 import { createApprovalChain } from "@/lib/expense-approval";
@@ -516,9 +516,12 @@ async function submitExpense(req: NextRequest) {
     await submitByEmail(admin, submission);
   }
 
-  // Only a submit that went through teaches anything; the write logs and
-  // swallows its own failures, so it never fails the submit.
-  await syncExamplesForExpense(admin.db, expense.$id, { confirmed: false });
+  // Only a submit that went through teaches anything. It runs after the answer
+  // so a slow write can't push the app past its timeout; the write logs and
+  // swallows its own failures.
+  after(() =>
+    syncExamplesForExpense(admin.db, expense.$id, { confirmed: false })
+  );
 
   return {
     success: true,

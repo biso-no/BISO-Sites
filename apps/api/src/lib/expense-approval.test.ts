@@ -1275,6 +1275,21 @@ describe("token decision paths", () => {
     expect(examples.deleteExamplesForExpense).not.toHaveBeenCalled();
   });
 
+  it("healing a stuck expense to rejected deletes its examples", async () => {
+    const rejected = row({ status: "rejected" });
+    setup(rejected, [rejected]);
+
+    await decide("approved");
+
+    expect(db.updateRow).toHaveBeenCalledWith("app", "expense", "expense-1", {
+      status: "rejected",
+    });
+    expect(examples.deleteExamplesForExpense).toHaveBeenCalledWith(
+      db,
+      "expense-1"
+    );
+  });
+
   it("returns the expiry error and never claims an expired link", async () => {
     setup(row({ expires_at: new Date(Date.now() - 1000).toISOString() }));
 
