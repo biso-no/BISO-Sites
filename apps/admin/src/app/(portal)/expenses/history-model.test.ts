@@ -110,6 +110,15 @@ describe("describeEvent", () => {
     });
   });
 
+  test("edited project", () => {
+    expect(
+      describeEvent(event({ after: "KD 2026", before: null, field: "project" }))
+    ).toEqual({
+      key: "edited.project",
+      values: { after: "KD 2026", before: "" },
+    });
+  });
+
   test("edited account number", () => {
     expect(
       describeEvent(

@@ -58,4 +58,19 @@ describe("projectOptions", () => {
       { name: "Aaa 2026", projectId: "a", suggested: false },
     ]);
   });
+
+  test("æ, ø and å sort after z", () => {
+    const options = projectOptions({
+      departmentId: null,
+      projects: [
+        project("1", "Åpning 2026", 2026),
+        project("2", "Zebra 2026", 2026),
+        project("3", "Ærlig 2026", 2026),
+        project("4", "Aaa 2026", 2026),
+      ],
+      today: "2026-11-19",
+      usage: [],
+    });
+    expect(options.map((o) => o.projectId)).toEqual(["4", "2", "3", "1"]);
+  });
 });

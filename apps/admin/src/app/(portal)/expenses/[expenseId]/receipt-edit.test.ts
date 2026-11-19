@@ -325,4 +325,20 @@ describe("planReceiptEdit", () => {
     );
     expect(plan).toEqual({ events: [], patch: {} });
   });
+
+  test("a supporting statement takes no project", () => {
+    expect(
+      planReceiptEdit(current({ amount: 0 }), { projectId: "p1" }, ctx())
+    ).toEqual({ error: "supporting_receipt" });
+  });
+
+  test("a booked receipt keeps its project", () => {
+    expect(
+      planReceiptEdit(
+        current({ booked_date: "2026-11-02T00:00:00.000Z" }),
+        { projectId: "p1" },
+        ctx()
+      )
+    ).toEqual({ error: "already_booked" });
+  });
 });

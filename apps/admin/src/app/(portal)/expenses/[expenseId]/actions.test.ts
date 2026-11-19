@@ -341,7 +341,7 @@ describe("applyProjectToAllReceipts", () => {
       ],
     });
     const result = await applyProjectToAllReceipts("ex1", "p1");
-    expect(result).toEqual({ data: { changed: 1 } });
+    expect(result).toEqual({ data: { changed: 1, failed: 0 } });
     const updates = db.updateRow.mock.calls.filter(
       (call) => call[1] === "expense_attachments"
     );
@@ -360,6 +360,48 @@ describe("applyProjectToAllReceipts", () => {
       action: "edited",
       attachment_id: "a1",
     });
+  });
+
+  test("a failure part-way leaves events for exactly the rows written", async () => {
+    withProjects();
+    db.getRow.mockResolvedValue(expense());
+    db.updateRow
+      .mockResolvedValueOnce({})
+      .mockRejectedValueOnce(new Error("boom"));
+    const spy = spyOn(console, "error").mockImplementation(() => undefined);
+    const result = await applyProjectToAllReceipts("ex1", "p1");
+    spy.mockRestore();
+    expect(result).toEqual({ data: { changed: 1, failed: 1 } });
+    const events = db.createRow.mock.calls
+      .map((call) => call[3] as Record<string, unknown>)
+      .filter((e) => e.field === "project");
+    expect(events.map((e) => e.attachment_id)).toEqual(["a1"]);
+  });
+
+  test("refuses when the expense stopped being pending", async () => {
+    withProjects();
+    db.getRow
+      .mockResolvedValueOnce(expense())
+      .mockResolvedValueOnce({ $id: "ex1", status: "approved" });
+    expect(await applyProjectToAllReceipts("ex1", "p1")).toEqual({
+      error: "not_pending",
+    });
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+
+  test("booked receipts are not changed", async () => {
+    withProjects();
+    db.getRow.mockResolvedValue({
+      ...expense(),
+      expenseAttachments: [
+        { ...attachment("a1", 200), booked_date: "2026-11-02T00:00:00.000Z" },
+        attachment("a2", 50),
+      ],
+    });
+    const result = await applyProjectToAllReceipts("ex1", "p1");
+    expect(result).toEqual({ data: { changed: 1, failed: 0 } });
+    const updates = db.updateRow.mock.calls.map((call) => call[2]);
+    expect(updates).toEqual(["a2"]);
   });
 
   test("refuses a viewer who cannot edit", async () => {

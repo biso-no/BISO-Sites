@@ -60,6 +60,7 @@ export function ReceiptEditor({
   };
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [confirmingClear, setConfirmingClear] = useState(false);
 
   const initial = {
     accountNumber: receipt.accountNumber,
@@ -75,6 +76,7 @@ export function ReceiptEditor({
     if (next) {
       setDraft(initial);
     }
+    setConfirmingClear(false);
     setOpen(next);
   };
 
@@ -138,7 +140,13 @@ export function ReceiptEditor({
       router.refresh();
     });
 
-  const applyToAll = () =>
+  const applyToAll = () => {
+    if (draft.projectId === null && !confirmingClear) {
+      // Clearing every receipt takes a second click.
+      setConfirmingClear(true);
+      return;
+    }
+    setConfirmingClear(false);
     startTransition(async () => {
       const result = await applyProjectToAllReceipts(
         expenseId,
@@ -148,12 +156,22 @@ export function ReceiptEditor({
         toast.error(t(`errors.${result.error}`));
         return;
       }
-      toast.success(
-        t("edit.projectAppliedToAll", { count: result.data.changed })
-      );
+      if (result.data.failed > 0) {
+        toast.error(
+          t("edit.projectPartlyApplied", {
+            changed: result.data.changed,
+            failed: result.data.failed,
+          })
+        );
+      } else {
+        toast.success(
+          t("edit.projectAppliedToAll", { count: result.data.changed })
+        );
+      }
       setOpen(false);
       router.refresh();
     });
+  };
 
   return (
     <Dialog onOpenChange={reset} open={open}>
@@ -239,7 +257,9 @@ export function ReceiptEditor({
                   onClick={applyToAll}
                   type="button"
                 >
-                  {t("edit.applyProjectToAll")}
+                  {confirmingClear
+                    ? t("edit.confirmClearAll")
+                    : t("edit.applyProjectToAll")}
                 </button>
               </div>
             </>

@@ -55,11 +55,12 @@ export function ProjectPicker({
   const item = (option: ProjectOption) => (
     <CommandItem
       key={option.projectId}
+      keywords={[option.name]}
       onSelect={() => {
         onChange(option.projectId);
         setOpen(false);
       }}
-      value={option.name}
+      value={option.projectId}
     >
       {option.name}
     </CommandItem>
@@ -96,17 +97,20 @@ export function ProjectPicker({
               </CommandGroup>
             )}
             {others.length > 0 && (
-              <CommandGroup heading={suggested.length > 0 ? labels.others : ""}>
+              <CommandGroup
+                heading={suggested.length > 0 ? labels.others : undefined}
+              >
                 {others.map(item)}
               </CommandGroup>
             )}
             <CommandGroup>
               <CommandItem
+                keywords={[labels.none]}
                 onSelect={() => {
                   onChange(null);
                   setOpen(false);
                 }}
-                value={labels.none}
+                value="none"
               >
                 {labels.none}
               </CommandItem>

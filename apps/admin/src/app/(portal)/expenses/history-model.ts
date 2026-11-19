@@ -18,6 +18,7 @@ const EDITABLE_FIELDS = [
   "bank_account",
   "occasion",
   "approver_email",
+  "project",
 ] as const;
 
 /** Localised words the notes are shown with; without them a note stays as stored. */

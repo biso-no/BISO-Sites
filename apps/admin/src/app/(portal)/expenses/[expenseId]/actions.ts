@@ -269,7 +269,7 @@ export async function updateExpenseReceipt(input: {
 export async function applyProjectToAllReceipts(
   expenseId: string,
   projectId: string | null
-): Promise<ExpenseActionResult<{ changed: number }>> {
+): Promise<ExpenseActionResult<{ changed: number; failed: number }>> {
   try {
     const loaded = await loadForEdit(expenseId);
     if (!loaded?.permissions.canEdit) {
@@ -283,7 +283,8 @@ export async function applyProjectToAllReceipts(
       patch: Partial<ExpenseAttachments>;
     }[] = [];
     for (const current of expense.expenseAttachments ?? []) {
-      if ((current.amount ?? 0) <= 0) {
+      // Statements are never booked; booked receipts are already in Finago.
+      if ((current.amount ?? 0) <= 0 || current.booked_date) {
         continue;
       }
       const plan = planReceiptEdit(current, { projectId }, ctx);
@@ -295,29 +296,41 @@ export async function applyProjectToAllReceipts(
       }
     }
     if (planned.length === 0) {
-      return { data: { changed: 0 } };
+      return { data: { changed: 0, failed: 0 } };
+    }
+
+    // The expense may have been decided since it was loaded.
+    const fresh = await db.getRow<Expenses>("app", "expense", expense.$id, [
+      Query.select(["$id", "status"]),
+    ]);
+    if (fresh.status !== expense.status) {
+      return { error: "not_pending" };
     }
 
     const actor = actorOf(loaded);
-    const events: ExpenseEventInput[] = [];
-    for (const { current, events: own, patch } of planned) {
-      await db.updateRow("app", "expense_attachments", current.$id, patch);
-      events.push(
-        ...own.map((event) => ({
-          ...event,
-          action: "edited" as const,
-          attachmentId: current.$id,
-          expenseId: expense.$id,
-          ...actor,
-        }))
-      );
-    }
-    await recordExpenseEvents(db, events);
-    for (const { current, patch } of planned) {
-      await refreshExample(db, expense, { ...current, ...patch });
+    let changed = 0;
+    try {
+      for (const { current, events, patch } of planned) {
+        await db.updateRow("app", "expense_attachments", current.$id, patch);
+        // Row and history together, so a later failure leaves no unlogged change.
+        await recordExpenseEvents(
+          db,
+          events.map((event) => ({
+            ...event,
+            action: "edited" as const,
+            attachmentId: current.$id,
+            expenseId: expense.$id,
+            ...actor,
+          }))
+        );
+        changed += 1;
+        await refreshExample(db, expense, { ...current, ...patch });
+      }
+    } catch (error) {
+      console.error("[expense-edit] bulk project stopped", error);
     }
     revalidatePath(`/expenses/${expense.$id}`);
-    return { data: { changed: planned.length } };
+    return { data: { changed, failed: planned.length - changed } };
   } catch (error) {
     return failure(error);
   }

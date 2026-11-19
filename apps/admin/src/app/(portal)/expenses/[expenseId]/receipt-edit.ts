@@ -225,6 +225,10 @@ function applyProject(
   if ((current.project_id ?? null) === projectId) {
     return null;
   }
+  if (current.booked_date) {
+    // The lines are already in Finago; a new project would not follow them.
+    return "already_booked";
+  }
   work.events.push({
     after: project?.name ?? null,
     before: current.project_name ?? current.project_id ?? null,

@@ -24,8 +24,25 @@ export interface ProjectOption {
   suggested: boolean;
 }
 
-const byName = (a: ProjectOption, b: ProjectOption) =>
-  a.name.localeCompare(b.name);
+const NORWEGIAN_TAIL = "æøå";
+
+/** Lowercased, with æ ø å placed after z as in Norwegian (not by Unicode order, nor Bun's broken "nb" collator). */
+function sortKey(name: string): string {
+  return [...name.toLowerCase()]
+    .map((ch) => {
+      const at = NORWEGIAN_TAIL.indexOf(ch);
+      return at === -1 ? ch : String.fromCharCode("z".charCodeAt(0) + 1 + at);
+    })
+    .join("");
+}
+
+const byName = (a: ProjectOption, b: ProjectOption) => {
+  const [x, y] = [sortKey(a.name), sortKey(b.name)];
+  if (x === y) {
+    return 0;
+  }
+  return x < y ? -1 : 1;
+};
 
 /** Active projects: the department's candidates first, then all the others. */
 export function projectOptions(input: {
