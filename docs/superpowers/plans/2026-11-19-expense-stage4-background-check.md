@@ -75,6 +75,7 @@ Every tick: list expenses with `check_state` `queued` or `running` whose `check_
 - `search_accounts({ text })` → active cost accounts 4000–7999 (number, name), max 20.
 - `view_receipt({ receiptId })` → the receipt file for the model (`fitFileForModel`), only for receipts of THIS expense, max 3 calls per run.
 All tool text is untrusted: one line, capped, quotes stripped.
+Carried from the Stage 3 final review: examples store `project_id`/`project_name` without who chose the project, so `search_past_bookings` shows an example's project ONLY when the example is `confirmed` (never the check's own unconfirmed `ai_check` picks — spec B1); and `list_projects` passes ALL `finago_projects` rows (active and inactive) to `departmentCandidates`, which itself returns only active candidates, so a deactivated past edition still makes next year's edition a candidate.
 
 - [ ] Tests per tool (mocked db/storage) incl. `view_receipt refuses another expense's receipt` and `search returns own-text examples with their account` → implement → commit `feat(expenses): read-only tools for the background check`.
 
