@@ -748,6 +748,114 @@ describe("ExpenseSplitView failed scan", () => {
     expect(after.typeState).toBe("chosen");
   });
 
+  const RECEIPT_FILE = () =>
+    new File(["r"], "pizza.jpg", { type: "image/jpeg" });
+  const STATEMENT_FILE = () =>
+    new File(["s"], "statement.pdf", { type: "application/pdf" });
+  const READ = {
+    "pizza.jpg": {
+      amount: 249,
+      currency: "NOK",
+      date: "2026-11-01",
+      documentType: "receipt",
+      vendor: "Peppes Pizza",
+    },
+    "second.jpg": {
+      amount: 120,
+      currency: "NOK",
+      date: "2026-11-01",
+      documentType: "receipt",
+      vendor: "Peppes Pizza",
+    },
+    "statement.pdf": {
+      amount: 300,
+      currency: "NOK",
+      date: "2026-11-01",
+      documentType: "bank-statement",
+      vendor: "Peppes Pizza",
+    },
+  } as const;
+  /** Reads each file by name; the named files fail on their first read. */
+  const scansFailingFirst = (failing: string[]) => {
+    const reads = new Map<string, number>();
+    fetchFormData.mockImplementation(
+      (_url: string, init: { body: FormData }) => {
+        const name = (init.body.get("file") as File).name;
+        const count = (reads.get(name) ?? 0) + 1;
+        reads.set(name, count);
+        if (failing.includes(name) && count === 1) {
+          return Promise.reject(new Error("boom"));
+        }
+        return Promise.resolve({
+          success: true,
+          data: READ[name as keyof typeof READ],
+        });
+      }
+    );
+  };
+  const uploadsAs = (...ids: string[]) => {
+    for (const id of ids) {
+      vi.mocked(uploadExpenseAttachment).mockResolvedValueOnce({
+        success: true,
+        file: { $id: id },
+      } as never);
+    }
+  };
+  const byName = (name: string) =>
+    state().receipts.find((r) => r.fileName === name);
+
+  it("a retried scan links its bank statement like the batch upload does", async () => {
+    uploadsAs("f-receipt", "f-statement");
+    scansFailingFirst(["pizza.jpg"]);
+    const container = await renderView();
+    await act(async () => {
+      wallet.upload([RECEIPT_FILE(), STATEMENT_FILE()]);
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    // The batch check had nothing to link: the receipt was not read.
+    expect(byName("statement.pdf")?.parentId).toBeUndefined();
+
+    await act(async () => {
+      retryButton(container)?.click();
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+
+    const receiptId = byName("pizza.jpg")?.id;
+    expect(byName("statement.pdf")).toMatchObject({
+      amount: 0,
+      parentId: receiptId,
+    });
+    expect(byName("pizza.jpg")?.bankStatementId).toBe("f-statement");
+  });
+
+  it("a retried scan leaves a statement the batch already linked alone", async () => {
+    uploadsAs("f-receipt", "f-statement", "f-second");
+    scansFailingFirst(["second.jpg"]);
+    const container = await renderView();
+    await act(async () => {
+      wallet.upload([
+        RECEIPT_FILE(),
+        STATEMENT_FILE(),
+        new File(["x"], "second.jpg", { type: "image/jpeg" }),
+      ]);
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    const firstId = byName("pizza.jpg")?.id;
+    expect(byName("statement.pdf")?.parentId).toBe(firstId);
+    await update(() =>
+      state().updateReceipt(firstId as string, { amount: 280 })
+    );
+
+    await act(async () => {
+      retryButton(container)?.click();
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+
+    expect(byName("statement.pdf")?.parentId).toBe(firstId);
+    expect(byName("pizza.jpg")?.amount).toBe(280);
+    expect(byName("second.jpg")?.bankStatementId).toBeUndefined();
+  });
+
   it("the try again button does not open the receipt", async () => {
     uploadOk();
     fetchFormData.mockRejectedValue(new Error("boom"));

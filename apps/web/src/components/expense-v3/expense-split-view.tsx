@@ -173,6 +173,47 @@ interface OcrData {
   vendor?: null | string;
 }
 
+/** What the batch checks read from a scan: the kind of document and the seller. */
+interface ScanLink {
+  id: string;
+  ocrData: Pick<OcrData, "documentType" | "vendor">;
+}
+
+/** A receipt a batch check may still link: read by its scan and not linked yet. */
+function isLinkable(receipt: Receipt | undefined): receipt is Receipt {
+  return Boolean(
+    receipt &&
+      receipt.status === "ready" &&
+      !receipt.scanFailed &&
+      !receipt.parentId &&
+      !receipt.bankStatementId
+  );
+}
+
+/**
+ * What a retried scan runs the batch checks on: its own result and the other
+ * receipts uploaded with it, as their scans read them. Receipts already linked
+ * stay out, so a retry never moves a link or an amount the batch set.
+ */
+function retryBatch(
+  retried: ScanLink,
+  batchIds: readonly string[],
+  receipts: Receipt[]
+): ScanLink[] {
+  if (!isLinkable(receipts.find((r) => r.id === retried.id))) {
+    return [];
+  }
+  const peers = batchIds
+    .filter((id) => id !== retried.id)
+    .map((id) => receipts.find((r) => r.id === id))
+    .filter(isLinkable)
+    .map((r) => ({
+      id: r.id,
+      ocrData: { documentType: r.documentType, vendor: r.vendor },
+    }));
+  return [retried, ...peers];
+}
+
 function normalizeVendor(name: string): string {
   return name
     .toLowerCase()
@@ -699,6 +740,8 @@ export function ExpenseSplitView({
 
   // The files of this session's receipts, so a failed scan can be retried.
   const filesRef = useRef(new Map<string, File>());
+  // Each receipt's upload batch, so a retried scan gets the batch checks too.
+  const batchesRef = useRef(new Map<string, readonly string[]>());
 
   // Reads an uploaded receipt. A scan that fails or times out leaves the
   // receipt ready for manual entry instead of blocking it.
@@ -766,22 +809,6 @@ export function ExpenseSplitView({
       }
     },
     [store, t, typeOptions]
-  );
-
-  const retryScan = useCallback(
-    async (receiptId: string): Promise<void> => {
-      const file = filesRef.current.get(receiptId);
-      if (!file) {
-        return;
-      }
-      store.updateReceipt(receiptId, {
-        status: "processing",
-        progress: 40,
-        scanFailed: false,
-      });
-      await scanReceipt(receiptId, file, true);
-    },
-    [scanReceipt, store]
   );
 
   // Process File Logic
@@ -861,10 +888,8 @@ export function ExpenseSplitView({
   );
 
   const reconcileBatch = useCallback(
-    (results: Array<{ id: string; ocrData: OcrData } | null>) => {
-      const valid = results.filter(
-        (r): r is { id: string; ocrData: OcrData } => r !== null
-      );
+    (results: Array<ScanLink | null>) => {
+      const valid = results.filter((r): r is ScanLink => r !== null);
 
       const statements = valid.filter(
         (r) => r.ocrData.documentType === "bank-statement"
@@ -920,6 +945,33 @@ export function ExpenseSplitView({
     [store, t]
   );
 
+  const retryScan = useCallback(
+    async (receiptId: string): Promise<void> => {
+      const file = filesRef.current.get(receiptId);
+      if (!file) {
+        return;
+      }
+      store.updateReceipt(receiptId, {
+        status: "processing",
+        progress: 40,
+        scanFailed: false,
+      });
+      const result = await scanReceipt(receiptId, file, true);
+      if (!result) {
+        return;
+      }
+      // The batch checks skipped this receipt while it was unread.
+      reconcileBatch(
+        retryBatch(
+          result,
+          batchesRef.current.get(receiptId) ?? [],
+          useExpenseStore.getState().receipts
+        )
+      );
+    },
+    [reconcileBatch, scanReceipt, store]
+  );
+
   const handleUpload = useCallback(
     (files: File[]) => {
       if (!(store.selectedCampusId && store.selectedDepartmentId)) {
@@ -933,6 +985,9 @@ export function ExpenseSplitView({
       }
       // Multi-file: assign IDs upfront so reconciliation can reference them
       const batchIds = files.map(() => uuid());
+      for (const id of batchIds) {
+        batchesRef.current.set(id, batchIds);
+      }
       Promise.all(files.map((file, i) => processFile(file, batchIds[i]))).then(
         reconcileBatch
       );
@@ -1125,6 +1180,7 @@ export function ExpenseSplitView({
         <ReceiptWallet
           onRemove={(id) => {
             filesRef.current.delete(id);
+            batchesRef.current.delete(id);
             store.removeReceipt(id);
           }}
           onSelect={(id) => {
