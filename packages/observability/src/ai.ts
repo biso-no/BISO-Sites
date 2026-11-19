@@ -7,6 +7,7 @@ import {
   startSpan,
   withActiveSpan,
 } from "@sentry/core";
+import { describeError } from "./scrub";
 
 /**
  * Spans for model calls, per Sentry's AI request span: op
@@ -143,6 +144,26 @@ const recordFailure = (span: Span, error: unknown): void => {
 };
 
 /**
+ * What the AI SDK's default `onError` would log, minus what it shouldn't: the
+ * error's class (and a scrubbed message unless it is an AI SDK error, whose
+ * message can quote model output), plus a failed provider call's HTTP status.
+ */
+const logStreamError = (functionId: AiFunctionId, error: unknown): void => {
+  try {
+    const status =
+      isRecord(error) && typeof error.statusCode === "number"
+        ? ` (HTTP ${error.statusCode})`
+        : "";
+    console.error(
+      `[ai] ${functionId} stream failed:`,
+      `${describeError(error)}${status}`
+    );
+  } catch {
+    // Telemetry must never affect the call.
+  }
+};
+
+/**
  * Wraps one `generateObject` call in an AI request span. Returns the call's
  * result and rethrows its error unchanged.
  */
@@ -166,8 +187,14 @@ export interface AiStreamCallbacks {
   onAbort: () => void;
   /** Pass as `streamText({ onEnd })`, or call it from an existing one. */
   onEnd: (event: { usage?: AiUsage }) => void;
-  /** Call from `streamText({ onError })`. */
+  /** Call from `streamText({ onError })`. Logs nothing. */
   onError: (event: { error: unknown }) => void;
+  /**
+   * Pass as `streamText({ onError })` to keep a log line: like `onError`, and
+   * logs the error's class, never the error object (AI SDK errors carry the
+   * model's output).
+   */
+  onErrorWithLog: (event: { error: unknown }) => void;
 }
 
 export interface AiStreamMeta extends AiCallMeta {
@@ -201,11 +228,17 @@ export const traceAiStream = <R>(
     span.end();
   };
   const onRequestGone = (): void => end();
+  const onError = (event: { error: unknown }): void =>
+    end(() => recordFailure(span, event.error));
 
   const callbacks: AiStreamCallbacks = {
     onAbort: () => end(),
     onEnd: (event) => end(() => recordResult(span, event)),
-    onError: (event) => end(() => recordFailure(span, event.error)),
+    onError,
+    onErrorWithLog: (event) => {
+      onError(event);
+      logStreamError(meta.functionId, event.error);
+    },
   };
 
   if (meta.signal?.aborted) {

@@ -285,7 +285,7 @@ Copying groups to teams at sign-in uses the person's own Microsoft sign-in, and 
 
    | Log shows | What it means |
    |---|---|
-   | `Anthropic API key is missing` | `ANTHROPIC_API_KEY` isn't set on that Site. It's in no `.env.example` of these three apps, because the AI library reads it by itself. |
+   | `Anthropic API key is missing`, or `AI_LoadAPIKeyError` from the assistant or the page editor's chat | `ANTHROPIC_API_KEY` isn't set on that Site. It's in no `.env.example` of these three apps, because the AI library reads it by itself. |
    | `authentication_error` (`401`) | The key is wrong, revoked or expired. |
    | `billing_error` (`402`) | Something is wrong with billing at Anthropic. |
    | `rate_limit_error` (`429`), or `invalid_request_error` (`400`) about a spend limit | Too many requests, or a spend limit or the month's spend cap has been reached. BISO's plan comes with about USD 160 of credit a month. |

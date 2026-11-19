@@ -42,6 +42,10 @@ mock.module("@repo/observability/ai", () => ({
           record.events.push("error");
           span.onError(event);
         },
+        onErrorWithLog: (event) => {
+          record.events.push("error");
+          span.onErrorWithLog(event);
+        },
       })
     );
   }) satisfies typeof traceAiStream,

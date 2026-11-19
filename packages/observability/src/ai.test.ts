@@ -1,3 +1,4 @@
+import { APICallError, NoObjectGeneratedError } from "ai";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { traceAiCall, traceAiStream } from "./ai";
 
@@ -311,6 +312,69 @@ describe("traceAiStream", () => {
       onAbort();
     });
     expect(lastSpan().ends).toBe(1);
+  });
+
+  it("logs only the class and HTTP status of an AI SDK error", () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const overloaded = new APICallError({
+      message: `Overloaded while answering ${EMAIL}`,
+      url: "https://api.anthropic.com/v1/messages",
+      requestBodyValues: { prompt: PROMPT },
+      statusCode: 529,
+      responseBody: `{"error":"${PROMPT}"}`,
+    });
+    const noObject = new NoObjectGeneratedError({
+      message: "No object generated.",
+      text: PROMPT,
+      response: { id: "r", modelId: "m", timestamp: new Date(0) },
+      usage: {} as never,
+      finishReason: "stop",
+    });
+    traceAiStream(meta, ({ onErrorWithLog }) => {
+      onErrorWithLog({ error: overloaded });
+      onErrorWithLog({ error: noObject });
+    });
+
+    expect(consoleError.mock.calls).toEqual([
+      ["[ai] admin.assistant stream failed:", "AI_APICallError (HTTP 529)"],
+      ["[ai] admin.assistant stream failed:", "AI_NoObjectGeneratedError"],
+    ]);
+    expect(lastSpan().ends).toBe(1);
+    expect(lastSpan().status).toEqual({ code: 2, message: "internal_error" });
+    expect(lastSpan().attributes["error.type"]).toBe("AI_APICallError");
+    consoleError.mockRestore();
+  });
+
+  it("logs another error's class and scrubbed message", () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    traceAiStream(meta, ({ onErrorWithLog }) => {
+      onErrorWithLog({ error: new TypeError(`tool failed for ${EMAIL}`) });
+      onErrorWithLog({ error: "not an error" });
+    });
+
+    expect(consoleError.mock.calls).toEqual([
+      [
+        "[ai] admin.assistant stream failed:",
+        "TypeError: tool failed for [redacted]",
+      ],
+      ["[ai] admin.assistant stream failed:", "UnknownError"],
+    ]);
+    consoleError.mockRestore();
+  });
+
+  it("onError logs nothing", () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    traceAiStream(meta, ({ onError }) => {
+      onError({ error: new Error("x") });
+    });
+    expect(consoleError).not.toHaveBeenCalled();
+    consoleError.mockRestore();
   });
 
   it("rethrows when start throws and ends the span failed", () => {

@@ -51,11 +51,8 @@ export async function POST(request: Request) {
         // build hit the cap on a tool step and the user never got the summary.
         stopWhen: isStepCount(12),
         onEnd: span.onEnd,
-        onError: (event) => {
-          span.onError(event);
-          // The AI SDK's own handler, which setting this one replaces.
-          console.error(event.error);
-        },
+        // In place of the AI SDK's own handler, which logs the whole error.
+        onError: span.onErrorWithLog,
       })
   );
 

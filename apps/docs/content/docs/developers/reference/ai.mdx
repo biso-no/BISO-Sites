@@ -108,7 +108,7 @@ The docs assistant has no flag. Unset `ANTHROPIC_API_KEY` on docs and redeploy t
 
 ## What users see when it fails
 
-- An AI feature in the admin shows an error, and the Site's log shows Anthropic's error, such as `authentication_error` or `rate_limit_error`. The runbook has a table of them.
+- An AI feature in the admin shows an error, and the Site's log shows Anthropic's error, such as `authentication_error` or `rate_limit_error`. The assistant and the page editor's chat log only the error's class and HTTP status, such as `[ai] admin.assistant stream failed: AI_APICallError (HTTP 429)`, because the whole error can quote the conversation. The runbook has a table of the errors with their status codes.
 - Receipt reading fails, and the student fills in the form by hand.
 - A job application is saved without an AI score. The log says `AI screening failed for application <id>:`. If `OPENAI_API_KEY` is unset, screening is skipped without a log line.
 - The docs assistant says "The assistant couldn't answer right now. Try the search instead." It logs nothing, not even Anthropic's error, so check the key and the account in Anthropic's console.

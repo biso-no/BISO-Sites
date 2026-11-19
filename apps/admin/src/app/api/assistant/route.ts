@@ -236,11 +236,8 @@ export async function POST(request: NextRequest) {
         experimental_toolApprovalSecret: gate.approvalSecret,
         stopWhen: isStepCount(12),
         onEnd: span.onEnd,
-        onError: (event) => {
-          span.onError(event);
-          // The AI SDK's own handler, which setting this one replaces.
-          console.error(event.error);
-        },
+        // In place of the AI SDK's own handler, which logs the whole error.
+        onError: span.onErrorWithLog,
       })
   );
 
