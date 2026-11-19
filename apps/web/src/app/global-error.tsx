@@ -1,6 +1,5 @@
 "use client";
 
-import { captureException } from "@sentry/nextjs";
 import { useEffect } from "react";
 import { museoSans, museoSlab } from "./fonts";
 
@@ -25,7 +24,14 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     console.error("Unhandled root layout error:", error);
-    captureException(error);
+    // Loaded here, not at the top: this boundary is server-rendered with
+    // every page, and a Sentry module missing from the build must not take
+    // page rendering down with it.
+    import("@sentry/nextjs")
+      .then(({ captureException }) => captureException(error))
+      .catch(() => {
+        // Sentry is unavailable; the console.error above still records it.
+      });
   }, [error]);
 
   return (

@@ -1,14 +1,19 @@
 import { logServerRequestError } from "@repo/shared/utils/server-error-logging";
-import { captureRequestError } from "@sentry/nextjs";
+import type { captureRequestError } from "@sentry/nextjs";
 import type { Instrumentation } from "next";
 
 const EXPECTED_SESSION_COOKIE = "biso_session_web";
 const EXPECTED_SESSION_COOKIE_FALLBACK = "a_session_biso";
 
+// Set once Sentry has loaded. Sentry is never load-critical: if one of its
+// modules is missing from the build, the Site runs without it.
+let captureRequest: typeof captureRequestError | undefined;
+
 /**
  * Server startup validation, mirroring `apps/admin/src/instrumentation.ts`,
  * then Sentry. Skipped during `next build`, where env/secrets are typically
- * absent. Next awaits this, so a rejection still refuses to start the server.
+ * absent. Next awaits this, so a failed check still refuses to start the
+ * server; a failure to load Sentry only logs.
  */
 export async function register() {
   if (process.env.NEXT_PHASE === "phase-production-build") {
@@ -44,8 +49,15 @@ export async function register() {
     );
   }
 
-  if (process.env.NEXT_RUNTIME === "nodejs") {
+  if (process.env.NEXT_RUNTIME !== "nodejs") {
+    return;
+  }
+  try {
+    const sentry = await import("@sentry/nextjs");
     await import("./sentry.server.config");
+    captureRequest = sentry.captureRequestError;
+  } catch (error) {
+    console.error("[web] Sentry failed to load; running without it", error);
   }
 }
 
@@ -60,5 +72,5 @@ export const onRequestError: Instrumentation.onRequestError = (
     error,
     request,
   });
-  captureRequestError(error, request, context);
+  captureRequest?.(error, request, context);
 };
