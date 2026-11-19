@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   type ExpenseAttachments,
   ExpenseAttachmentsAccountSource,
+  ExpenseAttachmentsProjectSource,
   ExpenseAttachmentsTypeSource,
 } from "@repo/api/types/appwrite";
 import {
@@ -47,6 +48,10 @@ const ctx = (over: Partial<ReceiptEditContext> = {}): ReceiptEditContext => ({
     [7140, { active: true, taxCode: 3 }],
     [7300, { active: true, taxCode: null }],
     [7400, { active: false, taxCode: 3 }],
+  ]),
+  projects: new Map([
+    ["p1", { active: true, name: "Fadderullan 2026" }],
+    ["p2", { active: false, name: "Gamle Dager 2019" }],
   ]),
   source: "approver",
   today: "2026-11-12",
@@ -261,5 +266,63 @@ describe("planReceiptEdit", () => {
       planReceiptEdit(statement, { description: "Bank statement" }, ctx())
     );
     expect(plan.patch).toEqual({ description: "Bank statement" });
+  });
+
+  test("sets a project and records who chose it", () => {
+    const plan = ok(planReceiptEdit(current(), { projectId: "p1" }, ctx()));
+    expect(plan.patch).toEqual({
+      project_confidence: null,
+      project_id: "p1",
+      project_name: "Fadderullan 2026",
+      project_source: ExpenseAttachmentsProjectSource.APPROVER,
+    });
+    expect(plan.events).toEqual([
+      { after: "Fadderullan 2026", before: null, field: "project" },
+    ]);
+    const asAdmin = ok(
+      planReceiptEdit(current(), { projectId: "p1" }, ctx({ source: "admin" }))
+    );
+    expect(asAdmin.patch.project_source).toBe(
+      ExpenseAttachmentsProjectSource.ADMIN
+    );
+  });
+
+  test("refuses an inactive project", () => {
+    expect(planReceiptEdit(current(), { projectId: "p2" }, ctx())).toEqual({
+      error: "invalid_project",
+    });
+    expect(planReceiptEdit(current(), { projectId: "nope" }, ctx())).toEqual({
+      error: "invalid_project",
+    });
+  });
+
+  test("clearing the project logs before and after", () => {
+    const plan = ok(
+      planReceiptEdit(
+        current({ project_id: "p1", project_name: "Fadderullan 2026" }),
+        { projectId: null },
+        ctx()
+      )
+    );
+    expect(plan.patch).toEqual({
+      project_confidence: null,
+      project_id: null,
+      project_name: null,
+      project_source: ExpenseAttachmentsProjectSource.APPROVER,
+    });
+    expect(plan.events).toEqual([
+      { after: null, before: "Fadderullan 2026", field: "project" },
+    ]);
+  });
+
+  test("the same project changes and logs nothing", () => {
+    const plan = ok(
+      planReceiptEdit(
+        current({ project_id: "p1", project_name: "Fadderullan 2026" }),
+        { projectId: "p1" },
+        ctx()
+      )
+    );
+    expect(plan).toEqual({ events: [], patch: {} });
   });
 });

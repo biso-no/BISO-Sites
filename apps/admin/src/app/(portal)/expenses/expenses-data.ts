@@ -380,6 +380,8 @@ export interface ExpenseDetailReceipt {
   fileId: string | null;
   id: string;
   isSupporting: boolean;
+  projectId: string | null;
+  projectName: string | null;
   receiptIssues: string[];
 }
 
@@ -495,6 +497,8 @@ function toReceipt(row: ExpenseAttachments): ExpenseDetailReceipt {
     fileId: receiptFileId(row.url),
     id: row.$id,
     isSupporting: (row.amount ?? 0) <= 0,
+    projectId: row.project_id,
+    projectName: row.project_name,
     receiptIssues: parseReceiptIssues(row.receipt_issues),
   };
 }

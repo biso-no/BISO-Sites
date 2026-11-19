@@ -29,6 +29,7 @@ mock.module("@repo/shared/utils/feature-flags-server", () => ({
 }));
 
 const {
+  applyProjectToAllReceipts,
   changeExpenseApprover,
   decideExpenseStep,
   rebuildExpenseChain,
@@ -312,6 +313,70 @@ describe("updateExpenseReceipt", () => {
     expect(result).toEqual({ data: { total: 250 } });
     expect(db.updateRow).not.toHaveBeenCalled();
     expect(db.createRow).not.toHaveBeenCalled();
+  });
+});
+
+describe("applyProjectToAllReceipts", () => {
+  const withProjects = () =>
+    db.listRows.mockImplementation((_d: string, table: string) => {
+      if (table === "expense_approvals") {
+        return Promise.resolve({ rows: steps });
+      }
+      if (table === "finago_projects") {
+        return Promise.resolve({
+          rows: [{ active: true, name: "Fadderullan 2026", project_id: "p1" }],
+        });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+  test("apply to all sets every receipt with an amount", async () => {
+    withProjects();
+    db.getRow.mockResolvedValue({
+      ...expense(),
+      expenseAttachments: [
+        attachment("a1", 200),
+        { ...attachment("a2", 50), project_id: "p1" },
+        attachment("stmt", 0),
+      ],
+    });
+    const result = await applyProjectToAllReceipts("ex1", "p1");
+    expect(result).toEqual({ data: { changed: 1 } });
+    const updates = db.updateRow.mock.calls.filter(
+      (call) => call[1] === "expense_attachments"
+    );
+    // a2 already has it and the statement is skipped.
+    expect(updates.map((call) => call[2])).toEqual(["a1"]);
+    expect(updates[0]?.[3]).toMatchObject({
+      project_id: "p1",
+      project_name: "Fadderullan 2026",
+      project_source: "approver",
+    });
+    const events = db.createRow.mock.calls
+      .map((call) => call[3] as Record<string, unknown>)
+      .filter((e) => e.field === "project");
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      action: "edited",
+      attachment_id: "a1",
+    });
+  });
+
+  test("refuses a viewer who cannot edit", async () => {
+    withProjects();
+    getExpenseViewer.mockResolvedValue(viewer({ emails: ["other@x.no"] }));
+    expect(await applyProjectToAllReceipts("ex1", "p1")).toEqual({
+      error: "forbidden",
+    });
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+
+  test("an unknown project changes nothing", async () => {
+    withProjects();
+    expect(await applyProjectToAllReceipts("ex1", "zzz")).toEqual({
+      error: "invalid_project",
+    });
+    expect(db.updateRow).not.toHaveBeenCalled();
   });
 });
 

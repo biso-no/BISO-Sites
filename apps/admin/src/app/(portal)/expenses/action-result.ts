@@ -10,6 +10,7 @@ export type ExpenseActionError =
   | "invalid_description"
   | "invalid_type"
   | "invalid_account"
+  | "invalid_project"
   | "invalid_bank_account"
   | "supporting_receipt"
   | "not_current_step"

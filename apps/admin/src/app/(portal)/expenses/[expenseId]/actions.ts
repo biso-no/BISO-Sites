@@ -39,7 +39,13 @@ import {
 } from "../action-result";
 import { loadRebuildEvidence } from "../expenses-data";
 import { loadReceiptEditOptions } from "./edit-options";
-import { planReceiptEdit, type ReceiptChanges, round2 } from "./receipt-edit";
+import {
+  planReceiptEdit,
+  type ReceiptChanges,
+  type ReceiptEditContext,
+  type ReceiptEditEvent,
+  round2,
+} from "./receipt-edit";
 
 const MAX_ROWS = 500;
 const NON_DIGITS = /\D/g;
@@ -154,6 +160,27 @@ async function refreshExample(
   }
 }
 
+async function editContext(loaded: Loaded): Promise<ReceiptEditContext> {
+  const options = await loadReceiptEditOptions(
+    loaded.db,
+    loaded.expense.department || null
+  );
+  return {
+    accounts: new Map(
+      options.accounts.map((a) => [
+        a.accountNumber,
+        { active: true, taxCode: a.taxCode },
+      ])
+    ),
+    projects: new Map(
+      options.projects.map((p) => [p.projectId, { active: true, name: p.name }])
+    ),
+    source: loaded.permissions.decideAs === "approver" ? "approver" : "admin",
+    today: todayInOslo(),
+    types: options.types,
+  };
+}
+
 /** Corrects one receipt of an expense. Each change is logged in the history. */
 export async function updateExpenseReceipt(input: {
   attachmentId: string;
@@ -172,18 +199,11 @@ export async function updateExpenseReceipt(input: {
       return { error: "not_found" };
     }
 
-    const options = await loadReceiptEditOptions(db);
-    const plan = planReceiptEdit(current, input.changes, {
-      accounts: new Map(
-        options.accounts.map((a) => [
-          a.accountNumber,
-          { active: true, taxCode: a.taxCode },
-        ])
-      ),
-      source: loaded.permissions.decideAs === "approver" ? "approver" : "admin",
-      today: todayInOslo(),
-      types: options.types,
-    });
+    const plan = planReceiptEdit(
+      current,
+      input.changes,
+      await editContext(loaded)
+    );
     if ("error" in plan) {
       return plan;
     }
@@ -236,6 +256,68 @@ export async function updateExpenseReceipt(input: {
     await refreshExample(db, expense, { ...current, ...plan.patch });
     revalidatePath(`/expenses/${expense.$id}`);
     return { data: { total } };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+/**
+ * Sets (or clears) the Finago project on every receipt of an expense that has
+ * an amount. Supporting statements are skipped. One history entry per receipt
+ * that actually changed; nothing is written if the project is refused.
+ */
+export async function applyProjectToAllReceipts(
+  expenseId: string,
+  projectId: string | null
+): Promise<ExpenseActionResult<{ changed: number }>> {
+  try {
+    const loaded = await loadForEdit(expenseId);
+    if (!loaded?.permissions.canEdit) {
+      return { error: "forbidden" };
+    }
+    const { db, expense } = loaded;
+    const ctx = await editContext(loaded);
+    const planned: {
+      current: ExpenseAttachments;
+      events: ReceiptEditEvent[];
+      patch: Partial<ExpenseAttachments>;
+    }[] = [];
+    for (const current of expense.expenseAttachments ?? []) {
+      if ((current.amount ?? 0) <= 0) {
+        continue;
+      }
+      const plan = planReceiptEdit(current, { projectId }, ctx);
+      if ("error" in plan) {
+        return plan;
+      }
+      if (plan.events.length > 0) {
+        planned.push({ current, ...plan });
+      }
+    }
+    if (planned.length === 0) {
+      return { data: { changed: 0 } };
+    }
+
+    const actor = actorOf(loaded);
+    const events: ExpenseEventInput[] = [];
+    for (const { current, events: own, patch } of planned) {
+      await db.updateRow("app", "expense_attachments", current.$id, patch);
+      events.push(
+        ...own.map((event) => ({
+          ...event,
+          action: "edited" as const,
+          attachmentId: current.$id,
+          expenseId: expense.$id,
+          ...actor,
+        }))
+      );
+    }
+    await recordExpenseEvents(db, events);
+    for (const { current, patch } of planned) {
+      await refreshExample(db, expense, { ...current, ...patch });
+    }
+    revalidatePath(`/expenses/${expense.$id}`);
+    return { data: { changed: planned.length } };
   } catch (error) {
     return failure(error);
   }

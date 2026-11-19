@@ -17,12 +17,14 @@ import { toast } from "sonner";
 import { osloDayOf, todayInOslo } from "@/lib/oslo-day";
 import { LedgerAccountPicker } from "../../_components/ledger-account-picker";
 import type { ExpenseDetailReceipt } from "../../expenses-data";
-import { updateExpenseReceipt } from "../actions";
-import type { EditAccountOption } from "../edit-options";
+import { applyProjectToAllReceipts, updateExpenseReceipt } from "../actions";
+import type { EditAccountOption, ProjectOption } from "../edit-options";
 import type { ExpenseTypeOption, ReceiptChanges } from "../receipt-edit";
+import { ProjectPicker } from "./project-picker";
 
 export interface ReceiptEditOptions {
   accounts: EditAccountOption[];
+  projects: ProjectOption[];
   types: ExpenseTypeOption[];
 }
 
@@ -37,10 +39,12 @@ function parseAmount(text: string): number {
 
 /** The edit button of one receipt row and its dialog. */
 export function ReceiptEditor({
+  departmentName,
   expenseId,
   options,
   receipt,
 }: {
+  departmentName: string;
   expenseId: string;
   options: ReceiptEditOptions;
   receipt: ExpenseDetailReceipt;
@@ -63,6 +67,7 @@ export function ReceiptEditor({
     costType: receipt.costType ?? "",
     date: osloDayOf(receipt.date) ?? "",
     description: receipt.description ?? "",
+    projectId: receipt.projectId,
   };
   const [draft, setDraft] = useState(initial);
 
@@ -111,6 +116,9 @@ export function ReceiptEditor({
     if (draft.amount !== initial.amount) {
       changes.amount = parseAmount(draft.amount);
     }
+    if (draft.projectId !== initial.projectId) {
+      changes.projectId = draft.projectId;
+    }
     return changes;
   };
 
@@ -126,6 +134,23 @@ export function ReceiptEditor({
         return;
       }
       toast.success(t("edit.saved"));
+      setOpen(false);
+      router.refresh();
+    });
+
+  const applyToAll = () =>
+    startTransition(async () => {
+      const result = await applyProjectToAllReceipts(
+        expenseId,
+        draft.projectId
+      );
+      if ("error" in result) {
+        toast.error(t(`errors.${result.error}`));
+        return;
+      }
+      toast.success(
+        t("edit.projectAppliedToAll", { count: result.data.changed })
+      );
       setOpen(false);
       router.refresh();
     });
@@ -188,6 +213,34 @@ export function ReceiptEditor({
                   size="field"
                   value={draft.accountNumber}
                 />
+              </div>
+              <div>
+                <span className="block">{t("edit.project")}</span>
+                <ProjectPicker
+                  currentName={receipt.projectName}
+                  labels={{
+                    label: t("edit.project"),
+                    none: t("edit.noProject"),
+                    noneChosen: t("edit.chooseProject"),
+                    noProjectFound: t("edit.noProjectFound"),
+                    others: t("edit.otherProjects"),
+                    search: t("edit.searchProject"),
+                    suggested: t("edit.suggestedFor", {
+                      department: departmentName,
+                    }),
+                  }}
+                  onChange={(projectId) => setDraft({ ...draft, projectId })}
+                  options={options.projects}
+                  value={draft.projectId}
+                />
+                <button
+                  className="mt-1 text-[12px] underline"
+                  disabled={pending}
+                  onClick={applyToAll}
+                  type="button"
+                >
+                  {t("edit.applyProjectToAll")}
+                </button>
               </div>
             </>
           )}

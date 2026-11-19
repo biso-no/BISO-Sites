@@ -39,7 +39,10 @@ export default async function ExpenseDetailPage({
   }
 
   const editOptions = detail.permissions.canEdit
-    ? await loadReceiptEditOptions((await createAdminClient()).db)
+    ? await loadReceiptEditOptions(
+        (await createAdminClient()).db,
+        detail.department.id || null
+      )
     : null;
 
   const currentStep = detail.steps.find((step) => step.isCurrent);
@@ -86,6 +89,7 @@ export default async function ExpenseDetailPage({
       )}
       <ExpenseHints hints={detail.hints} />
       <ExpenseReceipts
+        departmentName={detail.department.name}
         editOptions={editOptions}
         expenseId={detail.id}
         receipts={detail.receipts}

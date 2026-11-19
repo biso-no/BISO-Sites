@@ -9,6 +9,7 @@ import type { ExpenseDetailReceipt } from "../../expenses-data";
 import { type ReceiptEditOptions, ReceiptEditor } from "./receipt-editor";
 
 interface Props {
+  departmentName: string;
   /** Present only when the viewer may edit receipts. */
   editOptions: ReceiptEditOptions | null;
   expenseId: string;
@@ -22,6 +23,7 @@ const COLUMNS = [
   "amount",
   "type",
   "account",
+  "project",
   "ai",
   "booked",
 ] as const;
@@ -37,7 +39,17 @@ function typeText(r: ExpenseDetailReceipt, none: string): string {
   return r.costTypeLabel ?? r.costType ?? none;
 }
 
-export function ExpenseReceipts({ editOptions, expenseId, receipts }: Props) {
+/** The project column: blank for a supporting statement, which is never booked. */
+function projectText(r: ExpenseDetailReceipt, none: string): string {
+  return r.isSupporting ? "" : (r.projectName ?? none);
+}
+
+export function ExpenseReceipts({
+  departmentName,
+  editOptions,
+  expenseId,
+  receipts,
+}: Props) {
   const t = useTranslations("adminPortal.expenses");
   const locale = normalizeLocale(useLocale());
   const date = (iso: string | null) => (iso ? fmtDate(iso, locale) : t("none"));
@@ -127,6 +139,7 @@ export function ExpenseReceipts({ editOptions, expenseId, receipts }: Props) {
                       </>
                     )}
                   </td>
+                  <td className="px-3 py-2">{projectText(r, t("none"))}</td>
                   <td className="px-3 py-2">
                     {r.aiCostType && (
                       <span className="block">
@@ -146,6 +159,7 @@ export function ExpenseReceipts({ editOptions, expenseId, receipts }: Props) {
                   {editOptions && (
                     <td className="px-3 py-2 text-right">
                       <ReceiptEditor
+                        departmentName={departmentName}
                         expenseId={expenseId}
                         options={editOptions}
                         receipt={r}
