@@ -76,6 +76,7 @@ Which targets are set in production is only in the console, under the function's
 | `TICKSTER_EVENTS_SYNC_URL` | api `POST /api/tickster/events/sync` | Copies the events BISO publishes on Tickster into `events` | New Tickster events don't appear on the website or in the app |
 | `DEPARTURES_SYNC_URL` | api `POST /api/departures/sync` | Refreshes public-transport departures from Entur | Departures in the app go stale |
 | `MEMBER_PASS_CLEANUP_URL` | api `POST /api/cron/cleanup-member-pass` | Deletes member-pass scan logs after 90 days, and scanner links 30 days after they expired | That data is kept longer than the stated retention |
+| `FINAGO_PROJECTS_SYNC_URL` | api `POST /api/cron/sync-finago-projects` | Reads Finago projects and two years of booking lines, and keeps each project's history and each department's project share up to date | Expense projects and edition suggestions go stale |
 | `RECRUITMENT_RETENTION_CLEANUP_URL` | api `POST /api/cron/cleanup-recruitment` | Deletes job applications, with their résumé, answers and interviews, and candidate profiles, once their 180-day retention has passed | Applicant data outlives the retention BISO promises |
 | `RESERVATIONS_CLEANUP_URL` | web `POST /api/cron/cleanup-reservations` | Deletes expired cart reservations, which hold stock for 10 minutes | Expired reservation rows pile up in `cart_reservations`. Stock isn't affected, because availability already ignores expired holds. |
 

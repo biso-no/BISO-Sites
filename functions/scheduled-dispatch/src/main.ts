@@ -39,6 +39,8 @@
  *   EXPENSES_POST_PENDING_URL   e.g. https://api.biso.no/api/expenses/post-pending
  *                               (defaults to a 300s timeout — the route's cap)
  *   MEMBER_PASS_CLEANUP_URL     e.g. https://api.biso.no/api/cron/cleanup-member-pass
+ *   FINAGO_PROJECTS_SYNC_URL    e.g. https://api.biso.no/api/cron/sync-finago-projects
+ *                               (defaults to a 300s timeout — the route's cap)
  *   RECRUITMENT_RETENTION_CLEANUP_URL
  *                               e.g. https://api.biso.no/api/cron/cleanup-recruitment
  *   CRON_TIMEOUT_MS             default per-request timeout (default 30000)
@@ -70,6 +72,7 @@ const TARGET_ENV_VARS = [
   "EXPENSES_POST_PENDING_URL",
   "JOBS_PUBLISH_SCHEDULED_URL",
   "MEMBER_PASS_CLEANUP_URL",
+  "FINAGO_PROJECTS_SYNC_URL",
   "RECRUITMENT_RETENTION_CLEANUP_URL",
 ] as const;
 
@@ -86,6 +89,7 @@ type TargetName = (typeof TARGET_ENV_VARS)[number];
  */
 const TARGET_TIMEOUT_DEFAULTS: Partial<Record<TargetName, number>> = {
   EXPENSES_POST_PENDING_URL: 300_000,
+  FINAGO_PROJECTS_SYNC_URL: 300_000,
   ORDERS_RECONCILE_URL: 300_000,
 };
 

@@ -21,6 +21,7 @@ It currently drives:
 | `JOBS_PUBLISH_SCHEDULED_URL` (optional) | publishes scheduled vacancies whose publish time has passed | `apps/admin` → `POST /api/recruitment/publish-scheduled` |
 | `EXPENSES_POST_PENDING_URL` (optional) | posts approved reimbursements to the 24SevenOffice ledger (inert unless `expenses_ledger_posting` is on) | `apps/api` → `POST /api/expenses/post-pending` |
 | `MEMBER_PASS_CLEANUP_URL` (optional) | deletes member pass scan logs older than 90 days and scanner links expired more than 30 days ago | `apps/api` → `POST /api/cron/cleanup-member-pass` |
+| `FINAGO_PROJECTS_SYNC_URL` (optional) | syncs Finago projects, two years of booking history and each department's project share | `apps/api` → `POST /api/cron/sync-finago-projects` |
 | `RECRUITMENT_RETENTION_CLEANUP_URL` (optional) | deletes job applications (with their resume, answers and interviews) and candidate profiles whose `data_retention_until` (180-day retention) has passed | `apps/api` → `POST /api/cron/cleanup-recruitment` |
 
 Only configured URLs are pinged; leave the optional ones unset to skip them. The
@@ -42,6 +43,7 @@ Set these on the function in the Appwrite console (**Settings → Variables**) �
 - `TICKSTER_SYNC_URL`, `DEPARTURES_SYNC_URL`, `RESERVATIONS_CLEANUP_URL`,
   `ORDERS_RECONCILE_URL`, `TURNOVER_RETENTION_STOP_URL`,
   `JOBS_PUBLISH_SCHEDULED_URL`, `MEMBER_PASS_CLEANUP_URL`,
+  `FINAGO_PROJECTS_SYNC_URL`,
   `RECRUITMENT_RETENTION_CLEANUP_URL` — optional.
 - `CRON_TIMEOUT_MS` — optional **per-request** timeout (default `30000`). This is
   not the execution limit — that's the function's `timeout` (see below).
