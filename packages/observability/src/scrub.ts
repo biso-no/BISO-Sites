@@ -6,6 +6,7 @@ import type {
   StackFrame,
   StreamedSpanJSON,
 } from "@sentry/core";
+import { normalize } from "@sentry/core";
 
 export const REDACTED = "[redacted]";
 
@@ -25,9 +26,12 @@ const ACCOUNT_NUMBER = /\b\d{4}[ .]?\d{2}[ .]?\d{5}\b/g;
 const NATIONAL_ID = /\b\d{6} ?\d{5}\b/g;
 // Local part up to 64 characters, domain up to 253 (the RFC limits). The
 // leading group makes a match start only where a run of local-part characters
-// starts, so a long run is not rescanned from each of its characters.
+// starts, so a long run is not rescanned from each of its characters. `+`,
+// `%20` and `%2B` also start one, since form-encoded text joins words with
+// them (`body=Hello+my+name+is+kari@biso.no`); each start scans at most 64
+// characters, so that stays linear.
 const EMAIL =
-  /(^|[^A-Za-z0-9._%+-])[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,253}\.[A-Za-z]{2,63}/g;
+  /(^|[^A-Za-z0-9._%+-]|\+|%20|%2B)[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,253}\.[A-Za-z]{2,63}/g;
 // Country code, check digits, then 11–30 characters, with or without spaces
 // every four (NO93 8601 1117 947, DE89 3704 0044 0532 0130 00).
 const IBAN = /\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){2,7}(?: ?[A-Z0-9]{1,3})?\b/g;
@@ -224,9 +228,33 @@ function reduceConsoleValue(value: unknown, depth = 0): unknown {
   return reduceConsoleRecord(value as Mutable, depth + 1);
 }
 
+/** Breadth and depth bounds for a console argument, before any reduction. */
+const CONSOLE_NORMALIZE_DEPTH = 3;
+const CONSOLE_NORMALIZE_BREADTH = 1000;
+/** Longest console breadcrumb message; anything past it is cut. */
+const MAX_BREADCRUMB_MESSAGE = 2048;
+
+/**
+ * Cycles, huge arrays and deep graphs become a small tree first, so the
+ * reduction and JSON.stringify never see the raw object. Errors are kept
+ * as they are: normalize would turn them into plain objects.
+ */
+const normalizeConsoleArgument = (value: unknown): unknown =>
+  value instanceof Error
+    ? value
+    : normalize(value, CONSOLE_NORMALIZE_DEPTH, CONSOLE_NORMALIZE_BREADTH);
+
+const capBreadcrumbMessage = (message: string): string =>
+  message.length > MAX_BREADCRUMB_MESSAGE
+    ? `${message.slice(0, MAX_BREADCRUMB_MESSAGE - 1)}…`
+    : message;
+
 /** One console argument as the console integration writes it, made safe. */
 const renderConsoleArgument = (value: unknown): string => {
-  const clean = scrubValue("", reduceConsoleValue(value));
+  const clean = scrubValue(
+    "",
+    reduceConsoleValue(normalizeConsoleArgument(value))
+  );
   return typeof clean === "string" ? clean : (JSON.stringify(clean) ?? "");
 };
 
@@ -368,10 +396,14 @@ const scrubConsoleBreadcrumb = (
   args: unknown[]
 ): Breadcrumb => ({
   ...breadcrumb,
-  message: scrubText(args.map(renderConsoleArgument).join(" ")),
+  message: capBreadcrumbMessage(
+    scrubText(args.map(renderConsoleArgument).join(" "))
+  ),
   data: scrubRecord({
     ...breadcrumb.data,
-    arguments: args.map((arg) => reduceConsoleValue(arg)),
+    arguments: args.map((arg) =>
+      reduceConsoleValue(normalizeConsoleArgument(arg))
+    ),
   }),
 });
 

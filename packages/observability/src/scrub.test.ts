@@ -115,10 +115,28 @@ describe("scrubText", () => {
     ["an address with a hyphen-run domain", `a@${"a-".repeat(100_000)}`],
     ["repeated URL schemes", "https://".repeat(25_000)],
     ["a hyphenated key prefix", `${"a-".repeat(100_000)}token=x`],
+    ["plus runs", `${"a+".repeat(100_000)}b`],
+    ["encoded space runs", `a${"%20a".repeat(66_000)}`],
+    ["bare plus signs", "+".repeat(200_000)],
+    ["bare encoded spaces", "%20".repeat(66_000)],
   ])("scrubs 200 KB of %s in well under 50 ms", (_label, text) => {
     const started = performance.now();
     scrubText(text);
     expect(performance.now() - started).toBeLessThan(50);
+  });
+
+  it.each([
+    [
+      "body=Hello+my+name+is+Kari+and+I+need+a+refund+for+my+order+please+contact+kari.nordmann@biso.no",
+      "kari.nordmann@biso.no",
+    ],
+    [
+      "msg=Message%20from%20the%20student%20about%20the%20refund%20for%20ola.nordmann@biso.no",
+      "ola.nordmann@biso.no",
+    ],
+    ["to=a%2Bb.c@biso.no&x=1", "c@biso.no"],
+  ])("redacts an address in encoded text: %s", (text, address) => {
+    expect(scrubText(text)).not.toContain(address);
   });
 
   it("still redacts the longest real address and a long key prefix", () => {

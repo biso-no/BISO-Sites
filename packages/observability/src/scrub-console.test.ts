@@ -203,4 +203,40 @@ describe("console logs and breadcrumbs", () => {
     );
     expectNoPersonalData();
   });
+
+  describe("breadcrumb size", () => {
+    const consoleCrumb = (...args: unknown[]): Breadcrumb => ({
+      category: "console",
+      level: "log",
+      data: { arguments: args },
+      message: "",
+    });
+
+    it("bounds a large cyclic graph in time and size", () => {
+      const nodes: Record<string, unknown>[] = Array.from(
+        { length: 40 },
+        (_, i) => ({ id: i })
+      );
+      for (const [i, node] of nodes.entries()) {
+        for (let p = 0; p < 7; p++) {
+          node[`link${p}`] = nodes[(i + p + 1) % nodes.length];
+        }
+      }
+      const started = performance.now();
+      const out = scrubBreadcrumb(consoleCrumb("graph", nodes[0]));
+      expect(performance.now() - started).toBeLessThan(50);
+      expect(String(out.message).length).toBeLessThanOrEqual(2048);
+    });
+
+    it("caps a 300-row array argument with an ellipsis", () => {
+      const rows = Array.from({ length: 300 }, (_, i) => ({
+        id: i,
+        status: "paid",
+        total: i * 10,
+      }));
+      const out = scrubBreadcrumb(consoleCrumb("orders", rows));
+      expect(String(out.message).length).toBeLessThanOrEqual(2048);
+      expect(String(out.message).endsWith("…")).toBe(true);
+    });
+  });
 });
