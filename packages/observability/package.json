@@ -12,7 +12,8 @@
     "./scrub": "./src/scrub.ts",
     "./options": "./src/options.ts",
     "./build": "./src/build.ts",
-    "./user": "./src/user.ts"
+    "./user": "./src/user.ts",
+    "./relay": "./src/relay.ts"
   },
   "dependencies": {
     "@sentry/core": "catalog:"
