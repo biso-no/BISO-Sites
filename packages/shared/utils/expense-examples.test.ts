@@ -31,13 +31,36 @@ const scan = {
   vendor: "Peppes Pizza AS",
 };
 
-function makeDb() {
+/**
+ * A db whose receipts remember the example they were linked to, so a read
+ * after a link sees it. `expense` is what reading the expense returns.
+ */
+function makeDb(expense?: unknown) {
+  const links = new Map<string, string | null>();
+  const updateRow = vi.fn(
+    (
+      _db: string,
+      table: string,
+      rowId: string,
+      data: Record<string, unknown>
+    ): Promise<unknown> => {
+      if (table === "expense_attachments" && "example_id" in data) {
+        links.set(rowId, data.example_id as string | null);
+      }
+      return Promise.resolve({});
+    }
+  );
   return {
     createRow: vi.fn().mockResolvedValue({}),
     deleteRow: vi.fn().mockResolvedValue({}),
-    getRow: vi.fn(),
+    getRow: vi.fn(async (_db: string, table: string, rowId: string) =>
+      table === "expense_attachments"
+        ? { $id: rowId, example_id: links.get(rowId) ?? null }
+        : expense
+    ),
+    links,
     listRows: vi.fn(),
-    updateRow: vi.fn().mockResolvedValue({}),
+    updateRow,
   };
 }
 
@@ -219,6 +242,7 @@ describe("syncExample", () => {
       "att-1",
       { example_id: id }
     );
+    expect(db.deleteRow).not.toHaveBeenCalled();
   });
 
   it("sync updates a linked example", async () => {
@@ -315,8 +339,7 @@ describe("syncExample", () => {
 
 describe("syncExamplesForExpense", () => {
   it("syncs every attachment with its scan and the expense department", async () => {
-    const db = makeDb();
-    db.getRow.mockResolvedValue({
+    const db = makeDb({
       department: "dept-9",
       expenseAttachments: [
         att({ account_number: 7140 }),
@@ -351,8 +374,7 @@ describe("syncExamplesForExpense", () => {
   });
 
   it("treats an unreadable scan as no scan", async () => {
-    const db = makeDb();
-    db.getRow.mockResolvedValue({
+    const db = makeDb({
       department: "d",
       expenseAttachments: [att({ cost_type_text: "x" })],
     });
@@ -364,8 +386,7 @@ describe("syncExamplesForExpense", () => {
 
 describe("scan reading", () => {
   it("ignores a scan without a receiptIssues array", async () => {
-    const db = makeDb();
-    db.getRow.mockResolvedValue({
+    const db = makeDb({
       department: "d",
       expenseAttachments: [att()],
     });
@@ -423,10 +444,76 @@ describe("orphans and missing rows", () => {
   });
 });
 
+describe("races and deleted examples", () => {
+  it("keeps the example another sync linked and deletes its own", async () => {
+    const db = makeDb();
+    db.getRow.mockImplementation(async () => ({ example_id: "ex-other" }));
+    const id = await syncExample(db, {
+      attachment: att(),
+      confirmed: false,
+      departmentId: null,
+      scan,
+    });
+    const created = db.createRow.mock.calls[0][2];
+    expect(id).toBe("ex-other");
+    expect(db.deleteRow).toHaveBeenCalledWith(
+      "app",
+      "expense_type_examples",
+      created
+    );
+  });
+
+  it("keeps its own example when the receipt can't be read back", async () => {
+    const db = makeDb();
+    db.getRow.mockRejectedValue(new Error("read failed"));
+    const id = await syncExample(db, {
+      attachment: att(),
+      confirmed: false,
+      departmentId: null,
+      scan,
+    });
+    expect(id).toBe(db.createRow.mock.calls[0][2]);
+    expect(db.deleteRow).not.toHaveBeenCalled();
+  });
+
+  it("makes a new example when the linked one was deleted", async () => {
+    const db = makeDb();
+    db.updateRow.mockRejectedValueOnce({ code: 404 });
+    const id = await syncExample(db, {
+      attachment: att({ example_id: "ex-gone" }),
+      confirmed: true,
+      departmentId: null,
+      scan,
+    });
+    const created = db.createRow.mock.calls[0]?.[2];
+    expect(created).toEqual(expect.any(String));
+    expect(id).toBe(created);
+    expect(db.createRow.mock.calls[0][3]).toMatchObject({ confirmed: true });
+    const links = db.updateRow.mock.calls
+      .filter(([, table]) => table === "expense_attachments")
+      .map(([, , , data]) => data);
+    expect(links).toEqual([{ example_id: null }, { example_id: created }]);
+  });
+
+  it("still swallows other update errors", async () => {
+    const db = makeDb();
+    db.updateRow.mockRejectedValue({ code: 500 });
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const id = await syncExample(db, {
+      attachment: att({ example_id: "ex-1" }),
+      confirmed: false,
+      departmentId: null,
+      scan,
+    });
+    spy.mockRestore();
+    expect(id).toBeNull();
+    expect(db.createRow).not.toHaveBeenCalled();
+  });
+});
+
 describe("deleteExamplesForExpense", () => {
   it("deletes each linked example and clears the link", async () => {
-    const db = makeDb();
-    db.getRow.mockResolvedValue({
+    const db = makeDb({
       expenseAttachments: [att({ example_id: "ex-1" }), att({ $id: "att-2" })],
     });
     await deleteExamplesForExpense(db, "exp-1");

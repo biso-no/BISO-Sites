@@ -233,6 +233,48 @@ async function dropExample(
   await link(db, attachmentId, null);
 }
 
+/** The example the receipt is linked to as stored now. */
+async function linkedExampleId(
+  db: ExamplesDb,
+  attachmentId: string
+): Promise<string | null> {
+  const row = (await db.getRow("app", ATTACHMENTS_TABLE, attachmentId, [
+    Query.select(["$id", "example_id"]),
+  ])) as { example_id?: string | null } | null;
+  return row?.example_id || null;
+}
+
+async function createExample(
+  db: ExamplesDb,
+  attachmentId: string,
+  fields: ExampleRow
+): Promise<string | null> {
+  const id = ID.unique();
+  await db.createRow("app", EXAMPLES_TABLE, id, {
+    ...fields,
+    confirmed: fields.confirmed ?? false,
+  });
+  try {
+    await link(db, attachmentId, id);
+  } catch (error) {
+    // Never leave an unlinked example that nothing can update or delete.
+    await db.deleteRow("app", EXAMPLES_TABLE, id).catch(() => undefined);
+    throw error;
+  }
+  // Two syncs of a receipt without an example can each create one. The
+  // receipt keeps the one linked last; the other is deleted here.
+  let linked: string | null;
+  try {
+    linked = await linkedExampleId(db, attachmentId);
+  } catch {
+    return id;
+  }
+  if (linked !== id) {
+    await db.deleteRow("app", EXAMPLES_TABLE, id).catch(() => undefined);
+  }
+  return linked;
+}
+
 /**
  * Creates, updates or deletes the receipt's example so it matches the receipt.
  * Returns the example id, or null when there is none. Errors are logged and
@@ -256,22 +298,18 @@ export async function syncExample(
       // Leave `confirmed` out so the stored value stays when none is given.
       const { confirmed, ...rest } = fields;
       const data = confirmed === undefined ? rest : fields;
-      await db.updateRow("app", EXAMPLES_TABLE, existingId, data);
-      return existingId;
+      try {
+        await db.updateRow("app", EXAMPLES_TABLE, existingId, data);
+        return existingId;
+      } catch (error) {
+        if (!isNotFound(error)) {
+          throw error;
+        }
+        // The example was deleted: drop the dead link and make a new one.
+        await link(db, attachment.$id, null);
+      }
     }
-    const id = ID.unique();
-    await db.createRow("app", EXAMPLES_TABLE, id, {
-      ...fields,
-      confirmed: fields.confirmed ?? false,
-    });
-    try {
-      await link(db, attachment.$id, id);
-    } catch (error) {
-      // Never leave an unlinked example that nothing can update or delete.
-      await db.deleteRow("app", EXAMPLES_TABLE, id).catch(() => undefined);
-      throw error;
-    }
-    return id;
+    return await createExample(db, attachment.$id, fields);
   } catch (error) {
     console.error(
       `[expense-examples] failed to sync example for receipt ${attachment.$id}`,
