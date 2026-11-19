@@ -12,12 +12,22 @@ import { NextResponse } from "next/server";
  * or failed run waits, then continues from `next_offset`). The attempt time is
  * written before the sync starts, so it also guards against overlap.
  * `?force=1` runs like the admin's button: it bypasses both checks but
- * still refuses within 5 minutes of the last attempt. Sends `x-cron-secret` from the dispatcher,
- * or `Authorization: Bearer ${CRON_SECRET}` when run by hand.
+ * still refuses within 5 minutes of the last attempt. Sends `x-cron-secret`
+ * from the dispatcher, or `Authorization: Bearer ${CRON_SECRET}` by hand.
+ * Reading Finago stops after `FINAGO_PROJECTS_SYNC_BUDGET_MS` (default 20 s,
+ * so saving still fits the api site's 30-second limit); a run cut short
+ * continues on a later tick.
  */
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
+
+const DEFAULT_BUDGET_MS = 20_000;
+
+function readBudgetMs(): number {
+  const value = Number(process.env.FINAGO_PROJECTS_SYNC_BUDGET_MS);
+  return Number.isFinite(value) && value > 0 ? value : DEFAULT_BUDGET_MS;
+}
 
 function readBearerToken(request: Request): string | null {
   const header = request.headers.get("authorization");
@@ -46,7 +56,11 @@ export async function POST(request: Request) {
     const run = await runProjectSync(
       db,
       { getProjects, listCostLines },
-      { mode: force ? "manual" : "scheduled", now: new Date() }
+      {
+        budgetMs: readBudgetMs(),
+        mode: force ? "manual" : "scheduled",
+        now: new Date(),
+      }
     );
     if (run.outcome === "skipped") {
       return NextResponse.json({ reason: run.reason, skipped: true });

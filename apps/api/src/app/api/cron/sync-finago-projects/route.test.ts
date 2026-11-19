@@ -45,6 +45,7 @@ const stateUpdates = () => updateRow.mock.calls.map((call) => call[3]);
 describe("POST /api/cron/sync-finago-projects", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllEnvs();
     vi.stubEnv("CRON_SECRET", SECRET);
     getRow.mockResolvedValue({ $id: "projects", next_offset: 0 });
   });
@@ -134,6 +135,26 @@ describe("POST /api/cron/sync-finago-projects", () => {
     await POST(request(auth, "?force=1"));
     expect(sync).toHaveBeenCalledOnce();
     expect(updateRow).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads for 20 seconds by default, so the run fits a 30-second limit", async () => {
+    sync.mockResolvedValue(full);
+    await POST(request(auth));
+    expect(sync.mock.calls[0]?.[1]).toMatchObject({ budgetMs: 20_000 });
+  });
+
+  it("FINAGO_PROJECTS_SYNC_BUDGET_MS sets the reading budget", async () => {
+    vi.stubEnv("FINAGO_PROJECTS_SYNC_BUDGET_MS", "120000");
+    sync.mockResolvedValue(full);
+    await POST(request(auth));
+    expect(sync.mock.calls[0]?.[1]).toMatchObject({ budgetMs: 120_000 });
+  });
+
+  it("an unusable budget falls back to the default", async () => {
+    vi.stubEnv("FINAGO_PROJECTS_SYNC_BUDGET_MS", "soon");
+    sync.mockResolvedValue(full);
+    await POST(request(auth));
+    expect(sync.mock.calls[0]?.[1]).toMatchObject({ budgetMs: 20_000 });
   });
 
   it("a missing state row runs and creates it", async () => {

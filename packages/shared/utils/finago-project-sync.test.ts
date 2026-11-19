@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { type SyncDb, syncFinagoProjects } from "./finago-project-sync";
 
 type Row = Record<string, unknown> & { $id: string };
@@ -92,6 +92,7 @@ describe("syncFinagoProjects", () => {
       partial: false,
       projects: 1,
       usageRows: 1,
+      warnings: [],
       written: 1,
     });
     expect(tables.finago_projects[0]).toMatchObject({
@@ -364,6 +365,206 @@ describe("syncFinagoProjects", () => {
       },
     });
     expect(calls).toEqual([{ from: "2024-11-19", to: "2026-11-20" }]);
+  });
+
+  const accountRows = (numbers: number[]) =>
+    numbers.map((n) => ({ $id: `a${n}`, account_number: n, active: true }));
+  const hang = (signal?: AbortSignal) =>
+    new Promise<never>((_, reject) => {
+      signal?.addEventListener("abort", () => reject(new Error("aborted")));
+    });
+
+  it("reads four accounts at a time", async () => {
+    const numbers = [6000, 6100, 6200, 6300, 6400, 6500, 6600, 6700, 6800];
+    const { db } = fakeDb(seed({ ledger_accounts: accountRows(numbers) }));
+    let running = 0;
+    let most = 0;
+    const read: number[] = [];
+    const result = await syncFinagoProjects(db, {
+      ...base,
+      listCostLines: async ({ accountNumbers }) => {
+        running += 1;
+        most = Math.max(most, running);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        running -= 1;
+        read.push(accountNumbers[0] as number);
+        return [];
+      },
+    });
+    expect(most).toBe(4);
+    expect(read.sort()).toEqual(numbers);
+    expect(result).toMatchObject({ completed: 9, partial: false });
+  });
+
+  it("a timed-out run counts only the accounts read in a row from the start", async () => {
+    const { db, tables } = fakeDb(
+      seed({ ledger_accounts: accountRows([6000, 6100, 6200, 6300, 6400]) })
+    );
+    const result = await syncFinagoProjects(db, {
+      ...base,
+      budgetMs: 40,
+      listCostLines: ({ accountNumbers, signal }) => {
+        const account = accountNumbers[0];
+        if (account === 6200) {
+          return hang(signal);
+        }
+        return Promise.resolve([
+          line({ accountNumber: account, projectId: `p${account}` }),
+        ]);
+      },
+      startOffset: 1,
+    });
+    // 6100 is read, 6200 times out; 6300, 6400 and 6000 are read too, but
+    // the next run must start at 6200, so only one account is complete.
+    expect(result).toMatchObject({
+      accountCount: 5,
+      completed: 1,
+      partial: true,
+    });
+    // Lines from every account that finished are kept.
+    expect(tables.finago_project_usage.map((r) => r.project_id).sort()).toEqual(
+      ["p6000", "p6100", "p6300", "p6400"]
+    );
+  });
+
+  it("the first failed account fails the run and stops the others", async () => {
+    const { db, writes } = fakeDb(
+      seed({ ledger_accounts: accountRows([6000, 6100, 6200]) })
+    );
+    let aborted = 0;
+    await expect(
+      syncFinagoProjects(db, {
+        ...base,
+        listCostLines: ({ accountNumbers, signal }) => {
+          if (accountNumbers[0] === 6100) {
+            return Promise.reject(new Error("finago 500"));
+          }
+          signal?.addEventListener("abort", () => {
+            aborted += 1;
+          });
+          return hang(signal);
+        },
+      })
+    ).rejects.toThrow("finago 500");
+    expect(aborted).toBe(2);
+    expect(writes).toEqual([]);
+  });
+
+  it("a project's peak comes from its own year's window", async () => {
+    const { db, tables } = fakeDb(
+      seed({
+        finago_projects: [
+          { $id: "r7", active: false, name: "KD 2024", project_id: "p7" },
+        ],
+      })
+    );
+    await syncFinagoProjects(db, {
+      ...base,
+      getProjects: () =>
+        Promise.resolve([{ name: "KD 2025", projectId: "p1" }]),
+      listCostLines: () =>
+        Promise.resolve([
+          line({ amount: 1000, date: "2025-03-01" }),
+          // A large late invoice the year after.
+          line({ amount: 5000, date: "2026-02-01" }),
+          line({ amount: 100, date: "2024-12-01", projectId: "p7" }),
+          line({ amount: 5000, date: "2025-03-01", projectId: "p7" }),
+        ]),
+    });
+    expect(
+      tables.finago_projects.find((r) => r.project_id === "p1")?.peak_date
+    ).toBe("2025-03-01");
+    // An unlisted edition's year comes from its stored name.
+    expect(tables.finago_projects.find((r) => r.$id === "r7")?.peak_date).toBe(
+      "2024-12-01"
+    );
+  });
+
+  const activeRows = (count: number) =>
+    Array.from({ length: count }, (_, i) => ({
+      $id: `r${i}`,
+      active: true,
+      name: `Project ${i}`,
+      project_id: `x${i}`,
+    }));
+
+  it("an empty project list marks nothing inactive", async () => {
+    const { db, tables } = fakeDb(seed({ finago_projects: activeRows(3) }));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const result = await syncFinagoProjects(db, {
+      ...base,
+      getProjects: () => Promise.resolve([]),
+    });
+    warn.mockRestore();
+    expect(result).toMatchObject({
+      inactive: 0,
+      warnings: ["empty_project_list"],
+    });
+    expect(tables.finago_projects.every((r) => r.active === true)).toBe(true);
+  });
+
+  it("a list under half the active projects marks nothing inactive", async () => {
+    const { db, tables } = fakeDb(seed({ finago_projects: activeRows(5) }));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const result = await syncFinagoProjects(db, {
+      ...base,
+      getProjects: () =>
+        Promise.resolve([
+          { name: "Project 0", projectId: "x0" },
+          { name: "Project 1", projectId: "x1" },
+        ]),
+      listCostLines: () => Promise.resolve([]),
+    });
+    warn.mockRestore();
+    expect(result).toMatchObject({
+      inactive: 0,
+      warnings: ["project_list_shrank", "no_cost_lines"],
+    });
+    expect(tables.finago_projects.filter((r) => r.active)).toHaveLength(5);
+  });
+
+  it("a list of half the active projects still marks the rest inactive", async () => {
+    const { db, tables } = fakeDb(seed({ finago_projects: activeRows(4) }));
+    const result = await syncFinagoProjects(db, {
+      ...base,
+      getProjects: () =>
+        Promise.resolve([
+          { name: "Project 0", projectId: "x0" },
+          { name: "Project 1", projectId: "x1" },
+        ]),
+    });
+    expect(result).toMatchObject({ inactive: 2, warnings: [] });
+    expect(tables.finago_projects.filter((r) => r.active)).toHaveLength(2);
+  });
+
+  it("a full run that reads no lines keeps every project's stats", async () => {
+    const stats = {
+      first_line_date: "2025-01-01",
+      last_line_date: "2026-10-01",
+      line_count: 50,
+      peak_date: "2026-08-20",
+    };
+    const { db, tables } = fakeDb(
+      seed({
+        finago_projects: [
+          { $id: "r1", active: true, project_id: "p1", ...stats },
+        ],
+      })
+    );
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const result = await syncFinagoProjects(db, {
+      ...base,
+      listCostLines: () => Promise.resolve([]),
+    });
+    warn.mockRestore();
+    expect(result).toMatchObject({
+      partial: false,
+      warnings: ["no_cost_lines"],
+    });
+    expect(tables.finago_projects[0]).toMatchObject({
+      name: "Fadderullan 2026",
+      ...stats,
+    });
   });
 
   it("starts at startOffset and reports completed accounts", async () => {
