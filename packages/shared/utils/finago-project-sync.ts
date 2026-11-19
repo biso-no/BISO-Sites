@@ -289,6 +289,13 @@ export async function syncFinagoProjects(
   const summary = aggregateUsage(lines);
   const syncedAt = deps.now.toISOString();
 
+  // `synced_at` marks a FULL run (the route reads the newest one to decide
+  // whether a sync is due), so a partial run leaves it untouched.
+  const stamp = (data: Data) => {
+    if (!partial) {
+      data.synced_at = syncedAt;
+    }
+  };
   const lineNames = new Map<string, string>();
   for (const line of lines) {
     if (line.projectId && line.projectName && !lineNames.has(line.projectId)) {
@@ -329,9 +336,9 @@ export async function syncFinagoProjects(
       name: project.name,
       project_id: project.projectId,
       series,
-      synced_at: syncedAt,
       year,
     };
+    stamp(data);
     if (project.active) {
       data.active = true;
     } else if (!existing) {
@@ -387,7 +394,7 @@ export async function syncFinagoProjects(
       ...stats,
       department_id: u.departmentId,
       project_id: u.projectId,
-      synced_at: syncedAt,
+      ...(partial ? {} : { synced_at: syncedAt }),
     });
   });
 

@@ -210,4 +210,12 @@ describe("syncFinagoProjects", () => {
       tables.departments.find((r) => r.$id === "d1")?.project_share
     ).toBeUndefined();
   });
+
+  it("only a full run stamps synced_at", async () => {
+    const { db, tables } = fakeDb(seed());
+    await syncFinagoProjects(db, { ...base, budgetMs: 0 });
+    expect(tables.finago_projects[0]?.synced_at).toBeUndefined();
+    await syncFinagoProjects(db, base);
+    expect(tables.finago_projects[0]?.synced_at).toBe(now.toISOString());
+  });
 });

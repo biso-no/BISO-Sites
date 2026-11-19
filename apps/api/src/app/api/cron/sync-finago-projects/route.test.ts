@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const sync = vi.hoisted(() => vi.fn());
+const listRows = vi.hoisted(() => vi.fn());
 
 vi.mock("server-only", () => ({}));
 vi.mock("@repo/api/server", () => ({
-  createAdminClient: vi.fn(async () => ({ db: { marker: true } })),
+  createAdminClient: vi.fn(async () => ({ db: { listRows } })),
 }));
 vi.mock("@repo/connectors/24sevenoffice", () => ({
   getProjects: vi.fn(),
@@ -17,8 +18,8 @@ vi.mock("@repo/shared/utils/finago-project-sync", () => ({
 import { POST } from "./route";
 
 const SECRET = "cron-secret-value";
-const request = (headers: Record<string, string> = {}) =>
-  new Request("https://api.biso.no/api/cron/sync-finago-projects", {
+const request = (headers: Record<string, string> = {}, query = "") =>
+  new Request(`https://api.biso.no/api/cron/sync-finago-projects${query}`, {
     headers,
     method: "POST",
   });
@@ -27,6 +28,7 @@ describe("POST /api/cron/sync-finago-projects", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubEnv("CRON_SECRET", SECRET);
+    listRows.mockResolvedValue({ rows: [] });
   });
 
   it("refuses without the cron secret", async () => {
@@ -57,5 +59,32 @@ describe("POST /api/cron/sync-finago-projects", () => {
     sync.mockRejectedValue(new Error("down"));
     const response = await POST(request({ "x-cron-secret": SECRET }));
     expect(response.status).toBe(500);
+  });
+
+  const auth = { authorization: `Bearer ${SECRET}` };
+  const hoursAgo = (h: number) =>
+    new Date(Date.now() - h * 3_600_000).toISOString();
+
+  it("skips when a full sync is recent", async () => {
+    listRows.mockResolvedValue({ rows: [{ synced_at: hoursAgo(2) }] });
+    const response = await POST(request(auth));
+    expect(await response.json()).toEqual({ reason: "recent", skipped: true });
+    expect(sync).not.toHaveBeenCalled();
+  });
+
+  it("runs when the last full sync is old, or there is none", async () => {
+    sync.mockResolvedValue({});
+    listRows.mockResolvedValue({ rows: [{ synced_at: hoursAgo(21) }] });
+    await POST(request(auth));
+    listRows.mockResolvedValue({ rows: [] });
+    await POST(request(auth));
+    expect(sync).toHaveBeenCalledTimes(2);
+  });
+
+  it("runs on force even when recent", async () => {
+    sync.mockResolvedValue({});
+    listRows.mockResolvedValue({ rows: [{ synced_at: hoursAgo(1) }] });
+    await POST(request(auth, "?force=1"));
+    expect(sync).toHaveBeenCalledOnce();
   });
 });
