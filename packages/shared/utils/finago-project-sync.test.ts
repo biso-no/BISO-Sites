@@ -425,6 +425,18 @@ describe("syncFinagoProjects", () => {
     expect(tables.finago_project_usage.map((r) => r.project_id).sort()).toEqual(
       ["p6000", "p6100", "p6300", "p6400"]
     );
+
+    // The next run starts where the unbroken row ended: at 6200.
+    const order: number[] = [];
+    await syncFinagoProjects(db, {
+      ...base,
+      listCostLines: ({ accountNumbers }) => {
+        order.push(accountNumbers[0] as number);
+        return Promise.resolve([]);
+      },
+      startOffset: 1 + result.completed,
+    });
+    expect(order[0]).toBe(6200);
   });
 
   it("the first failed account fails the run and stops the others", async () => {
