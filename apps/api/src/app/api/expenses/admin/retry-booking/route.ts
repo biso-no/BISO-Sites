@@ -62,7 +62,13 @@ export async function POST(req: NextRequest) {
     const result = await retryExpenseBooking(parsed.data);
     if (!result.ok) {
       return NextResponse.json(
-        { code: result.code, error: result.error },
+        {
+          code: result.code,
+          error: result.error,
+          ...(result.transactionId
+            ? { transactionId: result.transactionId }
+            : {}),
+        },
         { status: HTTP_BAD_REQUEST }
       );
     }

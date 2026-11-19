@@ -52,9 +52,14 @@ vi.mock("./receipt-date", async () => {
   return { ...actual, todayInOslo: oslo.todayInOslo };
 });
 
-import { postApprovedExpense, retryExpenseBooking } from "./expense-posting";
+import {
+  BookingUnrecordedError,
+  postApprovedExpense,
+  retryExpenseBooking,
+} from "./expense-posting";
 
 const ACTOR = { email: "it@biso.no", kind: "admin" as const, name: "IT" };
+const STATUS_WRITE_FAILED_NOTE = /^tx-1 \(status write failed/;
 
 const expense = {
   $id: "exp-1",
@@ -88,6 +93,29 @@ const eventActions = () =>
   db.createRow.mock.calls
     .filter(([, table]) => table === "expense_events")
     .map(([, , , data]) => data.action);
+
+/** Every attempt to write a `booked` event, failed ones included. */
+const bookedTries = () =>
+  db.createRow.mock.calls.filter(
+    ([, table, , data]) =>
+      table === "expense_events" && data.action === "booked"
+  );
+const bookedNotes = () => bookedTries().map(([, , , data]) => data.note);
+
+const failSuccessWrites = () =>
+  db.updateRow.mockImplementation(
+    (_d: string, table: string, _id: string, data: { status?: string }) =>
+      table === "expense" && data.status === "success"
+        ? Promise.reject(new Error("write failed"))
+        : Promise.resolve({})
+  );
+const failBookedEvents = () =>
+  db.createRow.mockImplementation(
+    (_d: string, table: string, _id: string, data: { action?: string }) =>
+      table === "expense_events" && data.action === "booked"
+        ? Promise.reject(new Error("event write failed"))
+        : Promise.resolve({})
+  );
 
 beforeEach(() => {
   for (const fn of [
@@ -324,6 +352,76 @@ describe("retry claim", () => {
     } finally {
       vi.useRealTimers();
     }
+    // The booked event is what lets a later retry finish instead of posting.
+    expect(bookedNotes()).toEqual([
+      expect.stringMatching(STATUS_WRITE_FAILED_NOTE),
+    ]);
+  });
+
+  it("still says status_write_failed when the booked event lands on a later try", async () => {
+    db.getRow.mockImplementation(rowsAfterReset);
+    db.incrementRowColumn
+      .mockResolvedValueOnce({ posting_lock: 2, status: "failed" })
+      .mockResolvedValue({ posting_lock: 1, status: "approved" });
+    failSuccessWrites();
+    db.createRow.mockImplementation(
+      (_d: string, table: string, _id: string, data: { action?: string }) => {
+        if (table === "expense_events" && data.action === "booked") {
+          const tries = bookedTries().length;
+          if (tries === 1) {
+            return Promise.reject(new Error("event write failed"));
+          }
+        }
+        return Promise.resolve({});
+      }
+    );
+
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    try {
+      const pending = retryExpenseBooking({ actor: ACTOR, expenseId: "exp-1" });
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(await pending).toMatchObject({
+        code: "status_write_failed",
+        ok: false,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(bookedTries()).toHaveLength(2);
+  });
+
+  it("says booking_unrecorded with the transaction id when neither the status nor the event can be saved", async () => {
+    db.getRow.mockImplementation(rowsAfterReset);
+    db.incrementRowColumn
+      .mockResolvedValueOnce({ posting_lock: 2, status: "failed" })
+      .mockResolvedValue({ posting_lock: 1, status: "approved" });
+    failSuccessWrites();
+    failBookedEvents();
+
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    let result: Awaited<ReturnType<typeof retryExpenseBooking>>;
+    try {
+      const pending = retryExpenseBooking({ actor: ACTOR, expenseId: "exp-1" });
+      await vi.advanceTimersByTimeAsync(10_000);
+      result = await pending;
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(result).toMatchObject({
+      code: "booking_unrecorded",
+      ok: false,
+      transactionId: "tx-1",
+    });
+    if (result.ok) {
+      throw new Error("expected a refusal");
+    }
+    expect(result.error).toContain("tx-1");
+    expect(result.error).toContain("Do not retry");
+    // Nothing tells the admin a retry is safe.
+    expect(result.error).not.toContain("nothing is booked twice");
+    expect(bookedTries()).toHaveLength(3);
+    expect(finago.postExpenseTransaction).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -655,6 +753,26 @@ describe("postApprovedExpense hardening", () => {
     expect(db.incrementRowColumn).not.toHaveBeenCalled();
     expect(db.updateRow).not.toHaveBeenCalled();
     expect(finago.postExpenseTransaction).not.toHaveBeenCalled();
+  });
+
+  it("a booking it cannot record anywhere throws BookingUnrecordedError", async () => {
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    failSuccessWrites();
+    failBookedEvents();
+
+    const outcome = postApprovedExpense("exp-1", { sleep });
+
+    await expect(outcome).rejects.toBeInstanceOf(BookingUnrecordedError);
+    await expect(outcome).rejects.toMatchObject({ transactionId: "tx-1" });
+    // The event write backs off like the status write.
+    expect(sleep.mock.calls.map(([ms]) => ms)).toEqual([500, 2000, 500, 2000]);
+    expect(bookedTries()).toHaveLength(3);
+    expect(db.updateRow).not.toHaveBeenCalledWith(
+      "app",
+      "expense",
+      "exp-1",
+      expect.objectContaining({ status: "failed" })
+    );
   });
 
   it("success write waits between attempts", async () => {

@@ -28,9 +28,15 @@ export function RetryBookingButton({ expenseId }: { expenseId: string }) {
   const retryErrorMessage = (result: {
     error: ExpenseActionError;
     message?: string;
+    transactionId?: string;
   }): string => {
     if (result.error === "booking_failed" && result.message) {
       return `${t("failedAgain")} ${result.message}`;
+    }
+    if (result.error === "booking_unrecorded") {
+      return te("errors.booking_unrecorded", {
+        transactionId: result.transactionId ?? "?",
+      });
     }
     // An unanswered call may still have booked: say so, not "Try again".
     return result.error === "api_failed"

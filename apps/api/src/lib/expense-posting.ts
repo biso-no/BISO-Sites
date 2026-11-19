@@ -34,6 +34,7 @@ import {
 import {
   type ExpenseEventInput,
   recordExpenseEvents,
+  writeExpenseEvent,
 } from "@repo/shared/utils/expense-events";
 import { reimbursementNumber } from "@repo/shared/utils/reimbursement-number";
 import { PDFDocument } from "pdf-lib";
@@ -315,47 +316,99 @@ export class BookingStatusWriteError extends Error {
   }
 }
 
+/**
+ * Finago accepted the booking, but neither the `success` status nor the
+ * `booked` history row could be saved, so nothing here shows Finago has it. A
+ * retry would post it again: the admin must not retry, and IT records the
+ * transaction by hand.
+ */
+export class BookingUnrecordedError extends Error {
+  readonly transactionId: string;
+
+  constructor(transactionId: string, cause: string) {
+    super(
+      `Finago has the booking (${transactionId}) but it could not be saved here. Do not retry; contact IT. (${cause})`
+    );
+    this.name = "BookingUnrecordedError";
+    this.transactionId = transactionId;
+  }
+}
+
 const defaultSleep: Sleep = (ms) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Runs a write that must land, retrying with the success-write backoff.
+ * Returns null once it lands, or the last error.
+ */
+async function writeWithRetries(
+  write: () => Promise<unknown>,
+  sleep: Sleep
+): Promise<unknown> {
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt <= SUCCESS_WRITE_EXTRA_ATTEMPTS; attempt++) {
+    if (attempt > 0) {
+      await sleep(SUCCESS_WRITE_BACKOFF_MS[attempt - 1] ?? 0);
+    }
+    try {
+      await write();
+      return null;
+    } catch (error) {
+      lastError = error ?? new Error("write failed");
+    }
+  }
+  return lastError;
+}
+
 // Finago has accepted the transaction, so the only job left is to record that.
 // A failed write is retried; if it keeps failing the row stays `posting` (never
-// `failed`, never reposted) and the stale-lease reaper surfaces it later.
+// `failed`, never reposted) and the stale-lease reaper surfaces it later. The
+// `booked` event is then what lets a retry finish instead of posting again, so
+// it is written with the same retries and its failure is never swallowed.
 async function writeSuccess(
   db: AdminDb,
   expenseId: string,
   transactionId: string,
   sleep: Sleep
 ): Promise<void> {
-  let lastError: unknown;
-  for (let attempt = 0; attempt <= SUCCESS_WRITE_EXTRA_ATTEMPTS; attempt++) {
-    if (attempt > 0) {
-      await sleep(SUCCESS_WRITE_BACKOFF_MS[attempt - 1] ?? 0);
-    }
-    try {
-      await db.updateRow("app", "expense", expenseId, {
+  const statusError = await writeWithRetries(
+    () =>
+      db.updateRow<Expenses>("app", "expense", expenseId, {
         ledger_transaction_id: transactionId,
         status: ExpensesStatus.SUCCESS,
-      });
-      return;
-    } catch (error) {
-      lastError = error;
-    }
+      }),
+    sleep
+  );
+  if (statusError === null) {
+    return;
   }
-  const message =
-    lastError instanceof Error ? lastError.message : String(lastError);
+  const message = errorText(statusError);
   console.error(
     `[expense-posting] expense ${expenseId} was booked as transaction ${transactionId} but the status write failed:`,
-    lastError
+    statusError
   );
-  await recordExpenseEvents(db, [
-    {
-      expenseId,
-      actorKind: "system",
-      action: "booked",
-      note: `${transactionId} (status write failed: ${message})`,
-    },
-  ]);
+  const eventError = await writeWithRetries(
+    () =>
+      writeExpenseEvent(db, {
+        expenseId,
+        actorKind: "system",
+        action: "booked",
+        // The transaction id stays the first word: a retry reads it there.
+        note: `${transactionId} (status write failed: ${message})`,
+      }),
+    sleep
+  );
+  if (eventError !== null) {
+    console.error(
+      `[expense-posting] BOOKING UNRECORDED: expense ${expenseId} is booked in Finago as transaction ${transactionId}, but neither its status nor its booked event could be saved. Do not retry it; record ${transactionId} on the expense by hand.`,
+      eventError
+    );
+    throw new BookingUnrecordedError(transactionId, message);
+  }
   throw new BookingStatusWriteError(message);
 }
 
@@ -767,11 +820,38 @@ export type RetryErrorCode =
   | "not_failed"
   | "retry_in_progress"
   | "booking_failed"
-  | "status_write_failed";
+  | "status_write_failed"
+  | "booking_unrecorded";
 
 type RetryResult =
   | { ok: true; status: string }
-  | { ok: false; error: string; code: RetryErrorCode };
+  | {
+      ok: false;
+      error: string;
+      code: RetryErrorCode;
+      /** Finago's transaction, for a booking that could not be saved here. */
+      transactionId?: string;
+    };
+
+/** The refusal for a posting that threw after the retry claimed the row. */
+function postingFailure(error: unknown): RetryResult {
+  if (error instanceof BookingUnrecordedError) {
+    return {
+      ok: false,
+      code: "booking_unrecorded",
+      error: error.message,
+      transactionId: error.transactionId,
+    };
+  }
+  return {
+    ok: false,
+    code:
+      error instanceof BookingStatusWriteError
+        ? "status_write_failed"
+        : "booking_failed",
+    error: errorText(error),
+  };
+}
 
 const NOTE_TRANSACTION_ID = /^\S+/;
 
@@ -951,14 +1031,7 @@ export async function retryExpenseBooking(params: {
   try {
     await postClaimedExpense(db, storage, expense, defaultSleep);
   } catch (error) {
-    return {
-      ok: false,
-      code:
-        error instanceof BookingStatusWriteError
-          ? "status_write_failed"
-          : "booking_failed",
-      error: error instanceof Error ? error.message : String(error),
-    };
+    return postingFailure(error);
   }
   const after = await db.getRow<Expenses>("app", "expense", expenseId, [
     Query.select(["$id", "status"]),

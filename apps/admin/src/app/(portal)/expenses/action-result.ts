@@ -29,19 +29,26 @@ export type ExpenseActionError =
   | "retry_in_progress"
   | "booking_failed"
   | "status_write_failed"
+  | "booking_unrecorded"
   | "api_failed"
   | "failed";
 
 /** The result of an expense edit action. */
 export type ExpenseActionResult<T> =
   | { data: T }
-  | { error: ExpenseActionError; message?: string };
+  | {
+      error: ExpenseActionError;
+      message?: string;
+      /** Finago's transaction, for `booking_unrecorded`. */
+      transactionId?: string;
+    };
 
 const API_CODES: Record<string, ExpenseActionError> = {
   account_missing: "account_missing",
   ai_disabled: "ai_disabled",
   already_booked: "already_booked",
   booking_failed: "booking_failed",
+  booking_unrecorded: "booking_unrecorded",
   has_steps: "has_steps",
   in_progress: "in_progress",
   invalid_email: "invalid_email",

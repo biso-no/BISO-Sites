@@ -609,6 +609,26 @@ describe("retryExpenseBooking", () => {
     }
   });
 
+  test("a booking it could not record carries its transaction id", async () => {
+    failedExpense();
+    globalAdmin();
+    fetchMock.mockResolvedValue(
+      Response.json(
+        {
+          code: "booking_unrecorded",
+          error:
+            "Finago has the booking (tx-9) but it could not be saved here.",
+          transactionId: "tx-9",
+        },
+        { status: 400 }
+      )
+    );
+    expect(await retryExpenseBooking({ expenseId: "ex1" })).toEqual({
+      error: "booking_unrecorded",
+      transactionId: "tx-9",
+    });
+  });
+
   test("keeps Finago's message for a failed booking", async () => {
     failedExpense();
     globalAdmin();

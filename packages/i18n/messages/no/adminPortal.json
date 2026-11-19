@@ -1601,7 +1601,8 @@
       "same_approver": "Den personen er allerede godkjenner for dette trinnet.",
       "retry_in_progress": "Noen andre prøver allerede denne bokføringen på nytt.",
       "booking_failed": "Bokføringen mislyktes igjen.",
-      "status_write_failed": "Finago har bokføringen, men lagring av status feilet. Trykk Prøv igjen for å fullføre lagringen; ingenting bokføres to ganger.",
+      "status_write_failed": "Finago har bokføringen, men statusen kunne ikke lagres. Ikke bokfør utlegget på nytt: når det viser «Bokføring feilet» (innen omtrent 15 minutter), fullfører «Prøv bokføring på nytt» lagringen.",
+      "booking_unrecorded": "Finago har bokføringen ({transactionId}), men den kunne ikke lagres her. Ikke prøv på nytt; kontakt IT.",
       "has_steps": "Dette utlegget har allerede godkjenningstrinn.",
       "not_rebuildable": "Bare et utlegg som sto uten godkjenner da det ble levert, kan få godkjenningsflyten bygget på nytt."
     },

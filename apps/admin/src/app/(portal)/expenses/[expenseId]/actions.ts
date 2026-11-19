@@ -272,16 +272,21 @@ function apiActorOf(loaded: Loaded): ApiActor {
 /** Maps an api refusal by its stable code; only an unexpected one is logged. */
 function apiFailure(
   scope: string,
-  failed: { code?: string; error: string }
-): { error: ExpenseActionError; message?: string } {
+  failed: { code?: string; error: string; transactionId?: string }
+): { error: ExpenseActionError; message?: string; transactionId?: string } {
   const code = apiErrorCode(failed.code);
-  if (code === "api_failed") {
+  if (code === "api_failed" || code === "booking_unrecorded") {
     console.error(`[${scope}]`, failed.error);
   }
   // Finago's own words are what a person needs after a failed booking.
-  return code === "booking_failed"
-    ? { error: code, message: failed.error }
-    : { error: code };
+  if (code === "booking_failed") {
+    return { error: code, message: failed.error };
+  }
+  // IT records a booking nobody could save by its transaction id.
+  if (code === "booking_unrecorded" && failed.transactionId) {
+    return { error: code, transactionId: failed.transactionId };
+  }
+  return { error: code };
 }
 
 function revalidateExpense(expenseId: string): void {

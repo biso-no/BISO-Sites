@@ -1,6 +1,7 @@
-// Best-effort writer for the `expense_events` history table. History is an
-// audit aid: a failed write is logged and swallowed so it can never change the
-// outcome of a booking.
+// Writers for the `expense_events` history table. History is an audit aid, so
+// `recordExpenseEvents` logs and swallows a failed write: it can never change
+// the outcome of a booking. `writeExpenseEvent` throws instead, for the one
+// event a caller must know was saved.
 
 import { ID } from "@repo/api";
 
@@ -62,24 +63,33 @@ function truncate(value: string | null | undefined, max: number) {
     : value;
 }
 
+/** Writes one history event. Throws when the write fails. */
+export async function writeExpenseEvent(
+  db: ExpenseEventsDb,
+  event: ExpenseEventInput
+): Promise<void> {
+  await db.createRow("app", "expense_events", ID.unique(), {
+    expense_id: event.expenseId,
+    actor_kind: event.actorKind,
+    action: event.action,
+    actor_email: truncate(event.actorEmail, MAX_ACTOR_EMAIL_CHARS),
+    actor_name: truncate(event.actorName, MAX_ACTOR_NAME_CHARS),
+    attachment_id: event.attachmentId ?? undefined,
+    field: truncate(event.field, MAX_FIELD_CHARS),
+    before: truncate(event.before, MAX_TEXT_CHARS),
+    after: truncate(event.after, MAX_TEXT_CHARS),
+    note: truncate(event.note, MAX_TEXT_CHARS),
+  });
+}
+
+/** Writes history events, best-effort: a failed write is logged, never thrown. */
 export async function recordExpenseEvents(
   db: ExpenseEventsDb,
   events: ExpenseEventInput[]
 ): Promise<void> {
   for (const event of events) {
     try {
-      await db.createRow("app", "expense_events", ID.unique(), {
-        expense_id: event.expenseId,
-        actor_kind: event.actorKind,
-        action: event.action,
-        actor_email: truncate(event.actorEmail, MAX_ACTOR_EMAIL_CHARS),
-        actor_name: truncate(event.actorName, MAX_ACTOR_NAME_CHARS),
-        attachment_id: event.attachmentId ?? undefined,
-        field: truncate(event.field, MAX_FIELD_CHARS),
-        before: truncate(event.before, MAX_TEXT_CHARS),
-        after: truncate(event.after, MAX_TEXT_CHARS),
-        note: truncate(event.note, MAX_TEXT_CHARS),
-      });
+      await writeExpenseEvent(db, event);
     } catch (error) {
       console.error(
         `[expense-events] failed to record ${event.action} for expense ${event.expenseId}`,

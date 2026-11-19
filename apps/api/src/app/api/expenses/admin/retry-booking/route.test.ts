@@ -84,6 +84,24 @@ describe("POST /api/expenses/admin/retry-booking", () => {
     expect((await (await call(VALID)).json()).code).toBe("posting_disabled");
   });
 
+  it("passes on the transaction id of a booking it could not record", async () => {
+    posting.retryExpenseBooking.mockResolvedValue({
+      code: "booking_unrecorded",
+      error: "Finago has the booking (tx-9)",
+      ok: false,
+      transactionId: "tx-9",
+    });
+
+    const res = await call(VALID);
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({
+      code: "booking_unrecorded",
+      error: "Finago has the booking (tx-9)",
+      transactionId: "tx-9",
+    });
+  });
+
   it("returns 500 when the retry throws", async () => {
     posting.retryExpenseBooking.mockRejectedValue(new Error("boom"));
     vi.spyOn(console, "error").mockImplementation(() => undefined);
