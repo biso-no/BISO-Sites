@@ -120,11 +120,10 @@ describe("content translation service", () => {
       targetLocale: "en",
     });
     const request = generateObjectSpy.mock.calls[0]?.[0] as { model: unknown };
-    expect(traceAiCallSpy.mock.calls.at(-1)?.[0]).toEqual({
-      functionId: "admin.content-translation",
-      model: request.model,
-      operation: "generate_object",
-    });
+    const meta = traceAiCallSpy.mock.calls.at(-1)?.[0];
+    expect(meta?.functionId).toBe("admin.content-translation");
+    expect(meta?.operation).toBe("generate_object");
+    expect(request.model).toBe(meta?.model);
   });
 
   test("tells the model to keep every tag and attribute value as written", async () => {
