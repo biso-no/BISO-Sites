@@ -1,5 +1,6 @@
 import "server-only";
 
+import { traceAiCall } from "@repo/observability/ai";
 import {
   type RecruitmentAiEmailDraft,
   recruitmentAiEmailDraftSchema,
@@ -24,15 +25,23 @@ export type {
 export async function draftCandidateEmail(
   input: DraftCandidateEmailInput
 ): Promise<RecruitmentAiEmailDraft> {
-  const model = input.model ?? MODEL_IDS.fast;
-  const result = await generateObject({
-    model: resolveModel(model),
-    prompt: buildCandidateEmailPrompt(input),
-    schema: recruitmentAiEmailDraftSchema,
-    instructions: RECRUITMENT_EMAIL_SYSTEM_PROMPT,
-    reasoning: "low",
-    // Provider-side retention follows the Anthropic account's data settings,
-    // not a per-request option.
-  });
+  const model = resolveModel(input.model ?? MODEL_IDS.fast);
+  const result = await traceAiCall(
+    {
+      functionId: "ai.recruitment-email",
+      model,
+      operation: "generate_object",
+    },
+    () =>
+      generateObject({
+        model,
+        prompt: buildCandidateEmailPrompt(input),
+        schema: recruitmentAiEmailDraftSchema,
+        instructions: RECRUITMENT_EMAIL_SYSTEM_PROMPT,
+        reasoning: "low",
+        // Provider-side retention follows the Anthropic account's data settings,
+        // not a per-request option.
+      })
+  );
   return result.object;
 }

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { traceAiCall } from "@repo/observability/ai";
 import {
   computeScreeningNormalizedScore,
   parseRecruitmentAiScreening,
@@ -152,14 +153,23 @@ export async function screenApplication(
   input: ScreenApplicationInput
 ): Promise<RecruitmentAiScreening> {
   const modelName = input.model ?? MODEL_IDS.balanced;
-  const result = await generateObject({
-    model: resolveModel(modelName),
-    prompt: buildPrompt(input),
-    schema: recruitmentAiScreeningOutputSchema,
-    instructions: SYSTEM_PROMPT,
-    // Provider-side retention follows the Anthropic account's data settings,
-    // not a per-request option.
-  });
+  const model = resolveModel(modelName);
+  const result = await traceAiCall(
+    {
+      functionId: "ai.recruitment-screening",
+      model,
+      operation: "generate_object",
+    },
+    () =>
+      generateObject({
+        model,
+        prompt: buildPrompt(input),
+        schema: recruitmentAiScreeningOutputSchema,
+        instructions: SYSTEM_PROMPT,
+        // Provider-side retention follows the Anthropic account's data settings,
+        // not a per-request option.
+      })
+  );
 
   // Metadata is stamped here rather than asked of the model — it cannot know
   // the wall clock or which model id the caller resolved. The 0–100 score is
