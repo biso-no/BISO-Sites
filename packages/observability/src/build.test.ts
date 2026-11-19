@@ -35,4 +35,10 @@ describe("sentryBuildOptions", () => {
     expect(typeof o.errorHandler).toBe("function");
     expect(() => o.errorHandler(new Error("boom"))).not.toThrow();
   });
+
+  it("drops the SDK's debug logging from the bundles", () => {
+    expect(sentryBuildOptions("web").bundleSizeOptimizations).toEqual({
+      excludeDebugStatements: true,
+    });
+  });
 });

@@ -41,6 +41,8 @@ export const sentryBuildOptions = (app: SentryApp) => {
     widenClientFileUpload: true,
     sourcemaps: { deleteSourcemapsAfterUpload: true },
     release: { name: release },
+    // Strips the SDK's own debug logging (not Sentry Logs) from every bundle.
+    bundleSizeOptimizations: { excludeDebugStatements: true },
     errorHandler: (err: Error): void => {
       console.warn("[sentry] source map upload failed", err.message);
     },
