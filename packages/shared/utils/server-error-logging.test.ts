@@ -61,4 +61,59 @@ describe("logServerRequestError", () => {
       })
     );
   });
+
+  it("logs no IP addresses, query strings or referer queries", () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    logServerRequestError({
+      app: "web",
+      error: new Error("boom"),
+      request: {
+        headers: {
+          "cf-connecting-ip": "84.215.12.34",
+          referer: "https://biso.no/x?userId=u1",
+          "user-agent": "Mozilla/5.0",
+          "X-Forwarded-For": "84.215.12.34, 10.0.0.1",
+          "x-real-ip": "84.215.12.34",
+        },
+        method: "GET",
+        path: "/auth/verify?secret=abc&userId=u1#frag",
+      },
+    });
+
+    const [, logged] = consoleError.mock.calls[0] as [
+      string,
+      { request: { headers: Record<string, unknown>; path: string } },
+    ];
+    expect(logged.request.path).toBe("/auth/verify");
+    expect(logged.request.headers).toEqual({
+      "cf-connecting-ip": "[redacted]",
+      referer: "https://biso.no/x",
+      "user-agent": "Mozilla/5.0",
+      "X-Forwarded-For": "[redacted]",
+      "x-real-ip": "[redacted]",
+    });
+    const text = JSON.stringify(consoleError.mock.calls);
+    expect(text).not.toContain("84.215.12.34");
+    expect(text).not.toContain("secret");
+    expect(text).not.toContain("u1");
+  });
+
+  it("keeps the path undefined when the request has none", () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    logServerRequestError({ app: "api", error: "boom" });
+    const [, logged] = consoleError.mock.calls[0] as [
+      string,
+      { request: { headers: unknown; path: unknown } },
+    ];
+    expect(logged.request).toEqual({
+      headers: {},
+      method: undefined,
+      path: undefined,
+    });
+  });
 });

@@ -94,7 +94,7 @@ Appwrite deletes execution logs after 14 days unless its server is set otherwise
 
 | Line | Written by | What it means |
 |---|---|---|
-| `[request-error]` | web, admin, api, docs | A request failed with an error nothing caught. The JSON that follows names the app, the method and path, and the error with its stack. Cookies, keys and `Authorization` headers are replaced with `[redacted]`. |
+| `[request-error]` | web, admin, api, docs | A request failed with an error nothing caught. The JSON that follows names the app, the method, the path without its query string, and the error with its stack. Cookies, keys, `Authorization` and client IP headers are replaced with `[redacted]`, and the referer loses its query string. |
 | `[appwrite] slow request` | Server code using `@repo/api` | One Appwrite call took 2 seconds or more (`APPWRITE_SLOW_REQUEST_MS`). |
 | `[appwrite] request timed out` | Server code using `@repo/api` | One Appwrite call was cut off after 8 seconds (`APPWRITE_REQUEST_TIMEOUT_MS`). The caller gets a `504` error of type `appwrite_timeout`. Many of these at once usually mean Appwrite itself is struggling. |
 | `[web] …` or `[admin] …` when the Site starts | web, admin | A start-up check failed. The line names the variable that's wrong. |

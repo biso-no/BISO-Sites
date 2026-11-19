@@ -206,6 +206,55 @@ describe("scrubEvent", () => {
   });
 });
 
+describe("key-aware scrubbing", () => {
+  it("redacts credential and IP keys and cleans path, url and referer keys", () => {
+    const event = {
+      extra: {
+        request: {
+          headers: {
+            Cookie: "a=b",
+            "set-cookie": ["s=1", "t=2"],
+            "X-Forwarded-For": "84.215.12.34",
+            forwarded: "for=84.215.12.34",
+            referer: "https://biso.no/x?userId=u1",
+            accept: "text/html",
+          },
+          path: "/auth/verify?secret=abc",
+          cookie: { session: "s" },
+        },
+        "url.path": "/a?b=c",
+      },
+    } as unknown as ErrorEvent;
+    expect(scrubEvent(event).extra).toEqual({
+      request: {
+        headers: {
+          Cookie: REDACTED,
+          "set-cookie": [REDACTED, REDACTED],
+          "X-Forwarded-For": REDACTED,
+          forwarded: REDACTED,
+          referer: "https://biso.no/x",
+          accept: "text/html",
+        },
+        path: "/auth/verify",
+        cookie: REDACTED,
+      },
+      "url.path": "/a",
+    });
+  });
+
+  it("keeps an attribute object's shape under a credential key", () => {
+    const metric = {
+      name: "m",
+      type: "counter",
+      value: 1,
+      attributes: { authorization: { value: "Bearer t", type: "string" } },
+    } as unknown as Metric;
+    expect(scrubMetric(metric).attributes).toEqual({
+      authorization: { value: REDACTED, type: "string" },
+    });
+  });
+});
+
 describe("scrubBreadcrumb", () => {
   it("scrubs message and url data", () => {
     const out = scrubBreadcrumb({

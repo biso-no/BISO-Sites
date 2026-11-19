@@ -1,4 +1,4 @@
-import { SENSITIVE_HEADERS } from "@repo/observability/scrub";
+import { redactHeaders, scrubUrl } from "@repo/observability/scrub";
 
 type HeaderValue = string | string[] | undefined;
 
@@ -16,21 +16,6 @@ interface LogServerRequestErrorInput {
   error: unknown;
   request?: ServerRequest;
 }
-
-const redactHeaders = (
-  headers: Record<string, HeaderValue> | undefined
-): Record<string, HeaderValue> => {
-  if (!headers) {
-    return {};
-  }
-
-  return Object.fromEntries(
-    Object.entries(headers).map(([key, value]) => [
-      key,
-      SENSITIVE_HEADERS.has(key.toLowerCase()) ? "[redacted]" : value,
-    ])
-  );
-};
 
 const serializeError = (error: unknown) => {
   if (error instanceof Error) {
@@ -56,6 +41,8 @@ export const logServerRequestError = ({
   error,
   request,
 }: LogServerRequestErrorInput) => {
+  // Credentials and IP addresses redacted, query strings dropped: this line
+  // reaches stdout and Sentry's logs.
   console.error("[request-error]", {
     app,
     context: context ?? {},
@@ -63,7 +50,7 @@ export const logServerRequestError = ({
     request: {
       headers: redactHeaders(request?.headers),
       method: request?.method,
-      path: request?.path,
+      path: request?.path === undefined ? undefined : scrubUrl(request.path),
     },
     timestamp: new Date().toISOString(),
   });

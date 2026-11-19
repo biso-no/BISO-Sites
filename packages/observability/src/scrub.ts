@@ -40,7 +40,7 @@ const EMBEDDED_URL = /https?:\/\/[^\s"'<>]*/g;
 const SECRET_PAIR =
   /(^|[^A-Za-z0-9_])((?:[A-Za-z0-9]+[_-]){0,6}(?:secret|code|state|token|userId|password))=[^&\s"'<>#]*/gi;
 const URL_SUFFIX = /[?#].*$/s;
-const URL_KEY = /(^|\.)(url|full|target)$|^url/i;
+const URL_KEY = /(^|\.)(url|full|target|path|referer|referrer)$|^url/i;
 const DROPPED_SPAN_ATTRIBUTES = ["http.query", "url.query"];
 
 type HeaderValue = string | string[] | undefined;
@@ -99,8 +99,17 @@ export const redactHeaders = (
 const isPlainObject = (value: unknown): value is Mutable =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
+/** Keys whose values are credentials or IP addresses wherever they appear. */
+const isSecretKey = (key: string): boolean => {
+  const name = key.toLowerCase();
+  return SENSITIVE_HEADERS.has(name) || IP_HEADERS.has(name);
+};
+
 const scrubValue = (key: string, value: unknown, depth = 0): unknown => {
   if (typeof value === "string") {
+    if (isSecretKey(key)) {
+      return REDACTED;
+    }
     return URL_KEY.test(key) ? scrubUrl(value) : scrubText(value);
   }
   if (depth > MAX_DEPTH) {
@@ -110,13 +119,15 @@ const scrubValue = (key: string, value: unknown, depth = 0): unknown => {
     return value.map((item) => scrubValue(key, item, depth + 1));
   }
   if (isPlainObject(value)) {
-    const out = scrubRecord(value, depth + 1);
     // Attribute objects ({ value, unit }): the value inherits the attribute's
     // key, so a URL attribute is still scrubbed as a URL.
     if ("value" in value) {
-      out.value = scrubValue(key, value.value, depth + 1);
+      return {
+        ...scrubRecord(value, depth + 1),
+        value: scrubValue(key, value.value, depth + 1),
+      };
     }
-    return out;
+    return isSecretKey(key) ? REDACTED : scrubRecord(value, depth + 1);
   }
   return value;
 };
