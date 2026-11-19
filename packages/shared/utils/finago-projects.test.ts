@@ -8,6 +8,7 @@ import {
   aggregateUsage,
   departmentCandidates,
   editionTiming,
+  nameMonth,
   parseProjectName,
   shareClass,
 } from "./finago-projects";
@@ -78,6 +79,13 @@ describe("parseProjectName", () => {
     ["Ball 18", "ball", 2018],
     ["24Sevenoffice", "24sevenoffice", null],
     ["BISO-Lunsj", "biso-lunsj", null],
+    ["KD (2026)", "kd", 2026],
+    ["BBL-2026", "bbl", 2026],
+    ["Wintergames 2026/2027", "wintergames", 2026],
+    ["HR samling okt 2026", "hr samling", 2026],
+    ["HR samling 2026 oktober", "hr samling", 2026],
+    // "jul" is Christmas in Norwegian, never a month.
+    ["BISO Jul 2026", "biso jul", 2026],
   ])("%s → %s, %s", (name, series, year) => {
     expect(parseProjectName(name)).toEqual({ series, year });
   });
@@ -116,6 +124,21 @@ describe("parseProjectName", () => {
       series: "mars",
       year: 2026,
     });
+  });
+});
+
+describe("nameMonth", () => {
+  it.each([
+    ["Landsmøte mars 2026", 3],
+    ["HR samling 2026 oktober", 10],
+    ["Academics samling oktober2026", 10],
+    ["HR samling okt 2026", 10],
+    ["Leader summit Oct. 2026", 10],
+    ["Samling i september 2026 - External", 9],
+    ["BISO Jul 2026", null],
+    ["Wintergames 2027", null],
+  ])("%s → %s", (name, month) => {
+    expect(nameMonth(name)).toBe(month);
   });
 });
 
@@ -379,7 +402,7 @@ describe("editionTiming", () => {
     expect(timing.missing).toBeNull();
   });
 
-  it("a future edition's preparation peak is unused when past editions have no bookings", () => {
+  it("with no usable past, a future edition's preparation peak is placed in its own year", () => {
     const timing = editionTiming({
       editions: [
         named("W26", "Wintergames 2026"),
@@ -390,9 +413,187 @@ describe("editionTiming", () => {
       receiptDate: "2026-11-05",
       series: "wintergames",
     });
-    expect(timing.editions.map((e) => e.eventDate)).toEqual([null, null]);
-    expect(timing.suggested).toBeNull();
+    expect(timing.editions.find((e) => e.projectId === "W27")?.eventDate).toBe(
+      "2027-10-01"
+    );
+    expect(timing.suggested).toBe("W27");
     expect(timing.missing).toBeNull();
+  });
+
+  it("an old edition without lines does not block the newest edition's own peak", () => {
+    const timing = editionTiming({
+      editions: [
+        named("B18", "Ball 18"),
+        named("B26", "Ball 2026", {
+          peak_date: "2026-04-20T00:00:00.000+00:00",
+        }),
+      ],
+      receiptDate: "2026-11-19",
+      series: "ball",
+    });
+    expect(timing.editions.find((e) => e.projectId === "B26")?.eventDate).toBe(
+      "2026-04-20"
+    );
+    expect(timing.suggested).toBeNull();
+    expect(timing.missing).toEqual({ series: "ball", year: 2027 });
+  });
+
+  it.each([
+    "2026-05-10",
+    "2026-11-19",
+  ])("a past edition's peak outside its own year is ignored (receipt %s)", (receiptDate) => {
+    // Real Landsmøte history with the months taken out of the names: the
+    // 2021 project got 4 stray lines in March 2026, and the 2024 edition
+    // only has late invoices around new year.
+    const timing = editionTiming({
+      editions: [
+        named("48", "Landsmøte 2021", {
+          line_count: 4,
+          peak_date: "2026-03-23T00:00:00.000+00:00",
+        }),
+        named("87", "Landsmøte 2024", {
+          line_count: 4,
+          peak_date: "2025-01-15T00:00:00.000+00:00",
+        }),
+        named("110", "Landsmøte 2025", {
+          line_count: 155,
+          peak_date: "2025-03-05T00:00:00.000+00:00",
+        }),
+        named("124", "Landsmøte 2026", {
+          line_count: 151,
+          peak_date: "2026-03-05T00:00:00.000+00:00",
+        }),
+      ],
+      receiptDate,
+      series: "landsmøte",
+    });
+    expect(timing.editions.find((e) => e.projectId === "124")?.eventDate).toBe(
+      "2026-03-05"
+    );
+    expect(timing.suggested).toBeNull();
+    expect(timing.missing).toEqual({ series: "landsmøte", year: 2027 });
+  });
+
+  it.each([
+    "2026-05-10",
+    "2026-11-19",
+  ])("Landsmøte as named in Finago is held in March (receipt %s)", (receiptDate) => {
+    const timing = editionTiming({
+      editions: [
+        named("48", "Landsmøte 2021", {
+          line_count: 4,
+          peak_date: "2026-03-23T00:00:00.000+00:00",
+        }),
+        named("87", "Landsmøte mars 2024", {
+          line_count: 4,
+          peak_date: "2024-12-25T00:00:00.000+00:00",
+        }),
+        named("110", "Landsmøte mars 2025", {
+          line_count: 155,
+          peak_date: "2025-03-05T00:00:00.000+00:00",
+        }),
+        named("124", "Landsmøte mars 2026", {
+          line_count: 151,
+          peak_date: "2026-03-05T00:00:00.000+00:00",
+        }),
+      ],
+      receiptDate,
+      series: "landsmøte",
+    });
+    expect(timing.suggested).toBeNull();
+    expect(timing.missing).toEqual({ series: "landsmøte", year: 2027 });
+  });
+
+  it("one 4-line stray doesn't move the estimate", () => {
+    const timing = editionTiming({
+      editions: [
+        named("F24", "Fadderullan 2024", {
+          line_count: 4,
+          peak_date: "2024-12-20T00:00:00.000+00:00",
+        }),
+        named("F25", "Fadderullan 2025", {
+          line_count: 258,
+          peak_date: "2025-08-12T00:00:00.000+00:00",
+        }),
+        named("F26", "Fadderullan 2026", { line_count: 320 }),
+      ],
+      receiptDate: "2026-05-01",
+      series: "fadderullan",
+    });
+    expect(timing.editions.find((e) => e.projectId === "F26")?.eventDate).toBe(
+      "2026-08-12"
+    );
+  });
+
+  it("a past edition's finance date drives the estimate", () => {
+    const timing = editionTiming({
+      editions: [
+        named("K25", "KD 2025", {
+          event_date: "2025-02-20T00:00:00.000+00:00",
+          // Preparation spending before the event.
+          peak_date: "2024-12-01T00:00:00.000+00:00",
+        }),
+        named("K26", "KD 2026"),
+      ],
+      receiptDate: "2026-01-10",
+      series: "kd",
+    });
+    expect(timing.editions.find((e) => e.projectId === "K26")).toMatchObject({
+      eventDate: "2026-02-20",
+      eventDateSource: "bookings",
+    });
+    expect(timing.suggested).toBe("K26");
+  });
+
+  it("a month in the name tells two editions of one year apart", () => {
+    const timing = editionTiming({
+      editions: [
+        named("H3", "HR samling mars 2026"),
+        named("H4", "HR samling 2026 oktober"),
+      ],
+      receiptDate: "2026-09-01",
+      series: "hr samling",
+    });
+    expect(timing.editions).toEqual([
+      {
+        eventDate: "2026-03-15",
+        eventDateSource: "name",
+        name: "HR samling mars 2026",
+        projectId: "H3",
+        year: 2026,
+      },
+      {
+        eventDate: "2026-10-15",
+        eventDateSource: "name",
+        name: "HR samling 2026 oktober",
+        projectId: "H4",
+        year: 2026,
+      },
+    ]);
+    expect(timing.suggested).toBe("H4");
+    expect(timing.missing).toBeNull();
+  });
+
+  it("the name's month wins over the bookings, a website date over the name", () => {
+    const timing = editionTiming({
+      editions: [
+        named("L25", "Landsmøte mars 2025", {
+          peak_date: "2025-03-05T00:00:00.000+00:00",
+        }),
+        named("L26", "Landsmøte mars 2026", {
+          peak_date: "2026-02-01T00:00:00.000+00:00",
+        }),
+      ],
+      receiptDate: "2026-01-10",
+      series: "landsmøte",
+      websiteEventDates: new Map([["L25", "2025-03-08"]]),
+    });
+    expect(
+      timing.editions.map((e) => [e.eventDate, e.eventDateSource])
+    ).toEqual([
+      ["2025-03-08", "website"],
+      ["2026-03-15", "name"],
+    ]);
   });
 
   it("with one edition, its peak's day of the year is placed in its own year", () => {
@@ -619,7 +820,22 @@ describe("editionTiming", () => {
       series: "kd",
     });
     expect(timing.suggested).toBeNull();
+    expect(timing.inactiveNext).toBe("K26");
     expect(timing.missing).toBeNull();
+  });
+
+  it("an active next edition is not reported as closed", () => {
+    const timing = editionTiming({
+      editions: [
+        named("K26", "KD 2026", {
+          event_date: "2026-02-04T00:00:00.000+00:00",
+        }),
+      ],
+      receiptDate: "2026-01-20",
+      series: "kd",
+    });
+    expect(timing.suggested).toBe("K26");
+    expect(timing.inactiveNext).toBeNull();
   });
 
   it("an inactive edition is never recently held", () => {
@@ -639,8 +855,10 @@ describe("editionTiming", () => {
   it("a newest edition without a date is not reported missing", () => {
     const timing = editionTiming({
       editions: [
-        named("W26", "Wintergames 2026", {
+        // Dated but without a year, so it says nothing about other years.
+        named("WX", "Wintergames", {
           event_date: "2026-02-10T00:00:00.000+00:00",
+          series: "wintergames",
         }),
         named("W27", "Wintergames 2027"),
       ],

@@ -47,34 +47,51 @@ function newYear(year: number): number {
 // --- Names ------------------------------------------------------------------
 
 const FOUR_DIGIT_YEAR = /(?<!\d)(?:19|20)\d{2}(?!\d)/;
+const FOUR_DIGIT_YEARS = /(?<!\d)(?:19|20)\d{2}(?!\d)/g;
 const TWO_DIGITS = /^\d{2}$/;
-const SEPARATOR_ONLY = /^[-–—_/,.:;|]+$/;
+/** Anything but letters and digits at the start or end of a word. */
+const WORD_EDGES = /^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu;
 const WHITESPACE = /\s+/;
 const TWO_DIGIT_CENTURY = 2000;
 
-const MONTH_WORDS = new Set([
-  // Norwegian
-  "januar",
-  "februar",
-  "mars",
-  "april",
-  "mai",
-  "juni",
-  "juli",
-  "august",
-  "september",
-  "oktober",
-  "november",
-  "desember",
-  // English (the rest are spelt the same)
-  "january",
-  "february",
-  "march",
-  "may",
-  "june",
-  "july",
-  "october",
-  "december",
+/**
+ * Month words, Norwegian and English, full and abbreviated. Not "jul": it is
+ * Christmas in Norwegian (`BISO Jul 2026`).
+ */
+const MONTHS = new Map<string, number>([
+  ["januar", 1],
+  ["january", 1],
+  ["jan", 1],
+  ["februar", 2],
+  ["february", 2],
+  ["feb", 2],
+  ["mars", 3],
+  ["march", 3],
+  ["mar", 3],
+  ["april", 4],
+  ["apr", 4],
+  ["mai", 5],
+  ["may", 5],
+  ["juni", 6],
+  ["june", 6],
+  ["jun", 6],
+  ["juli", 7],
+  ["july", 7],
+  ["august", 8],
+  ["aug", 8],
+  ["september", 9],
+  ["sept", 9],
+  ["sep", 9],
+  ["oktober", 10],
+  ["october", 10],
+  ["okt", 10],
+  ["oct", 10],
+  ["november", 11],
+  ["nov", 11],
+  ["desember", 12],
+  ["december", 12],
+  ["des", 12],
+  ["dec", 12],
 ]);
 
 export interface ParsedProjectName {
@@ -82,50 +99,76 @@ export interface ParsedProjectName {
   year: number | null;
 }
 
-function words(text: string): string[] {
-  return text.split(WHITESPACE).filter((word) => word.length > 0);
+interface NameParts {
+  /** The 4-digit year, if the name has one. */
+  fourDigitYear: number | null;
+  /** The lowercased name, whitespace collapsed. */
+  text: string;
+  /** Its words with every 4-digit year taken out and edge punctuation trimmed. */
+  words: string[];
+}
+
+function nameParts(name: string): NameParts {
+  const text = name
+    .normalize("NFC")
+    .toLowerCase()
+    .split(WHITESPACE)
+    .filter((word) => word.length > 0)
+    .join(" ");
+  const year = FOUR_DIGIT_YEAR.exec(text);
+  const words = text
+    .replace(FOUR_DIGIT_YEARS, " ")
+    .split(WHITESPACE)
+    .map((word) => word.replace(WORD_EDGES, ""))
+    .filter((word) => word.length > 0);
+  return { fourDigitYear: year ? Number(year[0]) : null, text, words };
 }
 
 /**
- * The series left once the year is gone: month words and lone separators
- * dropped. A name that is nothing but a month (or a year) keeps what it has.
+ * The series from the words left once the year is gone, month words dropped.
+ * A name that is nothing but a month (or a year) keeps what it has.
  */
-function seriesFrom(rest: string, whole: string): string {
-  const kept = words(rest).filter((word) => !SEPARATOR_ONLY.test(word));
-  const withoutMonths = kept.filter((word) => !MONTH_WORDS.has(word));
+function seriesFrom(words: string[], whole: string): string {
+  const withoutMonths = words.filter((word) => !MONTHS.has(word));
   if (withoutMonths.length > 0) {
     return withoutMonths.join(" ");
   }
-  return kept.length > 0 ? kept.join(" ") : whole;
+  return words.length > 0 ? words.join(" ") : whole;
 }
 
 /**
- * Series and year from a Finago project name. The year is a 4-digit 19xx/20xx
- * anywhere (also glued to a month: `oktober2026`), else a final 2-digit word
- * when the name has at least two words (`Fadderullan 17` → 2017). The series
- * is the lowercased name without the year and month words.
+ * Series and year from a Finago project name. The year is the first 4-digit
+ * 19xx/20xx anywhere (also glued: `oktober2026`, `BBL-2026`), else a final
+ * 2-digit word when the name has at least two words (`Fadderullan 17` →
+ * 2017). The series is the lowercased name without any 4-digit year, month
+ * words, or brackets/dashes/slashes at word edges (`KD (2026)` → `kd`).
  */
 export function parseProjectName(name: string): ParsedProjectName {
-  const all = words(name.normalize("NFC").toLowerCase());
-  const text = all.join(" ");
-
-  const fourDigit = FOUR_DIGIT_YEAR.exec(text);
-  if (fourDigit) {
-    return {
-      series: seriesFrom(text.replace(FOUR_DIGIT_YEAR, " "), text),
-      year: Number(fourDigit[0]),
-    };
+  const { fourDigitYear, text, words } = nameParts(name);
+  if (fourDigitYear !== null) {
+    return { series: seriesFrom(words, text), year: fourDigitYear };
   }
 
-  const last = all.at(-1);
-  if (all.length >= 2 && last && TWO_DIGITS.test(last)) {
+  const last = words.at(-1);
+  if (words.length >= 2 && last && TWO_DIGITS.test(last)) {
     return {
-      series: seriesFrom(all.slice(0, -1).join(" "), text),
+      series: seriesFrom(words.slice(0, -1), text),
       year: TWO_DIGIT_CENTURY + Number(last),
     };
   }
 
-  return { series: seriesFrom(text, text), year: null };
+  return { series: seriesFrom(words, text), year: null };
+}
+
+/** The month (1–12) a project's name mentions (`mars 2026`, `okt 2026`), if any. */
+export function nameMonth(name: string): number | null {
+  for (const word of nameParts(name).words) {
+    const month = MONTHS.get(word);
+    if (month !== undefined) {
+      return month;
+    }
+  }
+  return null;
 }
 
 /** A project row's series, parsed from its name if the row has none yet. */
@@ -396,8 +439,12 @@ export function departmentCandidates(input: {
 
 /** Days after an event in which a receipt may still be an after-event cost. */
 export const RECENTLY_HELD_DAYS = 30;
+/** The day an event is placed on when its name gives only the month. */
+const NAME_MONTH_DAY = 15;
+/** A past edition's peak counts from 1 July (month index 6) of the year before. */
+const PLAUSIBLE_FROM_MONTH = 6;
 
-export type EventDateSource = "finance" | "website" | "bookings";
+export type EventDateSource = "finance" | "website" | "name" | "bookings";
 
 export interface EditionTiming {
   eventDate: string | null;
@@ -409,6 +456,8 @@ export interface EditionTiming {
 
 export interface SeriesTiming {
   editions: EditionTiming[];
+  /** The next edition when it is closed in Finago, so nothing is suggested. */
+  inactiveNext: string | null;
   /** Next year's edition, when the receipt is after every edition and it isn't in Finago yet. */
   missing: { series: string; year: number } | null;
   /** An active edition held within 30 days before the receipt. */
@@ -417,54 +466,133 @@ export interface SeriesTiming {
   suggested: string | null;
 }
 
-function median(values: number[]): number | null {
-  if (values.length === 0) {
-    return null;
-  }
-  const sorted = [...values].sort((a, b) => a - b);
-  const middle = Math.floor(sorted.length / 2);
-  if (sorted.length % 2 === 1) {
-    return sorted[middle] ?? null;
-  }
-  return Math.round(((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2);
+/** A day in an edition's life, as days from 1 January of its year. */
+interface Anchor {
+  offset: number;
+  weight: number;
 }
 
 /**
- * The series' usual event day, as days from 1 January of an edition's year.
- *
- * From past editions (year below the newest): the median of each one's peak
- * counted from 1 January of its own year. Counting from the edition's year
- * rather than the peak's keeps a series held around new year together (a
- * peak on 30 Dec before the 2025 edition is -2, one on 3 Jan 2026 is +2).
- * A future edition's own peak never counts: it is preparation spending.
- *
- * With one year only, there is no past: its peak's day of the year is placed
- * in its own year. If past editions exist but none has a peak, null.
+ * The offset where half the weight lies on either side. When the halves meet
+ * exactly between two offsets, their mean, rounded (so with equal weights
+ * this is the ordinary median).
  */
-function usualEventDay(editions: FinagoProjects[]): number | null {
+function weightedMedian(anchors: Anchor[]): number | null {
+  const sorted = [...anchors].sort((a, b) => a.offset - b.offset);
+  const total = sorted.reduce((sum, anchor) => sum + anchor.weight, 0);
+  let below = 0;
+  for (const [index, anchor] of sorted.entries()) {
+    below += anchor.weight;
+    if (below * 2 > total) {
+      return anchor.offset;
+    }
+    if (below * 2 === total) {
+      const next = sorted[index + 1]?.offset ?? anchor.offset;
+      return Math.round((anchor.offset + next) / 2);
+    }
+  }
+  return null;
+}
+
+/** The edition's own event day: finance > website > the month in its name. */
+function ownEventDay(
+  edition: FinagoProjects,
+  websiteEventDates: Map<string, string> | undefined
+): { day: number; source: EventDateSource } | null {
+  const finance = dayNumber(edition.event_date);
+  if (finance !== null) {
+    return { day: finance, source: "finance" };
+  }
+  const website = dayNumber(websiteEventDates?.get(edition.project_id));
+  if (website !== null) {
+    return { day: website, source: "website" };
+  }
+  const month = nameMonth(edition.name);
+  if (month !== null && edition.year !== null) {
+    const day = Date.UTC(edition.year, month - 1, NAME_MONTH_DAY) / DAY_MS;
+    return { day, source: "name" };
+  }
+  return null;
+}
+
+/**
+ * A past edition's peak, if it is plausibly that edition's: from 1 July of
+ * the year before through 31 December of its year. Late invoices months
+ * after, or stray lines years later, fall outside.
+ */
+function peakInOwnWindow(edition: FinagoProjects): number | null {
+  const peak = dayNumber(edition.peak_date);
+  if (peak === null || edition.year === null) {
+    return null;
+  }
+  const from = Date.UTC(edition.year - 1, PLAUSIBLE_FROM_MONTH, 1) / DAY_MS;
+  const through = newYear(edition.year + 1) - 1;
+  return peak >= from && peak <= through ? peak : null;
+}
+
+/** Bigger editions count more, so a few stray lines don't move the median. */
+function weightOf(edition: FinagoProjects): number {
+  return Math.max(edition.line_count, 1);
+}
+
+/**
+ * Past editions' event days (own date, else an in-window peak), counted from
+ * 1 January of each edition's own year. Counting from the edition's year
+ * rather than the date's keeps a series held around new year together (30
+ * Dec before the 2025 edition is -2, 3 Jan 2026 is +2).
+ */
+function pastAnchors(
+  editions: FinagoProjects[],
+  newest: number,
+  websiteEventDates: Map<string, string> | undefined
+): Anchor[] {
+  return editions.flatMap((edition) => {
+    if (edition.year === null || edition.year >= newest) {
+      return [];
+    }
+    const day =
+      ownEventDay(edition, websiteEventDates)?.day ?? peakInOwnWindow(edition);
+    if (day === null) {
+      return [];
+    }
+    return [{ offset: day - newYear(edition.year), weight: weightOf(edition) }];
+  });
+}
+
+/**
+ * The newest year's own peaks, by day of their calendar year: a peak may be
+ * preparation spending the year before, so it is placed in the edition's own
+ * year rather than taken as its date.
+ */
+function newestAnchors(editions: FinagoProjects[], newest: number): Anchor[] {
+  return editions.flatMap((edition) => {
+    const peak = dayNumber(edition.peak_date);
+    if (edition.year !== newest || peak === null) {
+      return [];
+    }
+    const peakYear = new Date(peak * DAY_MS).getUTCFullYear();
+    return [{ offset: peak - newYear(peakYear), weight: weightOf(edition) }];
+  });
+}
+
+/**
+ * The series' usual event day, as days from 1 January of an edition's year:
+ * the line-weighted median over past editions (year below the newest). A
+ * future edition's own peak never counts while there is a usable past; with
+ * none, the newest year's own peaks are used.
+ */
+function usualEventDay(
+  editions: FinagoProjects[],
+  websiteEventDates: Map<string, string> | undefined
+): number | null {
   const years = editions.flatMap((e) => (e.year === null ? [] : [e.year]));
   if (years.length === 0) {
     return null;
   }
   const newest = Math.max(...years);
-  const past = editions.filter((e) => e.year !== null && e.year < newest);
-
-  if (past.length > 0) {
-    return median(
-      past.flatMap((e) => {
-        const peak = dayNumber(e.peak_date);
-        return peak === null || e.year === null ? [] : [peak - newYear(e.year)];
-      })
-    );
-  }
-  return median(
-    editions.flatMap((e) => {
-      const peak = dayNumber(e.peak_date);
-      if (peak === null) {
-        return [];
-      }
-      return [peak - newYear(new Date(peak * DAY_MS).getUTCFullYear())];
-    })
+  const past = pastAnchors(editions, newest, websiteEventDates);
+  return weightedMedian(
+    past.length > 0 ? past : newestAnchors(editions, newest)
   );
 }
 
@@ -473,13 +601,9 @@ function eventDateOf(
   websiteEventDates: Map<string, string> | undefined,
   usualDay: number | null
 ): Pick<EditionTiming, "eventDate" | "eventDateSource"> {
-  const finance = dayNumber(edition.event_date);
-  if (finance !== null) {
-    return { eventDate: isoDay(finance), eventDateSource: "finance" };
-  }
-  const website = dayNumber(websiteEventDates?.get(edition.project_id));
-  if (website !== null) {
-    return { eventDate: isoDay(website), eventDateSource: "website" };
+  const own = ownEventDay(edition, websiteEventDates);
+  if (own) {
+    return { eventDate: isoDay(own.day), eventDateSource: own.source };
   }
   if (edition.year !== null && usualDay !== null) {
     return {
@@ -531,13 +655,15 @@ function missingEdition(
 
 /**
  * When each edition of a series is held, and which one a receipt belongs to.
- * Event date: finance's `event_date` > a website event > the series' usual
- * day placed in the edition's year (editions without a year get none).
+ * Event date: finance's `event_date` > a website event > the month in the
+ * name (the 15th) > the series' usual day placed in the edition's year
+ * (editions without a year get none).
  * A receipt belongs to the next edition not yet held on its date; an edition
  * held in the 30 days before is `recentlyHeld` (after-event costs, decided
  * from the receipt's content). If every edition is already held, next
  * year's edition is `missing` instead of last year's being suggested.
- * Inactive editions are never suggested or recently held.
+ * Inactive editions are never suggested or recently held; a closed next
+ * edition is reported as `inactiveNext`.
  */
 export function editionTiming(input: {
   editions: FinagoProjects[];
@@ -549,7 +675,7 @@ export function editionTiming(input: {
   const editions = input.editions
     .filter((edition) => seriesOf(edition) === input.series)
     .sort(byYear);
-  const usualDay = usualEventDay(editions);
+  const usualDay = usualEventDay(editions, input.websiteEventDates);
 
   const timed: TimedEdition[] = editions.map((edition) => {
     const timing: EditionTiming = {
@@ -577,6 +703,7 @@ export function editionTiming(input: {
 
   return {
     editions: timed.map((t) => t.timing),
+    inactiveNext: next && !next.edition.active ? next.edition.project_id : null,
     missing:
       upcoming.length === 0
         ? missingEdition(input.series, timed, receipt)
