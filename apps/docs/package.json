@@ -18,8 +18,11 @@
   "dependencies": {
     "@repo/ai": "workspace:*",
     "@repo/api": "workspace:*",
+    "@repo/observability": "workspace:*",
     "@repo/shared": "workspace:*",
     "@repo/ui": "workspace:*",
+    "@sentry/bun": "catalog:",
+    "@sentry/nextjs": "catalog:",
     "ai": "catalog:",
     "fumadocs-core": "catalog:",
     "fumadocs-mdx": "catalog:",
