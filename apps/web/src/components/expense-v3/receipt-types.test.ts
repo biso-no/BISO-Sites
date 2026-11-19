@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ApiError } from "@/lib/api-error";
 import {
   attachmentTypeFields,
+  isAmountMissing,
   missingTypes,
   needsType,
   occasionRequired,
@@ -314,13 +315,60 @@ describe("submitGaps", () => {
         options,
         " "
       )
-    ).toEqual({ occasionMissing: true, typesMissing: true });
+    ).toEqual({
+      amountsMissing: false,
+      occasionMissing: true,
+      typesMissing: true,
+    });
     expect(
       submitGaps([receipt({ costType: "social" })], options, "Board meeting")
-    ).toEqual({ occasionMissing: false, typesMissing: false });
-    expect(submitGaps([receipt({ costType: "travel" })], options, "")).toEqual({
+    ).toEqual({
+      amountsMissing: false,
       occasionMissing: false,
       typesMissing: false,
     });
+    expect(submitGaps([receipt({ costType: "travel" })], options, "")).toEqual({
+      amountsMissing: false,
+      occasionMissing: false,
+      typesMissing: false,
+    });
+  });
+});
+
+describe("the amount of a receipt that could not be read", () => {
+  it("is missing until the student enters it", () => {
+    expect(isAmountMissing(receipt({ amount: 0, scanFailed: true }))).toBe(
+      true
+    );
+    expect(isAmountMissing(receipt({ amount: 120, scanFailed: true }))).toBe(
+      false
+    );
+  });
+
+  it("is not asked of a linked statement or a reopened supporting document", () => {
+    expect(
+      isAmountMissing(receipt({ amount: 0, parentId: "r0", scanFailed: true }))
+    ).toBe(false);
+    expect(isAmountMissing(receipt({ amount: 0 }))).toBe(false);
+  });
+
+  it("blocks submit instead of sending it as a supporting document", () => {
+    expect(
+      submitGaps([receipt({ amount: 0, scanFailed: true })], options, "")
+    ).toEqual({
+      amountsMissing: true,
+      occasionMissing: false,
+      typesMissing: false,
+    });
+  });
+
+  it("asks for the amount on the row", () => {
+    expect(receiptNotices(receipt({ amount: 0, scanFailed: true }))).toEqual([
+      "scan_failed",
+      "amount_missing",
+    ]);
+    expect(receiptNotices(receipt({ amount: 120, scanFailed: true }))).toEqual([
+      "scan_failed",
+    ]);
   });
 });

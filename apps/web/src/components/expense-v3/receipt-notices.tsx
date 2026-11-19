@@ -9,7 +9,9 @@ import type { Receipt } from "./store";
 
 /**
  * The receipt check's findings and the duplicate catch, as plain notices.
- * They never block submission; the approver sees them as hints too.
+ * They never block submission; the approver sees them as hints too. The one
+ * exception is a receipt that could not be read and has no amount yet: it
+ * asks for the amount, and submit waits for it.
  */
 export function ReceiptNotices({
   className,

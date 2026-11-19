@@ -276,6 +276,7 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => ({
       state.selectedCampusId !== "" &&
       state.selectedDepartmentId !== "" &&
       state.profile.bank_account !== undefined &&
+      !gaps.amountsMissing &&
       !gaps.typesMissing &&
       !gaps.occasionMissing
     );

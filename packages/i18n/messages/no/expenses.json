@@ -121,6 +121,7 @@
       "occasionPlaceholder": "F.eks. styremøte, seks styremedlemmer",
       "occasionError": "Svar på dette før du sender inn",
       "occasionSuggested": "Foreslått ut fra kvitteringene. Sjekk og endre om nødvendig.",
+      "submitHintAmounts": "Skriv inn beløpet for kvitteringene vi ikke klarte å lese",
       "submitHintTypes": "Velg type for alle kvitteringene",
       "submitHintOccasion": "Fyll inn anledningen og hvem det var for",
       "eventLabel": "Arrangement",
@@ -207,6 +208,7 @@
       "missing_total": "Kvitteringen mangler totalbeløp",
       "possible_duplicate": "Ser ut som en kvittering som allerede er sendt inn",
       "scan_failed": "Vi klarte ikke å lese kvitteringen. Fyll inn selv, eller prøv igjen.",
+      "amount_missing": "Skriv inn beløpet fra kvitteringen.",
       "retry": "Prøv igjen"
     }
   }
