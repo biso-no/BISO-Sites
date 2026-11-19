@@ -187,7 +187,7 @@ export function nameMonth(name: string): number | null {
 }
 
 /** A project row's series, parsed from its name if the row has none yet. */
-function seriesOf(project: FinagoProjects): string {
+export function seriesOf(project: FinagoProjects): string {
   return project.series ?? parseProjectName(project.name).series;
 }
 

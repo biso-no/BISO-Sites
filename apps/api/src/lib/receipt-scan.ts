@@ -345,7 +345,7 @@ export function clean(value: string | number): string {
 // arrows could close the quote and claim another type.
 const EXAMPLE_MARKUP = /["→]|->/g;
 
-function cleanExampleText(value: string): string {
+export function cleanExampleText(value: string): string {
   return clean(value.replace(EXAMPLE_MARKUP, " ")).trim();
 }
 
