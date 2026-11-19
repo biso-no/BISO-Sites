@@ -8,6 +8,11 @@ vi.mock("@repo/ai/models", () => ({
   fastModel: "f",
   MODEL_IDS: { balanced: "balanced-id", fast: "fast-id" },
 }));
+vi.mock("@repo/observability/ai", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@repo/observability/ai")>();
+  return { ...actual, traceAiCall: vi.fn(actual.traceAiCall) };
+});
 
 const flags = vi.hoisted(() => ({ expenses_module: true, expenses_ocr: true }));
 vi.mock("@repo/shared/utils/feature-flags-server", () => ({
@@ -50,6 +55,7 @@ vi.mock("./receipt-date", async (importOriginal) => ({
   todayInOslo: () => "2026-11-11",
 }));
 
+import { traceAiCall } from "@repo/observability/ai";
 import {
   mergeLegacyDraft,
   parseExpensePayload,
@@ -595,6 +601,11 @@ describe("chooseAccountForText", () => {
       accountNumber: 7400,
       confidence: 0.7,
       reason: "fits",
+    });
+    expect(vi.mocked(traceAiCall).mock.calls.at(-1)?.[0]).toEqual({
+      functionId: "api.expense-account",
+      model: "f",
+      operation: "generate_object",
     });
   });
 
