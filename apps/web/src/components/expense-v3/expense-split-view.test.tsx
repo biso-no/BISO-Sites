@@ -856,6 +856,75 @@ describe("ExpenseSplitView failed scan", () => {
     expect(byName("second.jpg")?.bankStatementId).toBeUndefined();
   });
 
+  it("a statement linked on retry stays with its receipt when another file finishes later", async () => {
+    uploadsAs("f-receipt", "f-statement", "f-second");
+    let finishSecond: (value: unknown) => void = () => undefined;
+    const reads = new Map<string, number>();
+    fetchFormData.mockImplementation(
+      (_url: string, init: { body: FormData }) => {
+        const name = (init.body.get("file") as File).name;
+        const count = (reads.get(name) ?? 0) + 1;
+        reads.set(name, count);
+        if (name === "pizza.jpg" && count === 1) {
+          return Promise.reject(new Error("boom"));
+        }
+        if (name === "second.jpg") {
+          return new Promise((resolve) => {
+            finishSecond = resolve;
+          });
+        }
+        return Promise.resolve({
+          success: true,
+          data: READ[name as keyof typeof READ],
+        });
+      }
+    );
+    const container = await renderView();
+    await act(async () => {
+      wallet.upload([
+        RECEIPT_FILE(),
+        STATEMENT_FILE(),
+        new File(["x"], "second.jpg", { type: "image/jpeg" }),
+      ]);
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    await act(async () => {
+      retryButton(container)?.click();
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    const firstId = byName("pizza.jpg")?.id;
+    expect(byName("statement.pdf")?.parentId).toBe(firstId);
+
+    await act(async () => {
+      finishSecond({ success: true, data: READ["second.jpg"] });
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+
+    expect(byName("statement.pdf")?.parentId).toBe(firstId);
+    expect(byName("second.jpg")?.bankStatementId).toBeUndefined();
+  });
+
+  it("linking a statement on retry keeps an amount the student typed", async () => {
+    uploadsAs("f-receipt", "f-statement");
+    scansFailingFirst(["pizza.jpg"]);
+    const container = await renderView();
+    await act(async () => {
+      wallet.upload([RECEIPT_FILE(), STATEMENT_FILE()]);
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    await update(() =>
+      state().updateReceipt(byName("pizza.jpg")?.id as string, { amount: 280 })
+    );
+
+    await act(async () => {
+      retryButton(container)?.click();
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+
+    expect(byName("pizza.jpg")?.bankStatementId).toBe("f-statement");
+    expect(byName("pizza.jpg")?.amount).toBe(280);
+  });
+
   it("the try again button does not open the receipt", async () => {
     uploadOk();
     fetchFormData.mockRejectedValue(new Error("boom"));

@@ -12,6 +12,7 @@ import {
   type ExpenseApprovals,
   type ExpenseApprovalsApproverRole,
   ExpenseApprovalsStatus,
+  type ExpenseEvents,
   type Expenses,
   ExpensesStatus,
   type Users,
@@ -1360,23 +1361,36 @@ type RebuildExpenseRow = ExpenseSummaryRow & {
 /**
  * Whether the expense has the issue `createApprovalChain` records when no step
  * resolves, in any status. A reimbursement sent to accounting by email is
- * pending with no steps too, but never has one.
+ * pending with no steps too, but never has one. An issue older than the
+ * expense's latest `submitted` event belongs to an earlier submission (the
+ * expense was resubmitted by email since), so it does not count. With no
+ * `submitted` event there is nothing to compare against and any such issue
+ * counts.
  */
 async function hasNoApproverIssue(
   db: AdminDb,
   expenseId: string
 ): Promise<boolean> {
-  const { rows } = await db.listRows<ExpenseApprovalIssues>(
-    "app",
-    "expense_approval_issues",
-    [
+  const [{ rows }, { rows: submitted }] = await Promise.all([
+    db.listRows<ExpenseApprovalIssues>("app", "expense_approval_issues", [
       Query.equal("expense_id", expenseId),
-      Query.select(["reason"]),
+      Query.select(["reason", "$createdAt"]),
       Query.orderAsc("$createdAt"),
       Query.limit(ISSUE_LOOKUP_LIMIT),
-    ]
+    ]),
+    db.listRows<ExpenseEvents>("app", "expense_events", [
+      Query.equal("expense_id", expenseId),
+      Query.equal("action", "submitted"),
+      Query.orderDesc("$createdAt"),
+      Query.limit(1),
+    ]),
+  ]);
+  const submittedAt = submitted[0]?.$createdAt;
+  return rows.some(
+    (row) =>
+      isNoApproverIssue(row.reason) &&
+      (!submittedAt || row.$createdAt >= submittedAt)
   );
-  return rows.some((row) => isNoApproverIssue(row.reason));
 }
 
 export type RebuildErrorCode =

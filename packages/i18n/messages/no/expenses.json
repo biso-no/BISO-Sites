@@ -208,7 +208,7 @@
       "missing_total": "Kvitteringen mangler totalbeløp",
       "possible_duplicate": "Ser ut som en kvittering som allerede er sendt inn",
       "scan_failed": "Vi klarte ikke å lese kvitteringen. Fyll inn selv, eller prøv igjen.",
-      "amount_missing": "Skriv inn beløpet fra kvitteringen.",
+      "amount_missing": "Skriv inn beløpet fra kvitteringen. Er dette en kontoutskrift for en annen kvittering, fjern den og legg den ved den kvitteringen.",
       "retry": "Prøv igjen"
     }
   }

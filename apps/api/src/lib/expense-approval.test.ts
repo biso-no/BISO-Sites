@@ -2346,13 +2346,19 @@ describe("rebuildApprovalChain", () => {
   const loads = (
     expense: object,
     stepRows: object[] = [],
-    issueRows: object[] = [NO_APPROVER_ISSUE]
+    issueRows: object[] = [NO_APPROVER_ISSUE],
+    submittedRows: object[] = []
   ) => {
     db.getRow.mockImplementation(async (_db: string, table: string) =>
       table === "user" ? { $id: "user-9", name: "Ada" } : expense
     );
     db.listRows.mockImplementation((_db: string, table: string) => {
-      const rows = table === "expense_approval_issues" ? issueRows : stepRows;
+      let rows = stepRows;
+      if (table === "expense_approval_issues") {
+        rows = issueRows;
+      } else if (table === "expense_events") {
+        rows = submittedRows;
+      }
       return Promise.resolve({ rows, total: rows.length });
     });
   };
@@ -2389,6 +2395,35 @@ describe("rebuildApprovalChain", () => {
       expect.anything(),
       expect.objectContaining({ approver_email: "fin@biso.no" })
     );
+  });
+
+  it("a no-approver issue from an earlier email submission does not allow a rebuild", async () => {
+    loads(
+      expenseRow(),
+      [],
+      [{ ...NO_APPROVER_ISSUE, $createdAt: "2026-11-01T10:00:00.000Z" }],
+      [{ $createdAt: "2026-11-05T10:00:00.000Z", action: "submitted" }]
+    );
+    expect(
+      await rebuildApprovalChain({ actor: ACTOR, expenseId: "expense-1" })
+    ).toMatchObject({ ok: false, code: "not_rebuildable" });
+    expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  it("a no-approver issue from the latest submission allows a rebuild", async () => {
+    loads(
+      expenseRow(),
+      [],
+      [{ ...NO_APPROVER_ISSUE, $createdAt: "2026-11-05T10:00:01.000Z" }],
+      [{ $createdAt: "2026-11-05T10:00:00.000Z", action: "submitted" }]
+    );
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [FIN_STEP],
+    });
+    expect(
+      await rebuildApprovalChain({ actor: ACTOR, expenseId: "expense-1" })
+    ).toEqual({ ok: true, stepsCreated: 1 });
   });
 
   const FIN_STEP = {

@@ -208,7 +208,7 @@
       "missing_total": "No total on the receipt",
       "possible_duplicate": "Looks like a receipt already submitted",
       "scan_failed": "We couldn't read this receipt. Fill in the details yourself, or try again.",
-      "amount_missing": "Enter the amount from the receipt.",
+      "amount_missing": "Enter the amount from the receipt. If this is a bank statement for another receipt, remove it and attach it to that receipt.",
       "retry": "Try again"
     }
   }

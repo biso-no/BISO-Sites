@@ -888,7 +888,7 @@ export function ExpenseSplitView({
   );
 
   const reconcileBatch = useCallback(
-    (results: Array<ScanLink | null>) => {
+    (results: Array<ScanLink | null>, keepTypedAmount = false) => {
       const valid = results.filter((r): r is ScanLink => r !== null);
 
       const statements = valid.filter(
@@ -917,6 +917,11 @@ export function ExpenseSplitView({
         if (!(stmtReceipt && parentReceipt)) {
           continue;
         }
+        // A retry may have linked these while the rest of the upload was
+        // still reading; never move a link.
+        if (stmtReceipt.parentId || parentReceipt.bankStatementId) {
+          continue;
+        }
 
         const nokAmount = Math.abs(stmtReceipt.amount);
 
@@ -924,7 +929,10 @@ export function ExpenseSplitView({
           bankStatementId: stmtReceipt.fileId,
           bankStatementName: stmtReceipt.fileName,
           bankStatementType: stmtReceipt.fileType,
-          ...(nokAmount > 0 && { amount: nokAmount }),
+          ...(nokAmount > 0 &&
+            !(keepTypedAmount && parentReceipt.amount > 0) && {
+              amount: nokAmount,
+            }),
         });
 
         store.updateReceipt(stmt.id, {
@@ -966,7 +974,8 @@ export function ExpenseSplitView({
           result,
           batchesRef.current.get(receiptId) ?? [],
           useExpenseStore.getState().receipts
-        )
+        ),
+        true
       );
     },
     [reconcileBatch, scanReceipt, store]

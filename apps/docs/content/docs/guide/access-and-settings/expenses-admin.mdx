@@ -84,7 +84,7 @@ A global admin also sees **Bygg godkjenningsflyten på nytt** (Rebuild approval 
 
 A reimbursement with **Bokføring feilet** (Booking failed) shows the error from 24SevenOffice and **Prøv bokføring på nytt** (Retry booking).
 
-When the booking failed after 24SevenOffice had already accepted it, Retry doesn't book again. It finds the booking, saves the status and the transaction number, and the reimbursement shows **Bokført** (Booked).
+When the booking failed after 24SevenOffice had already accepted it and this system recorded that, Retry doesn't book again. It finds the booking, saves the status and the transaction number, and the reimbursement shows **Bokført** (Booked). When the booking was never recorded here (the message with the transaction number below), a retry would book it a second time.
 
 Sometimes 24SevenOffice accepts a booking but the admin can't save that. Then you see **Finago har bokføringen, men statusen kunne ikke lagres. Ikke bokfør utlegget på nytt: når det viser «Bokføring feilet» (innen omtrent 15 minutter), fullfører «Prøv bokføring på nytt» lagringen.** (Finago has the booking, but saving the status failed. Don't book it again: once the reimbursement shows Booking failed (within about 15 minutes), Retry finishes saving it.) Don't book it in 24SevenOffice by hand. Wait until the reimbursement shows **Bokføring feilet** (Booking failed), then choose **Prøv bokføring på nytt** (Retry booking): it only finishes the save.
 
