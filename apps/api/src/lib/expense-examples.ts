@@ -2,7 +2,10 @@ import { Query } from "@repo/api";
 import type { createAdminClient } from "@repo/api/server";
 import type { ExpenseTypeExamples } from "@repo/api/types/appwrite";
 import type { CostTypeOption } from "@repo/shared/utils/expense-cost-types";
-import { normalizeVendor } from "@repo/shared/utils/expense-examples";
+import {
+  exampleTeaches,
+  normalizeVendor,
+} from "@repo/shared/utils/expense-examples";
 import type { TypeExample } from "./receipt-scan";
 
 type Db = Awaited<ReturnType<typeof createAdminClient>>["db"];
@@ -17,12 +20,23 @@ const MIN_KEYWORD_LENGTH = 3;
 const PREFIX_WORDS = 2;
 const KEYWORD = /\p{L}{3,}/gu;
 const WHITESPACE = /\s+/;
+const HAS_TYPE = Query.isNotNull("final_cost_type");
+
+/**
+ * Who chose the example's type: an approver or admin who changed it, or else
+ * the student (who picked it or kept the AI's pick). Rows from before
+ * `type_source` existed fall back to `source`.
+ */
+function typeChooser(row: ExpenseTypeExamples): TypeExample["source"] {
+  const origin = row.type_source ?? row.source;
+  return origin === "approver" || origin === "admin" ? origin : "student";
+}
 
 function toExample(
   row: ExpenseTypeExamples,
   departmentId?: string | null
 ): TypeExample | null {
-  if (!row.final_cost_type) {
+  if (!(exampleTeaches(row) && row.final_cost_type)) {
     return null;
   }
   return {
@@ -30,22 +44,21 @@ function toExample(
     description: row.description ?? "",
     finalType: row.final_cost_type,
     sameDepartment: Boolean(departmentId) && row.department_id === departmentId,
-    source: row.source,
+    source: typeChooser(row),
     vendorKey: row.vendor_key ?? "",
   };
 }
 
 interface Candidate {
   example: TypeExample;
-  fromPerson: boolean;
   key: unknown;
 }
 
-/** Confirmed first, then a person's correction, then same department. */
+/** Confirmed first, then an approver's or admin's type, then same department. */
 function rank(c: Candidate): number {
   return (
     (c.example.confirmed ? 4 : 0) +
-    (c.fromPerson ? 2 : 0) +
+    (c.example.source === "student" ? 0 : 2) +
     (c.example.sameDepartment ? 1 : 0)
   );
 }
@@ -67,8 +80,7 @@ function candidatesFrom(
     }
     const example = toExample(row, ctx.departmentId);
     if (example && ctx.activeSlugs.has(example.finalType)) {
-      const origin = row.type_source ?? row.source;
-      out.push({ example, fromPerson: origin !== "student", key });
+      out.push({ example, key });
     }
   }
   // Array.sort is stable, so newest-first order holds within each rank.
@@ -89,7 +101,13 @@ async function fetchRows(
   const { rows } = await db.listRows<ExpenseTypeExamples>(
     "app",
     "expense_type_examples",
-    [...queries, Query.orderDesc("$createdAt"), Query.limit(VENDOR_FETCH_LIMIT)]
+    [
+      ...queries,
+      // Own-text-only rows have no type to show; they'd only use up the slots.
+      HAS_TYPE,
+      Query.orderDesc("$createdAt"),
+      Query.limit(VENDOR_FETCH_LIMIT),
+    ]
   );
   return rows;
 }
@@ -105,7 +123,7 @@ async function recentPerType(
   const { rows } = await db.listRows<ExpenseTypeExamples>(
     "app",
     "expense_type_examples",
-    [Query.orderDesc("$createdAt"), Query.limit(RECENT_FETCH_LIMIT)]
+    [HAS_TYPE, Query.orderDesc("$createdAt"), Query.limit(RECENT_FETCH_LIMIT)]
   );
   const out: TypeExample[] = [];
   for (const row of rows) {
@@ -157,9 +175,15 @@ export async function selectExamples(
     const groups: string[][] = [];
     if (vendorKey) {
       groups.push([Query.equal("vendor_key", vendorKey)]);
-      if (prefix && prefix !== vendorKey) {
-        groups.push([Query.startsWith("vendor_key", prefix)]);
-      }
+      // A longer name finds shops that start the same way ("rema 1000
+      // majorstuen" → "rema 1000 …"); a short one finds the longer names
+      // that start with it ("rema 1000" → "rema 1000 majorstuen").
+      groups.push([
+        Query.startsWith(
+          "vendor_key",
+          prefix === vendorKey ? `${vendorKey} ` : prefix
+        ),
+      ]);
     }
     if (keywords.length > 0) {
       groups.push([Query.search("description", keywords.join(" "))]);

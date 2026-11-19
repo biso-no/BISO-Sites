@@ -328,15 +328,31 @@ describe("decideAttachment", () => {
     expect(unchosen.aiCostType).toBeNull();
   });
 
-  it("uses the AI's slug when nothing was chosen and it is confident", () => {
+  it("uses the AI's slug when nothing was chosen, with no source as nobody saw it", () => {
     const d = decideAttachment(
       input({ scan: scan("social", 0.85) }),
       types,
       true
     );
     expect(d.costType).toBe("social");
-    expect(d.typeSource).toBe("ai");
+    expect(d.aiCostType).toBe("social");
+    // It teaches only once an approver or admin changes the type.
+    expect(d.typeSource).toBeNull();
+    expect(d.aiPickUnseen).toBe(true);
     expect(d.hints).toEqual([]);
+  });
+
+  it("an AI pick that replaced a retired slug has no source", () => {
+    const d = decideAttachment(
+      input({ clientCostType: "retired", scan: scan("social", 0.9) }),
+      types,
+      true
+    );
+    expect(d.costType).toBe("social");
+    expect(d.aiCostType).toBe("social");
+    expect(d.aiConfidence).toBe(0.9);
+    expect(d.typeSource).toBeNull();
+    expect(d.aiPickUnseen).toBe(true);
   });
 
   it("never uses an AI slug that is not among the active types", () => {
@@ -865,7 +881,18 @@ describe("enrichSubmission", () => {
       ocr_amount: 100,
       receipt_issues: "[]",
       tax_code: null,
-      type_source: "ai",
+      // Nothing was chosen, so nobody saw the AI's pick.
+      type_source: null,
+    });
+    // The history still says the AI picked the type.
+    expect(recordExpenseEvents.mock.calls[0]?.[1]).toContainEqual({
+      action: "ai_classified",
+      actorKind: "ai",
+      after: "social",
+      attachmentId: "att-1",
+      expenseId: "expense-1",
+      field: "cost_type",
+      note: "Confidence 0.90: r",
     });
   });
 
@@ -932,7 +959,7 @@ describe("enrichSubmission", () => {
       ai_cost_type: "social",
       cost_type: "social",
       ocr_amount: 470,
-      type_source: "ai",
+      type_source: null,
     });
   });
 
@@ -1479,7 +1506,7 @@ describe("enrichSubmission", () => {
       ai_confidence: 0.92,
       ai_cost_type: "social",
       cost_type: "social",
-      type_source: "ai",
+      type_source: null,
     });
   });
 

@@ -135,6 +135,31 @@ export function typeTeaches(
   );
 }
 
+/**
+ * Whether a stored example may go into a prompt or be scored. An old app's
+ * type that only the AI checked (or replaced) was seen by nobody, so it waits
+ * until the reimbursement is booked. An example with neither shop nor
+ * description says nothing about the receipt.
+ */
+export function exampleTeaches(
+  row: Pick<
+    ExpenseTypeExamples,
+    | "confirmed"
+    | "description"
+    | "final_cost_type"
+    | "type_source"
+    | "vendor_key"
+  >
+): boolean {
+  if (!row.final_cost_type) {
+    return false;
+  }
+  if (row.confirmed !== true && row.type_source === "legacy_app") {
+    return false;
+  }
+  return Boolean(row.vendor_key?.trim() || row.description?.trim());
+}
+
 function humanSource(
   value: string | null | undefined
 ): "approver" | "admin" | null {

@@ -74,6 +74,11 @@ export interface AttachmentDecision {
   accountSource: "type" | "ai_freeform" | null;
   aiConfidence: number | null;
   aiCostType: string | null;
+  /**
+   * The type is the AI's, and nobody saw it before the submit. Such a type has
+   * no `typeSource`, so it teaches only once an approver or admin changes it.
+   */
+  aiPickUnseen?: boolean;
   attachmentId: string;
   costType: string | null;
   costTypeText: string | null;
@@ -158,7 +163,13 @@ function decideChosen(ctx: DecisionContext): AttachmentDecision {
     return ownText(decision, text, aiEnabled);
   }
   if (aiConfident && aiSlug) {
-    return withType({ ...decision, typeSource: "ai" }, aiSlug, types);
+    // The student chose nothing active (no type, or one retired since), so
+    // nobody saw this pick.
+    return withType(
+      { ...decision, aiPickUnseen: true, typeSource: null },
+      aiSlug,
+      types
+    );
   }
   return defaulted(decision, types);
 }
@@ -887,7 +898,11 @@ function replacedAppType(decision: AttachmentDecision): boolean {
 }
 
 function isAiTyped({ decision }: EnrichedReceipt): boolean {
-  return decision.typeSource === "ai" || replacedAppType(decision);
+  return (
+    decision.typeSource === "ai" ||
+    decision.aiPickUnseen === true ||
+    replacedAppType(decision)
+  );
 }
 
 function classifiedNote({ decision, scan }: EnrichedReceipt): string {

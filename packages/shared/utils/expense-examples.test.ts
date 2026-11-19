@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   deleteExamplesForExpense,
   exampleFields,
+  exampleTeaches,
   normalizeVendor,
   syncExample,
   syncExamplesForExpense,
@@ -89,6 +90,38 @@ describe("typeTeaches", () => {
   });
 });
 
+describe("exampleTeaches", () => {
+  const example = {
+    confirmed: false,
+    description: "Pizza",
+    final_cost_type: "social",
+    type_source: "student",
+    vendor_key: "peppes",
+  } as never;
+  const variant = (over: Record<string, unknown>) =>
+    ({ ...(example as object), ...over }) as never;
+
+  it("teaches a chosen type, booked or not", () => {
+    expect(exampleTeaches(example)).toBe(true);
+    expect(exampleTeaches(variant({ type_source: "ai" }))).toBe(true);
+  });
+
+  it("an old app's type teaches only once booked", () => {
+    expect(exampleTeaches(variant({ type_source: "legacy_app" }))).toBe(false);
+    expect(
+      exampleTeaches(variant({ confirmed: true, type_source: "legacy_app" }))
+    ).toBe(true);
+  });
+
+  it("needs a type and something to read", () => {
+    expect(exampleTeaches(variant({ final_cost_type: null }))).toBe(false);
+    expect(exampleTeaches(variant({ description: "", vendor_key: "" }))).toBe(
+      false
+    );
+    expect(exampleTeaches(variant({ description: "" }))).toBe(true);
+  });
+});
+
 describe("exampleFields", () => {
   const base = { departmentId: "dept-1", scan };
 
@@ -134,6 +167,27 @@ describe("exampleFields", () => {
     });
     expect(row?.account_number).toBe(7777);
     expect(row?.source).toBe("admin");
+  });
+
+  it("stores an old-app type the AI replaced with its legacy source", () => {
+    const row = exampleFields({
+      ...base,
+      attachment: att({
+        ai_confidence: 0.9,
+        ai_cost_type: "social",
+        cost_type: "social",
+        type_source: "legacy_app",
+      }),
+      confirmed: false,
+    });
+    // Stored, but selection leaves it out until the reimbursement is booked.
+    expect(row).toMatchObject({
+      confirmed: false,
+      final_cost_type: "social",
+      type_source: "legacy_app",
+    });
+    expect(exampleTeaches(row as never)).toBe(false);
+    expect(exampleTeaches({ ...row, confirmed: true } as never)).toBe(true);
   });
 
   it("cuts the scan description to 255 characters", () => {

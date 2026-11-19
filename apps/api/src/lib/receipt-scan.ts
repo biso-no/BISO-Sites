@@ -320,6 +320,7 @@ export interface TypeExample {
   finalType: string;
   /** Whether it was booked for the same department as the receipt at hand. */
   sameDepartment: boolean;
+  /** Who chose the type: an approver or admin who changed it, else the student. */
   source: "student" | "approver" | "admin";
   vendorKey: string;
 }
