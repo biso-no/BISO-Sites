@@ -286,10 +286,35 @@ describe("expense AI schema", () => {
         "final_cost_type",
         "account_number",
         "source",
+        "confirmed",
+        "department_id",
+        "type_source",
+        "account_source",
       ])
     );
     expect(table?.indexes?.some((i) => i.columns?.[0] === "vendor_key")).toBe(
       true
+    );
+    expect(
+      table?.indexes?.some(
+        (i) => i.type === "key" && i.columns?.[0] === "confirmed"
+      )
+    ).toBe(true);
+    expect(
+      table?.indexes?.some(
+        (i) => i.type === "fulltext" && i.columns?.[0] === "description"
+      )
+    ).toBe(true);
+  });
+
+  test("expense_attachments has example_id and approver/admin type sources", () => {
+    const table = findTable("expense_attachments");
+    expect(columnKeys("expense_attachments")).toContain("example_id");
+    const typeSource = table?.columns?.find((c) => c.key === "type_source") as
+      | { elements?: string[] }
+      | undefined;
+    expect(typeSource?.elements).toEqual(
+      expect.arrayContaining(["approver", "admin"])
     );
   });
 

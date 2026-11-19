@@ -9430,7 +9430,9 @@
                     "elements": [
                         "ai",
                         "student",
-                        "legacy_app"
+                        "legacy_app",
+                        "approver",
+                        "admin"
                     ]
                 },
                 {
@@ -9489,6 +9491,15 @@
                     "required": false,
                     "array": false,
                     "size": 500,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "example_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 36,
                     "default": null,
                     "encrypt": false
                 }
@@ -13181,6 +13192,51 @@
                         "approver",
                         "admin"
                     ]
+                },
+                {
+                    "key": "confirmed",
+                    "type": "boolean",
+                    "required": false,
+                    "array": false,
+                    "default": false
+                },
+                {
+                    "key": "department_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 40,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "type_source",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "ai",
+                        "student",
+                        "legacy_app",
+                        "approver",
+                        "admin"
+                    ]
+                },
+                {
+                    "key": "account_source",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "type",
+                        "ai_freeform",
+                        "approver",
+                        "admin"
+                    ]
                 }
             ],
             "indexes": [
@@ -13190,6 +13246,28 @@
                     "status": "available",
                     "columns": [
                         "vendor_key"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "idx_confirmed",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "confirmed"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "idx_description",
+                    "type": "fulltext",
+                    "status": "available",
+                    "columns": [
+                        "description"
                     ],
                     "orders": [
                         "ASC"

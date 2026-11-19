@@ -423,6 +423,8 @@ export enum ExpenseAttachmentsTypeSource {
   AI = "ai",
   STUDENT = "student",
   LEGACY_APP = "legacy_app",
+  APPROVER = "approver",
+  ADMIN = "admin",
 }
 
 export enum ExpenseAttachmentsAccountSource {
@@ -566,6 +568,21 @@ export enum PageDraftsLocale {
 
 export enum ExpenseTypeExamplesSource {
   STUDENT = "student",
+  APPROVER = "approver",
+  ADMIN = "admin",
+}
+
+export enum ExpenseTypeExamplesTypeSource {
+  AI = "ai",
+  STUDENT = "student",
+  LEGACY_APP = "legacy_app",
+  APPROVER = "approver",
+  ADMIN = "admin",
+}
+
+export enum ExpenseTypeExamplesAccountSource {
+  TYPE = "type",
+  AI_FREEFORM = "ai_freeform",
   APPROVER = "approver",
   ADMIN = "admin",
 }
@@ -1559,6 +1576,7 @@ export type ExpenseAttachments = Models.Row & {
   ocr_amount: number | null;
   file_hash: string | null;
   receipt_issues: string | null;
+  example_id: string | null;
 };
 
 export type JobInterviews = Models.Row & {
@@ -1929,6 +1947,10 @@ export type ExpenseTypeExamples = Models.Row & {
   final_text: string | null;
   account_number: number | null;
   source: ExpenseTypeExamplesSource;
+  confirmed: boolean;
+  department_id: string | null;
+  type_source: ExpenseTypeExamplesTypeSource | null;
+  account_source: ExpenseTypeExamplesAccountSource | null;
 };
 
 export type ExpenseApprovers = Models.Row & {
