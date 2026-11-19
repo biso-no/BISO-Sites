@@ -21,9 +21,17 @@ interface ApprovalReceipt {
   type: string;
 }
 
-/** The project every receipt shares (shown once), or null when none or mixed. */
+/**
+ * The project every priced receipt shares (shown once), or null when none or
+ * mixed. Zero-amount statements carry no project and don't count, as on the
+ * Teams card.
+ */
 function sharedProjectName(receipts: ApprovalReceipt[]): string | null {
-  const names = new Set(receipts.map((r) => r.projectName?.trim() || null));
+  const names = new Set(
+    receipts
+      .filter((r) => r.amount > 0)
+      .map((r) => r.projectName?.trim() || null)
+  );
   return names.size === 1 ? ([...names][0] ?? null) : null;
 }
 

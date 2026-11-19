@@ -68,6 +68,30 @@ describe("ApprovalBody", () => {
     expect(mixed).toContain("Julebord 2026");
   });
 
+  it("a zero-amount statement does not break a shared project", () => {
+    const r = (id: string, amount: number, projectName: string | null) => ({
+      amount,
+      date: null,
+      description: `receipt ${id}`,
+      fileId: null,
+      id,
+      projectName,
+      type: "receipt",
+    });
+    const html = render({
+      ...CONTEXT,
+      receipts: [
+        r("1", 120, "Fadderuke 2026"),
+        r("2", 80, "Fadderuke 2026"),
+        // A bank statement backing the receipts, without a project.
+        r("3", 0, null),
+      ],
+    });
+    // Shown once, as the expense's project, not on each receipt.
+    expect(html.split("Fadderuke 2026")).toHaveLength(2);
+    expect(html).not.toContain("project: Fadderuke 2026");
+  });
+
   it("offers Approve and Reject when every receipt has an account", () => {
     const html = render(CONTEXT);
     expect(html.match(BUTTON)).toHaveLength(2);
