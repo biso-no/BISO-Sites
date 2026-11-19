@@ -1,5 +1,6 @@
 "use client";
 
+import { setSentryUser } from "@repo/observability/user";
 import { identifyUser } from "@repo/shared/utils/analytics";
 import { useEffect } from "react";
 
@@ -27,6 +28,8 @@ export function AnalyticsIdentity({
   const isMember = identity?.isMember;
 
   useEffect(() => {
+    // Sentry gets the account id only; null on sign-out clears it.
+    setSentryUser(accountId ?? null);
     if (!accountId) {
       return;
     }

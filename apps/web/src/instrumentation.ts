@@ -1,14 +1,16 @@
 import { logServerRequestError } from "@repo/shared/utils/server-error-logging";
+import { captureRequestError } from "@sentry/nextjs";
 import type { Instrumentation } from "next";
 
 const EXPECTED_SESSION_COOKIE = "biso_session_web";
 const EXPECTED_SESSION_COOKIE_FALLBACK = "a_session_biso";
 
 /**
- * Server startup validation, mirroring `apps/admin/src/instrumentation.ts`.
- * Skipped during `next build`, where env/secrets are typically absent.
+ * Server startup validation, mirroring `apps/admin/src/instrumentation.ts`,
+ * then Sentry. Skipped during `next build`, where env/secrets are typically
+ * absent. Next awaits this, so a rejection still refuses to start the server.
  */
-export function register() {
+export async function register() {
   if (process.env.NEXT_PHASE === "phase-production-build") {
     return;
   }
@@ -41,6 +43,10 @@ export function register() {
         "resolve and those visitors will have to sign in again."
     );
   }
+
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    await import("./sentry.server.config");
+  }
 }
 
 export const onRequestError: Instrumentation.onRequestError = (
@@ -54,4 +60,5 @@ export const onRequestError: Instrumentation.onRequestError = (
     error,
     request,
   });
+  captureRequestError(error, request, context);
 };

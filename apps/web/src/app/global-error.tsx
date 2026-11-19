@@ -1,5 +1,6 @@
 "use client";
 
+import { captureException } from "@sentry/nextjs";
 import { useEffect } from "react";
 import { museoSans, museoSlab } from "./fonts";
 
@@ -24,6 +25,7 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     console.error("Unhandled root layout error:", error);
+    captureException(error);
   }, [error]);
 
   return (
