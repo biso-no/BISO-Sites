@@ -193,6 +193,15 @@ describe("exampleFields", () => {
       expect(exampleTeaches(row as never)).toBe(false);
     });
 
+    it("a confirmed confident AI agreement keeps the type", () => {
+      const row = exampleFields({
+        ...base,
+        attachment: unseen,
+        confirmed: true,
+      });
+      expect(row?.final_cost_type).toBe("social");
+    });
+
     it("an unseen AI pick teaches once booked", () => {
       const row = exampleFields({
         ...base,

@@ -5,6 +5,7 @@ import {
   buildApprovalCard,
   buildApprovalEmailHtml,
   CARD_MAX_BYTES,
+  projectSummary,
 } from "./cards";
 
 function receipt(index: number, text = `Vendor ${index}`): ApprovalCardReceipt {
@@ -338,6 +339,10 @@ describe("project on the approval card and email", () => {
     const html = email(mixed);
     expect(html).toContain("Fadderuke 2026");
     expect(html).toContain("Julebord 2026");
+  });
+
+  test("no receipts means no per-receipt projects", () => {
+    expect(projectSummary([])).toEqual({ perReceipt: false, shared: null });
   });
 
   test("no project means no project line", () => {

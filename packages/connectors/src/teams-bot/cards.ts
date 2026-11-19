@@ -103,6 +103,9 @@ export function projectSummary(receipts: ApprovalCardReceipt[]): {
   perReceipt: boolean;
   shared: string | null;
 } {
+  if (receipts.length === 0) {
+    return { perReceipt: false, shared: null };
+  }
   const names = new Set(receipts.map((r) => r.projectName?.trim() || null));
   if (names.size === 1) {
     return { perReceipt: false, shared: [...names][0] ?? null };
