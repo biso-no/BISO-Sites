@@ -71,6 +71,7 @@ export function ExpenseSteps({
                   {s.isCurrent && canChangeApprover && (
                     <ChangeApproverDialog
                       approvalId={s.id}
+                      approverRole={s.role}
                       expenseId={expenseId}
                     />
                   )}
