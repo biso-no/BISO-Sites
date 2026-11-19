@@ -590,6 +590,49 @@ async function withReceiptLabels(
   });
 }
 
+/** Swaps the type slug in an `ai_check_disagrees` hint for the type's label. */
+export async function withHintTypeLabels(
+  db: Db,
+  hints: ApproverHint[],
+  locale: string
+): Promise<ApproverHint[]> {
+  const slugs = [
+    ...new Set(
+      hints.flatMap((h) =>
+        typeof h.data?.aiType === "string" ? [h.data.aiType] : []
+      )
+    ),
+  ];
+  if (slugs.length === 0) {
+    return hints;
+  }
+  const { rows } = await db.listRows<ExpenseCostTypes>(
+    "app",
+    "expense_cost_types",
+    [
+      Query.equal("slug", slugs),
+      Query.select(["slug", "label", "label_no"]),
+      Query.limit(LOOKUP_LIMIT),
+    ]
+  );
+  return hints.map((hint) => {
+    const slug = hint.data?.aiType;
+    const type = rows.find((t) => t.slug === slug);
+    return type && hint.data
+      ? {
+          ...hint,
+          data: {
+            ...hint.data,
+            aiType: costTypeLabel(
+              { label: type.label, labelNo: type.label_no },
+              locale
+            ),
+          },
+        }
+      : hint;
+  });
+}
+
 /**
  * Whether an empty approval chain may be rebuilt: direct booking is on and the
  * submission recorded that no approver was found. Read only when it can
@@ -731,7 +774,11 @@ export async function getExpenseDetail(
       id: e.$id,
       note: e.note,
     })),
-    hints: parseApproverHints(expense.approver_hints),
+    hints: await withHintTypeLabels(
+      db,
+      parseApproverHints(expense.approver_hints),
+      locale
+    ),
     id: expense.$id,
     ledgerTransactionId:
       expense.ledger_transaction_id &&

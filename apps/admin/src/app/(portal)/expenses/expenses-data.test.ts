@@ -18,6 +18,7 @@ const {
   listExpenses,
   loadRebuildEvidence,
   resolveExpenseListFilters,
+  withHintTypeLabels,
 } = await import("./expenses-data");
 
 const viewer = (over: Partial<ExpenseViewer> = {}): ExpenseViewer => ({
@@ -388,5 +389,30 @@ describe("loadRebuildEvidence", () => {
       ledgerPosting: false,
     });
     expect(isFeatureEnabled).toHaveBeenCalledWith("expenses_ledger_posting");
+  });
+});
+
+describe("withHintTypeLabels", () => {
+  test("shows the type's label for the slug in ai_check_disagrees, in the viewer's language", async () => {
+    db.listRows.mockResolvedValue({
+      rows: [{ label: "Food", label_no: "Mat", slug: "food" }],
+    });
+    const hints = [
+      { code: "ai_check_disagrees" as const, data: { aiType: "food" } },
+      { code: "ai_check_disagrees" as const, data: { aiType: "retired" } },
+      { code: "occasion_missing" as const },
+    ];
+    expect(await withHintTypeLabels(db as never, hints, "no")).toEqual([
+      { code: "ai_check_disagrees", data: { aiType: "Mat" } },
+      { code: "ai_check_disagrees", data: { aiType: "retired" } },
+      { code: "occasion_missing" },
+    ]);
+  });
+
+  test("reads nothing when no hint names a type", async () => {
+    db.listRows.mockReset();
+    const hints = [{ code: "occasion_missing" as const }];
+    expect(await withHintTypeLabels(db as never, hints, "en")).toBe(hints);
+    expect(db.listRows).not.toHaveBeenCalled();
   });
 });

@@ -1,4 +1,7 @@
-import type { ApproverHint } from "@repo/shared/utils/expense-hints";
+import {
+  type ApproverHint,
+  hintTextKey,
+} from "@repo/shared/utils/expense-hints";
 import { useTranslations } from "next-intl";
 import { MONO_STACK, STUDIO, StudioPanel } from "../../../_components/studio";
 import { fmtNOK } from "../../../shop/_components/shop-studio-theme";
@@ -112,15 +115,7 @@ export function ExpenseHints({ hints }: { hints: ApproverHint[] }) {
         issue: issue ? t(`issues.${issue}` as never) : "",
       });
     }
-    let key: string = hint.code;
-    if (hint.code === "possible_duplicate" && data.reimbursementNumber) {
-      key = "possible_duplicate_number";
-    } else if (
-      (hint.code === "type_unsure" || hint.code === "project_unsure") &&
-      data.reason
-    ) {
-      key = `${hint.code}_reason`;
-    }
+    const key = hintTextKey(hint.code, data);
     return t(`hintsText.${key}` as never, data as never);
   };
   return (

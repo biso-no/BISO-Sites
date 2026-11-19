@@ -216,7 +216,7 @@ describe("loadApprovalCardDetails", () => {
 
   it("words the hints the background check writes", async () => {
     seed(
-      { approvals: [{ approver_role: "national" }] },
+      { approvals: [{ approver_role: "national" }], costTypes: COST_TYPES },
       {
         ...EXPENSE,
         approver_hints: JSON.stringify([
@@ -227,7 +227,7 @@ describe("loadApprovalCardDetails", () => {
           { code: "project_missing" },
           { code: "project_not_created", data: { series: "BISO", year: 2026 } },
           { code: "ai_check_incomplete" },
-          { code: "ai_check_disagrees", data: { aiType: "Food" } },
+          { code: "ai_check_disagrees", data: { aiType: "taxi" } },
         ]),
       }
     );
@@ -240,10 +240,33 @@ describe("loadApprovalCardDetails", () => {
     expect(hints[3]).toContain("two events");
     expect(hints[5]).toContain("BISO");
     expect(hints[5]).toContain("2026");
-    expect(hints[7]).toContain("Food");
+    expect(hints[7]).toContain("Taxi");
+    expect(hints[7]).not.toContain("taxi");
     for (const hint of hints) {
       expect(hint).not.toMatch(BRACES);
     }
+  });
+
+  it("keeps a long, multi-line reason to one short line", async () => {
+    seed(
+      { approvals: [{ approver_role: "national" }] },
+      {
+        ...EXPENSE,
+        approver_hints: JSON.stringify([
+          {
+            code: "type_unsure",
+            data: { reason: `line one\nline two ${"y".repeat(600)}` },
+          },
+        ]),
+      }
+    );
+
+    const { hints } = await loadApprovalCardDetails(asDb(), "e1");
+
+    expect(hints).toHaveLength(1);
+    expect(hints[0]).not.toContain("\n");
+    expect(hints[0]?.length).toBeLessThan(260);
+    expect(hints[0]).toContain("line one line two");
   });
 
   it("says the president could not be found when national stands in for one", async () => {

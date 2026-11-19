@@ -61,6 +61,39 @@ function isApproverHintCode(value: unknown): value is ApproverHintCode {
   return APPROVER_HINT_CODES.some((code) => code === value);
 }
 
+const WHITESPACE_RUN = /\s+/g;
+/** Longest text a hint carries; model-written reasons are cut to this. */
+export const MAX_HINT_TEXT_CHARS = 200;
+
+/** One line, at most `MAX_HINT_TEXT_CHARS` characters, ending in an ellipsis when cut. */
+function tidyHintText(value: string): string {
+  const oneLine = value.replace(WHITESPACE_RUN, " ").trim();
+  const chars = Array.from(oneLine);
+  return chars.length > MAX_HINT_TEXT_CHARS
+    ? `${chars
+        .slice(0, MAX_HINT_TEXT_CHARS - 1)
+        .join("")
+        .trimEnd()}…`
+    : oneLine;
+}
+
+/**
+ * Which text a hint uses: some codes have a longer form when they carry data.
+ * The admin and the approval card both pick their wording with this.
+ */
+export function hintTextKey(
+  code: string,
+  data: Record<string, string | number> = {}
+): string {
+  if (code === "possible_duplicate" && data.reimbursementNumber) {
+    return "possible_duplicate_number";
+  }
+  if ((code === "type_unsure" || code === "project_unsure") && data.reason) {
+    return `${code}_reason`;
+  }
+  return code;
+}
+
 function pickHintData(
   value: unknown
 ): Record<string, string | number> | undefined {
@@ -69,7 +102,9 @@ function pickHintData(
   }
   const data: Record<string, string | number> = {};
   for (const [key, entry] of Object.entries(value)) {
-    if (typeof entry === "string" || typeof entry === "number") {
+    if (typeof entry === "string") {
+      data[key] = tidyHintText(entry);
+    } else if (typeof entry === "number") {
       data[key] = entry;
     }
   }

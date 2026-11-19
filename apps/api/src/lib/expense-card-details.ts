@@ -17,6 +17,7 @@ import { getCampusApprovalPlan } from "@repo/shared/utils/expense-approvers";
 import type { CostTypeOption } from "@repo/shared/utils/expense-cost-types";
 import {
   type ApproverHint,
+  hintTextKey,
   parseApproverHints,
 } from "@repo/shared/utils/expense-hints";
 import { loadAllCostTypes } from "./expense-types";
@@ -135,22 +136,14 @@ function fill(template: string, data: Record<string, string | number>) {
   );
 }
 
-/** Which text a hint uses: some codes have a longer form when they carry data. */
-function hintTextKey(
-  code: string,
-  data: Record<string, string | number>
-): string {
-  if (code === "possible_duplicate" && data.reimbursementNumber) {
-    return "possible_duplicate_number";
+function hintSentence(
+  hint: ApproverHint,
+  typeLabels: Map<string, string>
+): string | null {
+  const data = { ...hint.data };
+  if (typeof data.aiType === "string") {
+    data.aiType = typeLabels.get(data.aiType) ?? data.aiType;
   }
-  if ((code === "type_unsure" || code === "project_unsure") && data.reason) {
-    return `${code}_reason`;
-  }
-  return code;
-}
-
-function hintSentence(hint: ApproverHint): string | null {
-  const data = hint.data ?? {};
   if (hint.code === "receipt_issue") {
     const issue = String(data.issue ?? "");
     return fill(HINT_TEXT.receipt_issue ?? "", {
@@ -165,9 +158,10 @@ function hintSentence(hint: ApproverHint): string | null {
 /** The hint's sentence, led by the receipt it is about when it names one. */
 function hintText(
   hint: ApproverHint,
-  nameById: Map<string, string>
+  nameById: Map<string, string>,
+  typeLabels: Map<string, string>
 ): string | null {
-  const sentence = hintSentence(hint);
+  const sentence = hintSentence(hint, typeLabels);
   const name = hint.attachmentId ? nameById.get(hint.attachmentId) : undefined;
   return sentence && name ? `${name}: ${sentence}` : sentence;
 }
@@ -347,6 +341,8 @@ interface ReceiptParts {
   /** Every attachment's short name for hint lines: its text, else its type. */
   nameById: Map<string, string>;
   receipts: ApprovalCardDetails["receipts"];
+  /** Active and retired type labels by slug. */
+  typeLabels: Map<string, string>;
 }
 
 /**
@@ -358,6 +354,7 @@ const UNREAD_RECEIPTS: ReceiptParts = {
   missingAccount: true,
   nameById: new Map(),
   receipts: [],
+  typeLabels: new Map(),
 };
 
 /**
@@ -443,6 +440,7 @@ async function loadReceiptParts(
       text: row.description ?? "",
       type: typeLabel(row, typeLabels),
     })),
+    typeLabels,
   };
 }
 
@@ -562,7 +560,9 @@ export async function loadApprovalCardDetails(
     declaration: expenseParts.declaration,
     fallbackNote: expenseParts.fallbackNote,
     hints: expenseParts.hints
-      .map((hint) => hintText(hint, receiptParts.nameById))
+      .map((hint) =>
+        hintText(hint, receiptParts.nameById, receiptParts.typeLabels)
+      )
       .filter((text): text is string => Boolean(text)),
     history: events.map((event) => ({
       at: formatEventTime(event.$createdAt),
