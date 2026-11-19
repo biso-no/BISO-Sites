@@ -134,7 +134,6 @@ function actorOf(loaded: Loaded): {
   };
 }
 
-/** Corrects one receipt of an expense. Each change is logged in the history. */
 /** Keeps the receipt's learning example in step with an edit; never fails the edit. */
 async function refreshExample(
   db: Loaded["db"],
@@ -155,6 +154,7 @@ async function refreshExample(
   }
 }
 
+/** Corrects one receipt of an expense. Each change is logged in the history. */
 export async function updateExpenseReceipt(input: {
   attachmentId: string;
   changes: ReceiptChanges;
