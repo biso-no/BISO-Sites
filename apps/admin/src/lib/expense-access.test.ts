@@ -374,7 +374,7 @@ describe("maskBankAccount", () => {
 });
 
 describe("canRebuildChain", () => {
-  const rebuildable = { hasNoApproverIssue: true, ledgerPosting: true };
+  const rebuildable = { hasRebuildIssue: true, ledgerPosting: true };
 
   test("only a global admin, only a pending expense with no steps", () => {
     const admin = viewer({ isGlobalAdmin: true });
@@ -410,7 +410,7 @@ describe("canRebuildChain", () => {
     );
     expect(
       expensePermissions(admin, expense(), [], {
-        hasNoApproverIssue: false,
+        hasRebuildIssue: false,
         ledgerPosting: true,
       }).canRebuildChain
     ).toBe(false);
@@ -419,7 +419,7 @@ describe("canRebuildChain", () => {
   test("never while direct booking is off", () => {
     expect(
       expensePermissions(viewer({ isGlobalAdmin: true }), expense(), [], {
-        hasNoApproverIssue: true,
+        hasRebuildIssue: true,
         ledgerPosting: false,
       }).canRebuildChain
     ).toBe(false);

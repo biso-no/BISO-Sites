@@ -68,6 +68,30 @@ export function isNoApproverIssue(reason: string | null | undefined): boolean {
   return reason?.startsWith(NO_APPROVER_ISSUE_PREFIX) ?? false;
 }
 
+// Never "Could not notify": that prefix offers a resend, and a failed chain
+// has no step left to resend.
+const CHAIN_FAILED_ISSUE_PREFIX = "The approval chain could not be created";
+
+/**
+ * The approval issue recorded when the chain could not be built after the
+ * background check: its steps were removed and the reimbursement waits as
+ * pending with none.
+ */
+export function chainFailedIssueReason(cause: string): string {
+  return `${CHAIN_FAILED_ISSUE_PREFIX} after the check (${cause}). The reimbursement is pending with no approval step; rebuild the chain once the cause is fixed.`;
+}
+
+/**
+ * True for an issue that lets a global admin rebuild the approval chain: no
+ * approver was found, or the chain failed after the check.
+ */
+export function isRebuildIssue(reason: string | null | undefined): boolean {
+  return (
+    isNoApproverIssue(reason) ||
+    (reason?.startsWith(CHAIN_FAILED_ISSUE_PREFIX) ?? false)
+  );
+}
+
 const OSLO_CAMPUS_ID = "1";
 const NATIONAL_CAMPUS_ID = "5";
 

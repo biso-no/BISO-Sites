@@ -28,9 +28,10 @@ import {
   updateProactiveCard,
 } from "@repo/connectors/teams-bot";
 import {
+  chainFailedIssueReason,
   directoryKey,
   getCampusApprovalPlan,
-  isNoApproverIssue,
+  isRebuildIssue,
   NO_APPROVER_ISSUE_REASON,
 } from "@repo/shared/utils/expense-approvers";
 import { recordExpenseEvents } from "@repo/shared/utils/expense-events";
@@ -340,14 +341,89 @@ async function recordResolutionIssuesSafely(
   }
 }
 
+export interface CreateChainOptions {
+  /** A failure leaves the expense pending instead of returning it to draft. */
+  keepPendingOnFailure?: boolean;
+  /**
+   * A failure records an approval issue the IT queue can act on (rebuild the
+   * chain), then throws `ApprovalChainFailedError`. For the background check,
+   * where nobody is waiting for an answer.
+   */
+  recordIssue?: boolean;
+}
+
+/**
+ * The approval chain could not be built in the background, and an approval
+ * issue now says so. The expense is pending with no steps; a global admin
+ * rebuilds the chain once the cause is fixed.
+ */
+export class ApprovalChainFailedError extends Error {
+  constructor(cause: unknown) {
+    super(
+      `The approval chain could not be created: ${
+        cause instanceof Error ? cause.message : "unknown error"
+      }`,
+      { cause }
+    );
+    this.name = "ApprovalChainFailedError";
+  }
+}
+
+/** The issue of a chain that failed in the background, so IT can rebuild it. */
+async function recordChainFailureIssue(
+  context: ApprovalChainContext,
+  error: unknown
+): Promise<void> {
+  const { db } = await createAdminClient();
+  // The step that was to be notified first.
+  const firstPlanned = getCampusApprovalPlan({
+    campusId: context.campusId,
+    departmentId: context.departmentId,
+    submitterIsController: context.submitterIsController,
+    submitterIsFinancialManager: context.submitterIsFinancialManager,
+  }).at(0);
+  const cause = error instanceof Error ? error.message : "unknown error";
+  await db.createRow("app", "expense_approval_issues", ID.unique(), {
+    expense_id: context.expenseId,
+    campus_id: context.campusId,
+    department: context.departmentName ?? "(none)",
+    role_sought: firstPlanned?.role ?? "controller",
+    reason: truncateReason(chainFailedIssueReason(cause)),
+    status: "open",
+  });
+}
+
 /**
  * Resolves approvers, creates the chain rows, and notifies the first step.
  * Writes a remediation issue when an approver can't be found, once the chain
  * rows hold the claim, so a racing duplicate submit records none.
+ *
+ * With `recordIssue`, any other failure is recorded as an approval issue and
+ * thrown as `ApprovalChainFailedError`; when even that write fails, the
+ * original error is thrown, as nobody has been told. A row conflict is
+ * thrown as it is: another run holds the chain, so nothing failed.
  */
 export async function createApprovalChain(
   context: ApprovalChainContext,
-  options: { keepPendingOnFailure?: boolean } = {}
+  options: CreateChainOptions = {}
+): Promise<CreateChainResult> {
+  if (!options.recordIssue) {
+    return await buildApprovalChain(context, options);
+  }
+  try {
+    return await buildApprovalChain(context, options);
+  } catch (error) {
+    if (isRowConflictError(error)) {
+      throw error;
+    }
+    await recordChainFailureIssue(context, error);
+    throw new ApprovalChainFailedError(error);
+  }
+}
+
+async function buildApprovalChain(
+  context: ApprovalChainContext,
+  options: CreateChainOptions
 ): Promise<CreateChainResult> {
   const { db } = await createAdminClient();
 
@@ -369,11 +445,10 @@ export async function createApprovalChain(
   const { steps, issues } = guardChain(context, resolved, submitterEmail);
 
   if (steps.length === 0) {
-    // No chain row exists, so nothing is claimed and the expense is still a
-    // draft: these issue writes may throw, and the submission then fails with
-    // the draft untouched and resubmittable. Nobody approves this one, so the
-    // queue has to see it. The sought role is
-    // the plan's last step, the one that would have approved it.
+    // No chain row exists, so nothing is claimed: these issue writes may
+    // throw, and the caller then sees the failure. Nobody approves this one,
+    // so the queue has to see it. The sought role is the plan's last step,
+    // the one that would have approved it.
     const lastPlanned = getCampusApprovalPlan({
       campusId: context.campusId,
       departmentId: context.departmentId,
@@ -468,8 +543,9 @@ export async function createApprovalChain(
   } catch (error) {
     // Anything after the claim failed (a step row, the status write, or the
     // first approver being unreachable): delete the chain rows (which also
-    // invalidates any link already delivered) and return the expense to draft
-    // so it can be resubmitted cleanly, never stranded behind a 409.
+    // invalidates any link already delivered) and, unless the caller keeps it
+    // pending, return the expense to draft so it can be resubmitted cleanly,
+    // never stranded behind a 409.
     await Promise.all(
       created.map((row) =>
         db.deleteRow("app", "expense_approvals", row.$id).catch((cause) => {
@@ -480,7 +556,8 @@ export async function createApprovalChain(
         })
       )
     );
-    // A rebuild works on an expense that was already submitted: it stays pending.
+    // A rebuild or the background check works on an expense that was
+    // already submitted: it stays pending.
     if (!options.keepPendingOnFailure) {
       await db
         .updateRow("app", "expense", context.expenseId, {
@@ -819,7 +896,7 @@ const NOT_PENDING_ERROR =
   "This reimbursement is no longer waiting for approval.";
 const HAS_STEPS_ERROR = "This reimbursement already has approval steps.";
 const NOT_REBUILDABLE_ERROR =
-  "Only a reimbursement left with no approver at submission can have its approval chain rebuilt.";
+  "Only a reimbursement left without an approval chain when it was submitted can have its approval chain rebuilt.";
 const ISSUE_LOOKUP_LIMIT = 100;
 const HTTP_CONFLICT = 409;
 const ACCOUNT_MISSING_ERROR =
@@ -1368,15 +1445,16 @@ type RebuildExpenseRow = ExpenseSummaryRow & {
 };
 
 /**
- * Whether the expense has the issue `createApprovalChain` records when no step
- * resolves, in any status. A reimbursement sent to accounting by email is
- * pending with no steps too, but never has one. An issue older than the
- * expense's latest `submitted` event belongs to an earlier submission (the
- * expense was resubmitted by email since), so it does not count. With no
- * `submitted` event there is nothing to compare against and any such issue
- * counts.
+ * Whether the expense has an issue `createApprovalChain` records when it
+ * leaves a submission with no steps, in any status: no step resolved, or the
+ * chain failed after the background check. A reimbursement sent to
+ * accounting by email is pending with no steps too, but never has one. An
+ * issue older than the expense's latest `submitted` event belongs to an
+ * earlier submission (the expense was resubmitted by email since), so it does
+ * not count. With no `submitted` event there is nothing to compare against
+ * and any such issue counts.
  */
-async function hasNoApproverIssue(
+async function hasRebuildIssue(
   db: AdminDb,
   expenseId: string
 ): Promise<boolean> {
@@ -1397,7 +1475,7 @@ async function hasNoApproverIssue(
   const submittedAt = submitted[0]?.$createdAt;
   return rows.some(
     (row) =>
-      isNoApproverIssue(row.reason) &&
+      isRebuildIssue(row.reason) &&
       (!submittedAt || row.$createdAt >= submittedAt)
   );
 }
@@ -1412,10 +1490,10 @@ export type RebuildErrorCode =
 
 /**
  * Builds the approval chain again for a pending expense that has none because
- * no approver could be found at submit. Refused while direct booking is off,
- * and for any expense without that submit's no-approver issue: one sent to
- * accounting by email is handled there, and approving it here too would pay
- * it twice. Uses the submitter's flags saved on the expense, so the plan is
+ * no approver could be found at submit, or the chain failed after the
+ * background check. Refused while direct booking is off, and for any expense
+ * without such an issue from that submit: one sent to accounting by email is
+ * handled there, and approving it here too would pay it twice. Uses the submitter's flags saved on the expense, so the plan is
  * the one the submission would have got.
  */
 export async function rebuildApprovalChain(params: {
@@ -1465,7 +1543,7 @@ export async function rebuildApprovalChain(params: {
       error: HAS_STEPS_ERROR,
     };
   }
-  if (!(await hasNoApproverIssue(db, params.expenseId))) {
+  if (!(await hasRebuildIssue(db, params.expenseId))) {
     return {
       ok: false,
       code: "not_rebuildable",

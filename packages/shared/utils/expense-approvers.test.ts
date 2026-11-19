@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   approvalSwitchFor,
   CAMPUS_MAILBOX_SLUGS,
+  chainFailedIssueReason,
   DEFAULT_DIRECTORY_EMAILS,
   directoryKey,
   getCampusApprovalPlan,
   isNoApproverIssue,
+  isRebuildIssue,
   NATIONAL_APPROVER_EMAIL,
   NO_APPROVER_ISSUE_REASON,
 } from "./expense-approvers";
@@ -243,5 +245,19 @@ describe("isNoApproverIssue", () => {
     expect(isNoApproverIssue(NO_APPROVER_ISSUE_REASON)).toBe(true);
     expect(isNoApproverIssue("Approver is the submitter")).toBe(false);
     expect(isNoApproverIssue(null)).toBe(false);
+  });
+});
+
+describe("isRebuildIssue", () => {
+  it("lets a chain be rebuilt after no approver or a failed background chain", () => {
+    const failed = chainFailedIssueReason("mail down");
+    expect(failed).toContain("mail down");
+    expect(isRebuildIssue(NO_APPROVER_ISSUE_REASON)).toBe(true);
+    expect(isRebuildIssue(failed)).toBe(true);
+    // A failed chain is not "no approver", and it offers no resend.
+    expect(isNoApproverIssue(failed)).toBe(false);
+    expect(failed.startsWith("Could not notify")).toBe(false);
+    expect(isRebuildIssue("Could not notify a@biso.no for step 1")).toBe(false);
+    expect(isRebuildIssue(undefined)).toBe(false);
   });
 });

@@ -13,7 +13,7 @@ import {
   ExpensesStatus,
   type LedgerAccounts,
 } from "@repo/api/types/appwrite";
-import { isNoApproverIssue } from "@repo/shared/utils/expense-approvers";
+import { isRebuildIssue } from "@repo/shared/utils/expense-approvers";
 import { costTypeLabel } from "@repo/shared/utils/expense-cost-types";
 import {
   type ApproverHint,
@@ -635,8 +635,9 @@ export async function withHintTypeLabels(
 
 /**
  * Whether an empty approval chain may be rebuilt: direct booking is on and the
- * submission recorded that no approver was found. Read only when it can
- * matter (`needsRebuildEvidence`).
+ * submission recorded that no approver was found, or that the chain failed
+ * after the background check. Read only when it can matter
+ * (`needsRebuildEvidence`).
  */
 export async function loadRebuildEvidence(
   db: Db,
@@ -652,9 +653,7 @@ export async function loadRebuildEvidence(
     ]),
   ]);
   return {
-    hasNoApproverIssue: issues.rows.some((row) =>
-      isNoApproverIssue(row.reason)
-    ),
+    hasRebuildIssue: issues.rows.some((row) => isRebuildIssue(row.reason)),
     ledgerPosting,
   };
 }

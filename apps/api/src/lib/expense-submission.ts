@@ -1,6 +1,11 @@
 import { fastModel, MODEL_IDS } from "@repo/ai/models";
+import { Query } from "@repo/api";
 import type { createAdminClient } from "@repo/api/server";
-import type { ExpenseAttachments, Expenses } from "@repo/api/types/appwrite";
+import {
+  type ExpenseAttachments,
+  ExpenseAttachmentsTypeSource,
+  type Expenses,
+} from "@repo/api/types/appwrite";
 import {
   AI_TYPE_CONFIDENCE_THRESHOLD,
   type CostTypeOption,
@@ -11,7 +16,11 @@ import {
   type ExpenseEventInput,
   recordExpenseEvents,
 } from "@repo/shared/utils/expense-events";
-import type { ApproverHint } from "@repo/shared/utils/expense-hints";
+import {
+  type ApproverHint,
+  type ApproverHintCode,
+  parseApproverHints,
+} from "@repo/shared/utils/expense-hints";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
 import { receiptFileId } from "@repo/shared/utils/receipt-file-id";
 import { generateObject } from "ai";
@@ -107,6 +116,7 @@ function withType(
 interface DecisionContext {
   aiConfident: boolean;
   aiEnabled: boolean;
+  aiPending: boolean;
   aiSlug: string | null;
   clientSlug: string | null;
   decision: AttachmentDecision;
@@ -171,6 +181,10 @@ function decideChosen(ctx: DecisionContext): AttachmentDecision {
       types
     );
   }
+  if (ctx.aiPending) {
+    // Undecided: the check reads the receipt after the submit and decides.
+    return { ...decision, typeSource: null };
+  }
   return defaulted(decision, types);
 }
 
@@ -203,13 +217,21 @@ function decideLegacy(ctx: DecisionContext): AttachmentDecision {
   if (clientSlug) {
     return withType(legacy, clientSlug, types);
   }
-  return defaulted(legacy, types);
+  // Undecided until the check has read the receipt.
+  return ctx.aiPending ? legacy : defaulted(legacy, types);
 }
 
+/**
+ * A receipt's type, account and the hints they bring. `aiPending` means the
+ * AI is still to read the receipt (the background check does, after the
+ * submit): a receipt nobody chose a type for then stays undecided, with no
+ * type, instead of falling back to the default.
+ */
 export function decideAttachment(
   input: AttachmentDecisionInput,
   types: CostTypeOption[],
-  aiEnabled: boolean
+  aiEnabled: boolean,
+  aiPending = false
 ): AttachmentDecision {
   const base: AttachmentDecision = {
     accountNumber: null,
@@ -238,6 +260,7 @@ export function decideAttachment(
   const ctx: DecisionContext = {
     aiConfident,
     aiEnabled,
+    aiPending,
     aiSlug,
     clientSlug: findCostType(input.clientCostType, types)?.slug ?? null,
     decision: {
@@ -448,17 +471,17 @@ type Db = AdminClient["db"];
 const EXPENSES_BUCKET = "expenses";
 const SCAN_MODEL = `${MODEL_IDS.balanced}+${MODEL_IDS.fast}`;
 /**
- * How long a submission waits for the model to read a receipt the upload never
- * scanned. The app waits 20 s for a submission, and the type's own limit
- * (`CLASSIFY_TIMEOUT_MS`) comes after this one.
+ * How long the check waits for the model to read a receipt the upload never
+ * scanned. The type's own limit (`CLASSIFY_TIMEOUT_MS`) comes after this one.
  */
 const EXTRACT_TIMEOUT_MS = 12_000;
 /**
- * The whole enrichment's budget, from its start. The app gives up on a submit
- * after 20 s and the calls in flight keep their own caps, so no model call
- * starts after this much time has passed.
+ * The fixed steps' budget, from their start. Nobody waits for them, but the
+ * whole check has to end well inside the route's time and before the
+ * backstop takes a check for lost; calls in flight keep their own caps, so
+ * no model call starts after this much time has passed.
  */
-export const ENRICHMENT_BUDGET_MS = 14_000;
+export const FIXED_STEPS_BUDGET_MS = 60_000;
 /** What the model can read; the OCR route accepts the same types. */
 const SCANNABLE_TYPES = new Set([
   "image/jpeg",
@@ -476,6 +499,28 @@ const ESSENTIAL_HINTS = new Set<ApproverHint["code"]>([
   "ai_account_unsure",
   "occasion_missing",
   "app_type_replaced",
+  "ai_check_incomplete",
+]);
+/** Read from the receipt itself; the check works them out for every receipt. */
+const RECEIPT_HINTS = new Set<ApproverHintCode>([
+  "amount_differs",
+  "old_receipt",
+  "possible_duplicate",
+  "receipt_issue",
+]);
+/** From deciding a receipt's type and account (`decideAttachment` and the account choice). */
+const DECISION_HINTS = new Set<ApproverHintCode>([
+  "account_missing",
+  "ai_account_unsure",
+  "app_type_replaced",
+  "type_defaulted",
+]);
+/** Every hint the check's fixed steps work out again; it keeps the others. */
+const FIXED_STEP_HINTS = new Set<ApproverHintCode>([
+  ...RECEIPT_HINTS,
+  ...DECISION_HINTS,
+  "ai_check_incomplete",
+  "occasion_missing",
 ]);
 
 /**
@@ -493,6 +538,10 @@ type SubmittedAttachment = Pick<
   ExpenseAttachments,
   "$id" | "amount" | "cost_type" | "cost_type_text" | "date" | "type" | "url"
 >;
+
+/** A receipt as the submit stored it, which the check reads back. */
+type StoredAttachment = SubmittedAttachment &
+  Pick<ExpenseAttachments, "account_number" | "file_hash" | "type_source">;
 
 interface EnrichedReceipt {
   /** The AI's reason for the account it chose for the student's own text. */
@@ -610,6 +659,8 @@ interface ReceiptRead {
   scan: StoredScan | null;
 }
 
+const NO_READ: ReceiptRead = { fileHash: null, scan: null };
+
 interface HashJob {
   buffer: Buffer;
   fileHash: string;
@@ -650,21 +701,31 @@ async function classifyStored(
 }
 
 /**
- * The stored scan, or a new one when the file may be scanned. A stored
+ * Whether the model still has work on a receipt: no scan yet, or a stored
  * receipt the upload couldn't classify (the time limit stopped it, the call
- * failed or no type was active) is classified now, when the file may be
- * scanned.
+ * failed or no type was active).
+ */
+function needsModel(scan: StoredScan | null): boolean {
+  return (
+    scan === null ||
+    (scan.classification === null && scan.receipt.documentType === "receipt")
+  );
+}
+
+/**
+ * The stored scan, or a new one when the file may be scanned and a model
+ * call is allowed. A stored receipt without a type is classified now, then.
  */
 async function findOrScan(
   db: Db,
   job: HashJob,
   types: CostTypeOption[],
-  budgetSpent: () => boolean,
+  modelAllowed: () => boolean,
   departmentId?: string | null
 ): Promise<StoredScan | null> {
   const stored = await findScan(db, job.fileHash);
-  // A model call that would start after the budget is left out.
-  if (!job.mimeType || budgetSpent()) {
+  // A model call that isn't allowed (at submit, or past the budget) is left out.
+  if (!(job.mimeType && modelAllowed() && needsModel(stored))) {
     return stored;
   }
   if (!stored) {
@@ -679,11 +740,7 @@ async function findOrScan(
       departmentId
     );
   }
-  const unclassified =
-    stored.classification === null && stored.receipt.documentType === "receipt";
-  return unclassified
-    ? classifyStored(db, stored, types, departmentId)
-    : stored;
+  return classifyStored(db, stored, types, departmentId);
 }
 
 /**
@@ -694,15 +751,16 @@ async function findOrScan(
  * receipt uploaded twice costs one scan. Reading a stored scan calls no model,
  * so it happens with the AI off too: the scan then still gives the amount read
  * and the receipt issues, and `decideAttachment` ignores its classification.
- * A new scan needs the AI on and a receipt with an amount.
+ * A new scan needs the AI on, a receipt with an amount and `modelAllowed`:
+ * the submit never allows one, the check does within its budget.
  */
 async function readReceipts(
   admin: Pick<AdminClient, "db" | "storage">,
   attachments: SubmittedAttachment[],
   context: {
     aiEnabled: boolean;
-    budgetSpent: () => boolean;
     departmentId?: string | null;
+    modelAllowed: () => boolean;
     types: CostTypeOption[];
   }
 ): Promise<Map<string, ReceiptRead>> {
@@ -748,7 +806,7 @@ async function readReceipts(
         admin.db,
         job,
         context.types,
-        context.budgetSpent,
+        context.modelAllowed,
         context.departmentId
       )
     );
@@ -853,8 +911,19 @@ async function chooseFreeformAccounts(
   );
 }
 
+/** What a receipt's file and scan give its row. */
+function scanColumns({ fileHash, scan }: ReceiptRead) {
+  return {
+    file_hash: fileHash,
+    ocr_amount: scan ? amountReadInNok(scan) : null,
+    receipt_issues: scan
+      ? JSON.stringify([...new Set(scan.receipt.receiptIssues)])
+      : null,
+  };
+}
+
 function attachmentColumns(expenseId: string, receipt: EnrichedReceipt) {
-  const { decision, fileHash, scan } = receipt;
+  const { decision } = receipt;
   return {
     account_number: decision.accountNumber,
     account_source: decision.accountSource,
@@ -863,11 +932,7 @@ function attachmentColumns(expenseId: string, receipt: EnrichedReceipt) {
     cost_type: decision.costType,
     cost_type_text: decision.costTypeText,
     expense_id: expenseId,
-    file_hash: fileHash,
-    ocr_amount: scan ? amountReadInNok(scan) : null,
-    receipt_issues: scan
-      ? JSON.stringify([...new Set(scan.receipt.receiptIssues)])
-      : null,
+    ...scanColumns(receipt),
     tax_code: decision.taxCode,
     type_source: decision.typeSource,
   };
@@ -923,11 +988,26 @@ function declarationNote(payload: ExpensePayload): string | null {
   return null;
 }
 
-function historyEvents(
+/** The student's submit, with what they declared about themselves. */
+function submittedEvent(
   expenseId: string,
-  receipts: EnrichedReceipt[],
   profileName: string,
   payload: ExpensePayload
+): ExpenseEventInput {
+  const declared = declarationNote(payload);
+  return {
+    action: "submitted",
+    actorKind: "student",
+    actorName: profileName,
+    expenseId,
+    ...(declared ? { note: declared } : {}),
+  };
+}
+
+/** What the AI decided on these receipts: types it picked, accounts it chose. */
+function aiEvents(
+  expenseId: string,
+  receipts: EnrichedReceipt[]
 ): ExpenseEventInput[] {
   const classified = receipts.filter(isAiTyped).map(
     (receipt): ExpenseEventInput => ({
@@ -958,59 +1038,81 @@ function historyEvents(
         note: receipt.accountReason,
       })
     );
-  const declared = declarationNote(payload);
-  const declaration = declared ? { note: declared } : {};
-  return [
-    {
-      action: "submitted",
-      actorKind: "student",
-      actorName: profileName,
-      expenseId,
-      ...declaration,
-    },
-    ...classified,
-    ...accounts,
-  ];
+  return [...classified, ...accounts];
+}
+
+/** The flags and the types they decide with. */
+async function loadDecisionSetup(db: Db) {
+  const flags = await getFeatureFlagStates();
+  const allTypes = await loadAllCostTypes(db);
+  return {
+    aiEnabled: flags.expenses_module && flags.expenses_ocr,
+    allTypes,
+    types: activeCostTypes(allTypes),
+  };
+}
+
+/** Whether any of these types asks for the occasion (retired ones too). */
+function asksOccasion(
+  costTypes: (string | null)[],
+  allTypes: CostTypeOption[]
+): boolean {
+  return costTypes.some((slug) => findCostType(slug, allTypes)?.askOccasion);
+}
+
+/** Each receipt's possible duplicate in an earlier reimbursement, in order. */
+function findDuplicates(
+  db: Db,
+  expenseId: string,
+  receipts: { attachment: SubmittedAttachment; fileHash: string | null }[]
+): Promise<(PossibleDuplicate | null)[]> {
+  return Promise.all(
+    receipts.map(({ attachment, fileHash }) =>
+      (attachment.amount ?? 0) > 0
+        ? findPossibleDuplicate(db, {
+            amount: attachment.amount,
+            date: attachment.date,
+            excludeExpenseId: expenseId,
+            fileHash,
+          })
+        : Promise.resolve(null)
+    )
+  );
 }
 
 /**
- * Settles every receipt of a saved draft before it is submitted: its file
- * hash and scan (reused by hash, or made now when the AI is on), its type and
- * ledger account, approver hints and history.
+ * The submit's part of settling a saved draft, with no model call: each
+ * receipt's file hash and stored scan (found by the hash), the type and
+ * account they and the student's choices give, the hints that need no lookup,
+ * and the history. A receipt the model has yet to read, with nothing chosen,
+ * stays undecided; the student's own text waits for its account. The check
+ * (`enrichUnsettled`) does the rest after the answer.
  *
- * Throws `OccasionRequiredError` before writing anything when a receipt's type
- * asks for the occasion and there is none. An old app (no `cost_type_chosen`
- * anywhere) can't ask, so its submission gets an approver hint instead.
+ * Throws `OccasionRequiredError` before writing anything when a decided
+ * type asks for the occasion and there is none. An old app (no
+ * `cost_type_chosen` anywhere) can't ask, so its submission gets an approver
+ * hint instead.
  */
-export async function enrichSubmission(
+export async function prepareSubmission(
   admin: Pick<AdminClient, "db" | "storage">,
   expense: Pick<Expenses, "$id" | "expenseAttachments" | "occasion">,
   payload: ExpensePayload,
-  profileName: string,
-  now: () => number = Date.now
+  profileName: string
 ): Promise<void> {
-  const deadline = now() + ENRICHMENT_BUDGET_MS;
-  const budgetSpent = () => now() >= deadline;
   const { db } = admin;
-  const flags = await getFeatureFlagStates();
-  const aiEnabled = flags.expenses_module && flags.expenses_ocr;
-  const allTypes = await loadAllCostTypes(db);
-  const types = activeCostTypes(allTypes);
+  const { aiEnabled, allTypes, types } = await loadDecisionSetup(db);
   const legacy = isLegacyPayload(payload);
   const chosen = chosenByFile(payload);
   const attachments = expense.expenseAttachments ?? [];
 
   const reads = await readReceipts(admin, attachments, {
     aiEnabled,
-    budgetSpent,
     departmentId: payload.department,
+    modelAllowed: () => false,
     types,
   });
-  const decided = attachments.map((attachment): EnrichedReceipt => {
-    const { fileHash, scan } = reads.get(attachment.$id) ?? {
-      fileHash: null,
-      scan: null,
-    };
+  const receipts = attachments.map((attachment): EnrichedReceipt => {
+    const { fileHash, scan } = reads.get(attachment.$id) ?? NO_READ;
     const amount = attachment.amount ?? 0;
     const fileKey = attachmentFileKey(attachment.url);
     const decision = decideAttachment(
@@ -1025,47 +1127,26 @@ export async function enrichSubmission(
         scan,
       },
       types,
-      aiEnabled
+      aiEnabled,
+      canScan(attachment, aiEnabled) && needsModel(scan)
     );
     return { accountReason: null, attachment, decision, fileHash, scan };
   });
 
-  // Checked before any account is asked of the AI or duplicates are looked
-  // up, so a rejected submission costs no more model calls.
+  // Checked before anything is written, so a rejected submission leaves the
+  // draft as the student saved it.
   // A key the client leaves out keeps the stored value; null clears it.
   const sentOccasion =
     payload.occasion === undefined ? expense.occasion : payload.occasion;
   const occasion = sentOccasion?.trim() || null;
-  const asksOccasion = decided.some(
-    ({ decision }) => findCostType(decision.costType, allTypes)?.askOccasion
-  );
   const expenseHints: ApproverHint[] = [];
-  if (asksOccasion && !occasion) {
+  const decidedTypes = receipts.map(({ decision }) => decision.costType);
+  if (asksOccasion(decidedTypes, allTypes) && !occasion) {
     if (!legacy) {
       throw new OccasionRequiredError();
     }
     expenseHints.push({ code: "occasion_missing" });
   }
-
-  const receipts = await chooseFreeformAccounts(
-    db,
-    decided,
-    types,
-    budgetSpent
-  );
-  const duplicates = await Promise.all(
-    receipts.map(
-      ({ attachment, fileHash }): Promise<PossibleDuplicate | null> =>
-        (attachment.amount ?? 0) > 0
-          ? findPossibleDuplicate(db, {
-              amount: attachment.amount,
-              date: attachment.date,
-              excludeExpenseId: expense.$id,
-              fileHash,
-            })
-          : Promise.resolve(null)
-    )
-  );
 
   await Promise.all(
     receipts.map((receipt) =>
@@ -1078,12 +1159,13 @@ export async function enrichSubmission(
     )
   );
 
+  // Duplicates in earlier reimbursements are the check's to look up.
   const hints = computeApproverHints({
-    attachments: receipts.map(({ attachment, fileHash, scan }, index) => ({
+    attachments: receipts.map(({ attachment, fileHash, scan }) => ({
       amount: attachment.amount ?? 0,
       attachmentId: attachment.$id,
       date: attachment.date,
-      duplicate: duplicates[index] ?? null,
+      duplicate: null,
       fileHash,
       scan,
     })),
@@ -1095,8 +1177,271 @@ export async function enrichSubmission(
     occasion,
   });
 
-  await recordExpenseEvents(
-    db,
-    historyEvents(expense.$id, receipts, profileName, payload)
+  await recordExpenseEvents(db, [
+    submittedEvent(expense.$id, profileName, payload),
+    ...aiEvents(expense.$id, receipts),
+  ]);
+}
+
+/** What the check reads back from the submitted expense. */
+const CHECK_COLUMNS = [
+  "$id",
+  "approver_hints",
+  "department",
+  "occasion",
+  "expenseAttachments.*",
+];
+
+/** Types a client sent, so the type on the row is still the client's own. */
+const CLIENT_TYPE_SOURCES = new Set<StoredAttachment["type_source"]>([
+  ExpenseAttachmentsTypeSource.STUDENT,
+  ExpenseAttachmentsTypeSource.LEGACY_APP,
+]);
+
+/**
+ * Whether the check decides this receipt again: it has no type yet, its own
+ * text still has no account, or the model read it only now and its type is
+ * still what the client sent. A type the AI, a default or an approver set is
+ * never decided again.
+ */
+function decidesAgain(
+  row: StoredAttachment,
+  readNow: boolean,
+  aiEnabled: boolean
+): boolean {
+  if ((row.amount ?? 0) <= 0) {
+    return false;
+  }
+  if (row.cost_type_text?.trim()) {
+    return aiEnabled && row.account_number === null;
+  }
+  if (!row.cost_type) {
+    return true;
+  }
+  return readNow && CLIENT_TYPE_SOURCES.has(row.type_source);
+}
+
+/** The choice behind a receipt the check decides again, as the submit stored it. */
+function storedChoice(
+  row: StoredAttachment,
+  scan: StoredScan | null
+): AttachmentDecisionInput {
+  const amount = row.amount ?? 0;
+  return {
+    amount,
+    attachmentId: row.$id,
+    chosen: row.type_source !== ExpenseAttachmentsTypeSource.LEGACY_APP,
+    clientCostType: row.cost_type,
+    clientText: row.cost_type_text,
+    date: row.date,
+    isSupportingDoc: amount <= 0,
+    scan,
+  };
+}
+
+/** The stored scan of each receipt, by the hash the submit stored. No download. */
+async function storedReads(
+  db: Db,
+  rows: StoredAttachment[]
+): Promise<Map<string, ReceiptRead>> {
+  const hashes = [
+    ...new Set(
+      rows
+        .map((row) => row.file_hash)
+        .filter((hash): hash is string => Boolean(hash))
+    ),
+  ];
+  const scans = new Map<string, StoredScan | null>();
+  await mapLimit(hashes, MAX_PARALLEL_FILES, async (hash) => {
+    scans.set(hash, await findScan(db, hash));
+  });
+  return new Map(
+    rows.map((row) => [
+      row.$id,
+      {
+        fileHash: row.file_hash,
+        scan: row.file_hash ? (scans.get(row.file_hash) ?? null) : null,
+      },
+    ])
   );
+}
+
+/**
+ * The approver hints after the fixed steps: the receipt hints worked out
+ * again for every receipt, the decision hints of the receipts decided again
+ * (the others keep theirs), the occasion, every other hint as it was (such
+ * as the agent's), then `extraHints`.
+ */
+function checkedHints(input: {
+  decided: Map<string, AttachmentDecision>;
+  expense: Pick<Expenses, "approver_hints" | "occasion">;
+  extraHints: ApproverHint[];
+  receiptHints: ApproverHint[];
+  rows: StoredAttachment[];
+  types: CostTypeOption[];
+}): string {
+  const { decided, expense, rows } = input;
+  const stored = parseApproverHints(expense.approver_hints);
+  const decisionHints = rows.flatMap(
+    (row) =>
+      decided.get(row.$id)?.hints ??
+      stored.filter(
+        (hint) => hint.attachmentId === row.$id && DECISION_HINTS.has(hint.code)
+      )
+  );
+  const finalTypes = rows.map(
+    (row) => decided.get(row.$id)?.costType ?? row.cost_type
+  );
+  // The student has gone by now, so a type that asks for the occasion is a
+  // hint here, never a rejection.
+  const occasionHints: ApproverHint[] =
+    asksOccasion(finalTypes, input.types) && !expense.occasion?.trim()
+      ? [{ code: "occasion_missing" }]
+      : [];
+  return hintsJson([
+    ...input.receiptHints,
+    ...decisionHints,
+    ...occasionHints,
+    ...stored.filter((hint) => !FIXED_STEP_HINTS.has(hint.code)),
+    ...input.extraHints,
+  ]);
+}
+
+/**
+ * The check's fixed steps, run after the submit's answer: the AI steps the
+ * submit left for later, for whatever is still unsettled. It reads the
+ * receipts the model hasn't (a new scan, or a type for a stored scan without
+ * one), decides the receipts that have no type yet, picks the account for the
+ * student's own text, looks up duplicates in earlier reimbursements, and
+ * writes the receipts, the approver hints (with `extraHints`, such as
+ * `ai_check_incomplete`) and the AI's history. A receipt whose type someone
+ * or something already settled keeps it. Safe to run again.
+ */
+export async function enrichUnsettled(
+  admin: Pick<AdminClient, "db" | "storage">,
+  expenseId: string,
+  options: { extraHints?: ApproverHint[]; now?: () => number } = {}
+): Promise<void> {
+  const now = options.now ?? Date.now;
+  const deadline = now() + FIXED_STEPS_BUDGET_MS;
+  const modelAllowed = () => now() < deadline;
+  const { db } = admin;
+  const expense = await db.getRow<Expenses>("app", "expense", expenseId, [
+    Query.select(CHECK_COLUMNS),
+  ]);
+  const { aiEnabled, allTypes, types } = await loadDecisionSetup(db);
+  const rows: StoredAttachment[] = expense.expenseAttachments ?? [];
+
+  const stored = await storedReads(db, rows);
+  const unread = rows.filter(
+    (row) =>
+      canScan(row, aiEnabled) &&
+      (!row.file_hash || needsModel(stored.get(row.$id)?.scan ?? null))
+  );
+  const fresh = await readReceipts(admin, unread, {
+    aiEnabled,
+    departmentId: expense.department,
+    modelAllowed,
+    types,
+  });
+  const readOf = (row: StoredAttachment): ReceiptRead =>
+    fresh.get(row.$id) ?? stored.get(row.$id) ?? NO_READ;
+  const readNow = new Set(unread.map((row) => row.$id));
+
+  const receipts = await chooseFreeformAccounts(
+    db,
+    rows
+      .filter((row) => decidesAgain(row, readNow.has(row.$id), aiEnabled))
+      .map((row): EnrichedReceipt => {
+        const read = readOf(row);
+        return {
+          accountReason: null,
+          attachment: row,
+          decision: decideAttachment(
+            storedChoice(row, read.scan),
+            types,
+            aiEnabled
+          ),
+          ...read,
+        };
+      }),
+    types,
+    () => !modelAllowed()
+  );
+  const decided = new Map(
+    receipts.map((receipt) => [receipt.attachment.$id, receipt.decision])
+  );
+  const duplicates = await findDuplicates(
+    db,
+    expenseId,
+    rows.map((row) => ({ attachment: row, fileHash: readOf(row).fileHash }))
+  );
+
+  await Promise.all([
+    ...receipts.map((receipt) =>
+      db.updateRow(
+        "app",
+        "expense_attachments",
+        receipt.attachment.$id,
+        attachmentColumns(expenseId, receipt)
+      )
+    ),
+    // Read now but settled already: only what the scan gives.
+    ...unread
+      .filter((row) => !decided.has(row.$id))
+      .map((row) =>
+        db.updateRow(
+          "app",
+          "expense_attachments",
+          row.$id,
+          scanColumns(readOf(row))
+        )
+      ),
+  ]);
+
+  const receiptHints = computeApproverHints({
+    attachments: rows.map((row, index) => ({
+      amount: row.amount ?? 0,
+      attachmentId: row.$id,
+      date: row.date,
+      duplicate: duplicates[index] ?? null,
+      ...readOf(row),
+    })),
+    decisions: [],
+    today: todayInOslo(),
+  });
+  await db.updateRow("app", "expense", expenseId, {
+    approver_hints: checkedHints({
+      decided,
+      expense,
+      extraHints: options.extraHints ?? [],
+      receiptHints,
+      rows,
+      types: allTypes,
+    }),
+  });
+
+  const events = aiEvents(expenseId, receipts);
+  if (events.length > 0) {
+    await recordExpenseEvents(db, events);
+  }
+}
+
+/**
+ * Adds `ai_check_incomplete` to the stored hints, for a check whose steps
+ * could not finish; the approvers are still told.
+ */
+export async function flagCheckIncomplete(
+  db: Db,
+  expenseId: string
+): Promise<void> {
+  const expense = await db.getRow<Expenses>("app", "expense", expenseId, [
+    Query.select(["$id", "approver_hints"]),
+  ]);
+  const hints = parseApproverHints(expense.approver_hints).filter(
+    (hint) => hint.code !== "ai_check_incomplete"
+  );
+  await db.updateRow("app", "expense", expenseId, {
+    approver_hints: hintsJson([...hints, { code: "ai_check_incomplete" }]),
+  });
 }

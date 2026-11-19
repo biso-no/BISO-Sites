@@ -60,10 +60,12 @@ import {
   chooseAccountForText,
   computeApproverHints,
   decideAttachment,
-  ENRICHMENT_BUDGET_MS,
-  enrichSubmission,
+  enrichUnsettled,
+  FIXED_STEPS_BUDGET_MS,
+  flagCheckIncomplete,
   hintsJson,
   OccasionRequiredError,
+  prepareSubmission,
 } from "./expense-submission";
 import {
   type ExtractedReceipt,
@@ -802,23 +804,75 @@ function withOccasion(expense: unknown, occasion: string | null): never {
   return { ...(expense as Record<string, unknown>), occasion } as never;
 }
 
-const db = { updateRow: vi.fn() };
+const db = { getRow: vi.fn(), updateRow: vi.fn() };
 const storage = { getFileDownload: vi.fn() };
 const admin = { db, storage } as never;
 
-function attachmentWrite(attachmentId: string) {
-  const call = db.updateRow.mock.calls.find(
-    ([, table, id]) => table === "expense_attachments" && id === attachmentId
+/**
+ * Keeps the rows the submit and the check write, so the check reads back what
+ * the submit stored, as it does from the database.
+ */
+function storeOf(expense: unknown, payload: { department?: string }) {
+  const { expenseAttachments, ...row } = expense as {
+    expenseAttachments: { $id: string }[];
+  };
+  let saved: Record<string, unknown> = {
+    department: payload.department,
+    occasion: null,
+    ...row,
+  };
+  const rows = new Map(
+    expenseAttachments.map((attachment) => [attachment.$id, { ...attachment }])
   );
-  return call?.[3] as Record<string, unknown> | undefined;
+  db.updateRow.mockImplementation(
+    (_db: string, table: string, id: string, data: object) => {
+      if (table === "expense_attachments") {
+        rows.set(id, { ...rows.get(id), ...data } as { $id: string });
+      } else if (table === "expense") {
+        saved = { ...saved, ...data };
+      }
+      return Promise.resolve({});
+    }
+  );
+  db.getRow.mockImplementation(() =>
+    Promise.resolve({ ...saved, expenseAttachments: [...rows.values()] })
+  );
+}
+
+/** The submit's part, then the check's fixed steps, as the background runs them. */
+async function submitAndCheck(
+  expense: never,
+  payload: Parameters<typeof prepareSubmission>[2],
+  options: Parameters<typeof enrichUnsettled>[2] = {}
+) {
+  storeOf(expense, payload);
+  await prepareSubmission(admin, expense, payload, "Ada Lovelace");
+  await enrichUnsettled(admin, "expense-1", options);
+}
+
+/** A receipt's columns as written, the check's writes over the submit's. */
+function attachmentWrite(attachmentId: string) {
+  const writes = db.updateRow.mock.calls
+    .filter(
+      ([, table, id]) => table === "expense_attachments" && id === attachmentId
+    )
+    .map((call) => call[3] as Record<string, unknown>);
+  return writes.length > 0 ? Object.assign({}, ...writes) : undefined;
 }
 
 function expenseWrite() {
-  const call = db.updateRow.mock.calls.find(([, table]) => table === "expense");
-  return call?.[3] as Record<string, unknown> | undefined;
+  const writes = db.updateRow.mock.calls
+    .filter(([, table]) => table === "expense")
+    .map((call) => call[3] as Record<string, unknown>);
+  return writes.length > 0 ? Object.assign({}, ...writes) : undefined;
 }
 
-describe("enrichSubmission", () => {
+/** Every history event, the submit's first. */
+function historyEvents() {
+  return recordExpenseEvents.mock.calls.flatMap((call) => call[1]);
+}
+
+describe("prepareSubmission and the check's fixed steps", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     generateObject.mockReset();
@@ -856,13 +910,65 @@ describe("enrichSubmission", () => {
     vi.restoreAllMocks();
   });
 
-  it("enrichSubmission reuses a stored scan by file hash", async () => {
+  it("the submit answer makes no model call", async () => {
+    // Read at upload, but the time limit stopped its type.
+    scanning.findScan.mockImplementation(async (_db: unknown, hash: string) =>
+      hash === hashOf("file-3")
+        ? scan("social", 0.9, { classification: null })
+        : null
+    );
+    const { expense, payload } = submission([
+      { cost_type: "", cost_type_chosen: true, url: "file-1" },
+      { cost_type_chosen: true, cost_type_text: "Flowers", url: "file-2" },
+      { cost_type: "", cost_type_chosen: true, url: "file-3" },
+    ]);
+
+    await prepareSubmission(admin, expense, payload, "Ada Lovelace");
+
+    expect(scanning.extractReceipt).not.toHaveBeenCalled();
+    expect(scanning.classifyReceipt).not.toHaveBeenCalled();
+    expect(generateObject).not.toHaveBeenCalled();
+    expect(typeStore.loadCostAccounts).not.toHaveBeenCalled();
+    // Duplicates are the check's to look up.
+    expect(findPossibleDuplicate).not.toHaveBeenCalled();
+    // The stored scans are found by the file's hash.
+    expect(scanning.findScan).toHaveBeenCalledWith(db, hashOf("file-1"));
+    // Nothing chosen and nothing read: the check decides it.
+    for (const id of ["att-1", "att-3"]) {
+      expect(attachmentWrite(id)).toMatchObject({
+        account_number: null,
+        cost_type: null,
+        type_source: null,
+      });
+    }
+    expect(attachmentWrite("att-3")).toMatchObject({
+      file_hash: hashOf("file-3"),
+      receipt_issues: "[]",
+    });
+    // The student's own text waits for the check to pick its account.
+    expect(attachmentWrite("att-2")).toMatchObject({
+      account_number: null,
+      cost_type_text: "Flowers",
+      type_source: "student",
+    });
+    expect(expenseWrite()).toEqual({ approver_hints: "[]", occasion: null });
+    expect(historyEvents()).toEqual([
+      {
+        action: "submitted",
+        actorKind: "student",
+        actorName: "Ada Lovelace",
+        expenseId: "expense-1",
+      },
+    ]);
+  });
+
+  it("reuses a stored scan by file hash", async () => {
     scanning.findScan.mockResolvedValue(scan("social", 0.9));
     const { expense, payload } = submission([
       { cost_type: "", cost_type_chosen: true, url: "file-1" },
     ]);
 
-    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+    await submitAndCheck(expense, payload);
 
     expect(storage.getFileDownload).toHaveBeenCalledWith("expenses", "file-1");
     expect(scanning.findScan).toHaveBeenCalledWith(db, hashOf("file-1"));
@@ -885,7 +991,7 @@ describe("enrichSubmission", () => {
       type_source: null,
     });
     // The history still says the AI picked the type.
-    expect(recordExpenseEvents.mock.calls[0]?.[1]).toContainEqual({
+    expect(historyEvents()).toContainEqual({
       action: "ai_classified",
       actorKind: "ai",
       after: "social",
@@ -918,7 +1024,7 @@ describe("enrichSubmission", () => {
       { amount: 470, cost_type: "", cost_type_chosen: true, url: "file-1" },
     ]);
 
-    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+    await submitAndCheck(expense, payload);
 
     expect(scanning.extractReceipt).toHaveBeenCalledWith({
       abortSignal: expect.any(AbortSignal),
@@ -940,8 +1046,9 @@ describe("enrichSubmission", () => {
     });
     // 12 s to read the file, then 8 s to pick its type.
     expect(timeout.mock.calls).toEqual([[12_000], [8000]]);
-    // The types are loaded once; the AI is offered only the active ones.
-    expect(typeStore.loadAllCostTypes).toHaveBeenCalledTimes(1);
+    // The types are loaded once by each part; the AI is offered only the
+    // active ones.
+    expect(typeStore.loadAllCostTypes).toHaveBeenCalledTimes(2);
     expect(typeStore.loadActiveCostTypes).not.toHaveBeenCalled();
     expect(scanning.saveScan).toHaveBeenCalledWith(
       db,
@@ -980,7 +1087,7 @@ describe("enrichSubmission", () => {
       { cost_type: "social", cost_type_chosen: true, url: "file-3" },
     ]);
 
-    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+    await submitAndCheck(expense, payload);
 
     // A bank statement (amount 0) is hashed but never sent to the model.
     expect(scanning.extractReceipt).toHaveBeenCalledTimes(1);
@@ -1017,7 +1124,7 @@ describe("enrichSubmission", () => {
       { cost_type_chosen: true, cost_type_text: "Flowers", url: "file-2" },
     ]);
 
-    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+    await submitAndCheck(expense, payload);
 
     // Stored scans are read by hash; no model is called for the missing one.
     expect(scanning.findScan).toHaveBeenCalledWith(db, hashOf("file-1"));
@@ -1060,10 +1167,9 @@ describe("enrichSubmission", () => {
       },
       { attachmentId: "att-2", code: "account_missing" },
     ]);
-    const events = recordExpenseEvents.mock.calls[0]?.[1];
-    expect(events.map((event: { action: string }) => event.action)).toEqual([
-      "submitted",
-    ]);
+    expect(
+      historyEvents().map((event: { action: string }) => event.action)
+    ).toEqual(["submitted"]);
   });
 
   it("notes what the submitter declared about themselves", async () => {
@@ -1072,7 +1178,7 @@ describe("enrichSubmission", () => {
       department: "1",
       submitter_is_controller: true,
     });
-    await enrichSubmission(
+    await prepareSubmission(
       admin,
       asController.expense,
       asController.payload,
@@ -1083,7 +1189,7 @@ describe("enrichSubmission", () => {
       department: "dept-x",
       submitter_is_financial_manager: true,
     });
-    await enrichSubmission(
+    await prepareSubmission(
       admin,
       asManager.expense,
       asManager.payload,
@@ -1114,7 +1220,7 @@ describe("enrichSubmission", () => {
     ];
     for (const over of cases) {
       const { expense, payload } = submission([], over);
-      await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+      await prepareSubmission(admin, expense, payload, "Ada Lovelace");
     }
 
     const submitted = recordExpenseEvents.mock.calls.map((call) => call[1][0]);
@@ -1143,7 +1249,7 @@ describe("enrichSubmission", () => {
       }
     );
 
-    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+    await submitAndCheck(expense, payload);
 
     expect(attachmentWrite("att-1")).toMatchObject({
       account_number: 7420,
@@ -1170,10 +1276,10 @@ describe("enrichSubmission", () => {
       );
 
       await expect(
-        enrichSubmission(admin, expense, payload, "Ada Lovelace")
+        prepareSubmission(admin, expense, payload, "Ada Lovelace")
       ).rejects.toBeInstanceOf(OccasionRequiredError);
     }
-    // Rejected before the AI picks an account or duplicates are looked up.
+    // Rejected before anything is written.
     expect(typeStore.loadCostAccounts).not.toHaveBeenCalled();
     expect(generateObject).not.toHaveBeenCalled();
     expect(findPossibleDuplicate).not.toHaveBeenCalled();
@@ -1189,20 +1295,42 @@ describe("enrichSubmission", () => {
     ]);
 
     await expect(
-      enrichSubmission(admin, expense, payload, "Ada Lovelace")
+      prepareSubmission(admin, expense, payload, "Ada Lovelace")
     ).rejects.toBeInstanceOf(OccasionRequiredError);
     expect(db.updateRow).not.toHaveBeenCalled();
   });
 
-  it("asks for an occasion when the AI picks a type that needs one", async () => {
+  it("asks for an occasion when a stored AI pick needs one", async () => {
     scanning.findScan.mockResolvedValue(scan("meeting-food", 0.9));
     const { expense, payload } = submission([
       { cost_type: "", cost_type_chosen: true, url: "file-1" },
     ]);
 
     await expect(
-      enrichSubmission(admin, expense, payload, "Ada Lovelace")
+      prepareSubmission(admin, expense, payload, "Ada Lovelace")
     ).rejects.toBeInstanceOf(OccasionRequiredError);
+  });
+
+  it("flags a missing occasion for a type the check picks later", async () => {
+    // Nothing stored: the type comes from the check's scan, after the
+    // student has gone, so it is a hint, never a rejection.
+    scanning.classifyReceipt.mockResolvedValue({
+      confidence: 0.9,
+      costType: "meeting-food",
+      reason: "Lunch",
+    });
+    const { expense, payload } = submission([
+      { cost_type: "", cost_type_chosen: true, url: "file-1" },
+    ]);
+
+    await submitAndCheck(expense, payload);
+
+    expect(attachmentWrite("att-1")).toMatchObject({
+      cost_type: "meeting-food",
+    });
+    expect(JSON.parse(String(expenseWrite()?.approver_hints))).toEqual([
+      { code: "occasion_missing" },
+    ]);
   });
 
   it("keeps the stored occasion when a new client leaves it out", async () => {
@@ -1211,7 +1339,7 @@ describe("enrichSubmission", () => {
       { cost_type: "meeting-food", cost_type_chosen: true, url: "file-1" },
     ]);
 
-    await enrichSubmission(
+    await prepareSubmission(
       admin,
       withOccasion(expense, "Board meeting"),
       payload,
@@ -1227,7 +1355,7 @@ describe("enrichSubmission", () => {
       { occasion: null }
     );
 
-    await enrichSubmission(
+    await prepareSubmission(
       admin,
       withOccasion(expense, "Board meeting"),
       payload,
@@ -1243,7 +1371,7 @@ describe("enrichSubmission", () => {
     ]);
 
     await expect(
-      enrichSubmission(
+      prepareSubmission(
         admin,
         withOccasion(expense, null),
         payload,
@@ -1251,7 +1379,7 @@ describe("enrichSubmission", () => {
       )
     ).rejects.toBeInstanceOf(OccasionRequiredError);
     await expect(
-      enrichSubmission(
+      prepareSubmission(
         admin,
         withOccasion(expense, "   "),
         payload,
@@ -1266,7 +1394,7 @@ describe("enrichSubmission", () => {
     storage.getFileDownload.mockImplementation(
       (_bucket: string, fileId: string) => {
         // The downloads count towards the budget.
-        clock += ENRICHMENT_BUDGET_MS;
+        clock += FIXED_STEPS_BUDGET_MS;
         return Promise.resolve(fileBytes(fileId));
       }
     );
@@ -1274,13 +1402,7 @@ describe("enrichSubmission", () => {
       { cost_type: "social", cost_type_chosen: true, url: "file-1" },
     ]);
 
-    await enrichSubmission(
-      admin,
-      expense,
-      payload,
-      "Ada Lovelace",
-      () => clock
-    );
+    await submitAndCheck(expense, payload, { now: () => clock });
 
     expect(scanning.findScan).toHaveBeenCalled();
     expect(scanning.extractReceipt).not.toHaveBeenCalled();
@@ -1291,20 +1413,14 @@ describe("enrichSubmission", () => {
   it("skips the account choice that would start after the budget", async () => {
     let clock = 0;
     scanning.findScan.mockImplementation(() => {
-      clock = ENRICHMENT_BUDGET_MS;
+      clock += FIXED_STEPS_BUDGET_MS;
       return Promise.resolve(null);
     });
     const { expense, payload } = submission([
       { cost_type_chosen: true, cost_type_text: "Flowers", url: "file-1" },
     ]);
 
-    await enrichSubmission(
-      admin,
-      expense,
-      payload,
-      "Ada Lovelace",
-      () => clock
-    );
+    await submitAndCheck(expense, payload, { now: () => clock });
 
     expect(generateObject).not.toHaveBeenCalled();
     expect(expenseWrite()?.approver_hints).toContain("account_missing");
@@ -1315,7 +1431,7 @@ describe("enrichSubmission", () => {
       { cost_type: "meeting-food", url: "file-1" },
     ]);
 
-    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+    await submitAndCheck(expense, payload);
 
     expect(attachmentWrite("att-1")).toMatchObject({
       cost_type: "meeting-food",
@@ -1355,7 +1471,7 @@ describe("enrichSubmission", () => {
       { occasion: "  Board meeting  " }
     );
 
-    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+    await submitAndCheck(expense, payload);
 
     expect(findPossibleDuplicate).toHaveBeenCalledWith(db, {
       amount: 100,
@@ -1384,7 +1500,7 @@ describe("enrichSubmission", () => {
       ]),
       occasion: "Board meeting",
     });
-    expect(recordExpenseEvents).toHaveBeenCalledWith(db, [
+    expect(historyEvents()).toEqual([
       {
         action: "submitted",
         actorKind: "student",
@@ -1411,11 +1527,12 @@ describe("enrichSubmission", () => {
         note: "Gift for a guest",
       },
     ]);
-    // History is written after the receipts and the expense.
-    const lastWrite = Math.max(...db.updateRow.mock.invocationCallOrder);
-    expect(recordExpenseEvents.mock.invocationCallOrder[0]).toBeGreaterThan(
-      lastWrite
-    );
+    // Each part writes its history after its receipts and the expense.
+    const [submitted, checked] = recordExpenseEvents.mock.invocationCallOrder;
+    const writes = db.updateRow.mock.invocationCallOrder;
+    const checkWrites = writes.filter((order) => order > (submitted ?? 0));
+    expect(writes.filter((order) => order < (submitted ?? 0))).toHaveLength(4);
+    expect(checked).toBeGreaterThan(Math.max(...checkWrites));
   });
 
   it("flags a missing account when the AI finds none for the student's text", async () => {
@@ -1424,7 +1541,7 @@ describe("enrichSubmission", () => {
       { cost_type_chosen: true, cost_type_text: "Flowers", url: "file-1" },
     ]);
 
-    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+    await submitAndCheck(expense, payload);
 
     expect(attachmentWrite("att-1")).toMatchObject({
       account_number: null,
@@ -1451,10 +1568,10 @@ describe("enrichSubmission", () => {
       { cost_type: "", cost_type_chosen: true, url: "file-1" },
     ]);
 
-    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+    await submitAndCheck(expense, payload);
 
-    expect(storage.getFileDownload).toHaveBeenCalledTimes(2);
-    expect(scanning.findScan).toHaveBeenCalledTimes(1);
+    // Each part downloads each file once.
+    expect(storage.getFileDownload).toHaveBeenCalledTimes(4);
     expect(scanning.extractReceipt).toHaveBeenCalledTimes(1);
     expect(scanning.saveScan).toHaveBeenCalledTimes(1);
     for (const id of ["att-1", "att-2", "att-3"]) {
@@ -1491,7 +1608,7 @@ describe("enrichSubmission", () => {
       { cost_type: "", cost_type_chosen: true, url: "file-1" },
     ]);
 
-    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+    await submitAndCheck(expense, payload);
 
     // Text only: the file is not read again, and the stored row stays.
     expect(scanning.extractReceipt).not.toHaveBeenCalled();
@@ -1526,11 +1643,11 @@ describe("enrichSubmission", () => {
     ]);
 
     flags.expenses_ocr = false;
-    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+    await submitAndCheck(expense, payload);
     expect(scanning.classifyReceipt).not.toHaveBeenCalled();
 
     flags.expenses_ocr = true;
-    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+    await submitAndCheck(expense, payload);
     expect(scanning.classifyReceipt).toHaveBeenCalledTimes(1);
     expect(
       scanning.classifyReceipt.mock.calls[0]?.[0].receipt.documentType
@@ -1551,7 +1668,7 @@ describe("enrichSubmission", () => {
       { cost_type: "", cost_type_chosen: true, url: "file-1" },
     ]);
 
-    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+    await submitAndCheck(expense, payload);
 
     // Stored without a type, so a later pass can still classify the receipt.
     expect(scanning.saveScan).toHaveBeenCalledWith(
@@ -1577,7 +1694,7 @@ describe("enrichSubmission", () => {
       { cost_type: "social", cost_type_chosen: true, url: "file-1" },
     ]);
 
-    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+    await submitAndCheck(expense, payload);
 
     expect(scanning.classifyReceipt).not.toHaveBeenCalled();
     expect(scanning.saveScan).not.toHaveBeenCalled();
@@ -1595,17 +1712,16 @@ describe("enrichSubmission", () => {
       { cost_type: "social", cost_type_chosen: true, url: "file-1" },
     ]);
 
-    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+    await submitAndCheck(expense, payload);
 
     expect(attachmentWrite("att-1")).toMatchObject({
       ai_confidence: 0.6,
       ai_cost_type: "social",
       type_source: "student",
     });
-    const events = recordExpenseEvents.mock.calls[0]?.[1];
-    expect(events.map((event: { action: string }) => event.action)).toEqual([
-      "submitted",
-    ]);
+    expect(
+      historyEvents().map((event: { action: string }) => event.action)
+    ).toEqual(["submitted"]);
   });
 
   it("runs at most four downloads and scans at a time", async () => {
@@ -1630,9 +1746,10 @@ describe("enrichSubmission", () => {
       }))
     );
 
-    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+    await submitAndCheck(expense, payload);
 
-    expect(storage.getFileDownload).toHaveBeenCalledTimes(9);
+    // Each part downloads all nine; only the check reads them.
+    expect(storage.getFileDownload).toHaveBeenCalledTimes(18);
     expect(scanning.extractReceipt).toHaveBeenCalledTimes(9);
     expect(most).toBeLessThanOrEqual(4);
     expect(most).toBeGreaterThan(1);
@@ -1649,7 +1766,7 @@ describe("enrichSubmission", () => {
       { cost_type: "social", cost_type_chosen: true, url: "file-1" },
     ]);
 
-    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+    await submitAndCheck(expense, payload);
 
     expect(attachmentWrite("att-1")?.ocr_amount).toBeNull();
   });
@@ -1661,10 +1778,9 @@ describe("enrichSubmission", () => {
       { occasion: "Board meeting" }
     );
 
-    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+    await submitAndCheck(expense, payload);
 
-    const events = recordExpenseEvents.mock.calls[0]?.[1];
-    expect(events).toContainEqual({
+    expect(historyEvents()).toContainEqual({
       action: "ai_classified",
       actorKind: "ai",
       after: "meeting-food",
@@ -1674,6 +1790,128 @@ describe("enrichSubmission", () => {
       field: "cost_type",
       note: "Confidence 0.90: r",
     });
+    // The check keeps the submit's decision and its hint.
+    expect(attachmentWrite("att-1")).toMatchObject({
+      cost_type: "meeting-food",
+      type_source: "legacy_app",
+    });
+    expect(JSON.parse(String(expenseWrite()?.approver_hints))).toEqual([
+      {
+        attachmentId: "att-1",
+        code: "app_type_replaced",
+        data: { aiType: "meeting-food", appType: "social" },
+      },
+    ]);
+  });
+
+  it("the check keeps a type the submit settled and changes nothing on a second run", async () => {
+    // The stored scan is unsure, so the submit falls back to "Other".
+    scanning.findScan.mockResolvedValue(scan("social", 0.4));
+    const { expense, payload } = submission([
+      { cost_type: "", cost_type_chosen: true, url: "file-1" },
+    ]);
+
+    await submitAndCheck(expense, payload);
+    const firstHints = expenseWrite()?.approver_hints;
+    const eventsAfterFirst = historyEvents().length;
+    await enrichUnsettled(admin, "expense-1");
+
+    expect(attachmentWrite("att-1")).toMatchObject({
+      cost_type: "other",
+      // Nobody chose it; the check must not make it the student's.
+      type_source: null,
+    });
+    expect(
+      db.updateRow.mock.calls.filter(
+        ([, table]) => table === "expense_attachments"
+      )
+    ).toHaveLength(1);
+    expect(JSON.parse(String(firstHints))).toEqual([
+      { attachmentId: "att-1", code: "type_defaulted" },
+    ]);
+    expect(expenseWrite()?.approver_hints).toBe(firstHints);
+    expect(historyEvents()).toHaveLength(eventsAfterFirst);
+    expect(scanning.classifyReceipt).not.toHaveBeenCalled();
+  });
+
+  it("the check keeps hints it does not compute and adds the ones it is given", async () => {
+    const { expense, payload } = submission([
+      { cost_type: "social", cost_type_chosen: true, url: "file-1" },
+    ]);
+    storeOf(expense, payload);
+    await prepareSubmission(admin, expense, payload, "Ada Lovelace");
+    // What another step of the check flagged before the fixed steps ran.
+    await db.updateRow("app", "expense", "expense-1", {
+      approver_hints: JSON.stringify([
+        { attachmentId: "att-1", code: "project_missing" },
+        { attachmentId: "att-1", code: "old_receipt", data: { days: 400 } },
+      ]),
+    });
+
+    await enrichUnsettled(admin, "expense-1", {
+      extraHints: [{ code: "ai_check_incomplete" }],
+    });
+
+    expect(JSON.parse(String(expenseWrite()?.approver_hints))).toEqual([
+      { attachmentId: "att-1", code: "project_missing" },
+      { code: "ai_check_incomplete" },
+    ]);
+  });
+
+  it("a second run reads what the first could not, without choosing again", async () => {
+    const error = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    generateObject.mockResolvedValue({
+      object: { accountNumber: 7420, confidence: 0.9, reason: "Gift" },
+    });
+    scanning.extractReceipt.mockRejectedValueOnce(new Error("model down"));
+    const { expense, payload } = submission([
+      { cost_type_chosen: true, cost_type_text: "Flowers", url: "file-1" },
+    ]);
+
+    await submitAndCheck(expense, payload);
+    expect(attachmentWrite("att-1")).toMatchObject({
+      account_number: 7420,
+      ocr_amount: null,
+    });
+    const eventsAfterFirst = historyEvents().length;
+
+    await enrichUnsettled(admin, "expense-1");
+
+    expect(scanning.extractReceipt).toHaveBeenCalledTimes(2);
+    expect(generateObject).toHaveBeenCalledTimes(1);
+    expect(attachmentWrite("att-1")).toMatchObject({
+      account_number: 7420,
+      account_source: "ai_freeform",
+      ocr_amount: 100,
+      receipt_issues: "[]",
+    });
+    expect(db.updateRow.mock.calls.at(-2)?.[3]).toEqual({
+      file_hash: hashOf("file-1"),
+      ocr_amount: 100,
+      receipt_issues: "[]",
+    });
+    expect(historyEvents()).toHaveLength(eventsAfterFirst);
+    expect(error).toHaveBeenCalled();
+  });
+
+  it("flags an incomplete check over the hints already stored", async () => {
+    db.getRow.mockResolvedValue({
+      $id: "expense-1",
+      approver_hints: JSON.stringify([
+        { attachmentId: "att-1", code: "type_defaulted" },
+        { code: "ai_check_incomplete" },
+      ]),
+    });
+
+    await flagCheckIncomplete(db as never, "expense-1");
+
+    expect(db.updateRow).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(String(expenseWrite()?.approver_hints))).toEqual([
+      { attachmentId: "att-1", code: "type_defaulted" },
+      { code: "ai_check_incomplete" },
+    ]);
   });
 
   it("flags a missing account and carries on when the accounts cannot load", async () => {
@@ -1686,7 +1924,7 @@ describe("enrichSubmission", () => {
       { cost_type: "social", cost_type_chosen: true, url: "file-2" },
     ]);
 
-    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+    await submitAndCheck(expense, payload);
 
     expect(generateObject).not.toHaveBeenCalled();
     expect(attachmentWrite("att-1")).toMatchObject({

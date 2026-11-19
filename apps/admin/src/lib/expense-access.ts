@@ -88,17 +88,18 @@ function isStepClosedToSubmitter(
 /** What decides whether an empty approval chain may be rebuilt. */
 export interface RebuildEvidence {
   /**
-   * The expense has the "No approver could be resolved" issue a submission
-   * records when it finds no approver. One sent to accounting by email is
-   * pending with no steps too, but has none.
+   * The expense has an issue that leaves it with no steps: "No approver could
+   * be resolved", or a chain that failed after the background check
+   * (`isRebuildIssue`). One sent to accounting by email is pending with no
+   * steps too, but has neither.
    */
-  hasNoApproverIssue: boolean;
+  hasRebuildIssue: boolean;
   /** `expenses_ledger_posting` is on; while it is off, submissions go by email. */
   ledgerPosting: boolean;
 }
 
 const NO_REBUILD_EVIDENCE: RebuildEvidence = {
-  hasNoApproverIssue: false,
+  hasRebuildIssue: false,
   ledgerPosting: false,
 };
 
@@ -113,7 +114,8 @@ export function needsRebuildEvidence(
 
 /**
  * A global admin may rebuild the chain of a pending expense left with no
- * steps because no approver was found, and only while direct booking is on.
+ * steps because no approver was found or the chain failed after the check,
+ * and only while direct booking is on.
  * Rebuilding one that accounting handles by email would pay it twice.
  */
 function canRebuildChain(
@@ -124,7 +126,7 @@ function canRebuildChain(
 ): boolean {
   return (
     needsRebuildEvidence(viewer, status, steps.length) &&
-    evidence.hasNoApproverIssue &&
+    evidence.hasRebuildIssue &&
     evidence.ledgerPosting
   );
 }

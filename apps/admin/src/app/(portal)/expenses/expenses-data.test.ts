@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { Query } from "@repo/api";
+import { chainFailedIssueReason } from "@repo/shared/utils/expense-approvers";
 import type { ExpenseViewer } from "@/lib/expense-access";
 
 mock.module("server-only", () => ({}));
@@ -373,7 +374,7 @@ describe("loadRebuildEvidence", () => {
       "No approver could be resolved. The reimbursement is pending with no approval step.",
     ]);
     expect(await loadRebuildEvidence(db as never, "ex1")).toEqual({
-      hasNoApproverIssue: true,
+      hasRebuildIssue: true,
       ledgerPosting: true,
     });
     expect(db.listRows.mock.calls.at(-1)?.[2]).toContainEqual(
@@ -381,11 +382,20 @@ describe("loadRebuildEvidence", () => {
     );
   });
 
+  test("finds the issue of a chain that failed after the background check", async () => {
+    isFeatureEnabled.mockResolvedValue(true);
+    issues([chainFailedIssueReason("mail down")]);
+    expect(await loadRebuildEvidence(db as never, "ex1")).toEqual({
+      hasRebuildIssue: true,
+      ledgerPosting: true,
+    });
+  });
+
   test("an emailed expense has no such issue; the flag is read", async () => {
     isFeatureEnabled.mockResolvedValue(false);
     issues([]);
     expect(await loadRebuildEvidence(db as never, "ex1")).toEqual({
-      hasNoApproverIssue: false,
+      hasRebuildIssue: false,
       ledgerPosting: false,
     });
     expect(isFeatureEnabled).toHaveBeenCalledWith("expenses_ledger_posting");

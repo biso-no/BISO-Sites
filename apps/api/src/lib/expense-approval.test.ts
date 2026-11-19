@@ -61,6 +61,11 @@ const flags = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
 vi.mock("@repo/shared/utils/feature-flags-server", () => flags);
 
 import {
+  chainFailedIssueReason,
+  isRebuildIssue,
+} from "@repo/shared/utils/expense-approvers";
+import {
+  ApprovalChainFailedError,
   changeStepApprover,
   createApprovalChain,
   decideApproval,
@@ -271,6 +276,101 @@ describe("approval chain", () => {
     // No history or issues for a submission that never stood.
     expect(events.recordExpenseEvents).not.toHaveBeenCalled();
     expect(issueRows()).toEqual([]);
+  });
+
+  it("a chain failure in the background keeps the expense pending and records an issue", async () => {
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [ISSUE],
+      steps: [
+        stepFor("finance", "fin@biso.no", 1),
+        stepFor("controller", "ctrl@biso.no", 2),
+      ],
+    });
+    teams.sendApprovalEmail.mockRejectedValue(new Error("mail down"));
+    db.deleteRow.mockResolvedValue({});
+    const logged = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    const failure = await createApprovalChain(CONTEXT, {
+      keepPendingOnFailure: true,
+      recordIssue: true,
+    }).catch((error: unknown) => error);
+
+    logged.mockRestore();
+    expect(failure).toBeInstanceOf(ApprovalChainFailedError);
+    // The steps are gone, so no link that went out still works.
+    expect(db.deleteRow).toHaveBeenCalledTimes(2);
+    expect(
+      db.updateRow.mock.calls.some(([, , , data]) => data.status === "draft")
+    ).toBe(false);
+    // One issue the IT queue can act on, and no resolution issues for a
+    // chain that never stood.
+    expect(issueRows()).toEqual([
+      {
+        campus_id: "1",
+        department: "Marketing",
+        expense_id: "expense-1",
+        reason: expect.stringContaining("Could not deliver"),
+        role_sought: "finance",
+        status: "open",
+      },
+    ]);
+    const [issue] = issueRows();
+    expect(isRebuildIssue(issue?.reason)).toBe(true);
+    expect(events.recordExpenseEvents).not.toHaveBeenCalled();
+  });
+
+  it("records an issue in the background when the approvers cannot be resolved", async () => {
+    resolution.resolveExpenseApprovers.mockRejectedValue(
+      new Error("Graph down")
+    );
+
+    await expect(
+      createApprovalChain(CONTEXT, {
+        keepPendingOnFailure: true,
+        recordIssue: true,
+      })
+    ).rejects.toBeInstanceOf(ApprovalChainFailedError);
+    expect(issueRows()).toEqual([
+      expect.objectContaining({
+        reason: expect.stringContaining("Graph down"),
+      }),
+    ]);
+  });
+
+  it("records no issue in the background when another run holds the chain", async () => {
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [ISSUE],
+      steps: [CONTROLLER_STEP],
+    });
+    db.createRow.mockRejectedValueOnce(
+      Object.assign(new Error("Row already exists"), { code: 409 })
+    );
+
+    await expect(
+      createApprovalChain(CONTEXT, {
+        keepPendingOnFailure: true,
+        recordIssue: true,
+      })
+    ).rejects.toMatchObject({ code: 409 });
+    expect(tablesWritten()).toEqual(["expense_approvals"]);
+  });
+
+  it("rethrows the failure when the background issue cannot be written", async () => {
+    resolution.resolveExpenseApprovers.mockRejectedValue(
+      new Error("Graph down")
+    );
+    db.createRow.mockRejectedValue(new Error("db down"));
+
+    // Not an ApprovalChainFailedError: nobody has been told, so the caller
+    // must not treat it as handled.
+    const failure = await createApprovalChain(CONTEXT, {
+      keepPendingOnFailure: true,
+      recordIssue: true,
+    }).catch((error: unknown) => error);
+    expect(failure).not.toBeInstanceOf(ApprovalChainFailedError);
+    expect(failure).toBeInstanceOf(Error);
   });
 
   it("rolls back when a later step row cannot be created", async () => {
@@ -2565,6 +2665,29 @@ describe("rebuildApprovalChain", () => {
     ).toMatchObject({ code: "not_rebuildable", ok: false });
     expect(resolution.resolveExpenseApprovers).not.toHaveBeenCalled();
     expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  it("rebuilds a chain that failed after the background check", async () => {
+    loads(
+      expenseRow(),
+      [],
+      [
+        {
+          ...NO_APPROVER_ISSUE,
+          $createdAt: "2026-11-05T10:00:05.000Z",
+          reason: chainFailedIssueReason("mail down"),
+        },
+      ],
+      [{ $createdAt: "2026-11-05T10:00:00.000Z", action: "submitted" }]
+    );
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [FIN_STEP],
+    });
+
+    expect(
+      await rebuildApprovalChain({ actor: ACTOR, expenseId: "expense-1" })
+    ).toEqual({ ok: true, stepsCreated: 1 });
   });
 
   it("refuses when the only issues are about something else", async () => {

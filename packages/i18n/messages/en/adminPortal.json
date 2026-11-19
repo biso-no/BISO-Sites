@@ -1627,7 +1627,7 @@
       "status_write_failed": "Finago has the booking, but saving the status failed. Don't book it again: once the reimbursement shows Booking failed (within about 15 minutes), Retry finishes saving it.",
       "booking_unrecorded": "Finago has the booking ({transactionId}) but it could not be saved here. Do not retry; contact IT.",
       "has_steps": "This reimbursement already has approval steps.",
-      "not_rebuildable": "Only a reimbursement left with no approver when it was submitted can have its approval chain rebuilt."
+      "not_rebuildable": "Only a reimbursement left without an approval chain when it was submitted can have its approval chain rebuilt."
     },
     "decision": {
       "title": "Decision",

@@ -1,15 +1,18 @@
 import { ID, type Models, Query } from "@repo/api";
 import { appwriteErrorStatus, orNullIfNotFound } from "@repo/api/errors";
-import { InputFile } from "@repo/api/file";
 import { createAdminClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
-import { type Expenses, ExpensesStatus } from "@repo/api/types/appwrite";
-import { syncExamplesForExpense } from "@repo/shared/utils/expense-examples";
+import {
+  type Expenses,
+  ExpensesCheckState,
+  ExpensesStatus,
+} from "@repo/api/types/appwrite";
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
+import { reimbursementNumber } from "@repo/shared/utils/reimbursement-number";
 import { after, type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
-import { createApprovalChain } from "@/lib/expense-approval";
+import { runExpenseCheck } from "@/lib/expense-check/run";
 import {
   buildExpenseRowInput,
   buildExpenseRowPermissions,
@@ -20,12 +23,12 @@ import {
 } from "@/lib/expense-payload";
 import { withoutProject } from "@/lib/expense-student-view";
 import {
-  enrichSubmission,
   OccasionRequiredError,
+  prepareSubmission,
 } from "@/lib/expense-submission";
-import { generateExpensePdf } from "@/lib/pdf/expense-pdf";
 
-// Receipts the OCR route never scanned are read by the AI at submission.
+// The answer needs no AI; the check after it (`after()`, see
+// `expense-check/run.ts`) runs within this route's time.
 export const maxDuration = 300;
 
 export type CreateExpenseData = Models.Row &
@@ -33,9 +36,9 @@ export type CreateExpenseData = Models.Row &
     invoice_id?: number | null;
   };
 
-type AdminClient = Awaited<ReturnType<typeof createAdminClient>>;
+type SubmittedRow = Models.Row & Pick<Expenses, "check_state" | "status">;
 
-type ExpenseStatusUpdateRow = Models.Row & { status: ExpensesStatus };
+type AdminClient = Awaited<ReturnType<typeof createAdminClient>>;
 
 /** Profile with every field required for submission present (narrowed). */
 type CompleteProfile = Users & {
@@ -45,24 +48,12 @@ type CompleteProfile = Users & {
   phone: string;
 };
 
-/** What both submission flows need once the draft is saved. */
-interface Submission {
-  expense: Expenses;
-  profile: CompleteProfile;
-  reimbursementNumber: string;
-  submitterId: string;
-  submitterIsController: boolean;
-  submitterIsFinancialManager: boolean;
-}
-
 const HTTP_BAD_REQUEST = 400;
 const HTTP_UNAUTHORIZED = 401;
 const HTTP_FORBIDDEN = 403;
 const HTTP_NOT_FOUND = 404;
 const HTTP_CONFLICT = 409;
 const HTTP_INTERNAL_ERROR = 500;
-
-const EXPENSES_BUCKET = "expenses";
 
 const SUBMITTED_EXPENSE_COLUMNS = [
   "$id",
@@ -103,44 +94,6 @@ class SubmitRejection extends Error {
     this.status = status;
     this.details = details;
   }
-}
-
-/**
- * True when an Appwrite write failed because a unique constraint (e.g. the
- * approval chain's unique (expense_id, step) index) already holds the row —
- * i.e. a concurrent submit already created the chain.
- */
-function isRowConflictError(error: unknown): boolean {
-  if (typeof error !== "object" || error === null) {
-    return false;
-  }
-  const { code, type } = error as { code?: unknown; type?: unknown };
-  return (
-    code === HTTP_CONFLICT ||
-    type === "row_already_exists" ||
-    type === "document_already_exists"
-  );
-}
-
-/**
- * Generates a 5-digit reimbursement number from the sequence.
- * Base is 10000, sequence is added to the last digits.
- * E.g., sequence 80 -> 10080, sequence 150 -> 10150
- */
-function generateReimbursementNumber(sequence: number | string): string {
-  const base = 10_000;
-  return String(base + Number(sequence || 0)).padStart(5, "0");
-}
-
-/**
- * Formats a date string for display in Norwegian format
- */
-function formatDate(date: Date): string {
-  return date.toLocaleDateString("nb-NO", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
 }
 
 /** Returns the names of the profile fields required for submission that are unset. */
@@ -242,10 +195,9 @@ async function loadOwnedDraft(
   return existingExpense;
 }
 
-/** The draft as saved: the row, the row data written and the payload behind it. */
+/** The draft as saved, and the payload behind it. */
 interface SavedDraft {
   draft: CreateExpenseData;
-  row: ExpenseRowInput;
   saved: ExpensePayload;
 }
 
@@ -270,7 +222,7 @@ async function saveDraftBeforeSubmission(
       row,
       buildExpenseRowPermissions(userId)
     );
-    return { draft, row, saved: payload };
+    return { draft, saved: payload };
   }
 
   // Expense rows are read-only to their submitter: ownership is checked here
@@ -284,170 +236,25 @@ async function saveDraftBeforeSubmission(
     expenseId,
     row
   );
-  return { draft, row, saved };
+  return { draft, saved };
 }
 
 /**
- * New flow: route through Teams/Outlook approval + direct ledger posting
- * instead of emailing accounting. The PDF + ledger posting happen after the
- * final approval (see post-pending). createApprovalChain also moves the expense
- * to `pending` before notifying, so there's no separate status update to fail.
+ * Settles what needs no AI on the saved draft: types and accounts from the
+ * student's choices and stored scans, the occasion rule, hints and history.
+ * A missing occasion is the student's to fix, so it is answered as a 400 the
+ * client can point at the field. The draft is saved by then, so the answer
+ * names it: a client that had never saved the report updates that draft next
+ * time instead of making a second one.
  */
-async function submitForApproval({
-  expense,
-  profile,
-  reimbursementNumber,
-  submitterId,
-  submitterIsController,
-  submitterIsFinancialManager,
-}: Submission): Promise<void> {
-  // Exactly-once chain creation. The `expense_approvals` table has a UNIQUE
-  // index on (expense_id, step), so if two submits of the same draft race past
-  // the draft-status check in assertOwnedDraft, only the first creates the
-  // chain; the second's step-1 insert fails with a 409 row conflict. We surface
-  // that as "already submitting" rather than creating a duplicate chain — no
-  // lock column needed (the database constraint is the claim).
-  try {
-    await createApprovalChain({
-      expenseId: expense.$id,
-      campusId: expense.campus,
-      departmentId: expense.department ?? null,
-      departmentName: expense.departmentRel?.Name ?? null,
-      submitterIsController,
-      submitterIsFinancialManager,
-      reimbursementNumber,
-      submitterName: profile.name,
-      submitterUserId: submitterId,
-      departmentLabel: expense.departmentRel?.Name ?? expense.department,
-      campusLabel: expense.campusRel?.name ?? expense.campus,
-      total: expense.total,
-      currency: "NOK",
-      description: expense.description ?? "",
-    });
-  } catch (error) {
-    if (isRowConflictError(error)) {
-      throw new SubmitRejection(
-        HTTP_CONFLICT,
-        "This expense is already being submitted."
-      );
-    }
-    throw error;
-  }
-}
-
-/**
- * Renders and stores the PDF cover sheet, then returns the email attachment
- * ids: the cover sheet first, followed by the receipts.
- */
-async function storeEmailAttachments(
-  storage: AdminClient["storage"],
-  { expense, profile, reimbursementNumber }: Submission
-): Promise<string[]> {
-  const addressParts = [profile.address, profile.zip, profile.city].filter(
-    Boolean
-  );
-
-  const pdfBuffer = await generateExpensePdf({
-    reimbursementNumber,
-    name: profile.name,
-    address: addressParts.join(", ") || "Ikke oppgitt",
-    phone: profile.phone,
-    email: profile.email,
-    bankAccount: profile.bank_account,
-    invoiceDate: formatDate(new Date()),
-    campusAndUnit: `${expense.departmentRel.Name} - ${expense.campusRel.name}`,
-    purpose: expense.description ?? "",
-    attachments: expense.expenseAttachments.map((att) => ({
-      description: att.description ?? "",
-      date: att.date ? formatDate(new Date(att.date)) : "",
-      amount: att.amount ?? 0,
-    })),
-    subtotal: expense.total,
-    total: expense.total,
-  });
-
-  const uploadedPdf = await storage.createFile(
-    EXPENSES_BUCKET,
-    ID.unique(),
-    InputFile.fromBuffer(pdfBuffer, `refusjon-${reimbursementNumber}.pdf`)
-  );
-
-  return [
-    `${EXPENSES_BUCKET}:${uploadedPdf.$id}`,
-    ...expense.expenseAttachments.map(
-      (attachment) => `${EXPENSES_BUCKET}:${attachment.url}`
-    ),
-  ];
-}
-
-/**
- * Legacy flow: emails the cover sheet and receipts to the submitter and to
- * accounting, then marks the expense `pending`.
- */
-async function submitByEmail(
-  { db, messaging, storage }: AdminClient,
-  submission: Submission
-): Promise<void> {
-  // Appwrite Messaging only delivers to registered users, so accounting's inbox
-  // is backed by a dedicated user. Checked before anything is sent, so a missing
-  // env var can't email the submitter for a submission that then fails.
-  const invoiceUserId = process.env.INVOICE_USER_ID;
-  if (!invoiceUserId) {
-    throw new Error("INVOICE_USER_ID environment variable is not set");
-  }
-
-  const { expense, profile, reimbursementNumber, submitterId } = submission;
-  const attachments = await storeEmailAttachments(storage, submission);
-
-  await messaging.createEmail({
-    messageId: ID.unique(),
-    subject: `Expense ${reimbursementNumber} has been received`,
-    content: `
-    <h1>Expense received</h1>
-    <p>Expense ${expense.$id} has been received</p>
-    <p>Reimbursement number: ${reimbursementNumber}</p>
-`,
-    users: [submitterId],
-    attachments,
-    html: true,
-  });
-
-  await messaging.createEmail({
-    messageId: ID.unique(),
-    subject: `User ${profile.name} has submitted expense ${reimbursementNumber}`,
-    content: `
-    <h1>Hello,</h1>
-
-    <p>${profile.name} has submitted a new reimbursement for ${expense.departmentRel.Name} campus ${expense.campusRel.name}</p>
-    <p>Reimbursement number: ${reimbursementNumber}</p>
-    <p>Best regards,</p>
-    <p>BISO Invoice</p>
-`,
-    users: [invoiceUserId],
-    attachments,
-    html: true,
-  });
-
-  await db.updateRow<ExpenseStatusUpdateRow>("app", "expense", expense.$id, {
-    status: ExpensesStatus.PENDING,
-  });
-}
-
-/**
- * Settles types, accounts and approver hints on the saved draft. A missing
- * occasion is the student's to fix, so it is answered as a 400 the client can
- * point at the field. The draft is saved by then, so the answer names it: a
- * client that had never saved the report updates that draft next time instead
- * of making a second one.
- */
-async function enrichOrReject(
+async function prepareOrReject(
   admin: AdminClient,
   expense: Expenses,
   payload: ExpensePayload,
   profileName: string
 ): Promise<void> {
   try {
-    await enrichSubmission(admin, expense, payload, profileName);
+    await prepareSubmission(admin, expense, payload, profileName);
   } catch (error) {
     if (error instanceof OccasionRequiredError) {
       throw new SubmitRejection(HTTP_BAD_REQUEST, "Occasion is required", {
@@ -457,6 +264,23 @@ async function enrichOrReject(
     }
     throw error;
   }
+}
+
+/**
+ * Checks the submitted expense after the answer has gone out. A check that
+ * throws is logged; it stays `queued` or `running`, so the backstop runs it.
+ */
+function checkAfterAnswer(expenseId: string): void {
+  after(async () => {
+    try {
+      await runExpenseCheck(expenseId);
+    } catch (error) {
+      console.error(
+        `[expense-check] check failed for ${expenseId}; the backstop runs it again:`,
+        error
+      );
+    }
+  });
 }
 
 /** Server-owned booking details (accounts, projects) never go back to the student. */
@@ -474,7 +298,11 @@ function studentView(expense: Expenses): Expenses {
   };
 }
 
-/** Saves the payload as a draft, then hands it to the active submission flow. */
+/**
+ * Saves the payload as a draft, settles what needs no AI, and submits it: the
+ * student sees `pending` in the answer. The AI check, and the approvers' or
+ * accounting's notice, follow after the answer (`runExpenseCheck`).
+ */
 async function submitExpense(req: NextRequest) {
   if (!(await isFeatureEnabled("expenses_module"))) {
     throw new SubmitRejection(
@@ -487,7 +315,7 @@ async function submitExpense(req: NextRequest) {
   const payload = await readExpensePayload(req);
   const admin = await createAdminClient();
 
-  const { draft, row, saved } = await saveDraftBeforeSubmission(
+  const { draft, saved } = await saveDraftBeforeSubmission(
     admin.db,
     payload,
     userId
@@ -497,37 +325,22 @@ async function submitExpense(req: NextRequest) {
       Query.select(SUBMITTED_EXPENSE_COLUMNS),
     ]);
 
-  await enrichOrReject(admin, await readExpense(), saved, profile.name);
-  // Read again so both flows see the types and accounts enrichment stored.
+  await prepareOrReject(admin, await readExpense(), saved, profile.name);
+  // One write, so a submit that fails before it leaves a draft the backstop
+  // never sees. Only a draft gets here (`loadOwnedDraft`); two submits that
+  // race past that check both answer, and the check's claim lets one notify.
+  await admin.db.updateRow<SubmittedRow>("app", "expense", draft.$id, {
+    check_state: ExpensesCheckState.QUEUED,
+    status: ExpensesStatus.PENDING,
+  });
+  // Read again so the answer shows the expense as submitted.
   const expense = await readExpense();
-
-  // Routed as stored, so the chain, the row and the history note agree.
-  const submission: Submission = {
-    expense,
-    profile,
-    reimbursementNumber: generateReimbursementNumber(expense.$sequence),
-    submitterId: userId,
-    submitterIsController: row.submitter_is_controller,
-    submitterIsFinancialManager: row.submitter_is_financial_manager,
-  };
-
-  if (await isFeatureEnabled("expenses_ledger_posting")) {
-    await submitForApproval(submission);
-  } else {
-    await submitByEmail(admin, submission);
-  }
-
-  // Only a submit that went through teaches anything. It runs after the answer
-  // so a slow write can't push the app past its timeout; the write logs and
-  // swallows its own failures.
-  after(() =>
-    syncExamplesForExpense(admin.db, expense.$id, { confirmed: false })
-  );
+  checkAfterAnswer(draft.$id);
 
   return {
     success: true,
     fetchedExpense: studentView(expense),
-    reimbursementNumber: submission.reimbursementNumber,
+    reimbursementNumber: reimbursementNumber(expense.$sequence),
   };
 }
 
