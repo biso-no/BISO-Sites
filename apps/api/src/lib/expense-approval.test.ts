@@ -1563,6 +1563,22 @@ describe("receipts without an account", () => {
     expect(db.updateRow).not.toHaveBeenCalled();
   });
 
+  it("an old link on a rejected expense answers not_pending, not the account", async () => {
+    setup([UNSET]);
+    const expense = await db.getRow("app", "expense", "expense-1");
+    db.getRow.mockResolvedValue({ ...expense, status: "rejected" });
+
+    const result = await decideApproval({
+      decidedBy: "Ctrl",
+      decision: "approved",
+      rawToken: RAW,
+      source: "web",
+    });
+
+    expect(result).toMatchObject({ code: "not_pending", ok: false });
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+  });
+
   it("still takes a rejection by link while a receipt has no account", async () => {
     setup([UNSET]);
 
@@ -1601,6 +1617,28 @@ describe("receipts without an account", () => {
     });
 
     expect(result).toMatchObject({ code: "account_missing", ok: false });
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+  });
+
+  it("admin approve on a rejected expense answers not_pending, not the account", async () => {
+    await setupAdminStep([UNSET]);
+    const expense = await db.getRow("app", "expense", "expense-1");
+    db.getRow.mockImplementation((_db: string, table: string) =>
+      Promise.resolve(
+        table === "expense_approvals"
+          ? STEP
+          : { ...expense, status: "rejected" }
+      )
+    );
+
+    const result = await decideApprovalStep({
+      actor: ADMIN_ACTOR,
+      approvalId: "approval-1",
+      decision: "approved",
+      onBehalf: false,
+    });
+
+    expect(result).toMatchObject({ code: "not_pending", ok: false });
     expect(db.incrementRowColumn).not.toHaveBeenCalled();
   });
 

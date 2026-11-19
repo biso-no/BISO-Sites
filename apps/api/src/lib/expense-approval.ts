@@ -956,6 +956,16 @@ async function decideStep(
     };
   }
 
+  // The card and the page hide Approve here, but an old card or a crafted
+  // call must not book an account nobody chose. Rejecting stays open. Checked
+  // after the expense status, so an old link on a decided expense says so.
+  if (
+    input.decision === "approved" &&
+    (await expenseLacksAccount(db, row.expense_id))
+  ) {
+    return { ok: false, code: "account_missing", error: ACCOUNT_MISSING_ERROR };
+  }
+
   // Atomically claim this step before applying the decision. Appwrite has no
   // conditional update, so two concurrent submissions of the same token (the Teams
   // card and the email link, or a double-click) could both pass the pending check
@@ -1171,16 +1181,6 @@ export async function decideApproval(params: {
       error: "This approval link has expired.",
     };
   }
-  // The card and the page hide Approve here, but an old card or a crafted
-  // call must not book an account nobody chose. Rejecting stays open.
-  if (
-    params.decision === "approved" &&
-    row.status === ExpenseApprovalsStatus.PENDING &&
-    (await expenseLacksAccount(db, row.expense_id))
-  ) {
-    return { ok: false, code: "account_missing", error: ACCOUNT_MISSING_ERROR };
-  }
-
   return await decideStep(db, row, {
     actor: {
       email: row.approver_email.toLowerCase(),
@@ -1224,15 +1224,6 @@ export async function decideApprovalStep(params: {
       };
     }
     throw error;
-  }
-  // Same guard as the link path: Approve must not book an account nobody
-  // chose. Rejecting stays open.
-  if (
-    params.decision === "approved" &&
-    row.status === ExpenseApprovalsStatus.PENDING &&
-    (await expenseLacksAccount(db, row.expense_id))
-  ) {
-    return { ok: false, code: "account_missing", error: ACCOUNT_MISSING_ERROR };
   }
   return await decideStep(db, row, {
     actor: {
