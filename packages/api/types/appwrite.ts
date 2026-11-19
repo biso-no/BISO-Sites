@@ -434,6 +434,12 @@ export enum ExpenseAttachmentsAccountSource {
   ADMIN = "admin",
 }
 
+export enum ExpenseAttachmentsProjectSource {
+  AI_CHECK = "ai_check",
+  APPROVER = "approver",
+  ADMIN = "admin",
+}
+
 export enum JobInterviewsStatus {
   PROPOSED = "proposed",
   SCHEDULED = "scheduled",
@@ -867,6 +873,7 @@ export type Departments = Models.Row & {
   slug: string | null;
   theme_dark: string | null;
   theme_accent: string | null;
+  project_share: number | null;
 };
 
 export type StopPlaces = Models.Row & {
@@ -1577,6 +1584,10 @@ export type ExpenseAttachments = Models.Row & {
   file_hash: string | null;
   receipt_issues: string | null;
   example_id: string | null;
+  project_id: string | null;
+  project_name: string | null;
+  project_source: ExpenseAttachmentsProjectSource | null;
+  project_confidence: number | null;
 };
 
 export type JobInterviews = Models.Row & {
@@ -1951,6 +1962,31 @@ export type ExpenseTypeExamples = Models.Row & {
   department_id: string | null;
   type_source: ExpenseTypeExamplesTypeSource | null;
   account_source: ExpenseTypeExamplesAccountSource | null;
+  project_id: string | null;
+  project_name: string | null;
+};
+
+export type FinagoProjects = Models.Row & {
+  project_id: string;
+  name: string;
+  series: string | null;
+  year: number | null;
+  active: boolean;
+  event_date: string | null;
+  peak_date: string | null;
+  first_line_date: string | null;
+  last_line_date: string | null;
+  line_count: number;
+  synced_at: string | null;
+};
+
+export type FinagoProjectUsage = Models.Row & {
+  project_id: string;
+  department_id: string;
+  line_count: number;
+  first_line_date: string | null;
+  last_line_date: string | null;
+  synced_at: string | null;
 };
 
 export type ExpenseApprovers = Models.Row & {

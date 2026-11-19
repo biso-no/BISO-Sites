@@ -2604,6 +2604,15 @@
                     "size": 7,
                     "default": null,
                     "encrypt": false
+                },
+                {
+                    "key": "project_share",
+                    "type": "double",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "min": 0,
+                    "max": 1
                 }
             ],
             "indexes": [
@@ -9502,6 +9511,46 @@
                     "size": 36,
                     "default": null,
                     "encrypt": false
+                },
+                {
+                    "key": "project_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 20,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "project_name",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 255,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "project_source",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "ai_check",
+                        "approver",
+                        "admin"
+                    ]
+                },
+                {
+                    "key": "project_confidence",
+                    "type": "double",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "min": -9.223372036854776e+18,
+                    "max": 9.223372036854776e+18
                 }
             ],
             "indexes": [
@@ -13237,6 +13286,24 @@
                         "approver",
                         "admin"
                     ]
+                },
+                {
+                    "key": "project_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 20,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "project_name",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 255,
+                    "default": null,
+                    "encrypt": false
                 }
             ],
             "indexes": [
@@ -13268,6 +13335,223 @@
                     "status": "available",
                     "columns": [
                         "description"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                }
+            ]
+        },
+        {
+            "$id": "finago_projects",
+            "$permissions": [
+                "read(\"team:sg-app-dept-operationsunit\")"
+            ],
+            "databaseId": "app",
+            "name": "Finago Projects",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "project_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 20,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "name",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 255,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "series",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 255,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "year",
+                    "type": "integer",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "min": 0,
+                    "max": 9999
+                },
+                {
+                    "key": "active",
+                    "type": "boolean",
+                    "required": false,
+                    "array": false,
+                    "default": true
+                },
+                {
+                    "key": "event_date",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "peak_date",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "first_line_date",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "last_line_date",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "line_count",
+                    "type": "integer",
+                    "required": false,
+                    "array": false,
+                    "default": 0,
+                    "min": 0,
+                    "max": 9223372036854775807
+                },
+                {
+                    "key": "synced_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "idx_project_id_unique",
+                    "type": "unique",
+                    "status": "available",
+                    "columns": [
+                        "project_id"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "idx_series",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "series"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                }
+            ]
+        },
+        {
+            "$id": "finago_project_usage",
+            "$permissions": [
+                "read(\"team:sg-app-dept-operationsunit\")"
+            ],
+            "databaseId": "app",
+            "name": "Finago Project Usage",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "project_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 20,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "department_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 40,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "line_count",
+                    "type": "integer",
+                    "required": false,
+                    "array": false,
+                    "default": 0,
+                    "min": 0,
+                    "max": 9223372036854775807
+                },
+                {
+                    "key": "first_line_date",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "last_line_date",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "synced_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "idx_project_department_unique",
+                    "type": "unique",
+                    "status": "available",
+                    "columns": [
+                        "project_id",
+                        "department_id"
+                    ],
+                    "orders": [
+                        "ASC",
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "idx_department_id",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "department_id"
                     ],
                     "orders": [
                         "ASC"
