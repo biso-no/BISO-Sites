@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { resolveModel } from "@repo/ai/models";
+import { traceAiStream } from "@repo/observability/ai";
 import {
   createTextStreamResponse,
   type LanguageModel,
@@ -209,20 +210,28 @@ export async function handleAsk(
         headers: { ...NO_STORE, "X-Docs-Sources": encodeURIComponent("[]") },
       });
     }
-    const result = streamText({
-      model: deps.model(),
-      instructions: SYSTEM_PROMPT,
-      prompt: buildUserMessage(input.question, sources),
-      reasoning: "low",
-      maxOutputTokens: MAX_OUTPUT_TOKENS,
-      // One question is one call: no retries, and a client that disconnects
-      // stops the generation.
-      maxRetries: 0,
-      abortSignal: req.signal,
-      timeout: { totalMs: TOTAL_TIMEOUT_MS },
-      // The default handler logs the error, which can carry the request.
-      onError: () => undefined,
-    });
+    const model = deps.model();
+    const result = traceAiStream(
+      { functionId: "docs.ask", model, operation: "chat", signal: req.signal },
+      (span) =>
+        streamText({
+          model,
+          instructions: SYSTEM_PROMPT,
+          prompt: buildUserMessage(input.question, sources),
+          reasoning: "low",
+          maxOutputTokens: MAX_OUTPUT_TOKENS,
+          // One question is one call: no retries, and a client that
+          // disconnects stops the generation.
+          maxRetries: 0,
+          abortSignal: req.signal,
+          timeout: { totalMs: TOTAL_TIMEOUT_MS },
+          onAbort: span.onAbort,
+          onEnd: span.onEnd,
+          // Not the default handler: it logs the error, which can carry the
+          // request.
+          onError: span.onError,
+        })
+    );
 
     const iterator = result.stream[Symbol.asyncIterator]();
     // Read up to the first text or the end, so a failed call is a clean 502.

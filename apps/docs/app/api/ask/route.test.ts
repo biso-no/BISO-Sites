@@ -4,13 +4,48 @@ import {
   beforeAll,
   beforeEach,
   expect,
+  mock,
   spyOn,
   test,
 } from "bun:test";
+import {
+  type AiStreamMeta,
+  traceAiCall,
+  traceAiStream,
+} from "@repo/observability/ai";
 import { MockLanguageModelV4, simulateReadableStream } from "ai/test";
 import { SYSTEM_PROMPT } from "lib/assistant/prompt";
 import { PRIVATE_PLACEHOLDER, type Source } from "lib/assistant/retrieve";
 import { handleAsk, modelSetting, POST } from "./route";
+
+/** What reached each AI span: its meta and the callbacks the SDK fired. */
+const aiSpans: { events: unknown[]; meta: AiStreamMeta }[] = [];
+// Taken before the mock below replaces the live bindings.
+const realTraceAiCall = traceAiCall;
+const realTraceAiStream = traceAiStream;
+mock.module("@repo/observability/ai", () => ({
+  traceAiCall: realTraceAiCall,
+  traceAiStream: ((meta, start) => {
+    const record = { events: [] as unknown[], meta };
+    aiSpans.push(record);
+    return realTraceAiStream(meta, (span) =>
+      start({
+        onAbort: () => {
+          record.events.push("abort");
+          span.onAbort();
+        },
+        onEnd: (event) => {
+          record.events.push({ usage: event.usage });
+          span.onEnd(event);
+        },
+        onError: (event) => {
+          record.events.push("error");
+          span.onError(event);
+        },
+      })
+    );
+  }) satisfies typeof traceAiStream,
+}));
 
 const SOURCES: Source[] = [
   {
@@ -337,6 +372,24 @@ test("an ok request streams text with sources and no-store", async () => {
   expect(call?.maxOutputTokens).toBe(1200);
   expect(call?.reasoning).toBe("low");
   expect(call?.temperature).toBeUndefined();
+});
+
+test("the model call is one docs.ask span that ends with its tokens", async () => {
+  const m = model();
+  const req = fresh({ question: "How do I?" });
+  const res = await handleAsk(req, deps(m));
+  await res.text();
+
+  const span = aiSpans.at(-1);
+  expect(span?.meta).toEqual({
+    functionId: "docs.ask",
+    model: m,
+    operation: "chat",
+    signal: req.signal,
+  });
+  expect(span?.events).toEqual([
+    { usage: expect.objectContaining({ inputTokens: 1, outputTokens: 1 }) },
+  ]);
 });
 
 test("the page being read is marked current in the prompt, and only then", async () => {
