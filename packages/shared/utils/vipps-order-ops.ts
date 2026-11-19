@@ -2,7 +2,11 @@ import { ID, Permission, Query, Role } from "@repo/api";
 import { type Orders, OrdersStatus } from "@repo/api/types/appwrite";
 import { countMetric } from "@repo/observability/metrics";
 import type { CheckoutSessionParams } from "../types/vipps";
-import { getOrderItems, type ParsedOrderItem } from "./order-parsing";
+import {
+  getOrderItems,
+  hasMembershipItem,
+  type ParsedOrderItem,
+} from "./order-parsing";
 import { ORDER_ITEMS_SELECT } from "./order-queries";
 
 export interface DbClient {
@@ -286,21 +290,29 @@ function isStaleBackwardTransition(
   );
 }
 
-/** Counts a settled payment or a failed/cancelled one. Never throws. */
+/**
+ * Counts a settled payment, or one that didn't happen: `outcome: "cancelled"`
+ * for a checkout the buyer abandoned or let expire (or an admin cancel),
+ * `outcome: "failed"` for a payment that failed. `kind` comes from the order
+ * lines already read. Never throws.
+ */
 function countOrderOutcome(
   newStatus: OrdersStatus,
   currentOrder: Orders,
-  updateData: Partial<Orders>
+  updateData: Partial<Orders>,
+  orderItems: ParsedOrderItem[]
 ): void {
   const provider = updateData.payment_provider ?? currentOrder.payment_provider;
-  const attributes = provider ? { provider } : undefined;
+  const attributes = {
+    ...(provider ? { provider } : {}),
+    kind: hasMembershipItem(orderItems) ? "membership" : "shop",
+  };
   if (newStatus === OrdersStatus.PAID) {
     countMetric("payment.completed", attributes);
-  } else if (
-    newStatus === OrdersStatus.CANCELLED ||
-    newStatus === OrdersStatus.FAILED
-  ) {
-    countMetric("payment.failed", attributes);
+  } else if (newStatus === OrdersStatus.CANCELLED) {
+    countMetric("payment.failed", { ...attributes, outcome: "cancelled" });
+  } else if (newStatus === OrdersStatus.FAILED) {
+    countMetric("payment.failed", { ...attributes, outcome: "failed" });
   }
 }
 
@@ -414,7 +426,7 @@ export async function applyOrderStatusTransition(
     // A repeated same-status apply (webhook, return route and cron racing) is
     // a no-op change; count the transition once.
     if (oldStatus !== newStatus) {
-      countOrderOutcome(newStatus, currentOrder, updateData);
+      countOrderOutcome(newStatus, currentOrder, updateData, orderItems);
     }
     return { newStatus };
   } catch (error) {

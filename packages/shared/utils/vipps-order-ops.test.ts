@@ -283,18 +283,55 @@ describe("applyOrderStatusTransition", () => {
     db.getRow.mockResolvedValue(orderRow());
     await applyOrderStatusTransition("order-1", OrdersStatus.PAID, {}, db);
     expect(metrics.countMetric).toHaveBeenCalledWith("payment.completed", {
+      kind: "shop",
       provider: "vipps",
     });
   });
 
   it.each([
-    OrdersStatus.CANCELLED,
-    OrdersStatus.FAILED,
-  ])("counts payment.failed for a %s transition", async (status) => {
+    [OrdersStatus.CANCELLED, "cancelled"],
+    [OrdersStatus.FAILED, "failed"],
+  ])("counts payment.failed for a %s transition with outcome %s", async (status, outcome) => {
     db.getRow.mockResolvedValue(orderRow());
     await applyOrderStatusTransition("order-1", status, {}, db);
+    expect(metrics.countMetric).toHaveBeenCalledTimes(1);
     expect(metrics.countMetric).toHaveBeenCalledWith("payment.failed", {
+      kind: "shop",
+      outcome,
       provider: "vipps",
+    });
+  });
+
+  it("counts a membership order's payments as kind membership", async () => {
+    const membershipOrder = orderRow({
+      order_items: [
+        {
+          product: { $id: "membership-1" },
+          product_type: "membership",
+          quantity: 1,
+          unit_price: 550,
+        },
+      ],
+    });
+    db.getRow.mockResolvedValue(membershipOrder);
+    await applyOrderStatusTransition("order-1", OrdersStatus.PAID, {}, db);
+    db.getRow.mockResolvedValue(membershipOrder);
+    await applyOrderStatusTransition("order-1", OrdersStatus.FAILED, {}, db);
+    expect(metrics.countMetric.mock.calls).toEqual([
+      ["payment.completed", { kind: "membership", provider: "vipps" }],
+      [
+        "payment.failed",
+        { kind: "membership", outcome: "failed", provider: "vipps" },
+      ],
+    ]);
+  });
+
+  it("leaves out the provider when the order has none", async () => {
+    db.getRow.mockResolvedValue(orderRow({ payment_provider: null }));
+    await applyOrderStatusTransition("order-1", OrdersStatus.CANCELLED, {}, db);
+    expect(metrics.countMetric).toHaveBeenCalledWith("payment.failed", {
+      kind: "shop",
+      outcome: "cancelled",
     });
   });
 
@@ -326,6 +363,7 @@ describe("applyOrderStatusTransition", () => {
     await applyOrderStatusTransition("order-1", OrdersStatus.PAID, {}, db);
     expect(metrics.countMetric).toHaveBeenCalledTimes(1);
     expect(metrics.countMetric).toHaveBeenCalledWith("payment.completed", {
+      kind: "shop",
       provider: "vipps",
     });
   });
