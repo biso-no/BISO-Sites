@@ -1,4 +1,4 @@
-import { shouldPropagateTraceForUrl } from "@sentry/core";
+import { shouldIgnoreSpan, shouldPropagateTraceForUrl } from "@sentry/core";
 import { describe, expect, it } from "vitest";
 import {
   buildBrowserOptions,
@@ -6,7 +6,9 @@ import {
   DATA_COLLECTION,
   resolveEnvironment,
   SAMPLE_RATES,
+  SENTRY_TUNNEL_PATH,
   SERVER_TRACE_PROPAGATION_TARGETS,
+  TUNNEL_IGNORE_SPANS,
 } from "./options";
 import {
   scrubBreadcrumb,
@@ -66,6 +68,16 @@ describe("buildServerOptions", () => {
     const o = buildServerOptions({ app: "web", dsn: "x", environment: "e" });
     expect(o.tracePropagationTargets).toBe(SERVER_TRACE_PROPAGATION_TARGETS);
   });
+
+  it("ignores the tunnel's own spans only where the app serves a tunnel", () => {
+    const base = { dsn: "x", environment: "e" } as const;
+    expect(
+      buildServerOptions({ ...base, app: "web", tunnel: true }).ignoreSpans
+    ).toBe(TUNNEL_IGNORE_SPANS);
+    expect(buildServerOptions({ ...base, app: "api" })).not.toHaveProperty(
+      "ignoreSpans"
+    );
+  });
 });
 
 describe("buildBrowserOptions", () => {
@@ -99,6 +111,16 @@ describe("buildBrowserOptions", () => {
       const o = buildBrowserOptions({ app, dsn: "x", environment: "e" });
       expect(o).not.toHaveProperty("tracePropagationTargets");
     }
+  });
+
+  it("sends envelopes through the tunnel only where the app serves one", () => {
+    const base = { dsn: "x", environment: "e" } as const;
+    expect(
+      buildBrowserOptions({ ...base, app: "web", tunnel: true }).tunnel
+    ).toBe(SENTRY_TUNNEL_PATH);
+    expect(buildBrowserOptions({ ...base, app: "docs" })).not.toHaveProperty(
+      "tunnel"
+    );
   });
 });
 
@@ -136,6 +158,58 @@ describe("SERVER_TRACE_PROPAGATION_TARGETS", () => {
     ]) {
       expect(propagatesTo(url), url).toBe(false);
     }
+  });
+});
+
+describe("TUNNEL_IGNORE_SPANS", () => {
+  const ignored = (attributes: Record<string, string>) =>
+    shouldIgnoreSpan(
+      { description: "BaseServer.handleRequest", op: undefined, attributes },
+      TUNNEL_IGNORE_SPANS
+    );
+
+  it("matches Next's request and route handler spans for the tunnel", () => {
+    for (const target of [
+      SENTRY_TUNNEL_PATH,
+      `${SENTRY_TUNNEL_PATH}/`,
+      `${SENTRY_TUNNEL_PATH}?x=1`,
+    ]) {
+      expect(
+        ignored({
+          "next.span_type": "BaseServer.handleRequest",
+          "http.target": target,
+        }),
+        target
+      ).toBe(true);
+    }
+    expect(
+      ignored({
+        "next.span_type": "AppRouteRouteHandlers.runHandler",
+        "next.route": `${SENTRY_TUNNEL_PATH}/route`,
+      })
+    ).toBe(true);
+  });
+
+  it("keeps every other request", () => {
+    expect(
+      ignored({
+        "next.span_type": "BaseServer.handleRequest",
+        "http.target": "/api/relay-other",
+      })
+    ).toBe(false);
+    expect(
+      ignored({
+        "next.span_type": "BaseServer.handleRequest",
+        "http.target": "/api/expenses/submit",
+      })
+    ).toBe(false);
+    expect(
+      ignored({
+        "next.span_type": "AppRouteRouteHandlers.runHandler",
+        "next.route": "/api/health",
+      })
+    ).toBe(false);
+    expect(ignored({ "http.target": SENTRY_TUNNEL_PATH })).toBe(false);
   });
 });
 

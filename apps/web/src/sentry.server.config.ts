@@ -2,19 +2,20 @@ import {
   buildServerOptions,
   resolveEnvironment,
 } from "@repo/observability/options";
-import { init, serveTunnelIntegration } from "@sentry/nextjs";
+import { init } from "@sentry/nextjs";
 
 // Loaded from `register()` on the Node.js runtime. Without a DSN the SDK is
-// disabled and sends nothing. The tunnel integration answers the browser's
-// `tunnel: true` envelopes on this Site's own origin.
-init({
-  ...buildServerOptions({
+// disabled and sends nothing. `src/app/api/relay/route.ts` forwards the
+// browser's envelopes for this DSN; `tunnel: true` keeps its requests out of
+// the traces.
+init(
+  buildServerOptions({
     app: "web",
     dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
     environment: resolveEnvironment(
       process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT,
       process.env.NODE_ENV
     ),
-  }),
-  integrations: [serveTunnelIntegration()],
-});
+    tunnel: true,
+  })
+);
