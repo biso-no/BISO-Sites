@@ -411,7 +411,11 @@ export async function applyOrderStatusTransition(
     );
 
     console.log(`[Order] Status updated: ${oldStatus} -> ${newStatus}`);
-    countOrderOutcome(newStatus, currentOrder, updateData);
+    // A repeated same-status apply (webhook, return route and cron racing) is
+    // a no-op change; count the transition once.
+    if (oldStatus !== newStatus) {
+      countOrderOutcome(newStatus, currentOrder, updateData);
+    }
     return { newStatus };
   } catch (error) {
     console.error("Error updating order status:", error);

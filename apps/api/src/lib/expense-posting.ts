@@ -286,6 +286,8 @@ async function recordFailureEvent(
       note: error instanceof Error ? error.message : String(error),
     },
   ]);
+  // Every path that fails a booking records this event exactly once.
+  countMetric("expense.booking_failed");
 }
 
 async function recordFailure(
@@ -297,7 +299,6 @@ async function recordFailure(
     status: ExpensesStatus.FAILED,
   });
   await recordFailureEvent(db, expenseId, error);
-  countMetric("expense.booking_failed");
 }
 
 const SUCCESS_WRITE_EXTRA_ATTEMPTS = 2;

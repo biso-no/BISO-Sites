@@ -10,6 +10,9 @@ const db = vi.hoisted(() => ({
 }));
 
 const storage = vi.hoisted(() => ({ getFileDownload: vi.fn() }));
+const metrics = vi.hoisted(() => ({ countMetric: vi.fn() }));
+
+vi.mock("@repo/observability/metrics", () => metrics);
 
 const finago = vi.hoisted(() => ({
   getFiscalYearLocks: vi.fn(),
@@ -113,6 +116,7 @@ function eventCalls() {
 
 describe("postApprovedExpense booking dates", () => {
   beforeEach(() => {
+    metrics.countMetric.mockClear();
     for (const fn of [
       ...Object.values(db),
       ...Object.values(storage),
@@ -454,6 +458,8 @@ describe("postApprovedExpense booking dates", () => {
     const failed = eventCalls().find((c) => c[3].action === "booking_failed");
     expect(failed?.[3].actor_kind).toBe("system");
     expect(failed?.[3].note).toContain("Stale posting claim");
+    expect(metrics.countMetric).toHaveBeenCalledTimes(1);
+    expect(metrics.countMetric).toHaveBeenCalledWith("expense.booking_failed");
   });
 
   it("records booking_failed when the approval chain assert fails", async () => {
@@ -470,6 +476,8 @@ describe("postApprovedExpense booking dates", () => {
     const failed = eventCalls().find((c) => c[3].action === "booking_failed");
     expect(failed?.[3].actor_kind).toBe("system");
     expect(failed?.[3].note).toBe("Chain not approved");
+    expect(metrics.countMetric).toHaveBeenCalledTimes(1);
+    expect(metrics.countMetric).toHaveBeenCalledWith("expense.booking_failed");
     expect(finago.postExpenseTransaction).not.toHaveBeenCalled();
   });
 

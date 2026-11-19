@@ -298,6 +298,38 @@ describe("applyOrderStatusTransition", () => {
     });
   });
 
+  it.each([
+    OrdersStatus.PAID,
+    OrdersStatus.CANCELLED,
+    OrdersStatus.FAILED,
+  ])("does not count a repeated %s apply", async (status) => {
+    db.getRow.mockResolvedValue(orderRow({ status }));
+    await applyOrderStatusTransition("order-1", status, {}, db);
+    expect(metrics.countMetric).not.toHaveBeenCalled();
+  });
+
+  it("does not count a stale backward transition", async () => {
+    db.getRow.mockResolvedValue(orderRow({ status: OrdersStatus.PAID }));
+    const result = await applyOrderStatusTransition(
+      "order-1",
+      OrdersStatus.PENDING,
+      {},
+      db
+    );
+    expect(result.newStatus).toBe(OrdersStatus.PAID);
+    expect(db.updateRow).not.toHaveBeenCalled();
+    expect(metrics.countMetric).not.toHaveBeenCalled();
+  });
+
+  it("counts AUTHORIZED to PAID once", async () => {
+    db.getRow.mockResolvedValue(orderRow({ status: OrdersStatus.AUTHORIZED }));
+    await applyOrderStatusTransition("order-1", OrdersStatus.PAID, {}, db);
+    expect(metrics.countMetric).toHaveBeenCalledTimes(1);
+    expect(metrics.countMetric).toHaveBeenCalledWith("payment.completed", {
+      provider: "vipps",
+    });
+  });
+
   it("counts nothing for an authorized transition", async () => {
     db.getRow.mockResolvedValue(orderRow());
     await applyOrderStatusTransition(

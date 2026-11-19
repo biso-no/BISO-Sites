@@ -230,6 +230,7 @@ describe("retryExpenseBooking", () => {
       ok: false,
     });
     expect(eventActions()).toContain("booking_failed");
+    expect(metrics.countMetric).toHaveBeenCalledTimes(1);
     expect(metrics.countMetric).toHaveBeenCalledWith("expense.booking_failed");
   });
 });
