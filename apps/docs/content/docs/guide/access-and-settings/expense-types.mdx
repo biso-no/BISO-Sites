@@ -93,12 +93,12 @@ The check can take up to two minutes. If it runs out of time, it says **Stoppet 
 ## What happens next
 
 - When a student uploads a receipt, the AI picks one of the active types for it. It reads the **Notat til AI** (Note for the AI), the English name and what similar receipts were booked as before.
-- The AI learns from receipts as soon as a reimbursement is submitted. The receipt's type and account are kept as an example, without the student's name and without what the student wrote. Until the reimbursement is booked, the example counts for less: the AI is told it is unconfirmed, and examples that were booked come first.
-- A type or account that an approver or admin changes counts most. A change of only the account doesn't count as a choice of the type.
+- The AI learns from receipts as soon as a reimbursement is submitted. The receipt's type and account are kept as an example, without the student's name and without their description of the expense. Until the reimbursement is booked, the example counts for less: the AI is told it is unconfirmed, and examples that were booked come first.
+- A type that an approver or admin changes counts most. A change of only the account doesn't count as a choice of the type.
 - If a reimbursement is rejected, its examples are deleted, so the AI forgets them.
 - At the moment a reimbursement is submitted, the receipt's type, its account and its tax code are fixed. A changed account applies to reimbursements submitted after you save, not to ones already submitted.
 - A type that the system filled in as the fallback **Other** doesn't count as the student's choice when the AI learns.
-- When a reimbursement is booked, its examples are confirmed with the accounts it was actually booked on. This also applies to a booking finished by retrying it. The AI looks first for the same shop, then for shops whose names start the same way, then for receipts with similar descriptions, and prefers examples from the same department.
+- When a reimbursement is booked, its examples are confirmed with the accounts it was actually booked on. A booking finished with **Prøv bokføring på nytt** (Retry booking, see [Review and decide reimbursements](/guide/access-and-settings/expenses-admin)) confirms them with the accounts already stored on the receipts. The AI looks first for the same shop, then for shops whose names start the same way, then for receipts with similar descriptions, and prefers examples from the same department.
 - Every create, change and starting-list load is written to the audit log with your account.
 </WhatHappensNext>
 

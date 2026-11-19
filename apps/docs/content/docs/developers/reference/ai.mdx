@@ -106,7 +106,7 @@ A global admin can turn two AI features off under **Innstillinger** (Settings), 
 
 Receipt reading is also off whenever the whole reimbursements module (`expenses_module`) is off.
 
-Receipt reading learns from earlier reimbursements. Each submitted receipt becomes an anonymous example, marked unconfirmed until the reimbursement is booked in 24SevenOffice, and the next scan gets up to 10 of them in its prompt: the same shop first, then a shop-name prefix, then description keywords, then one recent example per type. Within each search, confirmed examples come first, then an approver's or admin's correction, then the same department, then the newest. The web form sends the department with each scan. A rejected reimbursement's examples are deleted. [Accounting](/developers/reference/accounting#reimbursements) has the details.
+Receipt reading learns from earlier reimbursements. Each submitted receipt becomes an anonymous example, marked unconfirmed until the reimbursement is booked in 24SevenOffice, and the next scan gets up to 10 of them in its prompt: the same shop first, then a shop-name prefix, then description keywords, then one recent example per type. Within each search, confirmed examples come first, then an approver's or admin's correction, then the same department, then the newest. The web form sends the department with a scan when one is chosen. A rejected reimbursement's examples are deleted. [Accounting](/developers/reference/accounting#reimbursements) has the details.
 
 The docs assistant has no flag. Unset `ANTHROPIC_API_KEY` on docs and redeploy to switch it off. The rest of docs keeps working.
 

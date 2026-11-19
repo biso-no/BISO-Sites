@@ -11,6 +11,7 @@ covers:
   - apps/api/src/app/api/expenses/admin/**
   - apps/api/src/lib/expense-card-details.ts
   - apps/api/src/lib/expense-approval.ts
+  - packages/shared/utils/expense-examples.ts
   - packages/connectors/src/teams-bot/cards.ts
 ---
 
@@ -103,6 +104,7 @@ Choose **Prøv på nytt** (Retry). You see **Bokført i Finago** (Booked in Fina
 
 - After a decision, the reimbursement moves to the next step, or to booking after the last approval. Booking runs on its own, without anyone starting it.
 - A successful booking shows **Bokført** (Booked) and the transaction number in 24SevenOffice.
+- A type an approver or admin changes teaches the expense AI, and a rejected reimbursement is forgotten by it. See [Manage expense types](/guide/access-and-settings/expense-types).
 - A failed booking is never retried by itself, because 24SevenOffice may already have it. Marking a stuck one as failed is not a retry.
 - A booking that stopped without finishing is marked **Bokføring feilet** (Booking failed) the next time the scheduled run meets it, once the claim is older than 15 minutes, so it doesn't stay stuck. It's only marked failed, not retried. Booking falls back to the department stored on the reimbursement itself when its department link is missing.
 - Edits, decisions, approver changes and retries are written to the reimbursement's history with your name.
