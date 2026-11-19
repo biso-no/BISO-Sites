@@ -170,11 +170,14 @@ export async function selectExamples(
       if (room <= 0) {
         break;
       }
-      const picked = candidatesFrom(
-        await fetchRows(db, group),
-        ctx,
-        taken
-      ).slice(0, room);
+      let rows: ExpenseTypeExamples[];
+      try {
+        rows = await fetchRows(db, group);
+      } catch (error) {
+        console.warn("[expense-examples] A search failed, skipping it:", error);
+        continue;
+      }
+      const picked = candidatesFrom(rows, ctx, taken).slice(0, room);
       for (const c of picked) {
         taken.add(c.key);
         matched.push(c.example);
@@ -182,14 +185,19 @@ export async function selectExamples(
       vendorRoom -= picked.length;
     }
     const seen = new Set(matched.map((e) => e.finalType));
-    const filler = await recentPerType(
-      db,
-      ctx.activeSlugs,
-      seen,
-      MAX_EXAMPLES - matched.length,
-      input.excludeId,
-      input.departmentId
-    );
+    let filler: TypeExample[] = [];
+    try {
+      filler = await recentPerType(
+        db,
+        ctx.activeSlugs,
+        seen,
+        MAX_EXAMPLES - matched.length,
+        input.excludeId,
+        input.departmentId
+      );
+    } catch (error) {
+      console.warn("[expense-examples] The recent search failed:", error);
+    }
     return [...matched, ...filler];
   } catch {
     return matched;

@@ -210,6 +210,63 @@ describe("selectExamples", () => {
     expect(result.map((r) => r.description)).toContain("v1");
   });
 
+  it("still adds the filler when the keyword query fails", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    listRows.mockImplementation((_d: string, _t: string, q: string[]) => {
+      if (q.some((s) => s.includes("search"))) {
+        return Promise.reject(new Error("no index"));
+      }
+      return Promise.resolve({
+        rows: q.some((s) => s.includes("vendor_key"))
+          ? [row({ description: "v1" })]
+          : [
+              row({
+                description: "t1",
+                final_cost_type: "travel",
+                vendor_key: "x",
+              }),
+            ],
+      });
+    });
+    const result = await selectExamples(db, {
+      description: "pizza",
+      types,
+      vendor: "Rema",
+    });
+    expect(result.map((r) => r.description)).toEqual(["v1", "t1"]);
+  });
+
+  it("still gets keyword and filler results when the prefix query fails", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    listRows.mockImplementation((_d: string, _t: string, q: string[]) => {
+      if (q.some((s) => s.includes("startsWith"))) {
+        return Promise.reject(new Error("boom"));
+      }
+      if (q.some((s) => s.includes("search"))) {
+        return Promise.resolve({
+          rows: [row({ description: "k1", vendor_key: "shop" })],
+        });
+      }
+      return Promise.resolve({
+        rows: q.some((s) => s.includes("vendor_key"))
+          ? []
+          : [
+              row({
+                description: "t1",
+                final_cost_type: "travel",
+                vendor_key: "x",
+              }),
+            ],
+      });
+    });
+    const result = await selectExamples(db, {
+      description: "pizza",
+      types,
+      vendor: "Rema 1000 Majorstuen",
+    });
+    expect(result.map((r) => r.description)).toEqual(["k1", "t1"]);
+  });
+
   it("returns [] on db error", async () => {
     listRows.mockRejectedValue(new Error("boom"));
     expect(await selectExamples(db, { types, vendor: "Rema" })).toEqual([]);
