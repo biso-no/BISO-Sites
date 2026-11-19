@@ -13,12 +13,14 @@ import {
   ExpensesStatus,
   type LedgerAccounts,
 } from "@repo/api/types/appwrite";
+import { isNoApproverIssue } from "@repo/shared/utils/expense-approvers";
 import { costTypeLabel } from "@repo/shared/utils/expense-cost-types";
 import {
   type ApproverHint,
   parseApproverHints,
   parseReceiptIssues,
 } from "@repo/shared/utils/expense-hints";
+import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { receiptFileId } from "@repo/shared/utils/receipt-file-id";
 import { reimbursementNumber } from "@repo/shared/utils/reimbursement-number";
 import {
@@ -29,6 +31,8 @@ import {
   expensePermissions,
   expenseVisibilityQueries,
   maskBankAccount,
+  needsRebuildEvidence,
+  type RebuildEvidence,
 } from "@/lib/expense-access";
 import {
   emptyResult,
@@ -583,6 +587,67 @@ async function withReceiptLabels(
 }
 
 /**
+ * Whether an empty approval chain may be rebuilt: direct booking is on and the
+ * submission recorded that no approver was found. Read only when it can
+ * matter (`needsRebuildEvidence`).
+ */
+export async function loadRebuildEvidence(
+  db: Db,
+  expenseId: string
+): Promise<RebuildEvidence> {
+  const [ledgerPosting, issues] = await Promise.all([
+    isFeatureEnabled("expenses_ledger_posting"),
+    db.listRows<ExpenseApprovalIssues>("app", "expense_approval_issues", [
+      Query.equal("expense_id", expenseId),
+      Query.select(["reason"]),
+      Query.orderAsc("$createdAt"),
+      Query.limit(LOOKUP_LIMIT),
+    ]),
+  ]);
+  return {
+    hasNoApproverIssue: issues.rows.some((row) =>
+      isNoApproverIssue(row.reason)
+    ),
+    ledgerPosting,
+  };
+}
+
+/** What the viewer may do on the detail page. */
+async function detailPermissions(
+  db: Db,
+  viewer: ExpenseViewer,
+  expense: Expenses,
+  approvals: ExpenseApprovals[]
+): Promise<ExpensePermissions> {
+  const accessSteps = approvals.map((a) => ({
+    $id: a.$id,
+    approver_email: a.approver_email,
+    approver_role: a.approver_role,
+    status: a.status,
+    step: a.step,
+  }));
+  const rebuild = needsRebuildEvidence(
+    viewer,
+    expense.status,
+    accessSteps.length
+  )
+    ? await loadRebuildEvidence(db, expense.$id)
+    : undefined;
+  return expensePermissions(
+    viewer,
+    {
+      campus: expense.campus,
+      status: expense.status,
+      submitter_is_controller: expense.submitter_is_controller,
+      submitter_is_financial_manager: expense.submitter_is_financial_manager,
+      userId: expense.userId,
+    },
+    accessSteps,
+    rebuild
+  );
+}
+
+/**
  * One expense for the detail page, or null when it is missing, a draft or not
  * the viewer's to see.
  */
@@ -612,23 +677,11 @@ export async function getExpenseDetail(
     expense.$id,
     expense.status === ExpensesStatus.FAILED
   );
-  const accessSteps = parts.approvals.map((a) => ({
-    $id: a.$id,
-    approver_email: a.approver_email,
-    approver_role: a.approver_role,
-    status: a.status,
-    step: a.step,
-  }));
-  const permissions = expensePermissions(
+  const permissions = await detailPermissions(
+    db,
     viewer,
-    {
-      campus: expense.campus,
-      status: expense.status,
-      submitter_is_controller: expense.submitter_is_controller,
-      submitter_is_financial_manager: expense.submitter_is_financial_manager,
-      userId: expense.userId,
-    },
-    accessSteps
+    expense,
+    parts.approvals
   );
   if (!permissions.canView) {
     return null;

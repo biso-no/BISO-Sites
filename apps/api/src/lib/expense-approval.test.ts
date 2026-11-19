@@ -53,6 +53,8 @@ const graph = vi.hoisted(() => ({ getUser: vi.fn() }));
 vi.mock("./graph", () => ({ getGraphService: () => graph }));
 vi.mock("./expense-approver-resolution", () => resolution);
 vi.mock("@repo/shared/utils/expense-events", () => events);
+const flags = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
+vi.mock("@repo/shared/utils/feature-flags-server", () => flags);
 
 import {
   changeStepApprover,
@@ -87,6 +89,7 @@ beforeEach(() => {
   }
   resolution.resolveExpenseApprovers.mockReset();
   events.recordExpenseEvents.mockReset();
+  flags.isFeatureEnabled.mockReset().mockResolvedValue(true);
   teams.ensureBotChatForUser.mockReset().mockResolvedValue(null);
   teams.sendProactiveCard.mockReset().mockResolvedValue(null);
   teams.sendApprovalEmail.mockReset().mockResolvedValue(undefined);
@@ -2294,11 +2297,26 @@ describe("rebuildApprovalChain", () => {
     userId: "user-9",
     ...over,
   });
-  const loads = (expense: object, stepRows: object[] = []) => {
+  // What `createApprovalChain` records when no step resolves at submit.
+  const NO_APPROVER_ISSUE = {
+    $id: "issue-1",
+    expense_id: "expense-1",
+    reason:
+      "No approver could be resolved. The reimbursement is pending with no approval step.",
+    status: "open",
+  };
+  const loads = (
+    expense: object,
+    stepRows: object[] = [],
+    issueRows: object[] = [NO_APPROVER_ISSUE]
+  ) => {
     db.getRow.mockImplementation(async (_db: string, table: string) =>
       table === "user" ? { $id: "user-9", name: "Ada" } : expense
     );
-    db.listRows.mockResolvedValue({ rows: stepRows, total: stepRows.length });
+    db.listRows.mockImplementation((_db: string, table: string) => {
+      const rows = table === "expense_approval_issues" ? issueRows : stepRows;
+      return Promise.resolve({ rows, total: rows.length });
+    });
   };
 
   it("rebuilds the chain of a pending expense with no steps", async () => {
@@ -2430,6 +2448,61 @@ describe("rebuildApprovalChain", () => {
       await rebuildApprovalChain({ actor: ACTOR, expenseId: "expense-1" })
     ).toMatchObject({ code: "has_steps", ok: false });
     expect(resolution.resolveExpenseApprovers).not.toHaveBeenCalled();
+  });
+
+  it("refuses an expense that went to accounting by email", async () => {
+    // The email path sets `pending` with no steps and records no issue.
+    loads(expenseRow(), [], []);
+
+    expect(
+      await rebuildApprovalChain({ actor: ACTOR, expenseId: "expense-1" })
+    ).toMatchObject({ code: "not_rebuildable", ok: false });
+    expect(resolution.resolveExpenseApprovers).not.toHaveBeenCalled();
+    expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  it("refuses when the only issues are about something else", async () => {
+    loads(
+      expenseRow(),
+      [],
+      [
+        {
+          ...NO_APPROVER_ISSUE,
+          reason: "Could not notify ctrl@biso.no for step 1 (mail down).",
+        },
+      ]
+    );
+
+    expect(
+      await rebuildApprovalChain({ actor: ACTOR, expenseId: "expense-1" })
+    ).toMatchObject({ code: "not_rebuildable", ok: false });
+    expect(resolution.resolveExpenseApprovers).not.toHaveBeenCalled();
+  });
+
+  it("rebuilds when the no-approver issue was already resolved", async () => {
+    loads(expenseRow(), [], [{ ...NO_APPROVER_ISSUE, status: "resolved" }]);
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [FIN_STEP],
+    });
+
+    expect(
+      await rebuildApprovalChain({ actor: ACTOR, expenseId: "expense-1" })
+    ).toEqual({ ok: true, stepsCreated: 1 });
+  });
+
+  it("refuses while direct booking is off", async () => {
+    loads(expenseRow());
+    flags.isFeatureEnabled.mockResolvedValue(false);
+
+    expect(
+      await rebuildApprovalChain({ actor: ACTOR, expenseId: "expense-1" })
+    ).toMatchObject({ code: "posting_disabled", ok: false });
+    expect(flags.isFeatureEnabled).toHaveBeenCalledWith(
+      "expenses_ledger_posting"
+    );
+    expect(resolution.resolveExpenseApprovers).not.toHaveBeenCalled();
+    expect(db.createRow).not.toHaveBeenCalled();
   });
 
   it("refuses a rejected expense", async () => {

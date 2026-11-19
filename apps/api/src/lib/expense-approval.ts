@@ -8,6 +8,7 @@ import { ID, type Models, Query } from "@repo/api";
 import { appwriteErrorStatus } from "@repo/api/errors";
 import { createAdminClient } from "@repo/api/server";
 import {
+  type ExpenseApprovalIssues,
   type ExpenseApprovals,
   type ExpenseApprovalsApproverRole,
   ExpenseApprovalsStatus,
@@ -28,8 +29,11 @@ import {
 import {
   directoryKey,
   getCampusApprovalPlan,
+  isNoApproverIssue,
+  NO_APPROVER_ISSUE_REASON,
 } from "@repo/shared/utils/expense-approvers";
 import { recordExpenseEvents } from "@repo/shared/utils/expense-events";
+import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { reimbursementNumber } from "@repo/shared/utils/reimbursement-number";
 import { type GuardedApproverStep, guardChain } from "./expense-approval-guard";
 import {
@@ -379,8 +383,7 @@ export async function createApprovalChain(
       {
         campusId: context.campusId,
         department: context.departmentName ?? "(none)",
-        reason:
-          "No approver could be resolved. The reimbursement is pending with no approval step.",
+        reason: NO_APPROVER_ISSUE_REASON,
         roleSought: lastPlanned?.role ?? "controller",
       },
     ]);
@@ -807,6 +810,9 @@ const NOT_CURRENT_STEP_ERROR = "This step is not waiting for a decision.";
 const NOT_PENDING_ERROR =
   "This reimbursement is no longer waiting for approval.";
 const HAS_STEPS_ERROR = "This reimbursement already has approval steps.";
+const NOT_REBUILDABLE_ERROR =
+  "Only a reimbursement left with no approver at submission can have its approval chain rebuilt.";
+const ISSUE_LOOKUP_LIMIT = 100;
 const HTTP_CONFLICT = 409;
 const ACCOUNT_MISSING_ERROR =
   "A receipt has no account yet. Set it in admin before approving.";
@@ -1361,21 +1367,57 @@ type RebuildExpenseRow = ExpenseSummaryRow & {
 };
 
 /**
- * Builds the approval chain again for a pending expense that has none (no
- * approver could be found at submit). Uses the submitter's flags saved on the
- * expense, so the plan is the one the submission would have got.
+ * Whether the expense has the issue `createApprovalChain` records when no step
+ * resolves, in any status. A reimbursement sent to accounting by email is
+ * pending with no steps too, but never has one.
+ */
+async function hasNoApproverIssue(
+  db: AdminDb,
+  expenseId: string
+): Promise<boolean> {
+  const { rows } = await db.listRows<ExpenseApprovalIssues>(
+    "app",
+    "expense_approval_issues",
+    [
+      Query.equal("expense_id", expenseId),
+      Query.select(["reason"]),
+      Query.orderAsc("$createdAt"),
+      Query.limit(ISSUE_LOOKUP_LIMIT),
+    ]
+  );
+  return rows.some((row) => isNoApproverIssue(row.reason));
+}
+
+export type RebuildErrorCode =
+  | "posting_disabled"
+  | "not_pending"
+  | "has_steps"
+  | "not_rebuildable"
+  | "not_found"
+  | "failed";
+
+/**
+ * Builds the approval chain again for a pending expense that has none because
+ * no approver could be found at submit. Refused while direct booking is off,
+ * and for any expense without that submit's no-approver issue: one sent to
+ * accounting by email is handled there, and approving it here too would pay
+ * it twice. Uses the submitter's flags saved on the expense, so the plan is
+ * the one the submission would have got.
  */
 export async function rebuildApprovalChain(params: {
   actor: ApprovalActor;
   expenseId: string;
 }): Promise<
   | { ok: true; stepsCreated: number }
-  | {
-      ok: false;
-      code: "not_pending" | "has_steps" | "not_found" | "failed";
-      error: string;
-    }
+  | { ok: false; code: RebuildErrorCode; error: string }
 > {
+  if (!(await isFeatureEnabled("expenses_ledger_posting"))) {
+    return {
+      ok: false,
+      code: "posting_disabled",
+      error: "expenses_ledger_posting disabled",
+    };
+  }
   const { db } = await createAdminClient();
   const expense = await db
     .getRow<RebuildExpenseRow>("app", "expense", params.expenseId, [
@@ -1407,6 +1449,13 @@ export async function rebuildApprovalChain(params: {
       ok: false,
       code: "has_steps",
       error: HAS_STEPS_ERROR,
+    };
+  }
+  if (!(await hasNoApproverIssue(db, params.expenseId))) {
+    return {
+      ok: false,
+      code: "not_rebuildable",
+      error: NOT_REBUILDABLE_ERROR,
     };
   }
 

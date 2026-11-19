@@ -1602,7 +1602,8 @@
       "retry_in_progress": "Noen andre prøver allerede denne bokføringen på nytt.",
       "booking_failed": "Bokføringen mislyktes igjen.",
       "status_write_failed": "Finago har bokføringen, men lagring av status feilet. Trykk Prøv igjen for å fullføre lagringen; ingenting bokføres to ganger.",
-      "has_steps": "Dette utlegget har allerede godkjenningstrinn."
+      "has_steps": "Dette utlegget har allerede godkjenningstrinn.",
+      "not_rebuildable": "Bare et utlegg som sto uten godkjenner da det ble levert, kan få godkjenningsflyten bygget på nytt."
     },
     "decision": {
       "title": "Avgjørelse",

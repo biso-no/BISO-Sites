@@ -1,6 +1,9 @@
 // Server-to-server: the admin app rebuilds the approval chain of a pending
-// expense that has no steps.
+// expense left with no steps because no approver was found. Gated by the same
+// feature flag as the scheduled posting: with it off, submissions go to
+// accounting by email and must never get an approval chain as well.
 
+import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { rebuildApprovalChain } from "@/lib/expense-approval";
@@ -11,6 +14,7 @@ export const runtime = "nodejs";
 
 const HTTP_BAD_REQUEST = 400;
 const HTTP_UNAUTHORIZED = 401;
+const HTTP_CONFLICT = 409;
 const HTTP_INTERNAL_ERROR = 500;
 const MAX_EXPENSE_ID = 64;
 const MAX_EMAIL = 320;
@@ -41,6 +45,16 @@ export async function POST(req: NextRequest) {
         error: parsed.error.issues[0]?.message ?? "Invalid request",
       },
       { status: HTTP_BAD_REQUEST }
+    );
+  }
+
+  if (!(await isFeatureEnabled("expenses_ledger_posting"))) {
+    return NextResponse.json(
+      {
+        code: "posting_disabled",
+        error: "expenses_ledger_posting disabled",
+      },
+      { status: HTTP_CONFLICT }
     );
   }
 

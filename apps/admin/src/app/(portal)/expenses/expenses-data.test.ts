@@ -7,11 +7,16 @@ const db = { getRow: mock(), listRows: mock() };
 mock.module("@repo/api/server", () => ({
   createAdminClient: mock(async () => ({ db })),
 }));
+const isFeatureEnabled = mock(async (_key: string) => true);
+mock.module("@repo/shared/utils/feature-flags-server", () => ({
+  isFeatureEnabled,
+}));
 
 const {
   buildExpenseListQueries,
   getExpenseDetail,
   listExpenses,
+  loadRebuildEvidence,
   resolveExpenseListFilters,
 } = await import("./expenses-data");
 
@@ -351,5 +356,37 @@ describe("getExpenseDetail", () => {
   test("returns null when the expense is missing", async () => {
     db.getRow.mockRejectedValue(Object.assign(new Error("nf"), { code: 404 }));
     expect(await getExpenseDetail(viewer(), "ex1")).toBeNull();
+  });
+});
+
+describe("loadRebuildEvidence", () => {
+  const issues = (reasons: string[]) =>
+    db.listRows.mockResolvedValue({
+      rows: reasons.map((reason) => ({ reason })),
+    });
+
+  test("finds the issue of a submission that found no approver", async () => {
+    isFeatureEnabled.mockResolvedValue(true);
+    issues([
+      "Approver is the submitter",
+      "No approver could be resolved. The reimbursement is pending with no approval step.",
+    ]);
+    expect(await loadRebuildEvidence(db as never, "ex1")).toEqual({
+      hasNoApproverIssue: true,
+      ledgerPosting: true,
+    });
+    expect(db.listRows.mock.calls.at(-1)?.[2]).toContainEqual(
+      Query.equal("expense_id", "ex1")
+    );
+  });
+
+  test("an emailed expense has no such issue; the flag is read", async () => {
+    isFeatureEnabled.mockResolvedValue(false);
+    issues([]);
+    expect(await loadRebuildEvidence(db as never, "ex1")).toEqual({
+      hasNoApproverIssue: false,
+      ledgerPosting: false,
+    });
+    expect(isFeatureEnabled).toHaveBeenCalledWith("expenses_ledger_posting");
   });
 });

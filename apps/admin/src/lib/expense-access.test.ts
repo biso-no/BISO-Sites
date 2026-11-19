@@ -8,6 +8,7 @@ import {
   expensePermissions,
   expenseVisibilityQueries,
   maskBankAccount,
+  needsRebuildEvidence,
 } from "./expense-access";
 import { NO_MATCH_FILTER } from "./utils/authorization";
 
@@ -373,19 +374,64 @@ describe("maskBankAccount", () => {
 });
 
 describe("canRebuildChain", () => {
+  const rebuildable = { hasNoApproverIssue: true, ledgerPosting: true };
+
   test("only a global admin, only a pending expense with no steps", () => {
     const admin = viewer({ isGlobalAdmin: true });
-    expect(expensePermissions(admin, expense(), []).canRebuildChain).toBe(true);
-    expect(expensePermissions(admin, expense(), steps).canRebuildChain).toBe(
+    expect(
+      expensePermissions(admin, expense(), [], rebuildable).canRebuildChain
+    ).toBe(true);
+    expect(
+      expensePermissions(admin, expense(), steps, rebuildable).canRebuildChain
+    ).toBe(false);
+    expect(
+      expensePermissions(
+        admin,
+        expense({ status: "rejected" }),
+        [],
+        rebuildable
+      ).canRebuildChain
+    ).toBe(false);
+    expect(
+      expensePermissions(
+        viewer({ isCampusAdmin: true }),
+        expense(),
+        [],
+        rebuildable
+      ).canRebuildChain
+    ).toBe(false);
+  });
+
+  test("never for an expense sent to accounting by email", () => {
+    const admin = viewer({ isGlobalAdmin: true });
+    // Pending with no steps and no no-approver issue: the email path.
+    expect(expensePermissions(admin, expense(), []).canRebuildChain).toBe(
       false
     );
     expect(
-      expensePermissions(admin, expense({ status: "rejected" }), [])
-        .canRebuildChain
+      expensePermissions(admin, expense(), [], {
+        hasNoApproverIssue: false,
+        ledgerPosting: true,
+      }).canRebuildChain
     ).toBe(false);
+  });
+
+  test("never while direct booking is off", () => {
     expect(
-      expensePermissions(viewer({ isCampusAdmin: true }), expense(), [])
-        .canRebuildChain
+      expensePermissions(viewer({ isGlobalAdmin: true }), expense(), [], {
+        hasNoApproverIssue: true,
+        ledgerPosting: false,
+      }).canRebuildChain
+    ).toBe(false);
+  });
+
+  test("evidence is only worth loading for a global admin's empty pending chain", () => {
+    const admin = viewer({ isGlobalAdmin: true });
+    expect(needsRebuildEvidence(admin, "pending", 0)).toBe(true);
+    expect(needsRebuildEvidence(admin, "pending", 1)).toBe(false);
+    expect(needsRebuildEvidence(admin, "approved", 0)).toBe(false);
+    expect(
+      needsRebuildEvidence(viewer({ isCampusAdmin: true }), "pending", 0)
     ).toBe(false);
   });
 });

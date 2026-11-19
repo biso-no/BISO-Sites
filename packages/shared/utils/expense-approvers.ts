@@ -54,6 +54,20 @@ export interface ApprovalPlanInput {
 export const EXPENSE_APPROVER_DOMAIN = "biso.no";
 export const NATIONAL_APPROVER_EMAIL = `manager@${EXPENSE_APPROVER_DOMAIN}`;
 
+const NO_APPROVER_ISSUE_PREFIX = "No approver could be resolved";
+
+/**
+ * The approval issue recorded when no step of a submission resolves; the
+ * reimbursement is then pending with no steps. A reimbursement sent to
+ * accounting by email is pending with no steps too, but has no such issue.
+ */
+export const NO_APPROVER_ISSUE_REASON = `${NO_APPROVER_ISSUE_PREFIX}. The reimbursement is pending with no approval step.`;
+
+/** True for the issue of a submission that found no approver at all. */
+export function isNoApproverIssue(reason: string | null | undefined): boolean {
+  return reason?.startsWith(NO_APPROVER_ISSUE_PREFIX) ?? false;
+}
+
 const OSLO_CAMPUS_ID = "1";
 const NATIONAL_CAMPUS_ID = "5";
 

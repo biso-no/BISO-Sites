@@ -5,7 +5,9 @@ import {
   DEFAULT_DIRECTORY_EMAILS,
   directoryKey,
   getCampusApprovalPlan,
+  isNoApproverIssue,
   NATIONAL_APPROVER_EMAIL,
+  NO_APPROVER_ISSUE_REASON,
 } from "./expense-approvers";
 
 const controller = { kind: "directory", role: "controller" } as const;
@@ -233,5 +235,13 @@ describe("directory defaults", () => {
   it("cannot be changed at run time", () => {
     expect(Object.isFrozen(CAMPUS_MAILBOX_SLUGS)).toBe(true);
     expect(Object.isFrozen(CAMPUS_MAILBOX_SLUGS["1"])).toBe(true);
+  });
+});
+
+describe("isNoApproverIssue", () => {
+  it("knows the issue of a submission that found no approver", () => {
+    expect(isNoApproverIssue(NO_APPROVER_ISSUE_REASON)).toBe(true);
+    expect(isNoApproverIssue("Approver is the submitter")).toBe(false);
+    expect(isNoApproverIssue(null)).toBe(false);
   });
 });

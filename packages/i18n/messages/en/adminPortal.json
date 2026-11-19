@@ -1602,7 +1602,8 @@
       "retry_in_progress": "Someone else is already retrying this booking.",
       "booking_failed": "The booking failed again.",
       "status_write_failed": "Finago has the booking, but saving the status failed. Press Retry to finish saving it; nothing is booked twice.",
-      "has_steps": "This reimbursement already has approval steps."
+      "has_steps": "This reimbursement already has approval steps.",
+      "not_rebuildable": "Only a reimbursement left with no approver when it was submitted can have its approval chain rebuilt."
     },
     "decision": {
       "title": "Decision",

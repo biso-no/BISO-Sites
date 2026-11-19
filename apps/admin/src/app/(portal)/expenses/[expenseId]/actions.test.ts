@@ -23,6 +23,10 @@ mock.module("server-only", () => ({}));
 const getExpenseViewer = mock();
 mock.module("@/lib/expense-viewer", () => ({ getExpenseViewer }));
 mock.module("next/cache", () => ({ revalidatePath: mock(() => undefined) }));
+const isFeatureEnabled = mock(async (_key: string) => true);
+mock.module("@repo/shared/utils/feature-flags-server", () => ({
+  isFeatureEnabled,
+}));
 
 const {
   changeExpenseApprover,
@@ -94,6 +98,8 @@ beforeEach(() => {
   }
   getExpenseViewer.mockReset();
   getExpenseViewer.mockResolvedValue(viewer());
+  isFeatureEnabled.mockReset();
+  isFeatureEnabled.mockResolvedValue(true);
   fetchMock.mockReset();
   globalThis.fetch = fetchMock as unknown as typeof fetch;
   process.env.NEXT_PUBLIC_API_BASE_URL = "https://api.example.test";
@@ -660,20 +666,61 @@ describe("changeExpenseApprover api codes", () => {
 });
 
 describe("rebuildExpenseChain", () => {
-  test("only global admins can rebuild a chain", async () => {
+  const NO_APPROVER_ISSUE = {
+    reason:
+      "No approver could be resolved. The reimbursement is pending with no approval step.",
+  };
+  // A pending expense with no steps, and the given approval issues.
+  const emptyChain = (issues: object[] = [NO_APPROVER_ISSUE]) => {
     db.getRow.mockResolvedValue(expense());
-    db.listRows.mockResolvedValue({ rows: [] });
+    db.listRows.mockImplementation((_d: string, table: string) =>
+      Promise.resolve({
+        rows: table === "expense_approval_issues" ? issues : [],
+      })
+    );
+  };
+  const globalAdmin = () =>
+    getExpenseViewer.mockResolvedValue(
+      viewer({ emails: ["boss@example.com"], isGlobalAdmin: true })
+    );
+
+  test("only global admins can rebuild a chain", async () => {
+    emptyChain();
     getExpenseViewer.mockResolvedValue(viewer({ isCampusAdmin: true }));
     expect(await rebuildExpenseChain("ex1")).toEqual({ error: "forbidden" });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  test("calls the rebuild route for a global admin", async () => {
-    db.getRow.mockResolvedValue(expense());
-    db.listRows.mockResolvedValue({ rows: [] });
-    getExpenseViewer.mockResolvedValue(
-      viewer({ emails: ["boss@example.com"], isGlobalAdmin: true })
+  test("refuses an expense that went to accounting by email", async () => {
+    emptyChain([]);
+    globalAdmin();
+    expect(await rebuildExpenseChain("ex1")).toEqual({ error: "forbidden" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("refuses while direct booking is off", async () => {
+    emptyChain();
+    globalAdmin();
+    isFeatureEnabled.mockResolvedValue(false);
+    expect(await rebuildExpenseChain("ex1")).toEqual({ error: "forbidden" });
+    expect(isFeatureEnabled).toHaveBeenCalledWith("expenses_ledger_posting");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("maps the api's not_rebuildable refusal", async () => {
+    emptyChain();
+    globalAdmin();
+    fetchMock.mockResolvedValue(
+      Response.json({ code: "not_rebuildable", error: "no" }, { status: 400 })
     );
+    expect(await rebuildExpenseChain("ex1")).toEqual({
+      error: "not_rebuildable",
+    });
+  });
+
+  test("calls the rebuild route for a global admin", async () => {
+    emptyChain();
+    globalAdmin();
     fetchMock.mockResolvedValue(
       Response.json({ result: { ok: true, stepsCreated: 2 } })
     );

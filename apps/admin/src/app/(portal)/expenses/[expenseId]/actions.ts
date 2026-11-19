@@ -22,6 +22,7 @@ import {
   type ExpenseViewer,
   expensePermissions,
   maskBankAccount,
+  needsRebuildEvidence,
 } from "@/lib/expense-access";
 import { getExpenseViewer } from "@/lib/expense-viewer";
 import { callExpensesApi } from "@/lib/expenses-api";
@@ -31,6 +32,7 @@ import {
   type ExpenseActionError,
   type ExpenseActionResult,
 } from "../action-result";
+import { loadRebuildEvidence } from "../expenses-data";
 import { loadReceiptEditOptions } from "./edit-options";
 import { planReceiptEdit, type ReceiptChanges, round2 } from "./receipt-edit";
 
@@ -84,6 +86,13 @@ async function loadForEdit(expenseId: string): Promise<Loaded | null> {
       Query.limit(MAX_ROWS),
     ]),
   ]);
+  const rebuild = needsRebuildEvidence(
+    viewer,
+    expense.status,
+    steps.rows.length
+  )
+    ? await loadRebuildEvidence(db, expenseId)
+    : undefined;
   const permissions = expensePermissions(
     viewer,
     {
@@ -93,7 +102,8 @@ async function loadForEdit(expenseId: string): Promise<Loaded | null> {
       submitter_is_financial_manager: expense.submitter_is_financial_manager,
       userId: expense.userId,
     },
-    steps.rows
+    steps.rows,
+    rebuild
   );
   return { db, expense, permissions, steps: steps.rows, viewer };
 }

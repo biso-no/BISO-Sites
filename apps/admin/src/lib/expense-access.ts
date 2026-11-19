@@ -85,19 +85,55 @@ function isStepClosedToSubmitter(
   return false;
 }
 
-/** A pending expense left with no approval steps can be rebuilt by a global admin. */
-function canRebuildChain(
-  isGlobal: boolean,
+/** What decides whether an empty approval chain may be rebuilt. */
+export interface RebuildEvidence {
+  /**
+   * The expense has the "No approver could be resolved" issue a submission
+   * records when it finds no approver. One sent to accounting by email is
+   * pending with no steps too, but has none.
+   */
+  hasNoApproverIssue: boolean;
+  /** `expenses_ledger_posting` is on; while it is off, submissions go by email. */
+  ledgerPosting: boolean;
+}
+
+const NO_REBUILD_EVIDENCE: RebuildEvidence = {
+  hasNoApproverIssue: false,
+  ledgerPosting: false,
+};
+
+/** Whether rebuilding could apply, so the evidence is worth loading. */
+export function needsRebuildEvidence(
+  viewer: ExpenseViewer,
   status: string,
-  steps: ExpenseAccessStep[]
+  stepCount: number
 ): boolean {
-  return isGlobal && status === "pending" && steps.length === 0;
+  return viewer.isGlobalAdmin && status === "pending" && stepCount === 0;
+}
+
+/**
+ * A global admin may rebuild the chain of a pending expense left with no
+ * steps because no approver was found, and only while direct booking is on.
+ * Rebuilding one that accounting handles by email would pay it twice.
+ */
+function canRebuildChain(
+  viewer: ExpenseViewer,
+  status: string,
+  steps: ExpenseAccessStep[],
+  evidence: RebuildEvidence
+): boolean {
+  return (
+    needsRebuildEvidence(viewer, status, steps.length) &&
+    evidence.hasNoApproverIssue &&
+    evidence.ledgerPosting
+  );
 }
 
 export function expensePermissions(
   viewer: ExpenseViewer,
   expense: ExpenseAccessExpense,
-  steps: ExpenseAccessStep[]
+  steps: ExpenseAccessStep[],
+  rebuild: RebuildEvidence = NO_REBUILD_EVIDENCE
 ): ExpensePermissions {
   const isSubmitter = viewer.userId === expense.userId;
   const isGlobal = viewer.isGlobalAdmin;
@@ -135,7 +171,7 @@ export function expensePermissions(
     canDecide: acts && step !== null && (approverHere || actor),
     canEdit,
     canEditBankAccount: canEdit && actor,
-    canRebuildChain: canRebuildChain(isGlobal, expense.status, steps),
+    canRebuildChain: canRebuildChain(viewer, expense.status, steps, rebuild),
     canRetryBooking: expense.status === "failed" && actor,
     canView,
     currentStepId: step?.$id ?? null,
