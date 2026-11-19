@@ -45,9 +45,14 @@ export interface SyncDeps {
     to: string;
   }) => Promise<CostLine[]>;
   now: Date;
+  /** Which account to start from (rotated), so a run that timed out resumes. */
+  startOffset?: number;
 }
 
 export interface SyncResult {
+  /** Accounts whose lines were read, and how many there are. */
+  accountCount: number;
+  completed: number;
   departments: number;
   inactive: number;
   partial: boolean;
@@ -153,16 +158,12 @@ async function fetchLines(
   accounts: number[],
   deps: SyncDeps,
   budgetMs: number
-): Promise<{ lines: CostLine[]; partial: boolean }> {
+): Promise<{ completed: number; lines: CostLine[]; partial: boolean }> {
   const started = Date.now();
   const { from, to } = windowOf(deps.now);
   const lines: CostLine[] = [];
-  // Start somewhere new each night so a recurring timeout doesn't always
-  // skip the same trailing accounts.
   const offset =
-    accounts.length > 0
-      ? Math.floor(deps.now.getTime() / DAY_MS) % accounts.length
-      : 0;
+    accounts.length > 0 ? (deps.startOffset ?? 0) % accounts.length : 0;
   const rotated = [...accounts.slice(offset), ...accounts.slice(0, offset)];
   let completed = 0;
   for (const account of rotated) {
@@ -171,7 +172,7 @@ async function fetchLines(
       console.warn(
         `[Finago Project Sync] Ran out of time after ${completed} of ${accounts.length} accounts`
       );
-      return { lines, partial: true };
+      return { completed, lines, partial: true };
     }
     const signal = AbortSignal.timeout(remaining);
     try {
@@ -189,7 +190,7 @@ async function fetchLines(
         console.warn(
           `[Finago Project Sync] Ran out of time after ${completed} of ${accounts.length} accounts`
         );
-        return { lines, partial: true };
+        return { completed, lines, partial: true };
       }
       throw error;
     }
@@ -197,7 +198,7 @@ async function fetchLines(
   console.log(
     `[Finago Project Sync] Read ${completed} of ${accounts.length} accounts`
   );
-  return { lines, partial: false };
+  return { completed, lines, partial: false };
 }
 
 function asNumber(value: unknown): number {
@@ -281,7 +282,7 @@ export async function syncFinagoProjects(
   // A failed project list throws before anything is written.
   const list = await deps.getProjects();
   const accounts = await accountNumbers(db);
-  const { lines, partial } = await fetchLines(
+  const { completed, lines, partial } = await fetchLines(
     accounts,
     deps,
     deps.budgetMs ?? DEFAULT_BUDGET_MS
@@ -426,6 +427,8 @@ export async function syncFinagoProjects(
   }
 
   return {
+    accountCount: accounts.length,
+    completed,
     departments,
     inactive,
     partial,

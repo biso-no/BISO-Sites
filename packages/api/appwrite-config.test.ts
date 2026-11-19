@@ -413,6 +413,26 @@ describe("finago projects schema", () => {
     );
   });
 
+  test("finago_sync_state is server-only with the attempt, full-run and offset columns", () => {
+    const table = findTable("finago_sync_state");
+    expect(table).toBeDefined();
+    expect(table?.$permissions).toEqual(OPS_READ);
+    expect(columnKeys("finago_sync_state")).toEqual([
+      "last_attempt_at",
+      "last_full_at",
+      "next_offset",
+      "last_result",
+    ]);
+    expect(findColumn("finago_sync_state", "next_offset")).toMatchObject({
+      default: 0,
+      type: "integer",
+    });
+    expect(findColumn("finago_sync_state", "last_result")).toMatchObject({
+      size: 1000,
+      type: "string",
+    });
+  });
+
   test("finago_project_usage is server-only with a unique project and department pair", () => {
     const table = findTable("finago_project_usage");
     expect(table).toBeDefined();

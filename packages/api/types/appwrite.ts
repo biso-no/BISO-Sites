@@ -1989,6 +1989,13 @@ export type FinagoProjectUsage = Models.Row & {
   synced_at: string | null;
 };
 
+export type FinagoSyncState = Models.Row & {
+  last_attempt_at: string | null;
+  last_full_at: string | null;
+  next_offset: number;
+  last_result: string | null;
+};
+
 export type ExpenseApprovers = Models.Row & {
   key: string;
   scope: ExpenseApproversScope;

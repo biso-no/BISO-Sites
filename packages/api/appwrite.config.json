@@ -13560,6 +13560,53 @@
             ]
         },
         {
+            "$id": "finago_sync_state",
+            "$permissions": [
+                "read(\"team:sg-app-dept-operationsunit\")"
+            ],
+            "databaseId": "app",
+            "name": "Finago Sync State",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "last_attempt_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "last_full_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "next_offset",
+                    "type": "integer",
+                    "required": false,
+                    "array": false,
+                    "default": 0,
+                    "min": 0,
+                    "max": 9223372036854775807
+                },
+                {
+                    "key": "last_result",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 1000,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": []
+        },
+        {
             "$id": "expense_approvers",
             "$permissions": [
                 "read(\"team:sg-app-dept-operationsunit\")"

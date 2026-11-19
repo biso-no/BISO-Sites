@@ -85,6 +85,8 @@ describe("syncFinagoProjects", () => {
     const { db, tables } = fakeDb(seed());
     const result = await syncFinagoProjects(db, base);
     expect(result).toEqual({
+      accountCount: 1,
+      completed: 1,
       departments: 1,
       inactive: 0,
       partial: false,
@@ -217,5 +219,173 @@ describe("syncFinagoProjects", () => {
     expect(tables.finago_projects[0]?.synced_at).toBeUndefined();
     await syncFinagoProjects(db, base);
     expect(tables.finago_projects[0]?.synced_at).toBe(now.toISOString());
+  });
+
+  const abortable = ({
+    accountNumbers,
+    signal,
+  }: {
+    accountNumbers: number[];
+    signal?: AbortSignal;
+  }) =>
+    accountNumbers[0] === 6000
+      ? Promise.resolve([line({})])
+      : new Promise<never>((_, reject) => {
+          signal?.addEventListener("abort", () => reject(new Error("aborted")));
+        });
+  const twoAccounts = [
+    { $id: "a", account_number: 6000, active: true },
+    { $id: "b", account_number: 6100, active: true },
+  ];
+
+  it("keeps a deactivated edition's history as an inactive row", async () => {
+    const { db, tables } = fakeDb(seed());
+    const result = await syncFinagoProjects(db, {
+      ...base,
+      listCostLines: () =>
+        Promise.resolve([
+          line({}),
+          line({
+            date: "2024-12-01",
+            projectId: "p7",
+            projectName: "KD (2024)",
+          }),
+          line({
+            date: "2025-02-01",
+            projectId: "p7",
+            projectName: "KD (2024)",
+          }),
+          line({ projectId: "p8", projectName: null }),
+        ]),
+    });
+    expect(
+      tables.finago_projects.find((r) => r.project_id === "p7")
+    ).toMatchObject({
+      active: false,
+      first_line_date: "2024-12-01",
+      last_line_date: "2025-02-01",
+      line_count: 2,
+      name: "KD (2024)",
+      series: "kd",
+      year: 2024,
+    });
+    expect(
+      tables.finago_projects.find((r) => r.project_id === "p8")
+    ).toBeUndefined();
+    expect(tables.finago_project_usage.some((r) => r.project_id === "p7")).toBe(
+      true
+    );
+    expect(result).toMatchObject({ projects: 1, written: 2 });
+  });
+
+  it("refreshes stats on an existing inactive row and keeps it inactive", async () => {
+    const { db, tables } = fakeDb(
+      seed({
+        finago_projects: [
+          {
+            $id: "r7",
+            active: false,
+            line_count: 0,
+            name: "KD (2024)",
+            project_id: "p7",
+          },
+        ],
+      })
+    );
+    await syncFinagoProjects(db, {
+      ...base,
+      listCostLines: () =>
+        Promise.resolve([line({ projectId: "p7", projectName: null })]),
+    });
+    expect(tables.finago_projects.find((r) => r.$id === "r7")).toMatchObject({
+      active: false,
+      line_count: 1,
+    });
+  });
+
+  it("a partial run never shrinks existing project or usage stats", async () => {
+    const { db, tables } = fakeDb(
+      seed({
+        finago_project_usage: [
+          {
+            $id: "u1",
+            department_id: "d1",
+            first_line_date: "2025-01-01",
+            last_line_date: "2026-10-01",
+            line_count: 40,
+            project_id: "p1",
+          },
+        ],
+        finago_projects: [
+          {
+            $id: "r1",
+            first_line_date: "2025-01-01",
+            last_line_date: "2026-10-01",
+            line_count: 50,
+            name: "Fadderullan 2026",
+            peak_date: "2026-08-20",
+            project_id: "p1",
+          },
+        ],
+        ledger_accounts: twoAccounts,
+      })
+    );
+    const result = await syncFinagoProjects(db, {
+      ...base,
+      budgetMs: 40,
+      listCostLines: abortable,
+    });
+    expect(result).toMatchObject({
+      accountCount: 2,
+      completed: 1,
+      partial: true,
+    });
+    expect(tables.finago_projects[0]).toMatchObject({
+      first_line_date: "2025-01-01",
+      last_line_date: "2026-10-01",
+      line_count: 50,
+      peak_date: "2026-08-20",
+    });
+    expect(tables.finago_project_usage[0]).toMatchObject({
+      first_line_date: "2025-01-01",
+      last_line_date: "2026-10-01",
+      line_count: 40,
+    });
+  });
+
+  it("reads 24 months up to the day after now", async () => {
+    const { db } = fakeDb(seed());
+    const calls: { from: string; to: string }[] = [];
+    await syncFinagoProjects(db, {
+      ...base,
+      listCostLines: ({ from, to }) => {
+        calls.push({ from, to });
+        return Promise.resolve([]);
+      },
+    });
+    expect(calls).toEqual([{ from: "2024-11-19", to: "2026-11-20" }]);
+  });
+
+  it("starts at startOffset and reports completed accounts", async () => {
+    const { db } = fakeDb(
+      seed({
+        ledger_accounts: [6000, 6100, 6200].map((n) => ({
+          $id: `a${n}`,
+          account_number: n,
+          active: true,
+        })),
+      })
+    );
+    const order: number[] = [];
+    const result = await syncFinagoProjects(db, {
+      ...base,
+      listCostLines: ({ accountNumbers }) => {
+        order.push(accountNumbers[0] as number);
+        return Promise.resolve([]);
+      },
+      startOffset: 1,
+    });
+    expect(order).toEqual([6100, 6200, 6000]);
+    expect(result).toMatchObject({ accountCount: 3, completed: 3 });
   });
 });
