@@ -13,10 +13,12 @@ import {
 } from "@repo/shared/utils/finago-project-run";
 import { revalidatePath } from "next/cache";
 import { getUserAuthContext } from "@/lib/authorization";
+import { todayInOslo } from "@/lib/oslo-day";
 import { ROLES } from "@/lib/roles";
 import { logAuditEvent } from "../../../_actions/audit-log";
 import type { ExpenseActionResult } from "../../action-result";
 import {
+  effectiveEventDates,
   groupProjects,
   type ProjectDepartment,
   type ProjectsView,
@@ -34,7 +36,7 @@ const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
 type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
 
 export interface ProjectSyncSummary {
-  /** True when time ran out; the nightly run finishes the job. */
+  /** True when time ran out; the daily run finishes the job. */
   partial: boolean;
   projects: number;
 }
@@ -66,17 +68,23 @@ async function listAll<T extends Models.Row>(
 const day = (value: string | null): string | null =>
   value ? value.slice(0, 10) : null;
 
-/** Active projects with the departments that used them. Global admins only. */
+/**
+ * Active projects with the departments that used them and the event date in
+ * use. Inactive editions are read too: they place the next edition's date.
+ * Global admins only.
+ */
 export async function getProjectsView(): Promise<ProjectsView> {
   if (!(await isGlobalAdmin())) {
     throw new Error("Forbidden: only global admins can see projects");
   }
   const { db } = await createAdminClient();
-  const [projects, usage, departments] = await Promise.all([
-    listAll<FinagoProjects>(db, PROJECTS_TABLE, [Query.equal("active", true)]),
+  const [allProjects, usage, departments] = await Promise.all([
+    listAll<FinagoProjects>(db, PROJECTS_TABLE, []),
     listAll<FinagoProjectUsage>(db, USAGE_TABLE, []),
     listAll<Departments>(db, "departments", [Query.select(["$id", "Name"])]),
   ]);
+  const effective = effectiveEventDates(allProjects, todayInOslo());
+  const projects = allProjects.filter((row) => row.active);
 
   const names = new Map(departments.map((d) => [d.$id, d.Name]));
   const usedBy = new Map<string, ProjectDepartment[]>();
@@ -97,6 +105,8 @@ export async function getProjectsView(): Promise<ProjectsView> {
     departments: (usedBy.get(row.project_id) ?? []).sort((a, b) =>
       a.name.localeCompare(b.name)
     ),
+    effectiveDate: effective.get(row.project_id)?.eventDate ?? null,
+    effectiveSource: effective.get(row.project_id)?.eventDateSource ?? null,
     eventDate: day(row.event_date),
     firstLineDate: day(row.first_line_date),
     id: row.$id,
@@ -124,7 +134,7 @@ export async function getProjectsView(): Promise<ProjectsView> {
  * the nightly run: it resumes where the last run stopped, and refuses
  * (`in_progress`) while another run may still be going. Fetching stops after
  * 20 s so saving fits the 30 s page limit; a partial run says so and the
- * nightly run finishes it. Audited.
+ * daily run finishes it. Audited.
  */
 export async function syncProjectsFromFinago(): Promise<
   ExpenseActionResult<ProjectSyncSummary>

@@ -1,5 +1,6 @@
 "use client";
 
+import type { EventDateSource } from "@repo/shared/utils/finago-projects";
 import { type CSSProperties, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { STUDIO, studioSurface } from "../../../../_components/studio";
@@ -23,18 +24,22 @@ export interface ProjectsLabels {
   errors: Record<string, string>;
   eventDate: string;
   firstBooking: string;
+  /** Contains `{date}` and `{source}`. */
+  inUse: string;
   lastBooking: string;
   /** Contains `{time}`. */
   lastSynced: string;
   neverSynced: string;
+  noDateInUse: string;
   noMatch: string;
   none: string;
-  notSet: string;
   noUsers: string;
   peak: string;
   save: string;
   saved: string;
   saveError: string;
+  /** Where the date in use comes from, in plain words. */
+  sources: Record<EventDateSource, string>;
   sync: string;
   /** Contains `{count}`. */
   syncBusy: string;
@@ -85,6 +90,20 @@ function formatDay(value: string | null, locale: string): string {
   });
 }
 
+/** The event date receipts are matched against, and where it comes from. */
+function inUseText(
+  project: ProjectView,
+  labels: ProjectsLabels,
+  locale: string
+): string {
+  if (!(project.effectiveDate && project.effectiveSource)) {
+    return labels.noDateInUse;
+  }
+  return labels.inUse
+    .replace("{date}", formatDay(project.effectiveDate, locale))
+    .replace("{source}", labels.sources[project.effectiveSource]);
+}
+
 interface RowProps {
   labels: ProjectsLabels;
   locale: string;
@@ -125,11 +144,9 @@ function ProjectRow({ labels, locale, onSaved, project }: RowProps) {
       <td className="py-2 pr-3">{formatDay(project.lastLineDate, locale)}</td>
       <td className="py-2 pr-3">{formatDay(project.peakDate, locale)}</td>
       <td className="py-2">
-        {!project.eventDate && (
-          <span className="mr-2 text-[12px]" style={{ color: STUDIO.ink4 }}>
-            {labels.notSet}
-          </span>
-        )}
+        <p className="mb-1 text-[12px]" style={{ color: STUDIO.ink4 }}>
+          {inUseText(project, labels, locale)}
+        </p>
         <div className="flex flex-wrap items-center gap-2">
           <input
             aria-label={`${labels.eventDate}: ${project.name}`}

@@ -1,5 +1,13 @@
 /** Plain shapes and grouping for the Projects tab. No server code here. */
 
+import type { FinagoProjects } from "@repo/api/types/appwrite";
+import {
+  type EditionTiming,
+  type EventDateSource,
+  editionTiming,
+  parseProjectName,
+} from "@repo/shared/utils/finago-projects";
+
 export interface ProjectDepartment {
   id: string;
   name: string;
@@ -8,6 +16,10 @@ export interface ProjectDepartment {
 export interface ProjectView {
   /** Departments that booked on the project. */
   departments: ProjectDepartment[];
+  /** The event date receipts are matched against (YYYY-MM-DD), if any. */
+  effectiveDate: string | null;
+  /** Where `effectiveDate` comes from. */
+  effectiveSource: EventDateSource | null;
   /** Finance's own date (YYYY-MM-DD), or null when none is set. */
   eventDate: string | null;
   firstLineDate: string | null;
@@ -66,4 +78,34 @@ export function filterGroups(
       ),
     }))
     .filter((group) => group.projects.length > 0);
+}
+
+export type EffectiveEventDate = Pick<
+  EditionTiming,
+  "eventDate" | "eventDateSource"
+>;
+
+/**
+ * Each project's event date as the expense check works it out
+ * (`editionTiming`): finance's date, a website event, the month in the name,
+ * or the estimate from the series' bookings. Keyed by project id. Pass every
+ * edition, inactive ones too: past editions place the next one.
+ */
+export function effectiveEventDates(
+  projects: FinagoProjects[],
+  today: string
+): Map<string, EffectiveEventDate> {
+  const bySeries = new Map<string, FinagoProjects[]>();
+  for (const project of projects) {
+    const series = project.series ?? parseProjectName(project.name).series;
+    bySeries.set(series, [...(bySeries.get(series) ?? []), project]);
+  }
+  const dates = new Map<string, EffectiveEventDate>();
+  for (const [series, editions] of bySeries) {
+    const timing = editionTiming({ editions, receiptDate: today, series });
+    for (const { eventDate, eventDateSource, projectId } of timing.editions) {
+      dates.set(projectId, { eventDate, eventDateSource });
+    }
+  }
+  return dates;
 }

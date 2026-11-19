@@ -40,9 +40,8 @@ mock.module("@repo/connectors/24sevenoffice", () => ({
 mock.module("next/cache", () => ({ revalidatePath: mock(() => undefined) }));
 mock.module("../../../_actions/audit-log", () => ({ logAuditEvent }));
 
-const { setProjectEventDate, syncProjectsFromFinago } = await import(
-  "./actions"
-);
+const { getProjectsView, setProjectEventDate, syncProjectsFromFinago } =
+  await import("./actions");
 
 beforeEach(() => {
   currentCtx = ctx;
@@ -126,6 +125,54 @@ describe("project settings actions", () => {
       "p1",
       { event_date: null }
     );
+  });
+
+  test("the view lists active projects with the event date in use", async () => {
+    const tables: Record<string, unknown[]> = {
+      departments: [{ $id: "d1", Name: "Oslo KD" }],
+      finago_project_usage: [{ department_id: "d1", project_id: "k26" }],
+      finago_projects: [
+        {
+          $id: "r25",
+          active: false,
+          event_date: null,
+          line_count: 40,
+          name: "KD 2025",
+          peak_date: "2025-09-28T00:00:00.000+00:00",
+          project_id: "k25",
+          series: "kd",
+          year: 2025,
+        },
+        {
+          $id: "r26",
+          active: true,
+          event_date: null,
+          line_count: 30,
+          name: "KD 2026",
+          peak_date: "2026-03-20T00:00:00.000+00:00",
+          project_id: "k26",
+          series: "kd",
+          year: 2026,
+        },
+      ],
+    };
+    db.listRows.mockImplementation(async (_db: string, table: string) => ({
+      rows: tables[table] ?? [],
+    }));
+
+    const view = await getProjectsView();
+
+    expect(view.groups).toHaveLength(1);
+    expect(view.groups[0]?.projects).toEqual([
+      expect.objectContaining({
+        departments: [{ id: "d1", name: "Oslo KD" }],
+        effectiveDate: "2026-09-28",
+        effectiveSource: "bookings",
+        eventDate: null,
+        id: "r26",
+        name: "KD 2026",
+      }),
+    ]);
   });
 
   test("a date that is not a real day is refused", async () => {
