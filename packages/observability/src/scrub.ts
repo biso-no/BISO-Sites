@@ -4,6 +4,7 @@ import type {
   ErrorEvent,
   Log,
   Metric,
+  StackFrame,
   StreamedSpanJSON,
 } from "@sentry/core";
 
@@ -12,6 +13,15 @@ export const REDACTED = "[redacted]";
 const ACCOUNT_NUMBER = /\b\d{4}[ .]?\d{2}[ .]?\d{5}\b/g;
 const NATIONAL_ID = /\b\d{6} ?\d{5}\b/g;
 const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+// Country code, check digits, then 11–30 characters, with or without spaces
+// every four (NO93 8601 1117 947, DE89 3704 0044 0532 0130 00).
+const IBAN = /\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){2,7}(?: ?[A-Z0-9]{1,3})?\b/g;
+// An absolute URL inside free text: keep the address, drop query and fragment.
+const EMBEDDED_URL_SUFFIX = /(https?:\/\/[^\s?#"'<>]+)[?#][^\s"'<>]*/g;
+// `secret=…`, `userId=…`, `access_token=…` outside a URL we could parse. The
+// leading group stands in for a lookbehind, which older Safari can't parse.
+const SECRET_PAIR =
+  /(^|[^A-Za-z0-9_])((?:[A-Za-z]+_)?(?:secret|code|state|token|userId|password))=[^&\s"'<>#]*/gi;
 const URL_SUFFIX = /[?#].*$/s;
 const URL_KEY = /(^|\.)(url|full|target)$|^url/i;
 const DROPPED_SPAN_ATTRIBUTES = ["http.query", "url.query"];
@@ -21,7 +31,10 @@ type Mutable = Record<string, unknown>;
 
 export const scrubText = (text: string): string =>
   text
+    .replace(EMBEDDED_URL_SUFFIX, "$1")
+    .replace(SECRET_PAIR, `$1$2=${REDACTED}`)
     .replace(EMAIL, REDACTED)
+    .replace(IBAN, REDACTED)
     .replace(ACCOUNT_NUMBER, REDACTED)
     .replace(NATIONAL_ID, REDACTED);
 
@@ -78,11 +91,13 @@ const scrubValue = (key: string, value: unknown, depth = 0): unknown => {
     return value.map((item) => scrubValue(key, item, depth + 1));
   }
   if (isPlainObject(value)) {
-    // Attribute objects ({ value, unit }) keep their shape; the value inherits the key.
+    const out = scrubRecord(value, depth + 1);
+    // Attribute objects ({ value, unit }): the value inherits the attribute's
+    // key, so a URL attribute is still scrubbed as a URL.
     if ("value" in value) {
-      return { ...value, value: scrubValue(key, value.value, depth + 1) };
+      out.value = scrubValue(key, value.value, depth + 1);
     }
-    return scrubRecord(value, depth + 1);
+    return out;
   }
   return value;
 };
@@ -171,6 +186,17 @@ const scrubRequest = (
   };
 };
 
+// Frame paths are URLs in the browser (`https://biso.no/_next/…?dpl=…`).
+const scrubFrame = ({ vars: _vars, ...frame }: StackFrame): StackFrame => ({
+  ...frame,
+  ...(typeof frame.filename === "string"
+    ? { filename: scrubUrl(frame.filename) }
+    : {}),
+  ...(typeof frame.abs_path === "string"
+    ? { abs_path: scrubUrl(frame.abs_path) }
+    : {}),
+});
+
 const scrubException = (
   exception: NonNullable<ErrorEvent["exception"]>
 ): NonNullable<ErrorEvent["exception"]> => ({
@@ -181,9 +207,7 @@ const scrubException = (
       ? {
           stacktrace: {
             ...entry.stacktrace,
-            frames: entry.stacktrace.frames.map(
-              ({ vars: _vars, ...frame }) => frame
-            ),
+            frames: entry.stacktrace.frames.map(scrubFrame),
           },
         }
       : {}),

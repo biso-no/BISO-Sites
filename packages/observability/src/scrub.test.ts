@@ -37,6 +37,60 @@ describe("scrubText", () => {
     expect(scrubText("6745a1b2c3d4e5f6a7b8")).toBe("6745a1b2c3d4e5f6a7b8");
     expect(scrubText("order 42")).toBe("order 42");
   });
+
+  it("redacts IBANs with and without spaces", () => {
+    expect(scrubText("NO9386011117947")).toBe(REDACTED);
+    expect(scrubText("iban NO93 8601 1117 947 avvist")).toBe(
+      "iban [redacted] avvist"
+    );
+    expect(scrubText("DE89 3704 0044 0532 0130 00")).toBe(REDACTED);
+    expect(scrubText("DE89370400440532013000")).toBe(REDACTED);
+    expect(scrubText("GB29 NWBK 6016 1331 9268 19")).toBe(REDACTED);
+  });
+
+  it("keeps ids, order numbers and status codes that look nothing like an IBAN", () => {
+    expect(scrubText("row 6745a1b2c3d4e5f6a7b8")).toBe(
+      "row 6745a1b2c3d4e5f6a7b8"
+    );
+    expect(scrubText("ORDER-2026-0001")).toBe("ORDER-2026-0001");
+    expect(scrubText("HTTP 504 from upstream")).toBe("HTTP 504 from upstream");
+    expect(scrubText("NO93 is a prefix")).toBe("NO93 is a prefix");
+  });
+
+  it("drops the query and fragment of absolute URLs inside text", () => {
+    expect(
+      scrubText(
+        "fetch https://biso.no/auth/verify?secret=abc&userId=u1 failed (504)"
+      )
+    ).toBe("fetch https://biso.no/auth/verify failed (504)");
+    expect(scrubText("open http://localhost:3000/x#token=t now")).toBe(
+      "open http://localhost:3000/x now"
+    );
+    expect(scrubText("see https://biso.no/events")).toBe(
+      "see https://biso.no/events"
+    );
+  });
+
+  it("redacts secret-looking key=value pairs", () => {
+    expect(scrubText("/auth/verify?secret=abc&userId=u1&lang=no")).toBe(
+      "/auth/verify?secret=[redacted]&userId=[redacted]&lang=no"
+    );
+    expect(scrubText("code=xyz state=s1 token=t password=hunter2")).toBe(
+      "code=[redacted] state=[redacted] token=[redacted] password=[redacted]"
+    );
+    // The value runs to the next space, &, quote or #: a comma could be part
+    // of a password, so it is redacted too.
+    expect(scrubText("got access_token=abc, client_secret=d,e f")).toBe(
+      "got access_token=[redacted] client_secret=[redacted] f"
+    );
+    expect(scrubText("USERID=u1")).toBe("USERID=[redacted]");
+  });
+
+  it("keeps pairs whose key only ends in a secret word", () => {
+    expect(scrubText("statusCode=500 postcode=0484")).toBe(
+      "statusCode=500 postcode=0484"
+    );
+  });
 });
 
 describe("scrubUrl", () => {
@@ -161,6 +215,26 @@ describe("scrubSpan", () => {
     expect(out.attributes["db.y"]).toEqual({ value: REDACTED, unit: "none" });
     expect(out.attributes.count).toBe(3);
   });
+
+  it("scrubs every key of an object that has a value key", () => {
+    const span = {
+      name: "s",
+      attributes: {
+        "db.x": { value: "a@b.no", extra: "c@d.no", unit: "none" },
+        "url.full": { value: "https://biso.no/x?secret=1", type: "string" },
+      },
+    } as unknown as StreamedSpanJSON;
+    const out = scrubSpan(span);
+    expect(out.attributes["db.x"]).toEqual({
+      value: REDACTED,
+      extra: REDACTED,
+      unit: "none",
+    });
+    expect(out.attributes["url.full"]).toEqual({
+      value: "https://biso.no/x",
+      type: "string",
+    });
+  });
 });
 
 describe("scrubMetric", () => {
@@ -280,5 +354,36 @@ describe("scrubEvent free-form fields", () => {
     expect(
       out.exception?.values?.[0]?.stacktrace?.frames?.[0]
     ).not.toHaveProperty("vars");
+  });
+
+  it("drops the query from stack frame paths and scrubs them", () => {
+    const event = {
+      exception: {
+        values: [
+          {
+            stacktrace: {
+              frames: [
+                {
+                  filename:
+                    "https://biso.no/_next/static/chunks/a.js?dpl=1&token=t",
+                  abs_path: "https://biso.no/u/ola@biso.no/b.js#x",
+                  function: "go",
+                  lineno: 3,
+                },
+                { function: "native" },
+              ],
+            },
+          },
+        ],
+      },
+    } as unknown as ErrorEvent;
+    const frames = scrubEvent(event).exception?.values?.[0]?.stacktrace?.frames;
+    expect(frames?.[0]).toEqual({
+      filename: "https://biso.no/_next/static/chunks/a.js",
+      abs_path: "https://biso.no/u/[redacted]/b.js",
+      function: "go",
+      lineno: 3,
+    });
+    expect(frames?.[1]).toEqual({ function: "native" });
   });
 });
