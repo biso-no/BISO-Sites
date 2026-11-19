@@ -141,12 +141,246 @@ function scrubRecord(record: Mutable, depth = 0): Mutable {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Console arguments. `console.warn("…", error)` hands Sentry the whole error:
+// AI SDK errors keep the model's raw output in `text` and quote it in their
+// `cause`, and request objects carry headers. Pattern scrubbing can't find
+// those, so errors are reduced to their name and payload fields are dropped.
+// ---------------------------------------------------------------------------
+
+/** Fields that hold model output, request bodies or tool input. */
+const PAYLOAD_KEYS: ReadonlySet<string> = new Set([
+  "cause",
+  "data",
+  "rawValue",
+  "requestBodyValues",
+  "response",
+  "responseBody",
+  "text",
+  "toolInput",
+  "value",
+]);
+
+/** AI SDK errors whose name could appear without the `AI_` prefix. */
+const AI_ERROR_NAMES: ReadonlySet<string> = new Set([
+  "APICallError",
+  "JSONParseError",
+  "NoObjectGeneratedError",
+  "TypeValidationError",
+]);
+
+/** AI SDK error messages can quote model output, so only the name is kept. */
+const isAiErrorName = (name: string): boolean =>
+  name.startsWith("AI_") || AI_ERROR_NAMES.has(name);
+
+interface ErrorLike {
+  message: string;
+  name: string;
+}
+
+/** An `Error`, or one the SDK has already turned into `{ name, message, … }`. */
+const isErrorLike = (value: unknown): value is ErrorLike =>
+  typeof value === "object" &&
+  value !== null &&
+  typeof (value as Partial<ErrorLike>).name === "string" &&
+  typeof (value as Partial<ErrorLike>).message === "string";
+
+/** `AI_NoObjectGeneratedError`, or `TypeError: <scrubbed message>`. */
+const describeErrorLike = ({ message, name }: ErrorLike): string => {
+  if (isAiErrorName(name)) {
+    return name;
+  }
+  return message ? `${name}: ${scrubText(message)}` : name;
+};
+
+/**
+ * An error as it is safe to log or send: an AI SDK error by its name only,
+ * any other by its name and scrubbed message. Never its stack or fields.
+ */
+export const describeError = (error: unknown): string =>
+  isErrorLike(error) ? describeErrorLike(error) : "UnknownError";
+
+const reduceConsoleRecord = (record: Mutable, depth: number): Mutable =>
+  Object.fromEntries(
+    Object.entries(record)
+      .filter(([key]) => !PAYLOAD_KEYS.has(key))
+      .map(([key, value]) => [key, reduceConsoleValue(value, depth)])
+  );
+
+/** Errors become `describeError`; payload fields are dropped at any depth. */
+function reduceConsoleValue(value: unknown, depth = 0): unknown {
+  if (isErrorLike(value)) {
+    return describeErrorLike(value);
+  }
+  if (value === null || typeof value !== "object") {
+    return value;
+  }
+  if (depth > MAX_DEPTH) {
+    return REDACTED;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => reduceConsoleValue(item, depth + 1));
+  }
+  return reduceConsoleRecord(value as Mutable, depth + 1);
+}
+
+/** One console argument as the console integration writes it, made safe. */
+const renderConsoleArgument = (value: unknown): string => {
+  const clean = scrubValue("", reduceConsoleValue(value));
+  return typeof clean === "string" ? clean : (JSON.stringify(clean) ?? "");
+};
+
+const CONSOLE_LOG_ORIGIN = "auto.log.console";
+const ORIGIN_ATTRIBUTE = "sentry.origin";
+const TEMPLATE_ATTRIBUTE = "sentry.message.template";
+const PARAMETER_ATTRIBUTE = /^sentry\.message\.parameter\.(\d+)$/;
+/** JSON arguments re-rendered per log line, which keeps the scan linear. */
+const MAX_JSON_ARGUMENTS = 16;
+
+const isConsoleLog = (attributes: Mutable): boolean =>
+  attributes[ORIGIN_ATTRIBUTE] === CONSOLE_LOG_ORIGIN ||
+  Object.keys(attributes).some(
+    (key) => key === TEMPLATE_ATTRIBUTE || PARAMETER_ATTRIBUTE.test(key)
+  );
+
+/** `sentry.message.parameter.N` values, in order. */
+const templateParameters = (attributes: Mutable): unknown[] =>
+  Object.entries(attributes)
+    .map(([key, value]) => ({
+      index: PARAMETER_ATTRIBUTE.exec(key)?.[1],
+      value,
+    }))
+    .filter((entry) => entry.index !== undefined)
+    .sort((a, b) => Number(a.index) - Number(b.index))
+    .map((entry) => entry.value);
+
+/**
+ * The first console argument, from a template the console integration wrote
+ * (`<first> {} {}`, one `{}` per later argument), or undefined for any other.
+ */
+const templatePrefix = (
+  template: unknown,
+  parameterCount: number
+): string | undefined => {
+  if (typeof template !== "string" || parameterCount === 0) {
+    return;
+  }
+  const suffix = ` ${Array.from({ length: parameterCount }, () => "{}").join(" ")}`;
+  return template.endsWith(suffix)
+    ? template.slice(0, template.length - suffix.length)
+    : undefined;
+};
+
+/** Index just past the JSON object or array opening at `start`, or -1. */
+const jsonEnd = (text: string, start: number): number => {
+  let depth = 0;
+  let inString = false;
+  for (let index = start; index < text.length; index += 1) {
+    const char = text[index];
+    if (inString) {
+      if (char === "\\") {
+        index += 1;
+      } else if (char === '"') {
+        inString = false;
+      }
+    } else if (char === '"') {
+      inString = true;
+    } else if (char === "{" || char === "[") {
+      depth += 1;
+    } else if (char === "}" || char === "]") {
+      depth -= 1;
+      if (depth === 0) {
+        return index + 1;
+      }
+    }
+  }
+  return -1;
+};
+
+const parseJson = (text: string): { value: unknown } | undefined => {
+  try {
+    return { value: JSON.parse(text) };
+  } catch {
+    return;
+  }
+};
+
+const opensJsonArgument = (text: string, index: number): boolean =>
+  (text[index] === "{" || text[index] === "[") &&
+  (index === 0 || text[index - 1] === " ");
+
+/**
+ * A console line with no template: the integration joined the arguments with
+ * spaces and wrote objects and errors as JSON. Each JSON argument is
+ * re-rendered like a template parameter; the caller scrubs the text around it.
+ */
+const scrubJoinedConsoleArguments = (text: string): string => {
+  const parts: string[] = [];
+  let copied = 0;
+  let attempts = 0;
+  for (
+    let index = 0;
+    index < text.length && attempts < MAX_JSON_ARGUMENTS;
+    index += 1
+  ) {
+    if (!opensJsonArgument(text, index)) {
+      continue;
+    }
+    attempts += 1;
+    const end = jsonEnd(text, index);
+    const parsed = end === -1 ? undefined : parseJson(text.slice(index, end));
+    if (parsed) {
+      parts.push(
+        text.slice(copied, index),
+        renderConsoleArgument(parsed.value)
+      );
+      copied = end;
+      index = end - 1;
+    }
+  }
+  parts.push(text.slice(copied));
+  return parts.join("");
+};
+
+/** A console log's message, rebuilt from its safe arguments where it can be. */
+const consoleLogMessage = (message: string, attributes: Mutable): string => {
+  const parameters = templateParameters(attributes);
+  const prefix = templatePrefix(
+    attributes[TEMPLATE_ATTRIBUTE],
+    parameters.length
+  );
+  if (prefix === undefined) {
+    return scrubJoinedConsoleArguments(message);
+  }
+  return [prefix, ...parameters.map(renderConsoleArgument)].join(" ");
+};
+
 const scrubBreadcrumbs = (
   breadcrumbs: Breadcrumb[] | undefined
 ): Breadcrumb[] | undefined => breadcrumbs?.map(scrubBreadcrumb);
 
+/**
+ * Console breadcrumbs keep the raw arguments, errors included, and attach to
+ * any later error event; they get the same treatment as console logs.
+ */
+const scrubConsoleBreadcrumb = (
+  breadcrumb: Breadcrumb,
+  args: unknown[]
+): Breadcrumb => ({
+  ...breadcrumb,
+  message: scrubText(args.map(renderConsoleArgument).join(" ")),
+  data: scrubRecord({
+    ...breadcrumb.data,
+    arguments: args.map((arg) => reduceConsoleValue(arg)),
+  }),
+});
+
 export function scrubBreadcrumb(breadcrumb: Breadcrumb): Breadcrumb {
   try {
+    const args = breadcrumb.data?.arguments;
+    if (breadcrumb.category === "console" && Array.isArray(args)) {
+      return scrubConsoleBreadcrumb(breadcrumb, args);
+    }
     const out: Breadcrumb = { ...breadcrumb };
     if (typeof out.message === "string") {
       out.message = scrubText(out.message);
@@ -227,6 +461,12 @@ const scrubFrame = ({ vars: _vars, ...frame }: StackFrame): StackFrame => ({
     : {}),
 });
 
+/** An AI SDK error's message can quote model output: keep its type only. */
+const scrubExceptionValue = (
+  type: string | undefined,
+  value: string
+): string => (type && isAiErrorName(type) ? type : scrubText(value));
+
 const scrubException = (
   exception: NonNullable<ErrorEvent["exception"]>
 ): NonNullable<ErrorEvent["exception"]> => ({
@@ -242,7 +482,7 @@ const scrubException = (
         }
       : {}),
     ...(typeof entry.value === "string"
-      ? { value: scrubText(entry.value) }
+      ? { value: scrubExceptionValue(entry.type, entry.value) }
       : {}),
   })),
 });
@@ -292,10 +532,20 @@ export function scrubEvent<T extends ErrorEvent>(event: T): T {
 
 export function scrubLog(log: Log): Log {
   try {
+    const { attributes } = log;
+    if (attributes && isConsoleLog(attributes)) {
+      return {
+        ...log,
+        message: scrubText(consoleLogMessage(String(log.message), attributes)),
+        // Template parameters, and the keys of an object logged first, get
+        // the same reduction as the message.
+        attributes: scrubRecord(reduceConsoleRecord(attributes, 0)),
+      };
+    }
     return {
       ...log,
       message: scrubText(String(log.message)),
-      ...(log.attributes ? { attributes: scrubRecord(log.attributes) } : {}),
+      ...(attributes ? { attributes: scrubRecord(attributes) } : {}),
     };
   } catch {
     return { level: log.level, message: REDACTED };

@@ -206,6 +206,30 @@ describe("scrubEvent", () => {
   });
 });
 
+describe("scrubEvent AI errors", () => {
+  it("keeps only the type of AI SDK exceptions, whose messages quote model output", () => {
+    const event = {
+      exception: {
+        values: [
+          {
+            type: "AI_TypeValidationError",
+            value:
+              'Type validation failed: Value: {"summary":"Kari Nordmann"}.',
+          },
+          { type: "NoObjectGeneratedError", value: "No object: Kari" },
+          { type: "TypeError", value: "bad input from ola@biso.no" },
+        ],
+      },
+    } as unknown as ErrorEvent;
+    const values = scrubEvent(event).exception?.values;
+    expect(values?.map((value) => value.value)).toEqual([
+      "AI_TypeValidationError",
+      "NoObjectGeneratedError",
+      "bad input from [redacted]",
+    ]);
+  });
+});
+
 describe("key-aware scrubbing", () => {
   it("redacts credential and IP keys and cleans path, url and referer keys", () => {
     const event = {
@@ -276,6 +300,36 @@ describe("scrubLog", () => {
     const out = scrubLog(log);
     expect(String(out.message)).toBe("M365 Sync Failed: [redacted]");
     expect(out.attributes).toEqual({ url: "/a", n: 3, who: REDACTED });
+  });
+});
+
+describe("scrubLog console lines", () => {
+  const consoleLog = (message: string): Log =>
+    ({
+      level: "error",
+      message,
+      attributes: { "sentry.origin": "auto.log.console" },
+    }) as Log;
+
+  it("scrubs 200 KB of unclosed JSON openers in well under 50 ms", () => {
+    const started = performance.now();
+    scrubLog(consoleLog(" [".repeat(100_000)));
+    expect(performance.now() - started).toBeLessThan(50);
+  });
+
+  it("leaves a plain console line to scrubText", () => {
+    expect(scrubLog(consoleLog("sync failed for ola@biso.no")).message).toBe(
+      "sync failed for [redacted]"
+    );
+  });
+
+  it("re-renders a JSON argument after a string, keeping invalid JSON as text", () => {
+    const out = scrubLog(
+      consoleLog(
+        'failed %s {"name":"AI_RetryError","message":"Kari","stack":"s"} {not json'
+      )
+    );
+    expect(out.message).toBe("failed %s AI_RetryError {not json");
   });
 });
 
