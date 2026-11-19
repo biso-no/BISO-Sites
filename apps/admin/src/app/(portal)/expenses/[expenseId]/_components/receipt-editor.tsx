@@ -20,6 +20,7 @@ import type { ExpenseDetailReceipt } from "../../expenses-data";
 import { applyProjectToAllReceipts, updateExpenseReceipt } from "../actions";
 import type { EditAccountOption, ProjectOption } from "../edit-options";
 import type { ExpenseTypeOption, ReceiptChanges } from "../receipt-edit";
+import { applyAllStep } from "./apply-project-to-all";
 import { ProjectPicker } from "./project-picker";
 
 export interface ReceiptEditOptions {
@@ -79,6 +80,11 @@ export function ReceiptEditor({
     setConfirmingClear(false);
     setOpen(next);
   };
+
+  // No projects to pick (none synced, or the tables are not there yet):
+  // hide the picker unless the receipt already has one.
+  const showProjects =
+    options.projects.length > 0 || receipt.projectId !== null;
 
   const typeLabel = (type: ExpenseTypeOption) =>
     locale === "no" && type.labelNo ? type.labelNo : type.label;
@@ -141,12 +147,14 @@ export function ReceiptEditor({
     });
 
   const applyToAll = () => {
-    if (draft.projectId === null && !confirmingClear) {
-      // Clearing every receipt takes a second click.
-      setConfirmingClear(true);
+    const step = applyAllStep(confirmingClear, {
+      kind: "click",
+      projectId: draft.projectId,
+    });
+    setConfirmingClear(step.confirmingClear);
+    if (!step.apply) {
       return;
     }
-    setConfirmingClear(false);
     startTransition(async () => {
       const result = await applyProjectToAllReceipts(
         expenseId,
@@ -232,36 +240,44 @@ export function ReceiptEditor({
                   value={draft.accountNumber}
                 />
               </div>
-              <div>
-                <span className="block">{t("edit.project")}</span>
-                <ProjectPicker
-                  currentName={receipt.projectName}
-                  labels={{
-                    label: t("edit.project"),
-                    none: t("edit.noProject"),
-                    noneChosen: t("edit.chooseProject"),
-                    noProjectFound: t("edit.noProjectFound"),
-                    others: t("edit.otherProjects"),
-                    search: t("edit.searchProject"),
-                    suggested: t("edit.suggestedFor", {
-                      department: departmentName,
-                    }),
-                  }}
-                  onChange={(projectId) => setDraft({ ...draft, projectId })}
-                  options={options.projects}
-                  value={draft.projectId}
-                />
-                <button
-                  className="mt-1 text-[12px] underline"
-                  disabled={pending}
-                  onClick={applyToAll}
-                  type="button"
-                >
-                  {confirmingClear
-                    ? t("edit.confirmClearAll")
-                    : t("edit.applyProjectToAll")}
-                </button>
-              </div>
+              {showProjects && (
+                <div>
+                  <span className="block">{t("edit.project")}</span>
+                  <ProjectPicker
+                    currentName={receipt.projectName}
+                    labels={{
+                      label: t("edit.project"),
+                      none: t("edit.noProject"),
+                      noneChosen: t("edit.chooseProject"),
+                      noProjectFound: t("edit.noProjectFound"),
+                      others: t("edit.otherProjects"),
+                      search: t("edit.searchProject"),
+                      suggested: t("edit.suggestedFor", {
+                        department: departmentName,
+                      }),
+                    }}
+                    onChange={(projectId) => {
+                      setDraft({ ...draft, projectId });
+                      setConfirmingClear(
+                        applyAllStep(confirmingClear, { kind: "pick" })
+                          .confirmingClear
+                      );
+                    }}
+                    options={options.projects}
+                    value={draft.projectId}
+                  />
+                  <button
+                    className="mt-1 text-[12px] underline"
+                    disabled={pending}
+                    onClick={applyToAll}
+                    type="button"
+                  >
+                    {confirmingClear
+                      ? t("edit.confirmClearAll")
+                      : t("edit.applyProjectToAll")}
+                  </button>
+                </div>
+              )}
             </>
           )}
           <div>
