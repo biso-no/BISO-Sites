@@ -1788,6 +1788,7 @@
       "syncDone": "Synced {count} projects.",
       "syncPartial": "Partly synced ({count} projects). The nightly run finishes it.",
       "syncError": "Could not sync projects. Try again, or wait for the nightly run.",
+      "syncBusy": "A sync is already running, or just started. Wait a few minutes and try again.",
       "lastSynced": "Last full sync: {time}",
       "neverSynced": "No full sync has finished yet.",
       "department": "Department",

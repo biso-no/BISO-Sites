@@ -1788,6 +1788,7 @@
       "syncDone": "Hentet {count} prosjekter.",
       "syncPartial": "Delvis hentet ({count} prosjekter). Den nattlige kjøringen fullfører resten.",
       "syncError": "Kunne ikke hente prosjekter. Prøv igjen, eller vent på den nattlige kjøringen.",
+      "syncBusy": "En henting pågår, eller startet nettopp. Vent noen minutter og prøv igjen.",
       "lastSynced": "Siste fullstendige henting: {time}",
       "neverSynced": "Ingen fullstendig henting er gjort ennå.",
       "department": "Avdeling",

@@ -37,6 +37,8 @@ export interface ProjectsLabels {
   saveError: string;
   sync: string;
   /** Contains `{count}`. */
+  syncBusy: string;
+  /** Contains `{count}`. */
   syncDone: string;
   syncError: string;
   syncing: string;
@@ -123,6 +125,11 @@ function ProjectRow({ labels, locale, onSaved, project }: RowProps) {
       <td className="py-2 pr-3">{formatDay(project.lastLineDate, locale)}</td>
       <td className="py-2 pr-3">{formatDay(project.peakDate, locale)}</td>
       <td className="py-2">
+        {!project.eventDate && (
+          <span className="mr-2 text-[12px]" style={{ color: STUDIO.ink4 }}>
+            {labels.notSet}
+          </span>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           <input
             aria-label={`${labels.eventDate}: ${project.name}`}
@@ -177,7 +184,9 @@ export function ProjectsClient({
     startTransition(async () => {
       const result = await syncProjectsFromFinago();
       if ("error" in result) {
-        toast.error(labels.syncError);
+        toast.error(
+          result.error === "in_progress" ? labels.syncBusy : labels.syncError
+        );
         return;
       }
       const { partial, projects } = result.data;

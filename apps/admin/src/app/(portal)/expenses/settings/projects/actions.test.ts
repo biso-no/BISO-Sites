@@ -1,9 +1,9 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
 import type { UserAuthContext } from "@/lib/authorization";
 
 const db = { listRows: mock(), updateRow: mock() };
 const logAuditEvent = mock(async () => undefined);
-const syncFinagoProjects = mock();
+const runProjectSync = mock();
 
 const ctx: UserAuthContext = {
   activeCampusId: undefined,
@@ -29,8 +29,9 @@ mock.module("@repo/api/server", () => ({
 mock.module("@/lib/authorization", () => ({
   getUserAuthContext: mock(async () => currentCtx),
 }));
-mock.module("@repo/shared/utils/finago-project-sync", () => ({
-  syncFinagoProjects,
+mock.module("@repo/shared/utils/finago-project-run", () => ({
+  readProjectSyncState: mock(async () => null),
+  runProjectSync,
 }));
 mock.module("@repo/connectors/24sevenoffice", () => ({
   getProjects: mock(),
@@ -48,8 +49,11 @@ beforeEach(() => {
   db.updateRow.mockReset();
   db.updateRow.mockResolvedValue({});
   logAuditEvent.mockClear();
-  syncFinagoProjects.mockReset();
-  syncFinagoProjects.mockResolvedValue({ partial: false, projects: 4 });
+  runProjectSync.mockReset();
+  runProjectSync.mockResolvedValue({
+    outcome: "ran",
+    result: { partial: false, projects: 4 },
+  });
 });
 
 describe("project settings actions", () => {
@@ -57,15 +61,36 @@ describe("project settings actions", () => {
     currentCtx = { ...ctx, roles: ["campusadmin"] };
 
     expect(await syncProjectsFromFinago()).toEqual({ error: "forbidden" });
-    expect(syncFinagoProjects).not.toHaveBeenCalled();
+    expect(runProjectSync).not.toHaveBeenCalled();
   });
 
-  test("a sync runs with a budget that fits the page timeout", async () => {
+  test("a sync runs in manual mode with a budget under the page timeout", async () => {
     const result = await syncProjectsFromFinago();
 
     expect(result).toEqual({ data: { partial: false, projects: 4 } });
-    const deps = syncFinagoProjects.mock.calls[0]?.[1];
-    expect(deps.budgetMs).toBeLessThanOrEqual(25_000);
+    const options = runProjectSync.mock.calls[0]?.[2];
+    expect(options.mode).toBe("manual");
+    expect(options.budgetMs).toBeLessThanOrEqual(20_000);
+    expect(logAuditEvent).toHaveBeenCalledWith(ctx, "finago_projects.sync", {
+      payload: { partial: false, projects: 4 },
+      resourceType: "finago_projects",
+    });
+  });
+
+  test("a sync that is already running says so and is not audited", async () => {
+    runProjectSync.mockResolvedValue({ outcome: "skipped", reason: "busy" });
+
+    expect(await syncProjectsFromFinago()).toEqual({ error: "in_progress" });
+    expect(logAuditEvent).not.toHaveBeenCalled();
+  });
+
+  test("a failed sync returns an error and is not audited", async () => {
+    const spy = spyOn(console, "error").mockImplementation(() => undefined);
+    runProjectSync.mockRejectedValue(new Error("finago down"));
+
+    expect(await syncProjectsFromFinago()).toEqual({ error: "failed" });
+    expect(logAuditEvent).not.toHaveBeenCalled();
+    spy.mockRestore();
   });
 
   test("only global admins can set an event date", async () => {
@@ -84,7 +109,15 @@ describe("project settings actions", () => {
     expect(db.updateRow).toHaveBeenCalledWith("app", "finago_projects", "p1", {
       event_date: "2026-03-14T00:00:00.000Z",
     });
-    expect(logAuditEvent).toHaveBeenCalledTimes(1);
+    expect(logAuditEvent).toHaveBeenCalledWith(
+      ctx,
+      "finago_projects.event_date",
+      {
+        payload: { event_date: "2026-03-14T00:00:00.000Z" },
+        resourceId: "p1",
+        resourceType: "finago_projects",
+      }
+    );
 
     expect(await setProjectEventDate("p1", null)).toEqual({ data: null });
     expect(db.updateRow).toHaveBeenLastCalledWith(

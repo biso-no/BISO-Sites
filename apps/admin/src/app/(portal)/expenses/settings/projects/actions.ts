@@ -7,7 +7,10 @@ import type {
   FinagoProjects,
   FinagoProjectUsage,
 } from "@repo/api/types/appwrite";
-import { syncFinagoProjects } from "@repo/shared/utils/finago-project-sync";
+import {
+  readProjectSyncState,
+  runProjectSync,
+} from "@repo/shared/utils/finago-project-run";
 import { revalidatePath } from "next/cache";
 import { getUserAuthContext } from "@/lib/authorization";
 import { ROLES } from "@/lib/roles";
@@ -24,8 +27,8 @@ const PAGE_PATH = "/expenses/settings/projects";
 const PROJECTS_TABLE = "finago_projects";
 const USAGE_TABLE = "finago_project_usage";
 const PAGE_SIZE = 500;
-/** The admin site times out at 30 s; leave room to save and answer. */
-const SYNC_BUDGET_MS = 25_000;
+/** The admin site times out at 30 s; saving runs after the fetching stops. */
+const SYNC_BUDGET_MS = 20_000;
 const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
@@ -104,23 +107,24 @@ export async function getProjectsView(): Promise<ProjectsView> {
     year: row.year,
   }));
 
-  const synced = projects
-    .map((row) => row.synced_at)
-    .filter((value): value is string => Boolean(value))
-    .sort();
+  const state = await readProjectSyncState(db);
+  const lastFull = state?.last_full_at;
 
   return {
     departments: [...used.values()].sort((a, b) =>
       a.name.localeCompare(b.name)
     ),
     groups: groupProjects(views),
-    lastSyncedAt: synced.at(-1) ?? null,
+    lastSyncedAt: typeof lastFull === "string" ? lastFull : null,
   };
 }
 
 /**
- * Pulls projects and their booking lines from Finago. Runs within the page
- * time limit; a partial run says so and the nightly sync finishes it. Audited.
+ * Pulls projects and their booking lines from Finago, sharing progress with
+ * the nightly run: it resumes where the last run stopped, and refuses
+ * (`in_progress`) while another run may still be going. Fetching stops after
+ * 20 s so saving fits the 30 s page limit; a partial run says so and the
+ * nightly run finishes it. Audited.
  */
 export async function syncProjectsFromFinago(): Promise<
   ExpenseActionResult<ProjectSyncSummary>
@@ -130,22 +134,27 @@ export async function syncProjectsFromFinago(): Promise<
     return { error: "forbidden" };
   }
   try {
+    // Imported here, not at the top: other test files replace this module
+    // with partial mocks that would break a static named import.
     const { getProjects, listCostLines } = await import(
       "@repo/connectors/24sevenoffice"
     );
     const { db } = await createAdminClient();
-    const result = await syncFinagoProjects(db, {
-      budgetMs: SYNC_BUDGET_MS,
-      getProjects,
-      listCostLines,
-      now: new Date(),
-    });
+    const run = await runProjectSync(
+      db,
+      { getProjects, listCostLines },
+      { budgetMs: SYNC_BUDGET_MS, mode: "manual", now: new Date() }
+    );
+    if (run.outcome === "skipped") {
+      return { error: "in_progress" };
+    }
+    const { partial, projects } = run.result;
     await logAuditEvent(ctx, "finago_projects.sync", {
-      payload: { partial: result.partial, projects: result.projects },
+      payload: { partial, projects },
       resourceType: PROJECTS_TABLE,
     });
     revalidatePath(PAGE_PATH);
-    return { data: { partial: result.partial, projects: result.projects } };
+    return { data: { partial, projects } };
   } catch (error) {
     console.error("[finago-projects] Sync failed:", error);
     return { error: "failed" };

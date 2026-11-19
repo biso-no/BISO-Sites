@@ -67,6 +67,7 @@ export default async function ExpenseProjectsSettingsPage() {
             saved: tp("saved"),
             saveError: tp("saveError"),
             sync: tp("sync"),
+            syncBusy: tp("syncBusy"),
             syncDone: tp.raw("syncDone") as string,
             syncError: tp("syncError"),
             syncing: tp("syncing"),
