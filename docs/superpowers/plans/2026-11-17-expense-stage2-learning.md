@@ -28,7 +28,27 @@
 4. **A rejected expense** → its examples are gone and later prompts never see them. Task 3 test `a rejection deletes the expense's examples`.
 5. **A booking finished by Retry after a failed status write** → its examples are confirmed too. Task 5 test `finishing a saved booking confirms its examples`.
 
+Task 0 carries five Stage 1 follow-ups first.
+
 ---
+
+### Task 0: Stage 1 follow-ups (pay-twice safety)
+
+Five residual findings from the Stage 1 fix-wave review (`.superpowers/expense-agent-stage1-ledger.md`).
+
+**Files:**
+- Modify: `apps/web/src/components/expense-v3/expense-split-view.tsx` (`reconcileBatch` ~890-944, retry link ~964-971), `apps/web/src/components/expense-v3/receipt-notices.tsx` / `packages/i18n/messages/{en,no}/expenses.json` (amount-missing notice), `apps/admin/src/app/(portal)/expenses/[expenseId]/_components/retry-booking-button.tsx` (~36-51), `apps/api/src/lib/expense-approval.ts` (`hasNoApproverIssue` ~1365) and/or `apps/api/src/app/api/expenses/submit/route.ts` (`submitByEmail`), `apps/docs/content/docs/guide/access-and-settings/expenses-admin.mdx` (~87)
+- Test: `expense-split-view.test.tsx`, `expense-approval.test.ts`, the admin retry button test if present
+
+- [ ] **Step 1: Failing tests:**
+  - `a statement linked on retry stays with its receipt when another file finishes later` — `reconcileBatch` skips statements that already have a `parentId` and receipts that already have a `bankStatementId` in the store.
+  - `linking a statement on retry keeps an amount the student typed` — a retry link never overrides a non-zero amount.
+  - `the amount notice tells a student how to attach a bank statement instead` — the scan-failed amount notice adds: en "If this is a bank statement for another receipt, remove it and attach it to that receipt." / no "Er dette en kontoutskrift for en annen kvittering, fjern den og legg den ved den kvitteringen."
+  - `a no-approver issue from an earlier email submission does not allow a rebuild` — rebuild accepts only a no-approver issue created after the expense's latest `submitted` event (or `submitByEmail` resolves older no-approver issues for the expense; pick one and test it).
+- [ ] **Step 2: Run** — FAIL.
+- [ ] **Step 3: Implement**; also make the `booking_unrecorded` toast persistent (`duration: Infinity` with a close button), and qualify expenses-admin.mdx ~87 ("Retry doesn't book again" only when the booking was recorded here).
+- [ ] **Step 4: Run** web, api and admin suites for the touched files, check-types, `bun run build --filter=docs` — PASS.
+- [ ] **Step 5: Commit** `fix(expenses): statements stay with their receipt and an old issue never reopens a rebuild`.
 
 ### Task 1: Schema for confirmed, linked examples
 
