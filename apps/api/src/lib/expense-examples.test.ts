@@ -1,10 +1,6 @@
 import type { CostTypeOption } from "@repo/shared/utils/expense-cost-types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  normalizeVendor,
-  selectExamples,
-  writeExamples,
-} from "./expense-examples";
+import { selectExamples, writeExamples } from "./expense-examples";
 
 const listRows = vi.fn();
 const createRow = vi.fn();
@@ -28,28 +24,6 @@ function row(over: Record<string, unknown>) {
     ...over,
   };
 }
-
-describe("normalizeVendor", () => {
-  it("lowercases and drops legal suffixes", () => {
-    expect(normalizeVendor("Peppes Pizza AS")).toBe("peppes pizza");
-  });
-
-  it("removes punctuation and collapses whitespace", () => {
-    expect(normalizeVendor("REMA 1000, Majorstuen")).toBe(
-      "rema 1000 majorstuen"
-    );
-  });
-
-  it("keeps æøå but strips other diacritics", () => {
-    expect(normalizeVendor("Café Ærø Å")).toBe("cafe ærø å");
-  });
-
-  it("returns an empty string for empty input", () => {
-    expect(normalizeVendor(null)).toBe("");
-    expect(normalizeVendor(undefined)).toBe("");
-    expect(normalizeVendor("  ")).toBe("");
-  });
-});
 
 describe("selectExamples", () => {
   beforeEach(() => {

@@ -2,6 +2,7 @@ import { ID, Query } from "@repo/api";
 import type { createAdminClient } from "@repo/api/server";
 import type { ExpenseTypeExamples } from "@repo/api/types/appwrite";
 import type { CostTypeOption } from "@repo/shared/utils/expense-cost-types";
+import { normalizeVendor } from "@repo/shared/utils/expense-examples";
 import type { TypeExample } from "./receipt-scan";
 
 type Db = Awaited<ReturnType<typeof createAdminClient>>["db"];
@@ -10,37 +11,7 @@ const MAX_EXAMPLES = 10;
 const MAX_VENDOR_EXAMPLES = 6;
 const VENDOR_FETCH_LIMIT = 20;
 const RECENT_FETCH_LIMIT = 100;
-const VENDOR_KEY_MAX = 120;
 const DESCRIPTION_MAX = 255;
-
-const COMBINING_MARKS = /[̀-ͯ]/g;
-const NON_WORD = /[^\p{L}\p{N}\s]/gu;
-const WHITESPACE = /\s+/g;
-const LEGAL_SUFFIX = /\s(?:as|asa|ab|ltd|inc)$/;
-const KEPT_LETTERS = new Set(["æ", "ø", "å"]);
-
-function stripDiacritics(text: string): string {
-  let out = "";
-  for (const char of text) {
-    out += KEPT_LETTERS.has(char)
-      ? char
-      : char.normalize("NFD").replace(COMBINING_MARKS, "");
-  }
-  return out;
-}
-
-export function normalizeVendor(vendor: string | null | undefined): string {
-  if (!vendor) {
-    return "";
-  }
-  const cleaned = stripDiacritics(vendor.toLowerCase())
-    .replace(NON_WORD, " ")
-    .replace(WHITESPACE, " ")
-    .trim()
-    .replace(LEGAL_SUFFIX, "")
-    .trim();
-  return cleaned.slice(0, VENDOR_KEY_MAX);
-}
 
 function toExample(row: ExpenseTypeExamples): TypeExample | null {
   if (!row.final_cost_type) {

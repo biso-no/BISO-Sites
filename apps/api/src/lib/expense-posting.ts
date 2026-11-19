@@ -26,7 +26,6 @@ import {
   uploadDocument,
 } from "@repo/connectors/24sevenoffice";
 import {
-  AI_TYPE_CONFIDENCE_THRESHOLD,
   type CostTypeOption,
   DEFAULT_COST_TYPE_SLUG,
   resolveReceiptAccount,
@@ -36,6 +35,7 @@ import {
   recordExpenseEvents,
   writeExpenseEvent,
 } from "@repo/shared/utils/expense-events";
+import { typeTeaches } from "@repo/shared/utils/expense-examples";
 import { reimbursementNumber } from "@repo/shared/utils/reimbursement-number";
 import { PDFDocument } from "pdf-lib";
 import type { ApprovalActor } from "./expense-approval";
@@ -460,31 +460,6 @@ function exampleSource(
   return "student";
 }
 
-/**
- * Whether a booked receipt may teach later classifications. An old app sends
- * its default type unasked, so its type counts only when the AI was sure of
- * the same one.
- */
-export function teachesType(
-  att: Pick<
-    ExpenseAttachments,
-    "type_source" | "cost_type" | "ai_cost_type" | "ai_confidence"
-  >
-): boolean {
-  // No source means the server defaulted the type; nobody chose it.
-  if (!att.type_source) {
-    return false;
-  }
-  if (att.type_source !== "legacy_app") {
-    return true;
-  }
-  return (
-    !!att.cost_type &&
-    att.ai_cost_type === att.cost_type &&
-    (att.ai_confidence ?? 0) >= AI_TYPE_CONFIDENCE_THRESHOLD
-  );
-}
-
 // One anonymous example per posted receipt, so later classifications learn from
 // what actually got booked. Never stores a submitter, name or expense id, and
 // never the student's own description: examples go into other students' prompts.
@@ -496,7 +471,7 @@ async function writeBookedExamples(
   const rows: BookedExampleInput[] = [];
   for (const line of lines) {
     const att = attachments.find((a) => a.$id === line.ref);
-    if (!(att?.file_hash && teachesType(att))) {
+    if (!(att?.file_hash && typeTeaches(att))) {
       continue;
     }
     const scan = await findScan(db, att.file_hash);

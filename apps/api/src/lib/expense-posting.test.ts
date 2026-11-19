@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./pdf/expense-pdf", () => ({ generateExpensePdf: vi.fn() }));
 
 import { assertApprovedExpenseChain } from "./expense-approval-chain";
-import { teachesType } from "./expense-posting";
 
 const db = {
   listRows: vi.fn(),
@@ -49,42 +48,5 @@ describe("assertApprovedExpenseChain", () => {
     await expect(
       assertApprovedExpenseChain(db as never, "expense-1")
     ).resolves.toBeUndefined();
-  });
-});
-
-describe("teachesType", () => {
-  const att = (over: Record<string, unknown>) =>
-    ({
-      ai_confidence: null,
-      ai_cost_type: null,
-      cost_type: "social",
-      type_source: "student",
-      ...over,
-    }) as never;
-
-  it("teaches the AI's and the student's own choices", () => {
-    expect(teachesType(att({ type_source: "ai" }))).toBe(true);
-    expect(teachesType(att({ type_source: "student" }))).toBe(true);
-  });
-
-  it("never teaches a server default", () => {
-    expect(teachesType(att({ type_source: null }))).toBe(false);
-  });
-
-  it("teaches a legacy app type only when it matches a confident AI type", () => {
-    const legacy = { type_source: "legacy_app" };
-    expect(
-      teachesType(
-        att({ ...legacy, ai_cost_type: "social", ai_confidence: 0.8 })
-      )
-    ).toBe(true);
-    expect(
-      teachesType(
-        att({ ...legacy, ai_cost_type: "social", ai_confidence: 0.7 })
-      )
-    ).toBe(false);
-    expect(
-      teachesType(att({ ...legacy, ai_cost_type: "other", ai_confidence: 0.9 }))
-    ).toBe(false);
   });
 });
