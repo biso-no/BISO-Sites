@@ -1,15 +1,16 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import {
+  type SentryTestResultLabels,
+  sentryTestMessage,
+} from "@/lib/sentry-test-error";
 import { STUDIO } from "../../../_components/studio";
 import { sendSentryTestError } from "../_actions/sentry-test";
 
-export interface SentryTestLabels {
+export interface SentryTestLabels extends SentryTestResultLabels {
   button: string;
-  eventId: string;
   failed: string;
-  forbidden: string;
-  notConfigured: string;
   sending: string;
 }
 
@@ -20,16 +21,7 @@ export function SentryTestButton({ labels }: { labels: SentryTestLabels }) {
   const send = () => {
     startTransition(async () => {
       try {
-        const result = await sendSentryTestError();
-        if (result.ok) {
-          setMessage(`${labels.eventId} ${result.eventId}`);
-        } else {
-          setMessage(
-            result.reason === "forbidden"
-              ? labels.forbidden
-              : labels.notConfigured
-          );
-        }
+        setMessage(sentryTestMessage(await sendSentryTestError(), labels));
       } catch {
         setMessage(labels.failed);
       }

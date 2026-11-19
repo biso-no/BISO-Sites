@@ -1265,6 +1265,7 @@
       "button": "Send test error to Sentry",
       "sending": "Sending...",
       "eventId": "Sent. Event id:",
+      "queued": "Queued, not confirmed: Sentry didn't answer in time. Event id:",
       "notConfigured": "Sentry is not configured, nothing was sent.",
       "forbidden": "Only global admins can send a test error.",
       "failed": "Could not send the test error."
