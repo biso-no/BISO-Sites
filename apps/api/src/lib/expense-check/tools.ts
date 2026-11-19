@@ -68,7 +68,6 @@ const EVENT_HISTORY_YEARS = 3;
 const LEDGER_PAGES = 4;
 const MAX_RECEIPT_DATES = 5;
 const MAX_CANDIDATES = 30;
-const DAY_LENGTH = 10;
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 const dayString = z.string().regex(ISO_DAY, "Use YYYY-MM-DD");
