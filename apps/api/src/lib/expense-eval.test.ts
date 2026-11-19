@@ -123,12 +123,73 @@ describe("runRerunCheck", () => {
     expect(scan.classifyReceipt).toHaveBeenCalledTimes(1);
   });
 
+  it("scores booked and unbooked examples apart", async () => {
+    listRows.mockResolvedValue({
+      rows: [
+        row("a", { confirmed: true }),
+        row("b", { confirmed: false }),
+        row("c", { confirmed: true }),
+      ],
+    });
+    scan.classifyReceipt
+      .mockResolvedValueOnce({
+        confidence: 0.9,
+        costType: "food",
+        reason: null,
+      })
+      .mockResolvedValueOnce({
+        confidence: 0.9,
+        costType: "travel",
+        reason: null,
+      })
+      .mockResolvedValueOnce({
+        confidence: 0.9,
+        costType: "travel",
+        reason: null,
+      });
+
+    const result = await runRerunCheck(db, { concurrency: 1 });
+
+    expect(result).toMatchObject({ checked: 3, hitRate: 1 / 3, hits: 1 });
+    expect(result.confirmed).toEqual({ checked: 2, hitRate: 0.5, hits: 1 });
+    expect(result.unconfirmed).toEqual({ checked: 1, hitRate: 0, hits: 0 });
+    expect(result.misses.map((m) => [m.exampleId, m.confirmed])).toEqual([
+      ["b", false],
+      ["c", true],
+    ]);
+  });
+
+  it("leaves out old-app types nobody saw and examples with nothing to read", async () => {
+    listRows.mockResolvedValue({
+      rows: [
+        row("a"),
+        row("b", { confirmed: false, type_source: "legacy_app" }),
+        row("c", { confirmed: true, type_source: "legacy_app" }),
+        row("d", { description: "", vendor_key: "" }),
+      ],
+    });
+
+    const result = await runRerunCheck(db, { concurrency: 1 });
+
+    expect(result.considered).toBe(4);
+    expect(result.checked).toBe(2);
+    expect(
+      scan.classifyReceipt.mock.calls.map((c) => c[0].receipt.description)
+    ).toEqual(["desc a", "desc c"]);
+  });
+
   it("returns a null hit rate when nothing was scored", async () => {
     listRows.mockResolvedValue({ rows: [] });
 
     const result = await runRerunCheck(db);
 
-    expect(result).toMatchObject({ checked: 0, hitRate: null, misses: [] });
+    expect(result).toMatchObject({
+      checked: 0,
+      confirmed: { checked: 0, hitRate: null, hits: 0 },
+      hitRate: null,
+      misses: [],
+      unconfirmed: { checked: 0, hitRate: null, hits: 0 },
+    });
   });
 
   it("stops starting new calls when the budget is spent", async () => {

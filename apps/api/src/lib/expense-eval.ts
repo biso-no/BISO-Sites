@@ -5,6 +5,7 @@ import {
   AI_RERUN_LIMIT,
   AI_TYPE_CONFIDENCE_THRESHOLD,
 } from "@repo/shared/utils/expense-cost-types";
+import { exampleTeaches } from "@repo/shared/utils/expense-examples";
 import { selectExamples } from "./expense-examples";
 import { loadActiveCostTypes } from "./expense-types";
 import {
@@ -21,6 +22,8 @@ const MAX_MISSES = 50;
 
 export interface RerunMiss {
   confidence: number;
+  /** Whether the example's reimbursement was booked. */
+  confirmed: boolean;
   description: string | null;
   exampleId: string;
   expected: string;
@@ -28,9 +31,17 @@ export interface RerunMiss {
   vendor: string | null;
 }
 
+export interface RerunScore {
+  checked: number;
+  hitRate: number | null;
+  hits: number;
+}
+
 export interface RerunResult {
   /** Examples classified; the rest ran out of budget or failed. */
   checked: number;
+  /** Booked examples: the expected type is the one booked. */
+  confirmed: RerunScore;
   /** Examples fetched, own-text ones included. */
   considered: number;
   /** Calls that errored or timed out: not scored, so an outage is no 0 %. */
@@ -39,6 +50,12 @@ export interface RerunResult {
   hits: number;
   misses: RerunMiss[];
   stoppedEarly: boolean;
+  /** Examples not booked yet: the expected type is the one chosen so far. */
+  unconfirmed: RerunScore;
+}
+
+function score(checked: number, hits: number): RerunScore {
+  return { checked, hitRate: checked === 0 ? null : hits / checked, hits };
 }
 
 /** A receipt shaped like the example; everything the example lacks is neutral. */
@@ -60,9 +77,12 @@ function receiptFor(row: ExpenseTypeExamples): ExtractedReceipt {
 }
 
 /**
- * Re-classifies the latest booked examples with today's types and prompt, and
- * counts how often the AI would pick the type that was finally booked. Nothing
- * is stored. Examples that only carry an own text have no type to score.
+ * Re-classifies the latest examples with today's types and prompt, and counts
+ * how often the AI would pick the example's type: the booked one, or the one
+ * chosen so far for a reimbursement not booked yet. Booked and unbooked
+ * examples are also scored apart. Nothing is stored. Examples a prompt never
+ * gets (an own text only, an old app's unbooked type nobody saw, nothing to
+ * read) are not scored.
  */
 export async function runRerunCheck(
   db: Db,
@@ -80,11 +100,11 @@ export async function runRerunCheck(
     [Query.orderDesc("$createdAt"), Query.limit(limit)]
   );
   const types = await loadActiveCostTypes(db);
-  const scored = rows.filter((row) => row.final_cost_type);
+  const scored = rows.filter(exampleTeaches);
 
   let next = 0;
-  let checked = 0;
-  let hits = 0;
+  const checked = { confirmed: 0, unconfirmed: 0 };
+  const hits = { confirmed: 0, unconfirmed: 0 };
   let failed = 0;
   let stoppedEarly = false;
   const misses: RerunMiss[] = [];
@@ -120,12 +140,15 @@ export async function runRerunCheck(
       failed += 1;
       return;
     }
-    checked += 1;
+    const confirmed = row.confirmed === true;
+    const group = confirmed ? "confirmed" : "unconfirmed";
+    checked[group] += 1;
     if (predicted === expected && confidence >= AI_TYPE_CONFIDENCE_THRESHOLD) {
-      hits += 1;
+      hits[group] += 1;
     } else if (misses.length < MAX_MISSES) {
       misses.push({
         confidence,
+        confirmed,
         description: row.description ?? null,
         exampleId: row.$id,
         expected,
@@ -150,13 +173,19 @@ export async function runRerunCheck(
     Array.from({ length: Math.max(1, concurrency) }, () => worker())
   );
 
+  const total = score(
+    checked.confirmed + checked.unconfirmed,
+    hits.confirmed + hits.unconfirmed
+  );
   return {
-    checked,
+    checked: total.checked,
+    confirmed: score(checked.confirmed, hits.confirmed),
     considered: rows.length,
     failed,
-    hitRate: checked === 0 ? null : hits / checked,
-    hits,
+    hitRate: total.hitRate,
+    hits: total.hits,
     misses,
     stoppedEarly,
+    unconfirmed: score(checked.unconfirmed, hits.unconfirmed),
   };
 }
