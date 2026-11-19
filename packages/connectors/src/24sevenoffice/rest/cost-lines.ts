@@ -4,6 +4,7 @@
 
 import { finago } from "./client";
 import { DEPARTMENT_DIMENSION_TYPE } from "./departments";
+import { parseNextLink } from "./link-header";
 import { PROJECT_DIMENSION_TYPE } from "./projects";
 
 export interface CostLine {
@@ -15,23 +16,22 @@ export interface CostLine {
 }
 
 const PAGE_LIMIT = 1000;
-const LINK_URL_REGEX = /<([^>]+)>/;
-const LINK_REL_REGEX = /rel="?next"?/;
-
-/** The `page` query value of the Link header's `next` relation, if any. */
-function nextPage(linkHeader: string | null): number | undefined {
-  if (!linkHeader) {
+/** The `page` number of the Link header's `next` relation, if any. */
+function nextPage(
+  linkHeader: string | null,
+  current: number
+): number | undefined {
+  const next = parseNextLink(linkHeader);
+  if (!next) {
     return undefined;
   }
-  for (const part of linkHeader.split(",")) {
-    if (!LINK_REL_REGEX.test(part)) {
-      continue;
-    }
-    const url = part.match(LINK_URL_REGEX)?.[1];
-    const page = url ? new URL(url).searchParams.get("page") : null;
-    return page ? Number(page) : undefined;
+  const page = Number(next.searchParams.get("page"));
+  if (!Number.isInteger(page) || page <= current) {
+    throw new Error(
+      `[Finago] Cost line paging gave an unusable next page: ${next}`
+    );
   }
-  return undefined;
+  return page;
 }
 
 /**
@@ -46,13 +46,12 @@ export async function listCostLines(input: {
   signal?: AbortSignal;
 }): Promise<CostLine[]> {
   const lines: CostLine[] = [];
+  let skipped = 0;
 
   for (const accountNumber of input.accountNumbers) {
     let page: number | undefined;
     do {
-      if (input.signal?.aborted) {
-        return lines;
-      }
+      input.signal?.throwIfAborted();
       const { data, error, response } = await finago.GET("/transactionlines", {
         params: {
           header: { Authorization: "" },
@@ -73,6 +72,10 @@ export async function listCostLines(input: {
         );
       }
       for (const line of data) {
+        if (!line.date || line.amount === undefined || line.amount === null) {
+          skipped += 1;
+          continue;
+        }
         const dimensions = line.dimensions ?? [];
         const idOf = (type: number) => {
           const found = dimensions.find((d) => d.dimensionType === type);
@@ -80,15 +83,20 @@ export async function listCostLines(input: {
         };
         lines.push({
           accountNumber: line.account?.number ?? accountNumber,
-          amount: line.amount ?? 0,
-          date: line.date ?? "",
+          amount: line.amount,
+          date: line.date,
           departmentId: idOf(DEPARTMENT_DIMENSION_TYPE),
           projectId: idOf(PROJECT_DIMENSION_TYPE),
         });
       }
-      page = nextPage(response.headers.get("Link"));
+      page = nextPage(response.headers.get("Link"), page ?? 1);
     } while (page);
   }
 
+  if (skipped > 0) {
+    console.debug(
+      `[Finago] Skipped ${skipped} cost lines without date or amount`
+    );
+  }
   return lines;
 }

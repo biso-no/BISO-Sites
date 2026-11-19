@@ -48,4 +48,25 @@ describe("getProjects", () => {
     expect(second[1].params.query).toEqual({ continuationToken: "tok2" });
     expect(second[1].params.path).toEqual({ dimensionType: 1 });
   });
+
+  test("rejects when a later page fails", async () => {
+    mockGet([
+      page([{ value: 1, name: "Alpha" }], "tok2"),
+      { data: undefined, error: { message: "boom" }, response: new Response() },
+    ]);
+    await expect(getProjects()).rejects.toThrow();
+  });
+
+  test("rejects on a repeated continuation token", async () => {
+    mockGet([
+      page([{ value: 1, name: "Alpha" }], "tok2"),
+      page([{ value: 2, name: "Beta" }], "tok2"),
+    ]);
+    await expect(getProjects()).rejects.toThrow();
+  });
+
+  test("rejects when a response has no data", async () => {
+    mockGet([page(undefined)]);
+    await expect(getProjects()).rejects.toThrow();
+  });
 });

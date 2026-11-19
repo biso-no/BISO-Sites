@@ -109,16 +109,46 @@ describe("listCostLines", () => {
     expect(queries[2].page).toBeUndefined();
   });
 
-  test("stops between accounts when aborted", async () => {
+  test("rejects when aborted", async () => {
     const controller = new AbortController();
     controller.abort();
     const spy = mockGet([]);
-    const lines = await listCostLines({
-      accountNumbers: [6300],
-      signal: controller.signal,
-      ...range,
-    });
-    expect(lines).toEqual([]);
+    await expect(
+      listCostLines({
+        accountNumbers: [6300],
+        signal: controller.signal,
+        ...range,
+      })
+    ).rejects.toThrow();
     expect(spy).not.toHaveBeenCalled();
+  });
+
+  test("rejects when a later page fails", async () => {
+    mockGet([
+      page([{ account: { number: 6300 }, amount: 1, date: "2026-03-04" }], 2),
+      { data: undefined, error: { message: "boom" }, response: new Response() },
+    ]);
+    await expect(
+      listCostLines({ accountNumbers: [6300], ...range })
+    ).rejects.toThrow();
+  });
+
+  test("skips lines without date or amount", async () => {
+    mockGet([
+      page([
+        { account: { number: 6300 }, amount: 1 },
+        { account: { number: 6300 }, date: "2026-03-04" },
+        { account: { number: 6300 }, amount: 2, date: "2026-03-04" },
+      ]),
+    ]);
+    const lines = await listCostLines({ accountNumbers: [6300], ...range });
+    expect(lines).toHaveLength(1);
+  });
+
+  test("throws on a repeated next page", async () => {
+    mockGet([page([], 1)]);
+    await expect(
+      listCostLines({ accountNumbers: [6300], ...range })
+    ).rejects.toThrow();
   });
 });
