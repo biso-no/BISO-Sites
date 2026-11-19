@@ -44,7 +44,11 @@ const byName = (a: ProjectOption, b: ProjectOption) => {
   return x < y ? -1 : 1;
 };
 
-/** Active projects: the department's candidates first, then all the others. */
+/**
+ * Active projects: the department's candidates first, then all the others.
+ * `projects` holds inactive rows too: a closed edition the department used
+ * is what makes the next year's a candidate.
+ */
 export function projectOptions(input: {
   departmentId: string | null;
   projects: FinagoProjects[];
@@ -56,7 +60,7 @@ export function projectOptions(input: {
     input.departmentId
       ? departmentCandidates({
           departmentId: input.departmentId,
-          projects: active,
+          projects: input.projects,
           today: input.today,
           usage: input.usage,
         }).map((project) => project.project_id)
@@ -79,16 +83,46 @@ export interface EditAccountOption {
   taxCode: number | null;
 }
 
+type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
+
+/**
+ * Every project (inactive ones too, for the candidates) and the department's
+ * use of them. Without the project tables (schema not pushed yet) there are
+ * none, so the receipt editor still opens.
+ */
+async function loadProjects(
+  db: AdminDb,
+  departmentId: string | null
+): Promise<{ projects: FinagoProjects[]; usage: FinagoProjectUsage[] }> {
+  try {
+    const [projects, usage] = await Promise.all([
+      db.listRows<FinagoProjects>("app", "finago_projects", [
+        Query.limit(MAX_PROJECTS),
+      ]),
+      departmentId
+        ? db.listRows<FinagoProjectUsage>("app", "finago_project_usage", [
+            Query.equal("department_id", departmentId),
+            Query.limit(MAX_PROJECTS),
+          ])
+        : Promise.resolve({ rows: [] as FinagoProjectUsage[] }),
+    ]);
+    return { projects: projects.rows, usage: usage.rows };
+  } catch (error) {
+    console.warn("[expenses] Could not load Finago projects:", error);
+    return { projects: [], usage: [] };
+  }
+}
+
 /** The active types, expense accounts and projects a receipt can be corrected to. */
 export async function loadReceiptEditOptions(
-  db: Awaited<ReturnType<typeof createAdminClient>>["db"],
+  db: AdminDb,
   departmentId: string | null
 ): Promise<{
   accounts: EditAccountOption[];
   projects: ProjectOption[];
   types: ExpenseTypeOption[];
 }> {
-  const [types, accounts, projects, usage] = await Promise.all([
+  const [types, accounts, { projects, usage }] = await Promise.all([
     db.listRows<ExpenseCostTypes>("app", "expense_cost_types", [
       Query.equal("active", true),
       Query.orderAsc("sort_order"),
@@ -99,16 +133,7 @@ export async function loadReceiptEditOptions(
       Query.orderAsc("account_number"),
       Query.limit(MAX_ROWS),
     ]),
-    db.listRows<FinagoProjects>("app", "finago_projects", [
-      Query.equal("active", true),
-      Query.limit(MAX_PROJECTS),
-    ]),
-    departmentId
-      ? db.listRows<FinagoProjectUsage>("app", "finago_project_usage", [
-          Query.equal("department_id", departmentId),
-          Query.limit(MAX_PROJECTS),
-        ])
-      : Promise.resolve({ rows: [] as FinagoProjectUsage[] }),
+    loadProjects(db, departmentId),
   ]);
   return {
     accounts: accounts.rows
@@ -120,9 +145,9 @@ export async function loadReceiptEditOptions(
       })),
     projects: projectOptions({
       departmentId,
-      projects: projects.rows,
+      projects,
       today: todayInOslo(),
-      usage: usage.rows,
+      usage,
     }),
     types: types.rows.map((row) => ({
       accountNumber: row.account_number,
