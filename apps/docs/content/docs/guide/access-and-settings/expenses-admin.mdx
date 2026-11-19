@@ -31,7 +31,7 @@ covers:
 
 - Nobody can act on their own reimbursement, whatever their role.
 - Only the current step can be decided, edited by its approver, or have its approver changed. A reimbursement is decided one step at a time.
-- Deciding, changing the approver and retrying need **Direct ledger posting (24SO + Teams approval)** to be on. See [System settings](/guide/access-and-settings/system-settings#switch-a-feature-flag).
+- Deciding, changing the approver, retrying and rebuilding an approval chain need **Direct ledger posting (24SO + Teams approval)** to be on. See [System settings](/guide/access-and-settings/system-settings#switch-a-feature-flag).
 </BeforeYouStart>
 
 ## Steps
@@ -66,7 +66,7 @@ When it's your turn, the **Avgjørelse** (Decision) box shows **Godkjenn** (Appr
 
 A global admin or the controller who isn't the approver on the step sees **Godkjenn på vegne av** (Approve on behalf of) and **Avslå på vegne av** (Reject on behalf of), with the role's name. The step is recorded as decided on behalf of that role, and the history says so.
 
-Approve is refused while a receipt has no ledger account. You see **En kvittering mangler konto. Velg konto før du godkjenner.** (A receipt has no ledger account. Set the account before approving.) Set the account on that receipt in the admin with **Rediger** (Edit), then approve. Approve and reject are also refused once the reimbursement is no longer waiting for approval. You see **Dette utlegget venter ikke lenger på godkjenning.** (This reimbursement is no longer waiting for approval.)
+Approve is refused while a receipt has no ledger account. You see **En kvittering mangler konto. Velg konto før du godkjenner.** (A receipt has no ledger account. Set the account before approving.) Set the account on that receipt in the admin with **Rediger** (Edit), then approve. Approve and reject are also refused once the reimbursement is no longer waiting for approval. You see **Dette utlegget venter ikke lenger på godkjenning.** (This reimbursement is no longer waiting for approval.) That is checked first, so it is what you see on a decided reimbursement even when a receipt has no account.
 
 The decision goes through the same chain as an approval in Teams. The next step's approver is told, and the last approval starts the booking.
 
@@ -77,7 +77,7 @@ Choose **Bytt godkjenner** (Change approver) and type the new person's address. 
 
 The new approver gets a fresh approval link and the old link stops working. Changing the general manager's step, or a step where the general manager stands in for a missing president or controller, changes it for this reimbursement only. The general manager is set under **Utlegg**, **Innstillinger**, **Godkjennere**. Other changes also update the saved approver for later reimbursements with the same role, so check you mean it. Global admins can change any step. The controller can change department steps only, not the controller or president step.
 
-A global admin also sees **Bygg godkjenningsflyten på nytt** (Rebuild approval chain) on a reimbursement that is waiting for approval but has no approval steps. It builds the steps again, and the history records the rebuild.
+A global admin also sees **Bygg godkjenningsflyten på nytt** (Rebuild approval chain) on a reimbursement that is waiting for approval with no approval steps because no approver could be found when it was submitted. Such a reimbursement has an approval issue that starts **No approver could be resolved**. The button shows only while **Direct ledger posting (24SO + Teams approval)** is on. A reimbursement sent to accounting by email, while the flag was off, also waits with no steps, but it has no such issue and never gets the button: accounting pays it, and approving it here as well would pay the student twice. Set up the approvers first. Rebuilding builds the steps again, and the history records it. If it is refused, you see **Bare et utlegg som sto uten godkjenner da det ble levert, kan få godkjenningsflyten bygget på nytt.** (Only a reimbursement left with no approver when it was submitted can have its approval chain rebuilt.)
 
 </Step>
 <Step title="Retry a failed booking">
@@ -86,7 +86,11 @@ A reimbursement with **Bokføring feilet** (Booking failed) shows the error from
 
 When the booking failed after 24SevenOffice had already accepted it, Retry doesn't book again. It finds the booking, saves the status and the transaction number, and the reimbursement shows **Bokført** (Booked).
 
-Otherwise open 24SevenOffice first and check that the reimbursement isn't already there. If it is booked twice, the student is paid twice. The admin refuses to retry when it already has a booking recorded for the reimbursement, but it can't see 24SevenOffice itself.
+Sometimes 24SevenOffice accepts a booking but the admin can't save that. Then you see **Finago har bokføringen, men statusen kunne ikke lagres. Ikke bokfør utlegget på nytt: når det viser «Bokføring feilet» (innen omtrent 15 minutter), fullfører «Prøv bokføring på nytt» lagringen.** (Finago has the booking, but saving the status failed. Don't book it again: once the reimbursement shows Booking failed (within about 15 minutes), Retry finishes saving it.) Don't book it in 24SevenOffice by hand. Wait until the reimbursement shows **Bokføring feilet** (Booking failed), then choose **Prøv bokføring på nytt** (Retry booking): it only finishes the save.
+
+If you see **Finago har bokføringen (\{transactionId}), men den kunne ikke lagres her. Ikke prøv på nytt; kontakt IT.** (Finago has the booking (\{transactionId}) but it could not be saved here. Do not retry; contact IT.), the admin couldn't save the booking anywhere, so a retry would book it again. Don't retry. Give IT the transaction number in the message.
+
+Otherwise open 24SevenOffice first and check that the reimbursement isn't already there. If it is booked twice, the student is paid twice. When the admin has a booking recorded for the reimbursement, Retry only saves it or refuses, but the admin can't see 24SevenOffice itself.
 
 Choose **Prøv på nytt** (Retry). You see **Bokført i Finago** (Booked in Finago) when it works, **Bokføringen mislyktes igjen** (The booking failed again) when it doesn't, and **Bokføringen pågår** (The booking is in progress) when another run holds it. In that case check 24SevenOffice before you do anything else.
 
@@ -100,7 +104,7 @@ Choose **Prøv på nytt** (Retry). You see **Bokført i Finago** (Booked in Fina
 - After a decision, the reimbursement moves to the next step, or to booking after the last approval. Booking runs on its own, without anyone starting it.
 - A successful booking shows **Bokført** (Booked) and the transaction number in 24SevenOffice.
 - A failed booking is never retried by itself, because 24SevenOffice may already have it. Marking a stuck one as failed is not a retry.
-- A booking that stopped without finishing is marked **Bokføring feilet** (Booking failed) the next time the scheduled run or a retry meets it, once the claim is older than 15 minutes, so it doesn't stay stuck. It's only marked failed, not retried. Booking falls back to the department stored on the reimbursement itself when its department link is missing.
+- A booking that stopped without finishing is marked **Bokføring feilet** (Booking failed) the next time the scheduled run meets it, once the claim is older than 15 minutes, so it doesn't stay stuck. It's only marked failed, not retried. Booking falls back to the department stored on the reimbursement itself when its department link is missing.
 - Edits, decisions, approver changes and retries are written to the reimbursement's history with your name.
 - After a decision made in the admin, the next approver gets the Teams card and the email, and a rejection notifies the student.
 - When a step is decided in the admin or on the web approval page, the Teams card that was sent to that step's approver changes to show who decided and what. The buttons go away. This happens after the reimbursement has moved on, so a slow Teams never holds it up. A decision made in Teams already updates its own card. If the card can't be updated within 5 seconds, it stays as it was, and the decision still stands.
@@ -116,7 +120,7 @@ The approval card in Teams, and the email, give the approver what they need to d
 - **The national note.** It shows when the general manager approves in someone else's place. On National, when the controller can't be found or is the one who submitted, it reads **The controller could not be found or is the submitter; the general manager decides instead.** On the four campuses it shows when the general manager approves a reimbursement. For a controller's own reimbursement it reads **The campus president could not be found or is the submitter; the general manager decides instead.** Otherwise, when the general manager stands in for a controller who submitted, it reads **The general manager decides in place of the usual approver.**
 - **Recent history.** The latest 6 history lines. If the card gets too large for Teams, the history goes first, then the receipts are cut to 5, and as a last resort the card shows only the number of receipts.
 - **Buttons.** **Approve**, **Reject**, **Open in admin** and **View receipts**. When a receipt has no account, or the receipts couldn't be read, **Approve** is replaced by **Set the account in admin**, which opens the reimbursement. Set the account on the receipt, then approve in the admin. The email has the same buttons.
-- **The approval page.** The email's link opens a page on the website. When a receipt has no account, the page has no **Godkjenn** (Approve) button. It shows **En kvittering mangler konto. Sett den i admin før du godkjenner.** (A receipt has no account yet. Set it in admin before approving.) with the link **Åpne i admin** (Open in admin). **Avslå** (Reject) stays. An old card or link that still tries to approve is refused with the same sentence.
+- **The approval page.** The email's link opens a page on the website. When a receipt has no account, the page has no **Godkjenn** (Approve) button. It shows **En kvittering mangler konto. Sett den i admin før du godkjenner.** (A receipt has no account yet. Set it in admin before approving.) with the link **Åpne i admin** (Open in admin). **Avslå** (Reject) stays. An old card or link that still tries to approve is refused with the same sentence, unless the reimbursement is no longer waiting for approval: then it is refused for that.
 
 ## What the student sees
 
@@ -126,5 +130,5 @@ The student sees the status and, after a rejection, your reason. They never see 
 
 - Retrying a booking without checking 24SevenOffice first.
 - Approving on behalf of a role when the real approver is available. The history shows it, but the approver isn't told.
-- Changing the approver to fix a one-off absence. The saved approver for the role changes too.
+- Changing the approver to fix a one-off absence. The saved approver for the role changes too, except on the general manager's step, where the dialog says the change is for this reimbursement only.
 - Looking for a reimbursement on another campus as a campus leader or controller. You see your own campus only.
