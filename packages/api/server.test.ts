@@ -226,6 +226,30 @@ describe("server Appwrite clients", () => {
   });
 });
 
+describe("Appwrite call spans without Sentry", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  test("pass the result through unchanged when no Sentry client is initialised", async () => {
+    const server = await createRowServer();
+    try {
+      const { createAdminClient } = await loadServerModule(
+        server.endpoint,
+        "2000"
+      );
+      const admin = await createAdminClient();
+      const client = (admin.account as AppwriteService).client;
+
+      await expect(
+        client.call("GET", new URL(`${server.endpoint}/account`))
+      ).resolves.toMatchObject({ $id: "user-1", name: "Ada" });
+    } finally {
+      await server.close();
+    }
+  });
+});
+
 describe("plain row results", () => {
   afterEach(() => {
     vi.unstubAllEnvs();

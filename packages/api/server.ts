@@ -1,5 +1,6 @@
 "use server";
 
+import { startSpan } from "@sentry/core";
 import { cookies, headers } from "next/headers";
 import {
   Account,
@@ -296,55 +297,63 @@ function configureServerClient(
   // Durations use `performance.now()`, not `Date.now()`: these clients run
   // while Next.js prerenders with Cache Components, and a wall-clock read
   // there fails the render ("blocking-prerender-current-time").
-  client.call = async (...args: Parameters<Client["call"]>) => {
-    const request = describeAppwriteRequest(args[0], args[1]);
-    const startedAt = performance.now();
-    try {
-      const result = await call(...args);
-      logAppwriteTiming(kind, request, performance.now() - startedAt, "ok");
-      return result;
-    } catch (error) {
-      if (isAbortError(error)) {
-        logAppwriteTiming(
-          kind,
-          request,
-          performance.now() - startedAt,
-          "timeout"
-        );
-        throw createAppwriteTimeoutError(kind, request);
-      }
+  //
+  // node-appwrite talks through npm `undici`, which Sentry's automatic fetch
+  // instrumentation does not see on Bun, so each call gets its own span here.
+  // Without an initialised Sentry client `startSpan` just runs the callback.
+  const instrument = <T>(
+    method: string,
+    url: URL | string,
+    run: () => Promise<T>
+  ): Promise<T> => {
+    const request = describeAppwriteRequest(method, url);
+    return startSpan(
+      {
+        attributes: {
+          "appwrite.client": kind,
+          "http.request.method": method.toUpperCase(),
+        },
+        name: request,
+        op: "http.client",
+      },
+      async () => {
+        const startedAt = performance.now();
+        try {
+          const result = await run();
+          logAppwriteTiming(kind, request, performance.now() - startedAt, "ok");
+          return result;
+        } catch (error) {
+          if (isAbortError(error)) {
+            logAppwriteTiming(
+              kind,
+              request,
+              performance.now() - startedAt,
+              "timeout"
+            );
+            throw createAppwriteTimeoutError(kind, request);
+          }
 
-      logAppwriteTiming(kind, request, performance.now() - startedAt, "error");
-      throw error;
-    }
+          logAppwriteTiming(
+            kind,
+            request,
+            performance.now() - startedAt,
+            "error"
+          );
+          throw error;
+        }
+      }
+    );
   };
+
+  client.call = (...args: Parameters<Client["call"]>) =>
+    instrument(args[0], args[1], () => call(...args));
 
   // `redirect()` powers the OAuth token endpoints. It takes the timeout signal
   // from prepareRequest but does NOT route through call(), so without this the
   // abort surfaces as a raw TimeoutError and blows up the sign-in server action
   // instead of becoming a handled AppwriteException.
-  client.redirect = async (...args: Parameters<Client["redirect"]>) => {
-    const request = describeAppwriteRequest(args[0], args[1]);
-    const startedAt = performance.now();
-    try {
-      const result = await redirect(...args);
-      logAppwriteTiming(kind, request, performance.now() - startedAt, "ok");
-      return result;
-    } catch (error) {
-      if (isAbortError(error)) {
-        logAppwriteTiming(
-          kind,
-          request,
-          performance.now() - startedAt,
-          "timeout"
-        );
-        throw createAppwriteTimeoutError(kind, request);
-      }
-
-      logAppwriteTiming(kind, request, performance.now() - startedAt, "error");
-      throw error;
-    }
-  };
+  client.redirect = (...args: Parameters<Client["redirect"]>) =>
+    instrument(args[0], args[1], () => redirect(...args));
 
   return client;
 }
