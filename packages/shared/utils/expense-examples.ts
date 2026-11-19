@@ -161,6 +161,7 @@ export function exampleFields(input: ExampleInput): ExampleRow | null {
   }
   return {
     account_number: input.accountNumber ?? att.account_number ?? null,
+    // The attachment and example enums are distinct generated types with the same values.
     account_source: (att.account_source ??
       null) as ExampleRow["account_source"],
     ai_confidence: att.ai_confidence ?? null,
@@ -177,6 +178,10 @@ export function exampleFields(input: ExampleInput): ExampleRow | null {
   };
 }
 
+function isNotFound(error: unknown): boolean {
+  return (error as { code?: number } | null)?.code === 404;
+}
+
 async function link(
   db: ExamplesDb,
   attachmentId: string,
@@ -185,6 +190,22 @@ async function link(
   await db.updateRow("app", ATTACHMENTS_TABLE, attachmentId, {
     example_id: exampleId,
   });
+}
+
+/** Deletes an example (a 404 means it is already gone) and clears the link. */
+async function dropExample(
+  db: ExamplesDb,
+  attachmentId: string,
+  exampleId: string
+): Promise<void> {
+  try {
+    await db.deleteRow("app", EXAMPLES_TABLE, exampleId);
+  } catch (error) {
+    if (!isNotFound(error)) {
+      throw error;
+    }
+  }
+  await link(db, attachmentId, null);
 }
 
 /**
@@ -202,8 +223,7 @@ export async function syncExample(
     const fields = exampleFields(input);
     if (!fields) {
       if (existingId) {
-        await db.deleteRow("app", EXAMPLES_TABLE, existingId);
-        await link(db, attachment.$id, null);
+        await dropExample(db, attachment.$id, existingId);
       }
       return null;
     }
@@ -219,7 +239,13 @@ export async function syncExample(
       ...fields,
       confirmed: fields.confirmed ?? false,
     });
-    await link(db, attachment.$id, id);
+    try {
+      await link(db, attachment.$id, id);
+    } catch (error) {
+      // Never leave an unlinked example that nothing can update or delete.
+      await db.deleteRow("app", EXAMPLES_TABLE, id).catch(() => undefined);
+      throw error;
+    }
     return id;
   } catch (error) {
     console.error(
@@ -245,10 +271,18 @@ async function readScan(
       return null;
     }
     const parsed = JSON.parse(row.result) as {
-      receipt?: { description?: unknown; vendor?: unknown } | null;
+      receipt?: {
+        description?: unknown;
+        receiptIssues?: unknown;
+        vendor?: unknown;
+      } | null;
     } | null;
     const receipt = parsed?.receipt;
-    if (typeof receipt !== "object" || receipt === null) {
+    if (
+      typeof receipt !== "object" ||
+      receipt === null ||
+      !Array.isArray(receipt.receiptIssues)
+    ) {
       return null;
     }
     return {
@@ -317,8 +351,7 @@ export async function deleteExamplesForExpense(
         continue;
       }
       try {
-        await db.deleteRow("app", EXAMPLES_TABLE, attachment.example_id);
-        await link(db, attachment.$id, null);
+        await dropExample(db, attachment.$id, attachment.example_id);
       } catch (error) {
         console.error(
           `[expense-examples] failed to delete example ${attachment.example_id}`,

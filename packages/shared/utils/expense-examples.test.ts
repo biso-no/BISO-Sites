@@ -273,7 +273,11 @@ describe("syncExamplesForExpense", () => {
       rows: [
         {
           result: JSON.stringify({
-            receipt: { description: "Lunch", vendor: "Rema 1000 AS" },
+            receipt: {
+              description: "Lunch",
+              receiptIssues: [],
+              vendor: "Rema 1000 AS",
+            },
           }),
         },
       ],
@@ -301,6 +305,67 @@ describe("syncExamplesForExpense", () => {
     db.listRows.mockResolvedValue({ rows: [{ result: "not json" }] });
     await syncExamplesForExpense(db, "exp-1", { confirmed: false });
     expect(db.createRow.mock.calls[0][3].vendor_key).toBe("");
+  });
+});
+
+describe("scan reading", () => {
+  it("ignores a scan without a receiptIssues array", async () => {
+    const db = makeDb();
+    db.getRow.mockResolvedValue({
+      department: "d",
+      expenseAttachments: [att()],
+    });
+    db.listRows.mockResolvedValue({
+      rows: [
+        {
+          result: JSON.stringify({
+            receipt: { description: "Lunch", vendor: "Rema" },
+          }),
+        },
+      ],
+    });
+    await syncExamplesForExpense(db, "exp-1", { confirmed: false });
+    const data = db.createRow.mock.calls[0][3];
+    expect(data.vendor_key).toBe("");
+    expect(data.description).toBe("");
+  });
+});
+
+describe("orphans and missing rows", () => {
+  it("removes a just-created example when the link write fails", async () => {
+    const db = makeDb();
+    db.updateRow.mockRejectedValue(new Error("link failed"));
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const id = await syncExample(db, {
+      attachment: att(),
+      confirmed: false,
+      departmentId: null,
+      scan,
+    });
+    spy.mockRestore();
+    expect(id).toBeNull();
+    expect(db.deleteRow).toHaveBeenCalledWith(
+      "app",
+      "expense_type_examples",
+      db.createRow.mock.calls[0][2]
+    );
+  });
+
+  it("treats a 404 on delete as already deleted and clears the link", async () => {
+    const db = makeDb();
+    db.deleteRow.mockRejectedValue({ code: 404 });
+    await syncExample(db, {
+      attachment: att({ example_id: "ex-1", type_source: null }),
+      confirmed: false,
+      departmentId: null,
+      scan,
+    });
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "expense_attachments",
+      "att-1",
+      { example_id: null }
+    );
   });
 });
 
