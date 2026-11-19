@@ -14,7 +14,8 @@
     "./build": "./src/build.ts",
     "./user": "./src/user.ts",
     "./relay": "./src/relay.ts",
-    "./metrics": "./src/metrics.ts"
+    "./metrics": "./src/metrics.ts",
+    "./ai": "./src/ai.ts"
   },
   "dependencies": {
     "@sentry/core": "catalog:"
