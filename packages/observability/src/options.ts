@@ -137,7 +137,11 @@ export const buildServerOptions = (input: OptionInput) => ({
 // api.biso.no from biso.no, would fail the CORS preflight.
 export const buildBrowserOptions = (input: OptionInput) => ({
   ...baseOptions(input),
-  tracesSampleRate: SAMPLE_RATES[input.app].browserTraces,
+  // Not a bare `tracesSampleRate`: the SDK would honour an inherited
+  // `parentSampled` decision first, letting a server trace sampled upstream
+  // override the browser rate. The sampler ignores it and always applies ours.
+  tracesSampler: (_context: unknown): number =>
+    SAMPLE_RATES[input.app].browserTraces,
   ignoreErrors: IGNORE_ERRORS,
   denyUrls: DENY_URLS,
   ...(input.tunnel ? { tunnel: SENTRY_TUNNEL_PATH } : {}),

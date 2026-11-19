@@ -15,7 +15,6 @@
     "./user": "./src/user.ts"
   },
   "dependencies": {
-    "@repo/shared": "workspace:*",
     "@sentry/core": "catalog:"
   },
   "devDependencies": {

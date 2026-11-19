@@ -35,6 +35,27 @@ describe("spanNameForAppwriteRequest", () => {
     ).toBe("PATCH /tablesdb/app/tables/t/rows/{id}/count/increment");
   });
 
+  it("does not treat a table or bucket named like a collection as one", () => {
+    expect(
+      spanNameForAppwriteRequest(
+        "GET /tablesdb/app/tables/documents/rows/6745a1b2c3d4"
+      )
+    ).toBe("GET /tablesdb/app/tables/documents/rows/{id}");
+    expect(
+      spanNameForAppwriteRequest("GET /tablesdb/app/tables/teams/rows/r1")
+    ).toBe("GET /tablesdb/app/tables/teams/rows/{id}");
+    expect(
+      spanNameForAppwriteRequest("GET /storage/buckets/documents/files/f1/view")
+    ).toBe("GET /storage/buckets/documents/files/{id}/view");
+    expect(
+      spanNameForAppwriteRequest("GET /tablesdb/app/tables/documents/rows")
+    ).toBe("GET /tablesdb/app/tables/documents/rows");
+    expect(spanNameForAppwriteRequest("GET /teams/abc/memberships/m1")).toBe(
+      "GET /teams/{id}/memberships/{id}"
+    );
+    expect(spanNameForAppwriteRequest("GET /account")).toBe("GET /account");
+  });
+
   it("gives every row of a table the same name", () => {
     const names = ["r1", "6745a1b2c3d4e5f6a7b8", "x-y"].map((id) =>
       spanNameForAppwriteRequest(`GET /tablesdb/app/tables/events/rows/${id}`)

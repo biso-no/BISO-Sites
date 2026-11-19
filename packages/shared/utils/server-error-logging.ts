@@ -1,3 +1,5 @@
+import { SENSITIVE_HEADERS } from "@repo/observability/scrub";
+
 type HeaderValue = string | string[] | undefined;
 
 interface ServerRequest {
@@ -14,15 +16,6 @@ interface LogServerRequestErrorInput {
   error: unknown;
   request?: ServerRequest;
 }
-
-export const SENSITIVE_HEADERS = new Set([
-  "authorization",
-  "cookie",
-  "proxy-authorization",
-  "set-cookie",
-  "x-api-key",
-  "x-appwrite-key",
-]);
 
 const redactHeaders = (
   headers: Record<string, HeaderValue> | undefined

@@ -1,4 +1,3 @@
-import { SENSITIVE_HEADERS } from "@repo/shared/utils/server-error-logging";
 import type {
   Breadcrumb,
   ErrorEvent,
@@ -9,6 +8,15 @@ import type {
 } from "@sentry/core";
 
 export const REDACTED = "[redacted]";
+
+export const SENSITIVE_HEADERS: ReadonlySet<string> = new Set([
+  "authorization",
+  "cookie",
+  "proxy-authorization",
+  "set-cookie",
+  "x-api-key",
+  "x-appwrite-key",
+]);
 
 const ACCOUNT_NUMBER = /\b\d{4}[ .]?\d{2}[ .]?\d{5}\b/g;
 const NATIONAL_ID = /\b\d{6} ?\d{5}\b/g;
@@ -21,7 +29,7 @@ const EMBEDDED_URL_SUFFIX = /(https?:\/\/[^\s?#"'<>]+)[?#][^\s"'<>]*/g;
 // `secret=…`, `userId=…`, `access_token=…` outside a URL we could parse. The
 // leading group stands in for a lookbehind, which older Safari can't parse.
 const SECRET_PAIR =
-  /(^|[^A-Za-z0-9_])((?:[A-Za-z]+_)?(?:secret|code|state|token|userId|password))=[^&\s"'<>#]*/gi;
+  /(^|[^A-Za-z0-9_])((?:[A-Za-z0-9]+[_-])*(?:secret|code|state|token|userId|password))=[^&\s"'<>#]*/gi;
 const URL_SUFFIX = /[?#].*$/s;
 const URL_KEY = /(^|\.)(url|full|target)$|^url/i;
 const DROPPED_SPAN_ATTRIBUTES = ["http.query", "url.query"];

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   REDACTED,
   redactHeaders,
+  SENSITIVE_HEADERS,
   scrubBreadcrumb,
   scrubEvent,
   scrubLog,
@@ -84,6 +85,22 @@ describe("scrubText", () => {
       "got access_token=[redacted] client_secret=[redacted] f"
     );
     expect(scrubText("USERID=u1")).toBe("USERID=[redacted]");
+  });
+
+  it("redacts multi-part keys ending in a secret word", () => {
+    expect(
+      scrubText(
+        "oauth_token_secret=abc x_client_secret=abc client-secret=abc refresh_token=abc"
+      )
+    ).toBe(
+      "oauth_token_secret=[redacted] x_client_secret=[redacted] client-secret=[redacted] refresh_token=[redacted]"
+    );
+    expect(scrubText("description=abc")).toBe("description=abc");
+  });
+
+  it("exports the sensitive header names", () => {
+    expect(SENSITIVE_HEADERS.has("authorization")).toBe(true);
+    expect(SENSITIVE_HEADERS.has("x-appwrite-key")).toBe(true);
   });
 
   it("keeps pairs whose key only ends in a secret word", () => {

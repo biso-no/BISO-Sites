@@ -82,11 +82,21 @@ describe("buildServerOptions", () => {
 
 describe("buildBrowserOptions", () => {
   it("uses per-app browser trace rates", () => {
-    const rate = (app: "web" | "admin" | "docs") =>
-      buildBrowserOptions({ app, dsn: "x", environment: "e" }).tracesSampleRate;
-    expect(rate("web")).toBe(0.25);
-    expect(rate("admin")).toBe(1);
-    expect(rate("docs")).toBe(0.25);
+    const rate = (app: "web" | "admin" | "docs", parentSampled?: boolean) =>
+      buildBrowserOptions({ app, dsn: "x", environment: "e" }).tracesSampler({
+        parentSampled,
+      } as never);
+    expect(rate("web", true)).toBe(0.25);
+    expect(rate("web", false)).toBe(0.25);
+    expect(rate("admin", true)).toBe(1);
+    expect(rate("docs", true)).toBe(0.25);
+  });
+
+  // The SDK prefers tracesSampler over tracesSampleRate, but a leftover rate
+  // would invite the two to drift apart.
+  it("sets the sampler without a tracesSampleRate", () => {
+    const o = buildBrowserOptions({ app: "web", dsn: "x", environment: "e" });
+    expect(o).not.toHaveProperty("tracesSampleRate");
   });
 
   it("keeps replay off and privacy settings strict", () => {

@@ -36,6 +36,15 @@ const ROUTE_NAMES: ReadonlySet<string> = new Set([
   "usage",
 ]);
 
+/** Segments after which the next segment is a database, table or bucket id. */
+const CONTAINER_WORDS: ReadonlySet<string> = new Set([
+  "buckets",
+  "collections",
+  "databases",
+  "tables",
+  "tablesdb",
+]);
+
 /**
  * Span name for an Appwrite call, from its `METHOD /path` description: each
  * item id becomes `{id}` so every call to one endpoint groups under one name
@@ -46,18 +55,19 @@ export function spanNameForAppwriteRequest(request: string): string {
   if (!path) {
     return request;
   }
-  const segments = path.split("/");
-  for (let index = 1; index < segments.length; index++) {
-    const segment = segments[index];
-    const previous = segments[index - 1];
-    if (
-      segment &&
-      previous &&
+  // Decide from the original segments: a segment already replaced by `{id}`
+  // must not change what its neighbours are.
+  const original = path.split("/");
+  const segments = original.map((segment, index) => {
+    const previous = original[index - 1];
+    const beforePrevious = original[index - 2];
+    const previousIsCollection =
+      previous !== undefined &&
       ID_COLLECTIONS.has(previous) &&
-      !ROUTE_NAMES.has(segment)
-    ) {
-      segments[index] = "{id}";
-    }
-  }
+      !(beforePrevious !== undefined && CONTAINER_WORDS.has(beforePrevious));
+    return segment && previousIsCollection && !ROUTE_NAMES.has(segment)
+      ? "{id}"
+      : segment;
+  });
   return `${method} ${segments.join("/")}`;
 }

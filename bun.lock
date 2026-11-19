@@ -351,7 +351,6 @@
       "name": "@repo/observability",
       "version": "0.0.0",
       "dependencies": {
-        "@repo/shared": "workspace:*",
         "@sentry/core": "catalog:",
       },
       "devDependencies": {
@@ -383,6 +382,7 @@
       "dependencies": {
         "@repo/api": "workspace:*",
         "@repo/connectors": "workspace:*",
+        "@repo/observability": "workspace:*",
         "node-appwrite": "catalog:",
         "passkit-generator": "^3.6.0",
         "server-only": "catalog:",
