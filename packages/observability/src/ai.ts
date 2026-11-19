@@ -69,6 +69,15 @@ const FAILED: SpanStatus = {
   message: "internal_error",
 };
 
+/** The client went away, or the call was aborted for another reason. */
+const CANCELLED: SpanStatus = { code: SPAN_STATUS_ERROR, message: "cancelled" };
+
+/** A timeout aborted the call. */
+const DEADLINE_EXCEEDED: SpanStatus = {
+  code: SPAN_STATUS_ERROR,
+  message: "deadline_exceeded",
+};
+
 const modelId = (model: AiModel): string =>
   typeof model === "string" ? model : model.modelId;
 
@@ -144,6 +153,27 @@ const recordFailure = (span: Span, error: unknown): void => {
 };
 
 /**
+ * `AbortSignal.timeout()`, and the AI SDK's own `timeout` option, abort with a
+ * `TimeoutError`.
+ */
+const isTimeout = (reason: unknown): boolean =>
+  isRecord(reason) && reason.name === "TimeoutError";
+
+/**
+ * An aborted call ends as cancelled, or as timed out. Sentry sends a
+ * `cancelled` span as `ok`, so the reason is also kept as an attribute.
+ */
+const recordAbort = (span: Span, reason: unknown): void => {
+  try {
+    const status = isTimeout(reason) ? DEADLINE_EXCEEDED : CANCELLED;
+    span.setStatus(status);
+    span.setAttribute("sentry.cancellation_reason", status.message);
+  } catch {
+    // Telemetry must never affect the call.
+  }
+};
+
+/**
  * What the AI SDK's default `onError` would log, minus what it shouldn't: the
  * error's class (and a scrubbed message unless it is an AI SDK error, whose
  * message can quote model output), plus a failed provider call's HTTP status.
@@ -183,8 +213,11 @@ export const traceAiCall = <T extends { usage?: AiUsage }>(
   });
 
 export interface AiStreamCallbacks {
-  /** Pass as `streamText({ onAbort })`. */
-  onAbort: () => void;
+  /**
+   * Pass as `streamText({ onAbort })`. A timeout ends the span as
+   * `deadline_exceeded`, any other abort as `cancelled`.
+   */
+  onAbort: (event?: { reason?: unknown }) => void;
   /** Pass as `streamText({ onEnd })`, or call it from an existing one. */
   onEnd: (event: { usage?: AiUsage }) => void;
   /** Call from `streamText({ onError })`. Logs nothing. */
@@ -200,7 +233,7 @@ export interface AiStreamCallbacks {
 export interface AiStreamMeta extends AiCallMeta {
   /**
    * The request's signal. The AI SDK calls no callback when the client goes
-   * away mid-stream, so this ends the span then.
+   * away mid-stream, so this ends the span then, as cancelled.
    */
   signal?: AbortSignal;
 }
@@ -227,12 +260,13 @@ export const traceAiStream = <R>(
     record?.();
     span.end();
   };
-  const onRequestGone = (): void => end();
+  const onRequestGone = (): void =>
+    end(() => recordAbort(span, meta.signal?.reason));
   const onError = (event: { error: unknown }): void =>
     end(() => recordFailure(span, event.error));
 
   const callbacks: AiStreamCallbacks = {
-    onAbort: () => end(),
+    onAbort: (event) => end(() => recordAbort(span, event?.reason)),
     onEnd: (event) => end(() => recordResult(span, event)),
     onError,
     onErrorWithLog: (event) => {
@@ -242,7 +276,7 @@ export const traceAiStream = <R>(
   };
 
   if (meta.signal?.aborted) {
-    end();
+    onRequestGone();
   } else {
     meta.signal?.addEventListener("abort", onRequestGone, { once: true });
   }

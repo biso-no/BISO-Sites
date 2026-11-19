@@ -30,9 +30,9 @@ mock.module("@repo/observability/ai", () => ({
     aiSpans.push(record);
     return realTraceAiStream(meta, (span) =>
       start({
-        onAbort: () => {
+        onAbort: (event) => {
           record.events.push("abort");
-          span.onAbort();
+          span.onAbort(event);
         },
         onEnd: (event) => {
           record.events.push({ usage: event.usage });

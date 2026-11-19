@@ -125,4 +125,28 @@ describe("AI tracing with a real Sentry client", () => {
     expect(ended[0]?.status).toBe("error");
     expect(JSON.stringify(ended[0])).not.toContain(EMAIL);
   });
+
+  it("marks an aborted stream cancelled and a timed-out one deadline_exceeded", () => {
+    useClient();
+    const meta = {
+      functionId: "docs.ask",
+      model: MODEL,
+      operation: "chat",
+    } as const;
+    traceAiStream(meta, ({ onAbort }) => {
+      onAbort({ reason: new DOMException("aborted", "AbortError") });
+    });
+    traceAiStream(meta, ({ onAbort }) => {
+      onAbort({ reason: new DOMException("timed out", "TimeoutError") });
+    });
+    // Sentry's streamed spans send `cancelled` as `ok`; the attribute keeps
+    // both early ends apart from a finished call.
+    expect(ended.map((span) => span.status)).toEqual(["ok", "error"]);
+    expect(
+      ended.map((span) => span.attributes?.["sentry.cancellation_reason"])
+    ).toEqual(["cancelled", "deadline_exceeded"]);
+    expect(ended[1]?.attributes?.["sentry.status.message"]).toBe(
+      "deadline_exceeded"
+    );
+  });
 });

@@ -72,6 +72,8 @@ vi.mock("@sentry/core", async (importOriginal) => {
 });
 
 const MODEL = { modelId: "claude-haiku-5-5", provider: "anthropic.messages" };
+const CANCELLED = { code: 2, message: "cancelled" };
+const DEADLINE_EXCEEDED = { code: 2, message: "deadline_exceeded" };
 const EMAIL = "ola@biso.no";
 const PROMPT = "Summarise the expenses Ola Nordmann sent in October";
 
@@ -288,7 +290,7 @@ describe("traceAiStream", () => {
     expect(attributeText(span)).not.toContain(EMAIL);
   });
 
-  it("ends once when the request goes away before the stream finishes", () => {
+  it("ends once, cancelled, when the request goes away before the stream finishes", () => {
     const controller = new AbortController();
     const { onEnd } = traceAiStream(
       { ...meta, signal: controller.signal },
@@ -298,20 +300,55 @@ describe("traceAiStream", () => {
     controller.abort();
     onEnd({ usage: { inputTokens: 1, outputTokens: 1 } });
     expect(lastSpan().ends).toBe(1);
-    expect(lastSpan().status).toBeUndefined();
+    expect(lastSpan().status).toEqual(CANCELLED);
+    expect(lastSpan().attributes).not.toHaveProperty(
+      "gen_ai.usage.input_tokens"
+    );
   });
 
-  it("ends at once when the request is already gone", () => {
+  it("ends at once, cancelled, when the request is already gone", () => {
     traceAiStream({ ...meta, signal: AbortSignal.abort() }, () => undefined);
     expect(lastSpan().ends).toBe(1);
+    expect(lastSpan().status).toEqual(CANCELLED);
   });
 
-  it("ends once on abort", () => {
+  it("ends as timed out when a timeout aborts the request", () => {
+    const controller = new AbortController();
+    traceAiStream({ ...meta, signal: controller.signal }, () => undefined);
+    controller.abort(new DOMException("too slow", "TimeoutError"));
+    expect(lastSpan().status).toEqual(DEADLINE_EXCEEDED);
+  });
+
+  it("ends once on abort, cancelled", () => {
     traceAiStream(meta, ({ onAbort }) => {
-      onAbort();
+      onAbort({ reason: new DOMException("aborted", "AbortError") });
       onAbort();
     });
     expect(lastSpan().ends).toBe(1);
+    expect(lastSpan().status).toEqual(CANCELLED);
+    expect(lastSpan().attributes["sentry.cancellation_reason"]).toBe(
+      "cancelled"
+    );
+  });
+
+  it("ends as timed out when the AI SDK's timeout aborts the stream", () => {
+    traceAiStream(meta, ({ onAbort }) => {
+      onAbort({
+        reason: new DOMException("The operation timed out.", "TimeoutError"),
+      });
+    });
+    expect(lastSpan().ends).toBe(1);
+    expect(lastSpan().status).toEqual(DEADLINE_EXCEEDED);
+    expect(lastSpan().attributes["sentry.cancellation_reason"]).toBe(
+      "deadline_exceeded"
+    );
+  });
+
+  it("ends as cancelled when an abort gives no reason", () => {
+    traceAiStream(meta, ({ onAbort }) => {
+      onAbort();
+    });
+    expect(lastSpan().status).toEqual(CANCELLED);
   });
 
   it("logs only the class and HTTP status of an AI SDK error", () => {
