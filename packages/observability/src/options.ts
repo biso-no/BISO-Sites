@@ -1,4 +1,9 @@
-import type { DataCollection, Options } from "@sentry/core";
+import {
+  consoleLoggingIntegration,
+  type DataCollection,
+  type Integration,
+  type Options,
+} from "@sentry/core";
 import {
   scrubBreadcrumb,
   scrubEvent,
@@ -124,8 +129,21 @@ const baseOptions = ({ app, dsn, environment }: OptionInput) => {
   } satisfies Options;
 };
 
+/** Name of the default Vercel AI integration; Task 5's manual spans replace it. */
+export const VERCEL_AI_INTEGRATION_NAME = "VercelAI";
+
+/**
+ * Server logs: only `warn` and `error` console calls become Sentry logs. The
+ * Vercel AI default is removed so the manual AI spans are the only ones.
+ */
+export const serverIntegrations = (defaults: Integration[]): Integration[] => [
+  ...defaults.filter(({ name }) => name !== VERCEL_AI_INTEGRATION_NAME),
+  consoleLoggingIntegration({ levels: ["warn", "error"] }),
+];
+
 export const buildServerOptions = (input: OptionInput) => ({
   ...baseOptions(input),
+  integrations: serverIntegrations,
   tracesSampleRate: SAMPLE_RATES[input.app].serverTraces,
   tracePropagationTargets: SERVER_TRACE_PROPAGATION_TARGETS,
   ...(input.tunnel ? { ignoreSpans: TUNNEL_IGNORE_SPANS } : {}),

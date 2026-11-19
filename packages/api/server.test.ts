@@ -24,6 +24,9 @@ interface AppwriteService {
   };
 }
 
+const metrics = vi.hoisted(() => ({ countMetric: vi.fn() }));
+
+vi.mock("@repo/observability/metrics", () => metrics);
 vi.mock("next/headers", () => ({
   cookies: () => Promise.resolve({ get: () => undefined }),
   headers: () => Promise.resolve(new Headers()),
@@ -157,6 +160,7 @@ describe("createSessionJwt", () => {
 describe("server Appwrite clients", () => {
   beforeEach(() => {
     vi.useRealTimers();
+    metrics.countMetric.mockClear();
   });
 
   afterEach(() => {
@@ -220,6 +224,36 @@ describe("server Appwrite clients", () => {
         message: "Appwrite request timed out after 20ms (admin GET /ping)",
         type: "appwrite_timeout",
       });
+      expect(metrics.countMetric).toHaveBeenCalledWith("appwrite.timeout", {
+        client: "admin",
+      });
+    } finally {
+      await slowServer.close();
+    }
+  });
+
+  test("count a slow request that still succeeds", async () => {
+    const slowServer = await createSlowServer(60);
+    vi.stubEnv("APPWRITE_SLOW_REQUEST_MS", "10");
+
+    try {
+      const { createAdminClient } = await loadServerModule(
+        slowServer.endpoint,
+        "2000"
+      );
+      const admin = await createAdminClient();
+      const client = (admin.account as AppwriteService).client;
+
+      await client.call("GET", new URL(`${slowServer.endpoint}/ping`));
+
+      expect(metrics.countMetric).toHaveBeenCalledWith(
+        "appwrite.slow_request",
+        { client: "admin" }
+      );
+      expect(metrics.countMetric).not.toHaveBeenCalledWith(
+        "appwrite.timeout",
+        expect.anything()
+      );
     } finally {
       await slowServer.close();
     }

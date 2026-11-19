@@ -25,6 +25,7 @@ import {
   resolveReimbursementCustomer,
   uploadDocument,
 } from "@repo/connectors/24sevenoffice";
+import { countMetric } from "@repo/observability/metrics";
 import {
   AI_TYPE_CONFIDENCE_THRESHOLD,
   type CostTypeOption,
@@ -296,6 +297,7 @@ async function recordFailure(
     status: ExpensesStatus.FAILED,
   });
   await recordFailureEvent(db, expenseId, error);
+  countMetric("expense.booking_failed");
 }
 
 const SUCCESS_WRITE_EXTRA_ATTEMPTS = 2;

@@ -1,5 +1,6 @@
 import { ID, Permission, Query, Role } from "@repo/api";
 import { type Orders, OrdersStatus } from "@repo/api/types/appwrite";
+import { countMetric } from "@repo/observability/metrics";
 import type { CheckoutSessionParams } from "../types/vipps";
 import { getOrderItems, type ParsedOrderItem } from "./order-parsing";
 import { ORDER_ITEMS_SELECT } from "./order-queries";
@@ -285,6 +286,24 @@ function isStaleBackwardTransition(
   );
 }
 
+/** Counts a settled payment or a failed/cancelled one. Never throws. */
+function countOrderOutcome(
+  newStatus: OrdersStatus,
+  currentOrder: Orders,
+  updateData: Partial<Orders>
+): void {
+  const provider = updateData.payment_provider ?? currentOrder.payment_provider;
+  const attributes = provider ? { provider } : undefined;
+  if (newStatus === OrdersStatus.PAID) {
+    countMetric("payment.completed", attributes);
+  } else if (
+    newStatus === OrdersStatus.CANCELLED ||
+    newStatus === OrdersStatus.FAILED
+  ) {
+    countMetric("payment.failed", attributes);
+  }
+}
+
 /**
  * Applies a resolved order status transition: reads the current order, adjusts
  * stock + reservations for the old→new transition, then persists the new status
@@ -392,6 +411,7 @@ export async function applyOrderStatusTransition(
     );
 
     console.log(`[Order] Status updated: ${oldStatus} -> ${newStatus}`);
+    countOrderOutcome(newStatus, currentOrder, updateData);
     return { newStatus };
   } catch (error) {
     console.error("Error updating order status:", error);

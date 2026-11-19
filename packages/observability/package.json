@@ -13,7 +13,8 @@
     "./options": "./src/options.ts",
     "./build": "./src/build.ts",
     "./user": "./src/user.ts",
-    "./relay": "./src/relay.ts"
+    "./relay": "./src/relay.ts",
+    "./metrics": "./src/metrics.ts"
   },
   "dependencies": {
     "@sentry/core": "catalog:"

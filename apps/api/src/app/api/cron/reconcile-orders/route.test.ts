@@ -4,6 +4,7 @@ import { GET } from "./route";
 
 const mocks = vi.hoisted(() => ({
   fulfilMembershipOrder: vi.fn(),
+  gaugeMetric: vi.fn(),
   invalidateMembershipStatus: vi.fn(),
   isFeatureEnabled: vi.fn(),
   isMembershipOrder: vi.fn(),
@@ -16,6 +17,9 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("server-only", () => ({}));
+vi.mock("@repo/observability/metrics", () => ({
+  gaugeMetric: mocks.gaugeMetric,
+}));
 vi.mock("@repo/api/server", () => ({
   createAdminClient: vi.fn(),
 }));
@@ -163,6 +167,55 @@ describe("reconcile-orders cron: auth", () => {
     vi.stubEnv("CRON_SECRET", "");
     const response = await GET(cronRequest());
     expect(response.status).toBe(500);
+  });
+});
+
+describe("reconcile-orders cron: orders.stuck gauge", () => {
+  beforeEach(resetMocks);
+
+  it("reports zero when the run leaves nothing unresolved", async () => {
+    wireListRows([]);
+    await GET(cronRequest());
+    expect(mocks.gaugeMetric).toHaveBeenCalledWith("orders.stuck", 0);
+  });
+
+  it("counts reconcile errors, manual Finago postings and unresolved refunds", async () => {
+    db.listRows.mockImplementation(
+      (_dbId: string, _tableId: string, queries: string[]) => {
+        const has = (text: string) => queries.some((q) => q.includes(text));
+        if (has("finago_transaction_id")) {
+          return Promise.resolve({ rows: [shopOrder("o-2")] });
+        }
+        if (has("membership_invoice_id")) {
+          return Promise.resolve({ rows: [] });
+        }
+        return Promise.resolve({
+          rows: [{ $id: "o-1", payment_session_id: "sess-1" }],
+        });
+      }
+    );
+    mocks.reconcileOrderPayment.mockRejectedValue(new Error("provider down"));
+    mocks.postFinagoTransactionForOrder.mockResolvedValue({
+      posted: false,
+      reason: "needs_manual",
+    });
+    mocks.sweepPendingRefunds.mockResolvedValue({
+      errors: 0,
+      failed: 0,
+      settled: 0,
+      stillPending: 0,
+      unresolved: 2,
+    });
+
+    await GET(cronRequest());
+
+    // 2 payment reconcile errors (pending + authorized lists) + 1 manual + 2
+    expect(mocks.gaugeMetric).toHaveBeenCalledWith("orders.stuck", 5);
+  });
+
+  it("does not report a gauge for an unauthorised request", async () => {
+    await GET(cronRequest(null));
+    expect(mocks.gaugeMetric).not.toHaveBeenCalled();
   });
 });
 

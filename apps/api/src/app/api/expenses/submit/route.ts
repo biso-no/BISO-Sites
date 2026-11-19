@@ -4,6 +4,7 @@ import { InputFile } from "@repo/api/file";
 import { createAdminClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
 import { type Expenses, ExpensesStatus } from "@repo/api/types/appwrite";
+import { countMetric } from "@repo/observability/metrics";
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
@@ -547,6 +548,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await submitExpense(req);
+    countMetric("expense.submitted");
     return applyCorsHeaders(NextResponse.json(body), origin);
   } catch (error) {
     if (!(error instanceof SubmitRejection)) {

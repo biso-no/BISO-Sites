@@ -26,6 +26,9 @@ const storage = vi.hoisted(() => ({
   createFile: vi.fn(),
 }));
 
+const metrics = vi.hoisted(() => ({ countMetric: vi.fn() }));
+
+vi.mock("@repo/observability/metrics", () => metrics);
 vi.mock("@/lib/auth", () => ({
   createAuthenticatedClient: vi.fn(async () => ({ account, db: sessionDb })),
 }));
@@ -123,6 +126,7 @@ describe("expense submit route", () => {
       async (key: string) => key !== "expenses_ledger_posting"
     );
     vi.mocked(createApprovalChain).mockClear();
+    metrics.countMetric.mockClear();
     enrichment.enrichSubmission.mockReset();
     enrichment.enrichSubmission.mockResolvedValue(undefined);
     // The profile, then the saved draft (read before and after enrichment).
@@ -152,6 +156,7 @@ describe("expense submit route", () => {
     );
 
     expect(response.status).toBe(200);
+    expect(metrics.countMetric).toHaveBeenCalledWith("expense.submitted");
     expect(sessionDb.createRow).not.toHaveBeenCalled();
     expect(adminDb.createRow).toHaveBeenCalledWith(
       "app",
@@ -400,6 +405,7 @@ describe("expense submit route", () => {
     );
 
     expect(response.status).toBe(500);
+    expect(metrics.countMetric).not.toHaveBeenCalled();
     await expect(response.json()).resolves.toEqual({
       success: false,
       error: "Failed to submit expense",

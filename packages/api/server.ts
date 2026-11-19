@@ -1,5 +1,6 @@
 "use server";
 
+import { countMetric } from "@repo/observability/metrics";
 import { isEnabled, startSpan } from "@sentry/core";
 import { cookies, headers } from "next/headers";
 import {
@@ -175,6 +176,7 @@ function logAppwriteTiming(
       durationMs,
       request,
     });
+    countMetric("appwrite.timeout", { client: kind });
     return;
   }
   if (durationMs >= APPWRITE_SLOW_REQUEST_MS) {
@@ -184,6 +186,7 @@ function logAppwriteTiming(
       outcome,
       request,
     });
+    countMetric("appwrite.slow_request", { client: kind });
   }
 }
 

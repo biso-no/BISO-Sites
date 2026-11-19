@@ -1,6 +1,11 @@
 import { Query } from "@repo/api";
 import { OrdersStatus } from "@repo/api/types/appwrite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const metrics = vi.hoisted(() => ({ countMetric: vi.fn() }));
+
+vi.mock("@repo/observability/metrics", () => metrics);
+
 import { type CheckoutSessionParams, Currency } from "../types/vipps";
 import {
   applyOrderStatusTransition,
@@ -259,10 +264,58 @@ describe("applyOrderStatusTransition", () => {
     db.incrementRowColumn.mockReset();
     db.listRows.mockResolvedValue({ rows: [] });
     db.incrementRowColumn.mockResolvedValue({ transition_lock: 1 });
+    metrics.countMetric.mockClear();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  const orderRow = (overrides: Record<string, unknown> = {}) => ({
+    $id: "order-1",
+    items_json: "[]",
+    payment_provider: "vipps",
+    status: OrdersStatus.PENDING,
+    ...overrides,
+  });
+
+  it("counts payment.completed with the provider for a paid transition", async () => {
+    db.getRow.mockResolvedValue(orderRow());
+    await applyOrderStatusTransition("order-1", OrdersStatus.PAID, {}, db);
+    expect(metrics.countMetric).toHaveBeenCalledWith("payment.completed", {
+      provider: "vipps",
+    });
+  });
+
+  it.each([
+    OrdersStatus.CANCELLED,
+    OrdersStatus.FAILED,
+  ])("counts payment.failed for a %s transition", async (status) => {
+    db.getRow.mockResolvedValue(orderRow());
+    await applyOrderStatusTransition("order-1", status, {}, db);
+    expect(metrics.countMetric).toHaveBeenCalledWith("payment.failed", {
+      provider: "vipps",
+    });
+  });
+
+  it("counts nothing for an authorized transition", async () => {
+    db.getRow.mockResolvedValue(orderRow());
+    await applyOrderStatusTransition(
+      "order-1",
+      OrdersStatus.AUTHORIZED,
+      {},
+      db
+    );
+    expect(metrics.countMetric).not.toHaveBeenCalled();
+  });
+
+  it("counts nothing when the status write fails", async () => {
+    db.getRow.mockResolvedValue(orderRow());
+    db.updateRow.mockRejectedValue(new Error("write failed"));
+    await expect(
+      applyOrderStatusTransition("order-1", OrdersStatus.PAID, {}, db)
+    ).rejects.toThrow();
+    expect(metrics.countMetric).not.toHaveBeenCalled();
   });
 
   it("decrements stock and writes status plus extra columns for a paid transition", async () => {
