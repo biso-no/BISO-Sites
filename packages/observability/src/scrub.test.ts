@@ -108,6 +108,26 @@ describe("scrubText", () => {
       "statusCode=500 postcode=0484"
     );
   });
+
+  it.each([
+    ["hyphen runs", ` ${"ab-".repeat(70_000)}`],
+    ["dot runs", `a${".a".repeat(100_000)}`],
+    ["an address with a hyphen-run domain", `a@${"a-".repeat(100_000)}`],
+    ["repeated URL schemes", "https://".repeat(25_000)],
+    ["a hyphenated key prefix", `${"a-".repeat(100_000)}token=x`],
+  ])("scrubs 200 KB of %s in well under 50 ms", (_label, text) => {
+    const started = performance.now();
+    scrubText(text);
+    expect(performance.now() - started).toBeLessThan(50);
+  });
+
+  it("still redacts the longest real address and a long key prefix", () => {
+    const local = "a".repeat(64);
+    expect(scrubText(`to ${local}@student.bi.no`)).toBe("to [redacted]");
+    expect(scrubText("a_b_c_d_e_f_token=t")).toBe(
+      "a_b_c_d_e_f_token=[redacted]"
+    );
+  });
 });
 
 describe("scrubUrl", () => {

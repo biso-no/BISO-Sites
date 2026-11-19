@@ -18,18 +18,27 @@ export const SENSITIVE_HEADERS: ReadonlySet<string> = new Set([
   "x-appwrite-key",
 ]);
 
+// These run on the server for every log line. A repeat the engine retries
+// from each position is bounded, or a long run (`a-a-a-…`, `a.a.a.…`) makes
+// the scan quadratic.
 const ACCOUNT_NUMBER = /\b\d{4}[ .]?\d{2}[ .]?\d{5}\b/g;
 const NATIONAL_ID = /\b\d{6} ?\d{5}\b/g;
-const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+// Local part up to 64 characters, domain up to 253 (the RFC limits). The
+// leading group makes a match start only where a run of local-part characters
+// starts, so a long run is not rescanned from each of its characters.
+const EMAIL =
+  /(^|[^A-Za-z0-9._%+-])[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,253}\.[A-Za-z]{2,63}/g;
 // Country code, check digits, then 11–30 characters, with or without spaces
 // every four (NO93 8601 1117 947, DE89 3704 0044 0532 0130 00).
 const IBAN = /\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){2,7}(?: ?[A-Z0-9]{1,3})?\b/g;
-// An absolute URL inside free text: keep the address, drop query and fragment.
-const EMBEDDED_URL_SUFFIX = /(https?:\/\/[^\s?#"'<>]+)[?#][^\s"'<>]*/g;
+// An absolute URL inside free text, to its end. The match runs to the next
+// space or quote and the search resumes after it, so it stays linear.
+const EMBEDDED_URL = /https?:\/\/[^\s"'<>]*/g;
 // `secret=…`, `userId=…`, `access_token=…` outside a URL we could parse. The
 // leading group stands in for a lookbehind, which older Safari can't parse.
+// At most six prefix parts (`oauth_token_secret` has two).
 const SECRET_PAIR =
-  /(^|[^A-Za-z0-9_])((?:[A-Za-z0-9]+[_-])*(?:secret|code|state|token|userId|password))=[^&\s"'<>#]*/gi;
+  /(^|[^A-Za-z0-9_])((?:[A-Za-z0-9]+[_-]){0,6}(?:secret|code|state|token|userId|password))=[^&\s"'<>#]*/gi;
 const URL_SUFFIX = /[?#].*$/s;
 const URL_KEY = /(^|\.)(url|full|target)$|^url/i;
 const DROPPED_SPAN_ATTRIBUTES = ["http.query", "url.query"];
@@ -37,17 +46,19 @@ const DROPPED_SPAN_ATTRIBUTES = ["http.query", "url.query"];
 type HeaderValue = string | string[] | undefined;
 type Mutable = Record<string, unknown>;
 
+// Keeps the address, drops the query and fragment.
+const dropUrlSuffix = (url: string): string => url.replace(URL_SUFFIX, "");
+
 export const scrubText = (text: string): string =>
   text
-    .replace(EMBEDDED_URL_SUFFIX, "$1")
+    .replace(EMBEDDED_URL, dropUrlSuffix)
     .replace(SECRET_PAIR, `$1$2=${REDACTED}`)
-    .replace(EMAIL, REDACTED)
+    .replace(EMAIL, `$1${REDACTED}`)
     .replace(IBAN, REDACTED)
     .replace(ACCOUNT_NUMBER, REDACTED)
     .replace(NATIONAL_ID, REDACTED);
 
-export const scrubUrl = (url: string): string =>
-  scrubText(url.replace(URL_SUFFIX, ""));
+export const scrubUrl = (url: string): string => scrubText(dropUrlSuffix(url));
 
 const REFERER_HEADERS = new Set(["referer", "referrer"]);
 const IP_HEADERS = new Set([
