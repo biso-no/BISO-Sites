@@ -1,3 +1,4 @@
+import { shouldPropagateTraceForUrl } from "@sentry/core";
 import { describe, expect, it } from "vitest";
 import {
   buildBrowserOptions,
@@ -5,14 +6,19 @@ import {
   DATA_COLLECTION,
   resolveEnvironment,
   SAMPLE_RATES,
-  TRACE_PROPAGATION_TARGETS,
+  SERVER_TRACE_PROPAGATION_TARGETS,
 } from "./options";
-import { scrubEvent } from "./scrub";
+import {
+  scrubBreadcrumb,
+  scrubEvent,
+  scrubLog,
+  scrubMetric,
+  scrubSpan,
+} from "./scrub";
 
-const matches = (url: string) =>
-  TRACE_PROPAGATION_TARGETS.some((t) =>
-    typeof t === "string" ? url.includes(t) : t.test(url)
-  );
+// The SDK's own matcher, so the test sees what the server SDK decides.
+const propagatesTo = (url: string) =>
+  shouldPropagateTraceForUrl(url, SERVER_TRACE_PROPAGATION_TARGETS);
 
 describe("buildServerOptions", () => {
   it("is disabled without a DSN", () => {
@@ -39,6 +45,27 @@ describe("buildServerOptions", () => {
       expect(o.tracesSampleRate).toBe(1);
     }
   });
+
+  it("carries all five scrub hooks", () => {
+    const o = buildServerOptions({ app: "api", dsn: "x", environment: "e" });
+    expect(o.beforeSend).toBe(scrubEvent);
+    expect(o.beforeBreadcrumb).toBe(scrubBreadcrumb);
+    expect(o.beforeSendLog).toBe(scrubLog);
+    expect(o.beforeSendSpan).toBe(scrubSpan);
+    expect(o.beforeSendMetric).toBe(scrubMetric);
+  });
+
+  it("does not ignore aborted requests on the server", () => {
+    const o = buildServerOptions({ app: "api", dsn: "x", environment: "e" });
+    const ignoreErrors = (o as { ignoreErrors?: unknown[] }).ignoreErrors;
+    expect(ignoreErrors ?? []).not.toContain("AbortError");
+    expect(o).not.toHaveProperty("denyUrls");
+  });
+
+  it("propagates traces only to the BISO server targets", () => {
+    const o = buildServerOptions({ app: "web", dsn: "x", environment: "e" });
+    expect(o.tracePropagationTargets).toBe(SERVER_TRACE_PROPAGATION_TARGETS);
+  });
 });
 
 describe("buildBrowserOptions", () => {
@@ -57,19 +84,58 @@ describe("buildBrowserOptions", () => {
     expect(o.dataCollection).toEqual(DATA_COLLECTION);
     expect(o.beforeSend).toBe(scrubEvent);
   });
-});
 
-describe("TRACE_PROPAGATION_TARGETS", () => {
-  it("matches BISO origins and relative URLs", () => {
-    expect(matches("/api/x")).toBe(true);
-    expect(matches("https://biso.no/x")).toBe(true);
-    expect(matches("https://api.biso.no/api/x")).toBe(true);
+  it("ignores browser noise such as aborted requests", () => {
+    const o = buildBrowserOptions({ app: "web", dsn: "x", environment: "e" });
+    expect(o.ignoreErrors).toContain("AbortError");
+    expect(o.denyUrls.length).toBeGreaterThan(0);
   });
 
-  it("never matches Appwrite or lookalike origins", () => {
-    expect(matches("https://appwrite.biso.no/v1/account")).toBe(false);
-    expect(matches("https://evil.biso.no.example.com")).toBe(false);
-    expect(matches("//cdn.example.com/x")).toBe(false);
+  // Unset, the browser SDK adds trace headers to same-origin requests only.
+  // Any explicit list would also match cross-origin URLs such as api.biso.no,
+  // whose CORS preflight then fails.
+  it("leaves trace propagation at the SDK's same-origin default", () => {
+    for (const app of ["web", "admin", "docs"] as const) {
+      const o = buildBrowserOptions({ app, dsn: "x", environment: "e" });
+      expect(o).not.toHaveProperty("tracePropagationTargets");
+    }
+  });
+});
+
+describe("SERVER_TRACE_PROPAGATION_TARGETS", () => {
+  it("matches the BISO Sites and localhost on any port", () => {
+    for (const url of [
+      "https://biso.no",
+      "https://biso.no/x",
+      "https://www.biso.no/events?x=1",
+      "https://admin.biso.no/api/x",
+      "https://api.biso.no/api/expenses/submit",
+      "https://docs.biso.no/docs",
+      "http://localhost:3003/api/x",
+      "http://localhost/x",
+    ]) {
+      expect(propagatesTo(url), url).toBe(true);
+    }
+  });
+
+  it("never matches Appwrite, third parties or lookalike origins", () => {
+    for (const url of [
+      "https://appwrite.biso.no/v1/account",
+      "https://api.vipps.no/epayment/v1/payments",
+      "https://apitest.vipps.no/accesstoken/get",
+      "https://api.stripe.com/v1/checkout/sessions",
+      "https://graph.microsoft.com/v1.0/users",
+      "https://login.microsoftonline.com/x/oauth2/v2.0/token",
+      "https://api.openai.com/v1/responses",
+      "https://api.anthropic.com/v1/messages",
+      "https://biso.no.example.com/x",
+      "https://evilbiso.no/x",
+      "http://biso.no/x",
+      "http://localhost.example.com/x",
+      "/api/x",
+    ]) {
+      expect(propagatesTo(url), url).toBe(false);
+    }
   });
 });
 

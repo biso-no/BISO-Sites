@@ -34,6 +34,7 @@ export const DATA_COLLECTION: DataCollection = {
   frameContextLines: 0,
 };
 
+/** Browser noise: layout warnings and requests the visitor cancelled. */
 export const IGNORE_ERRORS: (string | RegExp)[] = [
   "ResizeObserver loop limit exceeded",
   "ResizeObserver loop completed with undelivered notifications",
@@ -49,10 +50,15 @@ export const DENY_URLS: RegExp[] = [
   /^safari-web-extension:\/\//,
 ];
 
-export const TRACE_PROPAGATION_TARGETS: (string | RegExp)[] = [
-  /^\/(?!\/)/,
-  /^https:\/\/(www\.)?biso\.no(\/|$)/,
-  /^https:\/\/(admin|api|docs)\.biso\.no(\/|$)/,
+/**
+ * Outgoing server requests carry `sentry-trace` and `baggage` only to BISO's
+ * own Sites, and to localhost in development. Never to Appwrite or a third
+ * party (Vipps, Stripe, Finago, Graph, OpenAI, Anthropic). Without this list
+ * the server SDK adds them to every request.
+ */
+export const SERVER_TRACE_PROPAGATION_TARGETS: RegExp[] = [
+  /^https:\/\/(?:(?:www|admin|api|docs)\.)?biso\.no(?:[/?#]|$)/,
+  /^http:\/\/localhost(?::\d+)?(?:[/?#]|$)/,
 ];
 
 export const resolveEnvironment = (
@@ -79,7 +85,6 @@ const baseOptions = ({ app, dsn, environment }: OptionInput) => {
     enabled: Boolean(trimmedDsn),
     environment,
     dataCollection: DATA_COLLECTION,
-    ignoreErrors: IGNORE_ERRORS,
     beforeSend: scrubEvent,
     beforeBreadcrumb: scrubBreadcrumb,
     beforeSendLog: scrubLog,
@@ -92,13 +97,18 @@ const baseOptions = ({ app, dsn, environment }: OptionInput) => {
 export const buildServerOptions = (input: OptionInput) => ({
   ...baseOptions(input),
   tracesSampleRate: SAMPLE_RATES[input.app].serverTraces,
+  tracePropagationTargets: SERVER_TRACE_PROPAGATION_TARGETS,
 });
 
+// No `tracePropagationTargets` in the browser: unset, the SDK adds trace
+// headers to same-origin requests only (`shouldAttachHeaders` in
+// @sentry/browser `tracing/request.js`). A cross-origin match, such as
+// api.biso.no from biso.no, would fail the CORS preflight.
 export const buildBrowserOptions = (input: OptionInput) => ({
   ...baseOptions(input),
   tracesSampleRate: SAMPLE_RATES[input.app].browserTraces,
+  ignoreErrors: IGNORE_ERRORS,
   denyUrls: DENY_URLS,
-  tracePropagationTargets: TRACE_PROPAGATION_TARGETS,
   replaysSessionSampleRate: 0,
   replaysOnErrorSampleRate: 0,
 });
