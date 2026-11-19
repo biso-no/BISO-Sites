@@ -900,6 +900,8 @@ describe("enrichSubmission", () => {
       purpose: "auto",
     });
     expect(selectExamples).toHaveBeenCalledWith(db, {
+      departmentId: "marketing",
+      description: "Pizza",
       types: liveTypes,
       vendor: "Peppes",
     });

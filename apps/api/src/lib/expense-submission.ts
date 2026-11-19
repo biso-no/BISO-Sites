@@ -515,12 +515,18 @@ async function downloadReceipt(
 async function classify(
   db: Db,
   receipt: ExtractedReceipt,
-  types: CostTypeOption[]
+  types: CostTypeOption[],
+  departmentId?: string | null
 ): Promise<Classification | null> {
   if (types.length === 0) {
     return null;
   }
-  const examples = await selectExamples(db, { types, vendor: receipt.vendor });
+  const examples = await selectExamples(db, {
+    departmentId,
+    description: receipt.description,
+    types,
+    vendor: receipt.vendor,
+  });
   const abortSignal = AbortSignal.timeout(CLASSIFY_TIMEOUT_MS);
   const classification = await classifyReceipt({
     abortSignal,
@@ -543,7 +549,8 @@ async function scanReceipt(
     fileHash: string;
     mimeType: string;
     types: CostTypeOption[];
-  }
+  },
+  departmentId?: string | null
 ): Promise<StoredScan | null> {
   try {
     const receipt = await extractReceipt({
@@ -554,7 +561,7 @@ async function scanReceipt(
     });
     const [converted, classification] = await Promise.all([
       convertAmountToNok(receipt),
-      classify(db, receipt, input.types),
+      classify(db, receipt, input.types, departmentId),
     ]);
     const scan: StoredScan = { ...converted, classification, receipt };
     await saveScan(db, input.fileHash, scan, SCAN_MODEL);
@@ -614,10 +621,16 @@ function canScan(attachment: SubmittedAttachment, aiEnabled: boolean) {
 async function classifyStored(
   db: Db,
   scan: StoredScan,
-  types: CostTypeOption[]
+  types: CostTypeOption[],
+  departmentId?: string | null
 ): Promise<StoredScan> {
   try {
-    const classification = await classify(db, scan.receipt, types);
+    const classification = await classify(
+      db,
+      scan.receipt,
+      types,
+      departmentId
+    );
     return classification ? { ...scan, classification } : scan;
   } catch (error) {
     console.error("[expense-submission] Receipt classification failed:", error);
@@ -635,7 +648,8 @@ async function findOrScan(
   db: Db,
   job: HashJob,
   types: CostTypeOption[],
-  budgetSpent: () => boolean
+  budgetSpent: () => boolean,
+  departmentId?: string | null
 ): Promise<StoredScan | null> {
   const stored = await findScan(db, job.fileHash);
   // A model call that would start after the budget is left out.
@@ -643,16 +657,22 @@ async function findOrScan(
     return stored;
   }
   if (!stored) {
-    return scanReceipt(db, {
-      buffer: job.buffer,
-      fileHash: job.fileHash,
-      mimeType: job.mimeType,
-      types,
-    });
+    return scanReceipt(
+      db,
+      {
+        buffer: job.buffer,
+        fileHash: job.fileHash,
+        mimeType: job.mimeType,
+        types,
+      },
+      departmentId
+    );
   }
   const unclassified =
     stored.classification === null && stored.receipt.documentType === "receipt";
-  return unclassified ? classifyStored(db, stored, types) : stored;
+  return unclassified
+    ? classifyStored(db, stored, types, departmentId)
+    : stored;
 }
 
 /**
@@ -671,6 +691,7 @@ async function readReceipts(
   context: {
     aiEnabled: boolean;
     budgetSpent: () => boolean;
+    departmentId?: string | null;
     types: CostTypeOption[];
   }
 ): Promise<Map<string, ReceiptRead>> {
@@ -712,7 +733,13 @@ async function readReceipts(
   await mapLimit([...jobs.values()], MAX_PARALLEL_FILES, async (job) => {
     scans.set(
       job.fileHash,
-      await findOrScan(admin.db, job, context.types, context.budgetSpent)
+      await findOrScan(
+        admin.db,
+        job,
+        context.types,
+        context.budgetSpent,
+        context.departmentId
+      )
     );
   });
 
@@ -961,6 +988,7 @@ export async function enrichSubmission(
   const reads = await readReceipts(admin, attachments, {
     aiEnabled,
     budgetSpent,
+    departmentId: payload.department,
     types,
   });
   const decided = attachments.map((attachment): EnrichedReceipt => {

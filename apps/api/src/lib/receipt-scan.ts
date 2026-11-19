@@ -314,8 +314,12 @@ export async function extractReceipt(input: {
 }
 
 export interface TypeExample {
+  /** Whether a person saw and kept this booking. */
+  confirmed: boolean;
   description: string;
   finalType: string;
+  /** Whether it was booked for the same department as the receipt at hand. */
+  sameDepartment: boolean;
   source: "student" | "approver" | "admin";
   vendorKey: string;
 }
@@ -362,12 +366,14 @@ export function buildClassificationPrompt({
     (type) =>
       `${type.slug} — ${type.label}${type.description ? `: ${type.description}` : ""}`
   );
-  const exampleLines = examples
-    .slice(0, MAX_EXAMPLES)
-    .map(
-      (example) =>
-        `"${[example.vendorKey, example.description].filter(Boolean).map(clean).join(" / ")}" → ${example.finalType} (${example.source})`
-    );
+  const exampleLines = examples.slice(0, MAX_EXAMPLES).map((example) => {
+    const marks = [
+      example.source,
+      ...(example.confirmed ? [] : ["unconfirmed"]),
+      ...(example.sameDepartment ? ["same department"] : []),
+    ];
+    return `"${[example.vendorKey, example.description].filter(Boolean).map(clean).join(" / ")}" → ${example.finalType} (${marks.join(", ")})`;
+  });
   const show = (value: string | number | null) =>
     value === null || value === "" ? "unknown" : clean(value);
   return [

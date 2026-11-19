@@ -96,6 +96,8 @@ export async function runRerunCheck(
     const signal = AbortSignal.timeout(CLASSIFY_TIMEOUT_MS);
     try {
       const examples = await selectExamples(db, {
+        departmentId: row.department_id,
+        description: row.description,
         excludeId: row.$id,
         types,
         vendor: row.vendor_key || null,

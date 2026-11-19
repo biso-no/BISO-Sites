@@ -138,13 +138,16 @@ async function activeTypes(db: AdminDb | null): Promise<CostTypeOption[]> {
 async function classifyIfReceipt(
   db: AdminDb,
   receipt: ExtractedReceipt,
-  types: CostTypeOption[]
+  types: CostTypeOption[],
+  departmentId: string | null
 ): Promise<Classification | null> {
   if (receipt.documentType !== "receipt" || types.length === 0) {
     return null;
   }
   try {
     const examples = await selectExamples(db, {
+      departmentId,
+      description: receipt.description,
       types,
       vendor: receipt.vendor,
     });
@@ -224,10 +227,16 @@ async function scanExtras(
   db: AdminDb,
   fileHash: string,
   scan: StoredScan,
-  types: CostTypeOption[]
+  types: CostTypeOption[],
+  departmentId: string | null
 ): Promise<UploadScan> {
   const classifyAndStore = async () => {
-    const classification = await classifyIfReceipt(db, scan.receipt, types);
+    const classification = await classifyIfReceipt(
+      db,
+      scan.receipt,
+      types,
+      departmentId
+    );
     await saveScan(db, fileHash, { ...scan, classification }, SCAN_MODEL);
     return classification;
   };
@@ -257,7 +266,8 @@ async function scanExtras(
  */
 async function scanUpload(
   file: PreparedFile,
-  purpose: ScanPurpose
+  purpose: ScanPurpose,
+  departmentId: string | null
 ): Promise<UploadScan> {
   const db = await adminDb();
   const fileHash = sha256Hex(file.buffer);
@@ -277,7 +287,18 @@ async function scanUpload(
   if (!db) {
     return { possibleDuplicate: false, scan };
   }
-  return scanExtras(db, fileHash, scan, types);
+  return scanExtras(db, fileHash, scan, types, departmentId);
+}
+
+const MAX_DEPARTMENT_ID_LENGTH = 64;
+
+/** The optional `departmentId` form field; the app does not send it. */
+function optionalDepartmentId(value: FormDataEntryValue | null): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const id = value.trim();
+  return id && id.length <= MAX_DEPARTMENT_ID_LENGTH ? id : null;
 }
 
 export async function POST(req: NextRequest) {
@@ -318,6 +339,7 @@ export async function POST(req: NextRequest) {
 
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
+    const departmentId = optionalDepartmentId(formData.get("departmentId"));
 
     const preparedFile = await validateAndPrepareFile(file);
 
@@ -325,7 +347,11 @@ export async function POST(req: NextRequest) {
       return applyCorsHeaders(preparedFile.response, origin);
     }
 
-    const { possibleDuplicate, scan } = await scanUpload(preparedFile, purpose);
+    const { possibleDuplicate, scan } = await scanUpload(
+      preparedFile,
+      purpose,
+      departmentId
+    );
     const { amountInNok, classification, exchangeRate, receipt } = scan;
 
     return applyCorsHeaders(

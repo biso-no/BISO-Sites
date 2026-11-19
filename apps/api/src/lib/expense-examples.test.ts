@@ -18,8 +18,11 @@ function row(over: Record<string, unknown>) {
   return {
     $createdAt: "2026-01-01T00:00:00.000Z",
     description: "d",
+    confirmed: true,
+    department_id: null,
     final_cost_type: "food",
     source: "student",
+    type_source: null,
     vendor_key: "rema",
     ...over,
   };
@@ -121,6 +124,90 @@ describe("selectExamples", () => {
     });
     const result = await selectExamples(db, { types, vendor: null });
     expect(result.map((r) => r.description)).toEqual(["ok"]);
+  });
+
+  it("a prefix vendor match is used when no exact match exists", async () => {
+    listRows.mockImplementation(async (_d: string, _t: string, q: string[]) =>
+      q.some((s) => s.includes("startsWith"))
+        ? { rows: [row({ description: "p1", vendor_key: "rema 1000" })] }
+        : { rows: [] }
+    );
+    const result = await selectExamples(db, {
+      types,
+      vendor: "Rema 1000 Majorstuen",
+    });
+    expect(result.map((r) => r.description)).toEqual(["p1"]);
+    expect(result[0]?.vendorKey).toBe("rema 1000");
+  });
+
+  it("confirmed examples come before unconfirmed ones", async () => {
+    listRows.mockResolvedValue({
+      rows: [
+        row({ confirmed: false, description: "u1" }),
+        row({ confirmed: true, description: "c1" }),
+      ],
+    });
+    const result = await selectExamples(db, { types, vendor: "Rema" });
+    expect(result.map((r) => r.description).slice(0, 2)).toEqual(["c1", "u1"]);
+    expect(result.map((r) => r.confirmed).slice(0, 2)).toEqual([true, false]);
+  });
+
+  it("approver corrections come before student choices", async () => {
+    listRows.mockResolvedValue({
+      rows: [
+        row({ description: "s1", type_source: "student" }),
+        row({ description: "a1", type_source: "approver" }),
+      ],
+    });
+    const result = await selectExamples(db, { types, vendor: "Rema" });
+    expect(result.map((r) => r.description).slice(0, 2)).toEqual(["a1", "s1"]);
+  });
+
+  it("same-department examples come first within a group", async () => {
+    listRows.mockResolvedValue({
+      rows: [
+        row({ department_id: "other", description: "o1" }),
+        row({ department_id: "dep", description: "d1" }),
+      ],
+    });
+    const result = await selectExamples(db, {
+      departmentId: "dep",
+      types,
+      vendor: "Rema",
+    });
+    expect(result.map((r) => r.description).slice(0, 2)).toEqual(["d1", "o1"]);
+    expect(result.map((r) => r.sameDepartment).slice(0, 2)).toEqual([
+      true,
+      false,
+    ]);
+  });
+
+  it("keyword matches fill in when no vendor matches", async () => {
+    listRows.mockImplementation(async (_d: string, _t: string, q: string[]) =>
+      q.some((s) => s.includes("search"))
+        ? { rows: [row({ description: "k1", vendor_key: "other shop" })] }
+        : { rows: [] }
+    );
+    const result = await selectExamples(db, {
+      description: "Pizza for the board meeting",
+      types,
+      vendor: "Unknown Shop",
+    });
+    expect(result.map((r) => r.description)).toEqual(["k1"]);
+  });
+
+  it("keeps what it has when a later query fails", async () => {
+    listRows.mockImplementation((_d: string, _t: string, q: string[]) =>
+      q.some((s) => s.includes("search"))
+        ? Promise.reject(new Error("no index"))
+        : Promise.resolve({ rows: [row({ description: "v1" })] })
+    );
+    const result = await selectExamples(db, {
+      description: "pizza",
+      types,
+      vendor: "Rema",
+    });
+    expect(result.map((r) => r.description)).toContain("v1");
   });
 
   it("returns [] on db error", async () => {

@@ -755,6 +755,10 @@ export function ExpenseSplitView({
         // OCR — race against a 30s timeout so the receipt never hangs in "processing"
         const ocrFormData = new FormData();
         ocrFormData.append("file", file);
+        const { selectedDepartmentId } = useExpenseStore.getState();
+        if (selectedDepartmentId) {
+          ocrFormData.append("departmentId", selectedDepartmentId);
+        }
 
         const ocrResult = await Promise.race([
           apiClient.fetchFormData<{

@@ -95,6 +95,8 @@ describe("runRerunCheck", () => {
     await runRerunCheck(db);
 
     expect(examples.selectExamples).toHaveBeenCalledWith(db, {
+      departmentId: undefined,
+      description: "desc a",
       excludeId: "a",
       types: active,
       vendor: "rema",

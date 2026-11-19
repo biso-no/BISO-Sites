@@ -651,6 +651,16 @@ describe("ExpenseSplitView failed scan", () => {
     expect(added.typeState).toBe("needs_choice");
   });
 
+  it("the scan request carries the selected department", async () => {
+    uploadOk();
+    fetchFormData.mockRejectedValue(new Error("boom"));
+    await renderView();
+    await upload();
+
+    const [, init] = fetchFormData.mock.calls[0];
+    expect((init.body as FormData).get("departmentId")).toBe("dept-1");
+  });
+
   it("a failed upload stays an error", async () => {
     vi.mocked(uploadExpenseAttachment).mockResolvedValue({
       success: false,
