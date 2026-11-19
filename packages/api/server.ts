@@ -1,6 +1,6 @@
 "use server";
 
-import { startSpan } from "@sentry/core";
+import { isEnabled, startSpan } from "@sentry/core";
 import { cookies, headers } from "next/headers";
 import {
   Account,
@@ -13,6 +13,7 @@ import {
   Teams,
   Users,
 } from "node-appwrite";
+import { spanNameForAppwriteRequest } from "./appwrite-span-name";
 import { appwriteErrorStatus } from "./errors";
 import { withUniqueSelects } from "./select-queries";
 import {
@@ -263,6 +264,40 @@ function isAbortError(error: unknown): boolean {
   );
 }
 
+/**
+ * Runs one Appwrite request, logs it when slow, and turns an abort (our
+ * deadline signal) into a 504 AppwriteException the callers handle.
+ *
+ * Durations use `performance.now()`, not `Date.now()`: these clients run
+ * while Next.js prerenders with Cache Components, and a wall-clock read there
+ * fails the render ("blocking-prerender-current-time").
+ */
+async function runTimed<T>(
+  kind: AppwriteClientKind,
+  request: string,
+  run: () => Promise<T>
+): Promise<T> {
+  const startedAt = performance.now();
+  try {
+    const result = await run();
+    logAppwriteTiming(kind, request, performance.now() - startedAt, "ok");
+    return result;
+  } catch (error) {
+    if (isAbortError(error)) {
+      logAppwriteTiming(
+        kind,
+        request,
+        performance.now() - startedAt,
+        "timeout"
+      );
+      throw createAppwriteTimeoutError(kind, request);
+    }
+
+    logAppwriteTiming(kind, request, performance.now() - startedAt, "error");
+    throw error;
+  }
+}
+
 function configureServerClient(
   client: Client,
   kind: AppwriteClientKind
@@ -294,54 +329,28 @@ function configureServerClient(
     };
   };
 
-  // Durations use `performance.now()`, not `Date.now()`: these clients run
-  // while Next.js prerenders with Cache Components, and a wall-clock read
-  // there fails the render ("blocking-prerender-current-time").
-  //
   // node-appwrite talks through npm `undici`, which Sentry's automatic fetch
-  // instrumentation does not see on Bun, so each call gets its own span here.
-  // Without an initialised Sentry client `startSpan` just runs the callback.
+  // instrumentation does not see on Bun, so each call gets its own span here,
+  // but only while Sentry is on; otherwise the call runs exactly as before.
   const instrument = <T>(
     method: string,
     url: URL | string,
     run: () => Promise<T>
   ): Promise<T> => {
     const request = describeAppwriteRequest(method, url);
+    if (!isEnabled()) {
+      return runTimed(kind, request, run);
+    }
     return startSpan(
       {
         attributes: {
           "appwrite.client": kind,
           "http.request.method": method.toUpperCase(),
         },
-        name: request,
+        name: spanNameForAppwriteRequest(request),
         op: "http.client",
       },
-      async () => {
-        const startedAt = performance.now();
-        try {
-          const result = await run();
-          logAppwriteTiming(kind, request, performance.now() - startedAt, "ok");
-          return result;
-        } catch (error) {
-          if (isAbortError(error)) {
-            logAppwriteTiming(
-              kind,
-              request,
-              performance.now() - startedAt,
-              "timeout"
-            );
-            throw createAppwriteTimeoutError(kind, request);
-          }
-
-          logAppwriteTiming(
-            kind,
-            request,
-            performance.now() - startedAt,
-            "error"
-          );
-          throw error;
-        }
-      }
+      () => runTimed(kind, request, run)
     );
   };
 
