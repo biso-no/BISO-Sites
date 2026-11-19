@@ -171,12 +171,77 @@ describe("aggregateUsage", () => {
     expect(projects.get("P1")?.peakDate).toBe("2026-02-20");
   });
 
-  it("the earliest of two equally busy stretches wins", () => {
+  it("the later of two equally busy stretches wins", () => {
     const { projects } = aggregateUsage([
       line({ amount: 400, date: "2026-02-10" }),
       line({ amount: 400, date: "2026-08-10" }),
     ]);
-    expect(projects.get("P1")?.peakDate).toBe("2026-02-10");
+    expect(projects.get("P1")?.peakDate).toBe("2026-08-10");
+  });
+
+  it("a later stretch at least half as busy as the busiest is the peak", () => {
+    // Spring preparations, then the autumn event.
+    const { projects } = aggregateUsage([
+      line({ amount: 1000, date: "2026-03-10" }),
+      line({ amount: 500, date: "2026-09-20" }),
+      line({ amount: 50, date: "2026-11-01" }),
+    ]);
+    expect(projects.get("P1")?.peakDate).toBe("2026-09-20");
+  });
+
+  it("a later stretch under half the busiest is not the peak", () => {
+    const { projects } = aggregateUsage([
+      line({ amount: 1000, date: "2026-03-10" }),
+      line({ amount: 499, date: "2026-09-20" }),
+    ]);
+    expect(projects.get("P1")?.peakDate).toBe("2026-03-10");
+  });
+
+  it("the peak of the last big stretch is its busiest two weeks", () => {
+    const { projects } = aggregateUsage([
+      line({ amount: 1000, date: "2026-03-10" }),
+      line({ amount: 300, date: "2026-09-01" }),
+      line({ amount: 900, date: "2026-09-20" }),
+      line({ amount: 300, date: "2026-10-20" }),
+    ]);
+    expect(projects.get("P1")?.peakDate).toBe("2026-09-20");
+  });
+
+  it("with the year known, only lines in the edition's own window make the peak", () => {
+    const lines = [
+      line({ amount: 1000, date: "2025-03-01" }),
+      // A large late invoice the year after.
+      line({ amount: 5000, date: "2026-02-01" }),
+    ];
+    expect(aggregateUsage(lines).projects.get("P1")?.peakDate).toBe(
+      "2026-02-01"
+    );
+    const { projects } = aggregateUsage(lines, () => 2025);
+    expect(projects.get("P1")).toEqual({
+      firstLineDate: "2025-03-01",
+      lastLineDate: "2026-02-01",
+      lineCount: 2,
+      peakDate: "2025-03-01",
+    });
+  });
+
+  it("an edition's window starts 1 July the year before", () => {
+    const { projects } = aggregateUsage(
+      [
+        line({ amount: 900, date: "2025-06-20" }),
+        line({ amount: 100, date: "2025-07-10" }),
+      ],
+      () => 2026
+    );
+    expect(projects.get("P1")?.peakDate).toBe("2025-07-10");
+  });
+
+  it("with no lines in its own window, all lines make the peak", () => {
+    const { projects } = aggregateUsage(
+      [line({ amount: 500, date: "2026-03-01" })],
+      () => 2028
+    );
+    expect(projects.get("P1")?.peakDate).toBe("2026-03-01");
   });
 
   it("a project whose lines sum to nothing has no peak date", () => {
@@ -887,6 +952,161 @@ describe("editionTiming", () => {
       series: "kd",
     });
     expect(timing.editions.map((e) => e.projectId)).toEqual(["K26"]);
+    expect(timing.missing).toEqual({ series: "kd", year: 2027 });
+  });
+});
+
+describe("editionTiming's missing year", () => {
+  it("is the first year whose event is still to come", () => {
+    const editions = [
+      named("121", "Business og projects samling 2025", {
+        line_count: 40,
+        peak_date: "2025-08-29T00:00:00.000+00:00",
+      }),
+    ];
+    const series = "business og projects samling";
+    // The 2026 gathering would have been in August, so it is 2027's turn.
+    expect(
+      editionTiming({ editions, receiptDate: "2026-11-19", series }).missing
+    ).toEqual({ series, year: 2027 });
+    expect(
+      editionTiming({ editions, receiptDate: "2026-03-01", series }).missing
+    ).toEqual({ series, year: 2026 });
+  });
+
+  it("follows an edition dated by the month in its name", () => {
+    const timing = editionTiming({
+      editions: [named("T25", "TRD Tivoli Studentfestival august 2025")],
+      receiptDate: "2026-11-19",
+      series: "trd tivoli studentfestival",
+    });
+    expect(timing.missing).toEqual({
+      series: "trd tivoli studentfestival",
+      year: 2027,
+    });
+  });
+
+  it("follows the latest of two editions in the newest year", () => {
+    const timing = editionTiming({
+      editions: [
+        named("H3", "HR samling mars 2026"),
+        named("H4", "HR samling 2026 oktober"),
+      ],
+      receiptDate: "2026-11-19",
+      series: "hr samling",
+    });
+    expect(timing.missing).toEqual({ series: "hr samling", year: 2027 });
+  });
+});
+
+/** `YYYY-MM-DD amount` pairs, comma-separated, as one cost line each. */
+function dailyLines(projectId: string, days: string): CostLine[] {
+  return days.split(",").map((pair) => {
+    const [date, amount] = pair.trim().split(" ");
+    return line({ amount: Number(amount), date, projectId });
+  });
+}
+
+// KD's real bookings in Finago (read 2026-11-19), summed per day and rounded
+// to 100 kr. KD spends twice a year: spring, then the autumn event.
+const KD_2024 =
+  "2024-11-27 3600, 2024-12-31 6000, 2025-07-01 300, 2025-12-31 1900";
+const KD_2025 = `
+  2024-11-30 1400, 2024-12-19 5900, 2024-12-31 36000, 2025-01-21 10400,
+  2025-01-23 1700, 2025-01-30 2500, 2025-01-31 8200, 2025-02-01 72300,
+  2025-02-05 24900, 2025-02-06 200, 2025-02-07 200, 2025-02-13 100,
+  2025-02-28 6200, 2025-03-01 299300, 2025-03-04 200, 2025-03-05 500,
+  2025-03-07 19700, 2025-03-10 1500, 2025-03-11 4000, 2025-03-12 66800,
+  2025-03-19 83800, 2025-03-21 5300, 2025-03-24 5000, 2025-03-28 7000,
+  2025-03-31 3900, 2025-04-02 12900, 2025-04-03 2900, 2025-04-10 502800,
+  2025-04-11 22900, 2025-05-13 6300, 2025-05-22 8700, 2025-06-07 6700,
+  2025-06-13 26700, 2025-08-02 200, 2025-08-12 54300, 2025-08-13 16100,
+  2025-08-20 1300, 2025-08-27 6800, 2025-08-31 3500, 2025-09-04 16500,
+  2025-09-05 21400, 2025-09-12 6200, 2025-09-13 5200, 2025-09-14 8400,
+  2025-09-15 5200, 2025-09-16 9000, 2025-09-17 7700, 2025-09-18 3600,
+  2025-09-19 8500, 2025-09-21 2000, 2025-09-22 7400, 2025-09-23 4500,
+  2025-09-24 24200, 2025-09-25 14000, 2025-09-30 341300, 2025-10-04 32300,
+  2025-10-05 1600, 2025-10-08 1600, 2025-10-16 1200, 2025-10-19 600,
+  2025-10-21 600, 2025-10-27 30000, 2025-11-15 1200, 2026-03-06 1300`;
+const KD_2026 = `
+  2025-08-25 3900, 2025-09-01 2100, 2025-09-17 13500, 2025-09-18 500,
+  2025-10-02 100, 2025-10-16 600, 2025-10-20 600, 2025-10-23 600,
+  2025-10-31 6900, 2025-11-20 1600, 2025-12-17 15400, 2025-12-27 13500,
+  2026-01-20 700, 2026-01-23 7900, 2026-01-31 1400, 2026-02-02 100,
+  2026-02-03 24500, 2026-02-04 12800, 2026-02-05 1100, 2026-02-06 2600,
+  2026-02-07 12200, 2026-02-13 2000, 2026-02-14 500, 2026-02-23 3700,
+  2026-02-24 5800, 2026-02-26 5400, 2026-02-27 8600, 2026-02-28 3400,
+  2026-03-01 53400, 2026-03-03 200, 2026-03-04 900, 2026-03-05 4600,
+  2026-03-06 39800, 2026-03-07 200, 2026-03-08 1300, 2026-03-09 1000,
+  2026-03-10 4600, 2026-03-11 5000, 2026-03-16 4800, 2026-03-18 302600,
+  2026-03-19 204600, 2026-03-20 11100, 2026-03-21 9100, 2026-03-22 700,
+  2026-03-25 52200, 2026-03-26 25200, 2026-03-30 9500, 2026-03-31 64800,
+  2026-04-16 200, 2026-04-17 3000, 2026-04-25 100, 2026-04-30 2600,
+  2026-05-25 100, 2026-05-31 1200, 2026-06-08 20000, 2026-06-25 100,
+  2026-07-25 100, 2026-08-25 100, 2026-08-26 1400, 2026-08-29 8100,
+  2026-08-31 500, 2026-09-01 47300, 2026-09-02 1300, 2026-09-03 5400,
+  2026-09-10 11200, 2026-09-14 1300, 2026-09-16 23600, 2026-09-17 8500,
+  2026-09-18 4200, 2026-09-21 12800, 2026-09-22 7100, 2026-09-23 5700,
+  2026-09-24 47600, 2026-09-25 21100, 2026-09-28 407600, 2026-09-29 7500,
+  2026-09-30 174700, 2026-10-01 89000, 2026-10-05 2500, 2026-10-14 1000,
+  2026-10-25 100, 2026-10-26 32300, 2026-10-30 29600`;
+
+describe("KD's real bookings, two peaks a year", () => {
+  const booked = new Map([
+    ["84", "KD 2024"],
+    ["106", "KD 2025"],
+    ["122", "KD 2026"],
+  ]);
+  const { projects: stats } = aggregateUsage(
+    [
+      ...dailyLines("84", KD_2024),
+      ...dailyLines("106", KD_2025),
+      ...dailyLines("122", KD_2026),
+    ],
+    (projectId) => parseProjectName(booked.get(projectId) ?? "").year
+  );
+  const editions = [
+    // Older editions are in Finago without lines in the last 24 months.
+    ...["2018", "2019", "2020", "2021", "2022", "2023"].map((year) =>
+      named(`K${year}`, `KD ${year}`)
+    ),
+    ...[...booked].map(([projectId, name]) => {
+      const s = stats.get(projectId);
+      return named(projectId, name, {
+        first_line_date: s?.firstLineDate ?? null,
+        last_line_date: s?.lastLineDate ?? null,
+        line_count: s?.lineCount ?? 0,
+        peak_date: s?.peakDate ?? null,
+      });
+    }),
+  ];
+
+  it("KD 2025's event is its autumn peak, not the bigger spring one", () => {
+    expect(stats.get("106")?.peakDate).toBe("2025-09-28");
+  });
+
+  it("a receipt in mid-September belongs to KD 2026", () => {
+    const timing = editionTiming({
+      editions,
+      receiptDate: "2026-09-15",
+      series: "kd",
+    });
+    expect(timing.editions.find((e) => e.projectId === "122")).toMatchObject({
+      eventDate: "2026-09-28",
+      eventDateSource: "bookings",
+    });
+    expect(timing.suggested).toBe("122");
+    expect(timing.missing).toBeNull();
+  });
+
+  it("a receipt in November reports KD 2027 missing", () => {
+    const timing = editionTiming({
+      editions,
+      receiptDate: "2026-11-19",
+      series: "kd",
+    });
+    expect(timing.suggested).toBeNull();
+    expect(timing.recentlyHeld).toBeNull();
     expect(timing.missing).toEqual({ series: "kd", year: 2027 });
   });
 });

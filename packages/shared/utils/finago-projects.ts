@@ -44,6 +44,21 @@ function newYear(year: number): number {
   return Date.UTC(year, 0, 1) / DAY_MS;
 }
 
+/** An edition's own spending counts from 1 July (month index 6) of the year before. */
+const EDITION_FROM_MONTH = 6;
+
+/**
+ * The days an edition's own spending falls in: 1 July of the year before
+ * through 31 December of its year. Late invoices months after, or stray lines
+ * years later, fall outside.
+ */
+function editionWindow(year: number): { from: number; through: number } {
+  return {
+    from: Date.UTC(year - 1, EDITION_FROM_MONTH, 1) / DAY_MS,
+    through: newYear(year + 1) - 1,
+  };
+}
+
 // --- Names ------------------------------------------------------------------
 
 const FOUR_DIGIT_YEAR = /(?<!\d)(?:19|20)\d{2}(?!\d)/;
@@ -188,7 +203,10 @@ export interface ProjectStats {
   firstLineDate: string;
   lastLineDate: string;
   lineCount: number;
-  /** Middle day of the busiest 14 days by amount; null when nothing moved. */
+  /**
+   * Middle day of the latest big 14-day stretch of spending (see
+   * `peakDay`); null when nothing moved.
+   */
   peakDate: string | null;
 }
 
@@ -222,51 +240,93 @@ interface DatedAmount {
   day: number;
 }
 
-/**
- * The middle day of the 14-day window with the largest sum of absolute
- * amounts. Every window start is tried (in whole øre, so ties are exact).
- * When neighbouring windows tie (one big day sits in 14 of them), the middle
- * of that run is taken, so a single busy day is its own peak; between
- * separate equally busy stretches the earliest wins.
- */
-function peakDay(lines: DatedAmount[]): number | null {
+/** Sum of absolute amounts per day, in whole øre so ties are exact. */
+function centsPerDay(lines: DatedAmount[]): Map<number, number> {
   const perDay = new Map<number, number>();
   for (const { amount, day } of lines) {
     const cents = Math.round(Math.abs(amount) * CENTS);
     perDay.set(day, (perDay.get(day) ?? 0) + cents);
   }
-  const days = [...perDay.keys()];
-  const first = Math.min(...days);
-  const last = Math.max(...days);
-
-  let sum = 0;
-  let best = 0;
-  let runStart = first;
-  let runEnd = first;
-  let inBestRun = false;
-  for (let start = first - PEAK_WINDOW_DAYS + 1; start <= last; start += 1) {
-    sum += perDay.get(start + PEAK_WINDOW_DAYS - 1) ?? 0;
-    sum -= perDay.get(start - 1) ?? 0;
-    if (sum > best) {
-      best = sum;
-      runStart = start;
-      runEnd = start;
-      inBestRun = true;
-    } else if (inBestRun && sum === best) {
-      runEnd = start;
-    } else {
-      inBestRun = false;
-    }
-  }
-  if (best === 0) {
-    return null;
-  }
-  return Math.floor((runStart + runEnd) / 2) + PEAK_MIDDLE;
+  return perDay;
 }
 
-function projectStats(lines: DatedAmount[]): ProjectStats {
+/**
+ * The index of the middle of the busiest window in `sums[from..to]`. When
+ * neighbouring windows tie (one big day sits in 14 of them), the middle of
+ * that run is taken, so a single busy day is its own peak.
+ */
+function busiestMiddle(sums: number[], from: number, to: number): number {
+  let top = -1;
+  let runStart = from;
+  let runEnd = from;
+  let inTopRun = false;
+  for (let index = from; index <= to; index += 1) {
+    const sum = sums[index] ?? 0;
+    if (sum > top) {
+      top = sum;
+      runStart = index;
+      runEnd = index;
+      inTopRun = true;
+    } else if (inTopRun && sum === top) {
+      runEnd = index;
+    } else {
+      inTopRun = false;
+    }
+  }
+  return Math.floor((runStart + runEnd) / 2);
+}
+
+/**
+ * The day an edition's spending points to as its event: the middle of the
+ * LATEST big stretch, where a 14-day window is big when its sum of absolute
+ * amounts is at least half the busiest window's. A series that spends twice
+ * a year (spring preparations, the autumn event) is placed at its last big
+ * stretch, not at its single biggest. Within that stretch (big windows in a
+ * row) its busiest window counts.
+ */
+function peakDay(lines: DatedAmount[]): number | null {
+  const perDay = centsPerDay(lines);
+  const days = [...perDay.keys()];
+  const firstStart = Math.min(...days) - PEAK_WINDOW_DAYS + 1;
+  const last = Math.max(...days);
+
+  // sums[i] covers the 14 days from firstStart + i.
+  const sums: number[] = [];
+  let sum = 0;
+  for (let start = firstStart; start <= last; start += 1) {
+    sum += perDay.get(start + PEAK_WINDOW_DAYS - 1) ?? 0;
+    sum -= perDay.get(start - 1) ?? 0;
+    sums.push(sum);
+  }
+  const busiest = Math.max(...sums);
+  if (busiest === 0) {
+    return null;
+  }
+  const isBig = (index: number) => (sums[index] ?? 0) * 2 >= busiest;
+  let end = sums.length - 1;
+  while (!isBig(end)) {
+    end -= 1;
+  }
+  let begin = end;
+  while (begin > 0 && isBig(begin - 1)) {
+    begin -= 1;
+  }
+  return firstStart + busiestMiddle(sums, begin, end) + PEAK_MIDDLE;
+}
+
+/**
+ * Line count, first/last line and peak. With the edition's year known, the
+ * peak comes from the lines in its own window (all lines when none are).
+ */
+function projectStats(lines: DatedAmount[], year: number | null): ProjectStats {
   const days = lines.map((line) => line.day);
-  const peak = peakDay(lines);
+  const window = year === null ? null : editionWindow(year);
+  const own = window
+    ? lines.filter(
+        (line) => line.day >= window.from && line.day <= window.through
+      )
+    : [];
+  const peak = peakDay(own.length > 0 ? own : lines);
   return {
     firstLineDate: isoDay(Math.min(...days)),
     lastLineDate: isoDay(Math.max(...days)),
@@ -320,8 +380,13 @@ function countUsage(
  * department: line count and first/last line. Per department: lines in all
  * and lines with a project (its project share). Lines without a department
  * count for their project only; lines without a valid date are skipped.
+ * `yearOf` gives a project's year (from its name), so its peak is read from
+ * its own window.
  */
-export function aggregateUsage(lines: CostLine[]): UsageSummary {
+export function aggregateUsage(
+  lines: CostLine[],
+  yearOf: (projectId: string) => number | null = () => null
+): UsageSummary {
   const perProject = new Map<string, DatedAmount[]>();
   const usage = new Map<string, UsageStats>();
   const departmentShare = new Map<string, DepartmentShare>();
@@ -348,7 +413,7 @@ export function aggregateUsage(lines: CostLine[]): UsageSummary {
 
   const projects = new Map<string, ProjectStats>();
   for (const [projectId, dated] of perProject) {
-    projects.set(projectId, projectStats(dated));
+    projects.set(projectId, projectStats(dated, yearOf(projectId)));
   }
   return { departmentShare, projects, usage };
 }
@@ -441,8 +506,6 @@ export function departmentCandidates(input: {
 export const RECENTLY_HELD_DAYS = 30;
 /** The day an event is placed on when its name gives only the month. */
 const NAME_MONTH_DAY = 15;
-/** A past edition's peak counts from 1 July (month index 6) of the year before. */
-const PLAUSIBLE_FROM_MONTH = 6;
 
 export type EventDateSource = "finance" | "website" | "name" | "bookings";
 
@@ -458,7 +521,10 @@ export interface SeriesTiming {
   editions: EditionTiming[];
   /** The next edition when it is closed in Finago, so nothing is suggested. */
   inactiveNext: string | null;
-  /** Next year's edition, when the receipt is after every edition and it isn't in Finago yet. */
+  /**
+   * When the receipt is after every edition: the first later year whose
+   * event is still to come (it isn't in Finago yet).
+   */
   missing: { series: string; year: number } | null;
   /** An active edition held within 30 days before the receipt. */
   recentlyHeld: string | null;
@@ -515,18 +581,13 @@ function ownEventDay(
   return null;
 }
 
-/**
- * A past edition's peak, if it is plausibly that edition's: from 1 July of
- * the year before through 31 December of its year. Late invoices months
- * after, or stray lines years later, fall outside.
- */
+/** A past edition's peak, if it lies in the edition's own window. */
 function peakInOwnWindow(edition: FinagoProjects): number | null {
   const peak = dayNumber(edition.peak_date);
   if (peak === null || edition.year === null) {
     return null;
   }
-  const from = Date.UTC(edition.year - 1, PLAUSIBLE_FROM_MONTH, 1) / DAY_MS;
-  const through = newYear(edition.year + 1) - 1;
+  const { from, through } = editionWindow(edition.year);
   return peak >= from && peak <= through ? peak : null;
 }
 
@@ -634,7 +695,11 @@ interface TimedEdition {
   timing: EditionTiming;
 }
 
-/** Next year's edition, if the receipt is past every edition of the newest year. */
+/**
+ * For a receipt dated after every edition of the newest year: the first later
+ * year whose event, on the newest edition's day of the year, falls on or
+ * after the receipt date.
+ */
 function missingEdition(
   series: string,
   timed: TimedEdition[],
@@ -647,10 +712,21 @@ function missingEdition(
     return null;
   }
   const newest = Math.max(...years);
-  const newestHeld = timed
+  const newestDays = timed
     .filter((t) => t.edition.year === newest)
-    .every((t) => t.day !== null && t.day < receipt);
-  return newestHeld ? { series, year: newest + 1 } : null;
+    .map((t) => t.day);
+  const held = newestDays.flatMap((day) =>
+    day !== null && day < receipt ? [day] : []
+  );
+  if (held.length < newestDays.length) {
+    return null;
+  }
+  const offset = Math.max(...held) - newYear(newest);
+  let year = newest + 1;
+  while (newYear(year) + offset < receipt) {
+    year += 1;
+  }
+  return { series, year };
 }
 
 /**
@@ -660,8 +736,8 @@ function missingEdition(
  * (editions without a year get none).
  * A receipt belongs to the next edition not yet held on its date; an edition
  * held in the 30 days before is `recentlyHeld` (after-event costs, decided
- * from the receipt's content). If every edition is already held, next
- * year's edition is `missing` instead of last year's being suggested.
+ * from the receipt's content). If every edition is already held, the next
+ * edition still to come is `missing` instead of last year's being suggested.
  * Inactive editions are never suggested or recently held; a closed next
  * edition is reported as `inactiveNext`.
  */
