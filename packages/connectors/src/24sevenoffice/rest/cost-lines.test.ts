@@ -57,6 +57,7 @@ describe("listCostLines", () => {
         date: "2026-03-04",
         departmentId: "7",
         projectId: "42",
+        projectName: "Gala",
       },
     ]);
   });
@@ -75,6 +76,7 @@ describe("listCostLines", () => {
     ]);
     const lines = await listCostLines({ accountNumbers: [6300], ...range });
     expect(lines[0]?.projectId).toBeNull();
+    expect(lines[0]?.projectName).toBeNull();
     expect(lines[0]?.departmentId).toBe("7");
     expect(lines[1]).toMatchObject({ projectId: null, departmentId: null });
   });

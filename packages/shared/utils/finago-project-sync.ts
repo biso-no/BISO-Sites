@@ -51,8 +51,11 @@ export interface SyncResult {
   departments: number;
   inactive: number;
   partial: boolean;
+  /** Projects on Finago's active list. */
   projects: number;
   usageRows: number;
+  /** Project rows written: the listed ones plus deactivated editions with lines. */
+  written: number;
 }
 
 const DB = "app";
@@ -154,9 +157,20 @@ async function fetchLines(
   const started = Date.now();
   const { from, to } = windowOf(deps.now);
   const lines: CostLine[] = [];
-  for (const account of accounts) {
+  // Start somewhere new each night so a recurring timeout doesn't always
+  // skip the same trailing accounts.
+  const offset =
+    accounts.length > 0
+      ? Math.floor(deps.now.getTime() / DAY_MS) % accounts.length
+      : 0;
+  const rotated = [...accounts.slice(offset), ...accounts.slice(0, offset)];
+  let completed = 0;
+  for (const account of rotated) {
     const remaining = budgetMs - (Date.now() - started);
     if (remaining <= 0) {
+      console.warn(
+        `[Finago Project Sync] Ran out of time after ${completed} of ${accounts.length} accounts`
+      );
       return { lines, partial: true };
     }
     const signal = AbortSignal.timeout(remaining);
@@ -169,14 +183,82 @@ async function fetchLines(
           to,
         }))
       );
+      completed += 1;
     } catch (error) {
       if (signal.aborted) {
+        console.warn(
+          `[Finago Project Sync] Ran out of time after ${completed} of ${accounts.length} accounts`
+        );
         return { lines, partial: true };
       }
       throw error;
     }
   }
+  console.log(
+    `[Finago Project Sync] Read ${completed} of ${accounts.length} accounts`
+  );
   return { lines, partial: false };
+}
+
+function asNumber(value: unknown): number {
+  return typeof value === "number" ? value : 0;
+}
+
+function asDay(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0
+    ? value.slice(0, 10)
+    : null;
+}
+
+/** The earlier or later of two ISO days; either may be missing. */
+function widerDay(
+  a: string | null,
+  b: string | null,
+  pick: "min" | "max"
+): string | null {
+  if (a === null || b === null) {
+    return a ?? b;
+  }
+  if (pick === "min") {
+    return a < b ? a : b;
+  }
+  return a > b ? a : b;
+}
+
+/**
+ * Stats for an existing row on a partial run: what was read may be less than
+ * before, so counts and date spans never shrink.
+ */
+function widenStats(
+  existing: SyncRow,
+  fresh: {
+    firstLineDate: string;
+    lastLineDate: string;
+    lineCount: number;
+    peakDate?: string | null;
+  }
+): Data {
+  const oldCount = asNumber(existing.line_count);
+  const data: Data = {
+    first_line_date: widerDay(
+      asDay(existing.first_line_date),
+      fresh.firstLineDate,
+      "min"
+    ),
+    last_line_date: widerDay(
+      asDay(existing.last_line_date),
+      fresh.lastLineDate,
+      "max"
+    ),
+    line_count: Math.max(oldCount, fresh.lineCount),
+  };
+  if (fresh.peakDate !== undefined) {
+    data.peak_date =
+      fresh.lineCount >= oldCount
+        ? fresh.peakDate
+        : (asDay(existing.peak_date) ?? fresh.peakDate);
+  }
+  return data;
 }
 
 async function upsert(
@@ -207,35 +289,64 @@ export async function syncFinagoProjects(
   const summary = aggregateUsage(lines);
   const syncedAt = deps.now.toISOString();
 
+  const lineNames = new Map<string, string>();
+  for (const line of lines) {
+    if (line.projectId && line.projectName && !lineNames.has(line.projectId)) {
+      lineNames.set(line.projectId, line.projectName);
+    }
+  }
+  const listedIds = new Set(list.map((p) => p.projectId));
   const existingProjects = new Map(
     (
-      await findByValues(
-        db,
-        "finago_projects",
-        "project_id",
-        list.map((p) => p.projectId)
-      )
+      await findByValues(db, "finago_projects", "project_id", [
+        ...new Set([...listedIds, ...summary.projects.keys()]),
+      ])
     ).map((row) => [String(row.project_id), row])
   );
-  await inBatches(list, (project) => {
+
+  // The element list is active-only, so editions finance has closed show up
+  // only in the lines: keep their history as inactive rows.
+  const targets: { active: boolean; name: string; projectId: string }[] = [
+    ...list.map((p) => ({ active: true, ...p })),
+  ];
+  for (const projectId of summary.projects.keys()) {
+    if (listedIds.has(projectId)) {
+      continue;
+    }
+    const name = existingProjects.has(projectId)
+      ? String(existingProjects.get(projectId)?.name ?? "")
+      : (lineNames.get(projectId) ?? "");
+    if (name) {
+      targets.push({ active: false, name, projectId });
+    }
+  }
+
+  await inBatches(targets, (project) => {
+    const existing = existingProjects.get(project.projectId);
     const stats = summary.projects.get(project.projectId);
     const { series, year } = parseProjectName(project.name);
     const data: Data = {
-      active: true,
       name: project.name,
       project_id: project.projectId,
       series,
       synced_at: syncedAt,
       year,
     };
-    if (stats) {
+    if (project.active) {
+      data.active = true;
+    } else if (!existing) {
+      data.active = false;
+    }
+    if (stats && existing && partial) {
+      Object.assign(data, widenStats(existing, stats));
+    } else if (stats) {
       Object.assign(data, {
         first_line_date: stats.firstLineDate,
         last_line_date: stats.lastLineDate,
         line_count: stats.lineCount,
         peak_date: stats.peakDate,
       });
-    } else if (!(partial && existingProjects.has(project.projectId))) {
+    } else if (!(partial && existing)) {
       Object.assign(data, {
         first_line_date: null,
         last_line_date: null,
@@ -243,12 +354,7 @@ export async function syncFinagoProjects(
         peak_date: null,
       });
     }
-    return upsert(
-      db,
-      "finago_projects",
-      existingProjects.get(project.projectId),
-      data
-    );
+    return upsert(db, "finago_projects", existing, data);
   });
 
   const usageProjectIds = [
@@ -267,16 +373,23 @@ export async function syncFinagoProjects(
       row,
     ])
   );
-  await inBatches([...summary.usage.entries()], ([key, u]) =>
-    upsert(db, "finago_project_usage", existingUsage.get(key), {
+  await inBatches([...summary.usage.entries()], ([key, u]) => {
+    const existing = existingUsage.get(key);
+    const stats =
+      existing && partial
+        ? widenStats(existing, u)
+        : {
+            first_line_date: u.firstLineDate,
+            last_line_date: u.lastLineDate,
+            line_count: u.lineCount,
+          };
+    return upsert(db, "finago_project_usage", existing, {
+      ...stats,
       department_id: u.departmentId,
-      first_line_date: u.firstLineDate,
-      last_line_date: u.lastLineDate,
-      line_count: u.lineCount,
       project_id: u.projectId,
       synced_at: syncedAt,
-    })
-  );
+    });
+  });
 
   let inactive = 0;
   let departments = 0;
@@ -311,5 +424,6 @@ export async function syncFinagoProjects(
     partial,
     projects: list.length,
     usageRows: summary.usage.size,
+    written: targets.length,
   };
 }

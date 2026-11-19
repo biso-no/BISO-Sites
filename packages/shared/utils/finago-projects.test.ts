@@ -20,6 +20,7 @@ function line(over: Partial<CostLine> = {}): CostLine {
     date: "2026-03-01",
     departmentId: "D1",
     projectId: "P1",
+    projectName: null,
     ...over,
   };
 }

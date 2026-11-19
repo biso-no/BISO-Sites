@@ -13,6 +13,8 @@ export interface CostLine {
   date: string;
   departmentId: string | null;
   projectId: string | null;
+  /** The project dimension's name on the line, when it carries one. */
+  projectName: string | null;
 }
 
 const PAGE_LIMIT = 1000;
@@ -87,6 +89,9 @@ export async function listCostLines(input: {
           date: line.date,
           departmentId: idOf(DEPARTMENT_DIMENSION_TYPE),
           projectId: idOf(PROJECT_DIMENSION_TYPE),
+          projectName:
+            dimensions.find((d) => d.dimensionType === PROJECT_DIMENSION_TYPE)
+              ?.name ?? null,
         });
       }
       page = nextPage(response.headers.get("Link"), page ?? 1);

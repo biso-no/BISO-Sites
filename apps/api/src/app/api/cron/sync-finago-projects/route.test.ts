@@ -44,6 +44,7 @@ describe("POST /api/cron/sync-finago-projects", () => {
       partial: false,
       projects: 5,
       usageRows: 7,
+      written: 6,
     };
     sync.mockResolvedValue(counts);
     const response = await POST(request({ authorization: `Bearer ${SECRET}` }));

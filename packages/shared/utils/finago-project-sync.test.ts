@@ -65,6 +65,7 @@ const line = (o: Record<string, unknown>) => ({
   date: "2026-05-01",
   departmentId: "d1",
   projectId: "p1",
+  projectName: null,
   ...o,
 });
 const base = {
@@ -89,6 +90,7 @@ describe("syncFinagoProjects", () => {
       partial: false,
       projects: 1,
       usageRows: 1,
+      written: 1,
     });
     expect(tables.finago_projects[0]).toMatchObject({
       active: true,
