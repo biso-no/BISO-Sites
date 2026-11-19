@@ -49,6 +49,7 @@ export default async function ExpenseAiSettingsPage() {
       labels={{
         ai: t("tabAi"),
         approvers: t("tabApprovers"),
+        projects: t("tabProjects"),
         types: t("tabTypes"),
       }}
       showGlobalTabs

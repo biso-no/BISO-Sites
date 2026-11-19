@@ -1683,6 +1683,7 @@
     "syncError": "Could not sync accounts",
     "tabApprovers": "Approvers",
     "tabAi": "AI",
+    "tabProjects": "Projects",
     "ai": {
       "description": "How often the AI's expense type was kept, and the own texts people keep typing instead.",
       "window30": "Last 30 days",
@@ -1779,6 +1780,35 @@
         "admin": "Admin",
         "confirmed": "Confirmed"
       }
+    },
+    "projects": {
+      "description": "The projects synced from Finago. The event date is what the AI uses to work out which project a receipt belongs to. If you set one, it wins over every other source.",
+      "sync": "Sync projects from Finago",
+      "syncing": "Syncing…",
+      "syncDone": "Synced {count} projects.",
+      "syncPartial": "Partly synced ({count} projects). The nightly run finishes it.",
+      "syncError": "Could not sync projects. Try again, or wait for the nightly run.",
+      "lastSynced": "Last full sync: {time}",
+      "neverSynced": "No full sync has finished yet.",
+      "department": "Department",
+      "allDepartments": "All departments",
+      "none": "No projects yet. Sync from Finago to fetch them.",
+      "noMatch": "No projects for this department.",
+      "year": "Year",
+      "usedBy": "Used by",
+      "noUsers": "No bookings yet",
+      "firstBooking": "First booking",
+      "lastBooking": "Last booking",
+      "peak": "Busiest day",
+      "eventDate": "Event date",
+      "notSet": "Not set",
+      "save": "Save",
+      "clear": "Clear",
+      "saved": "Event date saved",
+      "cleared": "Event date cleared",
+      "saveError": "Could not save the event date",
+      "invalidDate": "That is not a real date.",
+      "loadError": "Could not load projects. Try again later."
     }
   },
   "shopAccounting": {

@@ -1683,6 +1683,7 @@
     "syncError": "Kunne ikke synkronisere kontoer",
     "tabApprovers": "Godkjennere",
     "tabAi": "AI",
+    "tabProjects": "Prosjekter",
     "ai": {
       "description": "Hvor ofte AI-ens utgiftstype ble beholdt, og egentekstene folk skriver i stedet.",
       "window30": "Siste 30 dager",
@@ -1779,6 +1780,35 @@
         "admin": "Admin",
         "confirmed": "Bekreftet"
       }
+    },
+    "projects": {
+      "description": "Prosjektene som er hentet fra Finago. Arrangementsdatoen brukes av AI-en til å finne ut hvilket prosjekt en kvittering hører til. Hvis du setter en dato, går den foran alle andre kilder.",
+      "sync": "Hent prosjekter fra Finago",
+      "syncing": "Henter…",
+      "syncDone": "Hentet {count} prosjekter.",
+      "syncPartial": "Delvis hentet ({count} prosjekter). Den nattlige kjøringen fullfører resten.",
+      "syncError": "Kunne ikke hente prosjekter. Prøv igjen, eller vent på den nattlige kjøringen.",
+      "lastSynced": "Siste fullstendige henting: {time}",
+      "neverSynced": "Ingen fullstendig henting er gjort ennå.",
+      "department": "Avdeling",
+      "allDepartments": "Alle avdelinger",
+      "none": "Ingen prosjekter ennå. Hent dem fra Finago.",
+      "noMatch": "Ingen prosjekter for denne avdelingen.",
+      "year": "År",
+      "usedBy": "Brukt av",
+      "noUsers": "Ingen posteringer ennå",
+      "firstBooking": "Første postering",
+      "lastBooking": "Siste postering",
+      "peak": "Travleste dag",
+      "eventDate": "Arrangementsdato",
+      "notSet": "Ikke satt",
+      "save": "Lagre",
+      "clear": "Fjern",
+      "saved": "Arrangementsdato lagret",
+      "cleared": "Arrangementsdato fjernet",
+      "saveError": "Kunne ikke lagre arrangementsdatoen",
+      "invalidDate": "Det er ikke en gyldig dato.",
+      "loadError": "Kunne ikke laste prosjekter. Prøv igjen senere."
     }
   },
   "shopAccounting": {
