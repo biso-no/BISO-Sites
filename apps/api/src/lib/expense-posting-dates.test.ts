@@ -151,6 +151,39 @@ describe("postApprovedExpense booking dates", () => {
     ).toBe("25");
   });
 
+  it("booking passes each receipt's project", async () => {
+    db.getRow.mockImplementation(async (_d: string, table: string) =>
+      table === "user"
+        ? { name: "Test Student", email: "t@example.test" }
+        : {
+            ...expense,
+            expenseAttachments: [
+              { ...expense.expenseAttachments[0], project_id: "77" },
+              { ...expense.expenseAttachments[1], project_id: null },
+            ],
+          }
+    );
+    finago.getFiscalYearLocks.mockResolvedValue([]);
+    finago.listFiscalPeriods.mockResolvedValue([]);
+    finago.postExpenseTransaction.mockResolvedValue({
+      transactionId: "tx-9",
+      shifts: [],
+    });
+
+    await postApprovedExpense("exp-1");
+
+    const receipts = finago.postExpenseTransaction.mock.calls[0][0].receipts;
+    expect(
+      receipts.map((r: { ref: string; projectId: string | null }) => [
+        r.ref,
+        r.projectId,
+      ])
+    ).toEqual([
+      ["att-1", "77"],
+      ["att-2", null],
+    ]);
+  });
+
   it("books the supplier debt on the submitter's Finago customer", async () => {
     finago.getFiscalYearLocks.mockResolvedValue([]);
     finago.listFiscalPeriods.mockResolvedValue([]);

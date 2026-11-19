@@ -122,6 +122,7 @@ function buildReceiptLines(
         taxCode: att.tax_code ?? 0,
         comment: att.description ?? undefined,
         ref: att.$id,
+        projectId: att.project_id,
         date: bookingDateFor(att),
       });
       continue;
@@ -147,6 +148,7 @@ function buildReceiptLines(
       taxCode: resolved.taxCode,
       comment: att.description ?? undefined,
       ref: att.$id,
+      projectId: att.project_id,
       date: bookingDateFor(att),
     });
   }
