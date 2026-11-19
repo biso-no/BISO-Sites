@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = vi.hoisted(() => ({
+  decrementRowColumn: vi.fn(),
   incrementRowColumn: vi.fn(),
   listRows: vi.fn(),
 }));
@@ -48,6 +49,7 @@ describe("POST /api/cron/expense-check-backstop", () => {
     vi.unstubAllEnvs();
     vi.stubEnv("CRON_SECRET", SECRET);
     run.runExpenseCheck.mockResolvedValue("done");
+    db.decrementRowColumn.mockResolvedValue({});
     vi.spyOn(console, "error").mockImplementation(() => undefined);
   });
 
@@ -74,6 +76,7 @@ describe("POST /api/cron/expense-check-backstop", () => {
     expect(run.runExpenseCheck).toHaveBeenCalledWith("expense-1", {
       claim: 2,
     });
+    expect(db.decrementRowColumn).not.toHaveBeenCalled();
   });
 
   it("asks for stale queued and running checks, oldest first, five at most", async () => {
@@ -143,11 +146,19 @@ describe("POST /api/cron/expense-check-backstop", () => {
 
   it("steps aside when an overlapping tick took the row first", async () => {
     stuck([{ $id: "expense-1", check_claim: 1 }]);
-    db.incrementRowColumn.mockResolvedValue({ check_claim: 3 });
+    db.incrementRowColumn.mockResolvedValueOnce({ check_claim: 3 });
 
     const response = await POST(request());
 
     expect(run.runExpenseCheck).not.toHaveBeenCalled();
+    expect(db.decrementRowColumn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        column: "check_claim",
+        min: 0,
+        rowId: "expense-1",
+        value: 1,
+      })
+    );
     expect(await response.json()).toMatchObject({ ran: 0, skipped: 1 });
   });
 

@@ -69,6 +69,23 @@ async function takeOver(
   // since) pushed the counter further, so this one steps aside.
   const listedClaim = expense.check_claim ?? 0;
   if (claim !== listedClaim + 1) {
+    // Undo this tick's increment so the owner's run still sees its own
+    // claim. Best-effort: if it fails, the check waits for a later tick.
+    await db
+      .decrementRowColumn({
+        databaseId: "app",
+        tableId: "expense",
+        rowId: expense.$id,
+        column: "check_claim",
+        value: 1,
+        min: 0,
+      })
+      .catch((error: unknown) => {
+        console.error(
+          `${LOG_TAG} could not undo ${expense.$id}'s claim:`,
+          error
+        );
+      });
     counts.skipped += 1;
     return;
   }
