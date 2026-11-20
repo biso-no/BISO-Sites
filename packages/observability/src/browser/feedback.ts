@@ -29,6 +29,14 @@ const FEEDBACK_INTEGRATION_NAME = "Feedback";
 
 let hasWarned = false;
 
+/** The dialog in the page; each open replaces it, so there is only one. */
+let currentForm: { removeFromDom: () => void } | undefined;
+
+const removeCurrentForm = (): void => {
+  currentForm?.removeFromDom();
+  currentForm = undefined;
+};
+
 /** A client that sends nothing (no DSN) has nowhere to send a report. */
 const sendingClient = (): Client<ClientOptions> | undefined => {
   const client = getClient();
@@ -72,9 +80,21 @@ export async function openFeedbackForm(
       );
       feedback = sentry.getFeedback();
     }
-    const form = await feedback?.createForm();
-    form?.appendToDom();
-    form?.open();
+    removeCurrentForm();
+    // The integration keeps the labels it was added with, so the current ones
+    // go in on every open (the visitor may have switched language since).
+    const form = await feedback?.createForm({
+      ...labels,
+      onFormClose: removeCurrentForm,
+      // Fires once the thank-you message has been shown.
+      onFormSubmitted: removeCurrentForm,
+    });
+    if (!form) {
+      return;
+    }
+    currentForm = form;
+    form.appendToDom();
+    form.open();
   } catch (error) {
     if (!hasWarned) {
       hasWarned = true;

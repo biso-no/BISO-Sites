@@ -2,11 +2,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FeedbackLabels } from "./feedback";
 
 const sentry = vi.hoisted(() => {
-  const form = { appendToDom: vi.fn(), open: vi.fn() };
+  const makeForm = () => ({
+    appendToDom: vi.fn(),
+    open: vi.fn(),
+    removeFromDom: vi.fn(),
+  });
+  type FakeForm = ReturnType<typeof makeForm>;
+  const state = { forms: [] as FakeForm[] };
   const feedbackIntegration = vi.fn((options: Record<string, unknown>) => ({
     name: "Feedback",
     options,
-    createForm: vi.fn(() => Promise.resolve(form)),
+    createForm: vi.fn((_overrides?: Record<string, unknown>) => {
+      const form = makeForm();
+      state.forms.push(form);
+      return Promise.resolve(form);
+    }),
   }));
   type FakeFeedback = ReturnType<typeof feedbackIntegration>;
 
@@ -31,7 +41,7 @@ const sentry = vi.hoisted(() => {
   };
 
   return {
-    form,
+    state,
     makeClient,
     feedbackIntegration,
     client: undefined as ReturnType<typeof makeClient> | undefined,
@@ -73,8 +83,7 @@ beforeEach(() => {
     };
   });
   sentry.feedbackIntegration.mockClear();
-  sentry.form.appendToDom.mockClear();
-  sentry.form.open.mockClear();
+  sentry.state.forms = [];
   sentry.client = sentry.makeClient();
   sentry.imports = 0;
   sentry.failImport = false;
@@ -85,14 +94,48 @@ afterEach(() => {
 });
 
 describe("openFeedbackForm", () => {
-  it("adds the integration once across two opens and opens the form each time", async () => {
+  it("adds the integration once across two opens and opens a form each time", async () => {
     const { openFeedbackForm } = await loadFeedback();
     await openFeedbackForm("web", LABELS);
     await openFeedbackForm("web", LABELS);
     expect(sentry.feedbackIntegration).toHaveBeenCalledTimes(1);
     expect(sentry.client?.addIntegration).toHaveBeenCalledTimes(1);
-    expect(sentry.form.appendToDom).toHaveBeenCalledTimes(2);
-    expect(sentry.form.open).toHaveBeenCalledTimes(2);
+    expect(sentry.state.forms).toHaveLength(2);
+    for (const form of sentry.state.forms) {
+      expect(form.appendToDom).toHaveBeenCalledTimes(1);
+      expect(form.open).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("passes the current labels on every open, so a language switch shows", async () => {
+    const { openFeedbackForm } = await loadFeedback();
+    const norwegian = { ...LABELS, formTitle: "Rapporter et problem" };
+    await openFeedbackForm("web", LABELS);
+    await openFeedbackForm("web", norwegian);
+    const createForm = sentry.client?.integrations.get("Feedback")?.createForm;
+    expect(createForm?.mock.calls[0]?.[0]).toMatchObject(LABELS);
+    expect(createForm?.mock.calls[1]?.[0]).toMatchObject(norwegian);
+  });
+
+  it("removes the previous dialog when a new one opens", async () => {
+    const { openFeedbackForm } = await loadFeedback();
+    await openFeedbackForm("web", LABELS);
+    await openFeedbackForm("web", LABELS);
+    expect(sentry.state.forms[0]?.removeFromDom).toHaveBeenCalledTimes(1);
+    expect(sentry.state.forms[1]?.removeFromDom).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "onFormClose",
+    "onFormSubmitted",
+  ] as const)("removes the dialog from the page on %s", async (hook) => {
+    const { openFeedbackForm } = await loadFeedback();
+    await openFeedbackForm("web", LABELS);
+    const overrides = sentry.client?.integrations.get("Feedback")?.createForm
+      .mock.calls[0]?.[0] as Record<string, () => void>;
+    overrides[hook]?.();
+    overrides[hook]?.();
+    expect(sentry.state.forms[0]?.removeFromDom).toHaveBeenCalledTimes(1);
   });
 
   it("sets exactly the agreed options for web, with a screenshot", async () => {
@@ -130,7 +173,7 @@ describe("openFeedbackForm", () => {
     const { openFeedbackForm } = await loadFeedback();
     await openFeedbackForm("web", LABELS);
     expect(sentry.imports).toBe(0);
-    expect(sentry.form.open).not.toHaveBeenCalled();
+    expect(sentry.state.forms).toHaveLength(0);
   });
 
   it("never throws when the load fails, and warns once", async () => {
