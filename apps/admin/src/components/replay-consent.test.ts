@@ -15,12 +15,40 @@ describe("consent bar answer", () => {
   });
 });
 
-describe("consent bar in the admin shell", () => {
-  test("the wrapper skips body padding", () => {
-    expect(read("replay-consent.tsx")).toContain("reserveBodySpace={false}");
+/** A `<ReplayConsent …/>` mount, its props captured. */
+const MOUNT = /isSentryConfigured\(\) && <ReplayConsent([^/>]*)\/>/g;
+
+const mountsIn = (layout: string): string[] =>
+  [...read(layout).matchAll(MOUNT)].map((match) => (match[1] ?? "").trim());
+
+describe("where the consent bar is mounted", () => {
+  test("the wrapper passes reserveBodySpace through, padding the body by default", () => {
+    const wrapper = read("replay-consent.tsx");
+    expect(wrapper).toContain("reserveBodySpace = true");
+    expect(wrapper).toContain("reserveBodySpace={reserveBodySpace}");
   });
 
-  test("the inner scroller reserves the bar height", () => {
+  test("not by the root layout, so no page gets two bars", () => {
+    expect(read("../app/layout.tsx")).not.toContain("<ReplayConsent");
+  });
+
+  test.each([
+    ["(portal)", "reserveBodySpace={false}"],
+    ["(editor)", "reserveBodySpace={false}"],
+    ["(auth)", ""],
+    ["(protected)", ""],
+  ])("once by the %s layout with %p", (group, props) => {
+    expect(mountsIn(`../app/${group}/layout.tsx`)).toEqual([props]);
+  });
+
+  // The guest scanner is never recorded (REPLAY_DENYLIST), so it doesn't ask.
+  test("not on the guest scanner", () => {
+    expect(read("../app/(scan)/scan/[token]/page.tsx")).not.toContain(
+      "ReplayConsent"
+    );
+  });
+
+  test("the portal's inner scroller reserves the bar height", () => {
     expect(read("../app/(portal)/_components/admin-shell.tsx")).toContain(
       "pb-[var(--replay-consent-bar-height,0px)]"
     );

@@ -10,7 +10,7 @@ const read = (path: string) =>
   readFileSync(join(import.meta.dir, path), "utf8");
 
 /** Each entry point, wrapped in the `isSentryConfigured()` check. */
-const GUARDED_CONSENT_BAR = /isSentryConfigured\(\) && \(?\s*<ReplayConsent/;
+const GUARDED_CONSENT_BAR = /isSentryConfigured\(\) && <ReplayConsent/;
 const GUARDED_SIDEBAR_BUTTONS =
   /isSentryConfigured\(\) && \(\s*<>\s*<button[\s\S]*?onClick=\{openReplayConsentSettings\}[\s\S]*?onClick=\{report\.open\}[\s\S]*?<\/>\s*\)/;
 const PALETTE_FILTER = /cmd\.needsSentry && !isSentryConfigured\(\)/;
@@ -42,8 +42,13 @@ describe("isSentryConfigured", () => {
 });
 
 describe("Sentry entry points without a DSN", () => {
-  test("the consent bar is mounted only when Sentry is configured", () => {
-    expect(read("../app/layout.tsx")).toMatch(GUARDED_CONSENT_BAR);
+  test.each([
+    "(portal)",
+    "(editor)",
+    "(auth)",
+    "(protected)",
+  ])("the %s layout mounts the consent bar only when Sentry is configured", (group) => {
+    expect(read(`../app/${group}/layout.tsx`)).toMatch(GUARDED_CONSENT_BAR);
   });
 
   test("the sidebar's Privacy settings and Report a problem need it too", () => {

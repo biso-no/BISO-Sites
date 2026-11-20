@@ -17,8 +17,19 @@ const PRIVACY_URL = "https://biso.no/privacy";
 const choose = (choice: ReplayConsentChoice) =>
   chooseReplayConsent("admin", choice, setReplayConsent);
 
-/** Asks before session recording starts; see `ReplayConsentBar`. */
-export function ReplayConsent() {
+/**
+ * Asks before session recording starts; see `ReplayConsentBar`. Mounted by
+ * each route group's layout, which knows where its page scrolls: the portal
+ * and the page editor scroll inside their own full-height shell and pass
+ * `reserveBodySpace={false}` (the portal pads its scroller with the bar's
+ * height variable); sign-in and the profile scroll the body, which is padded
+ * so the bar never covers the end of the page.
+ */
+export function ReplayConsent({
+  reserveBodySpace = true,
+}: {
+  reserveBodySpace?: boolean;
+}) {
   const t = useTranslations("replayConsent");
   return (
     <ReplayConsentBar
@@ -32,7 +43,7 @@ export function ReplayConsent() {
       }}
       onChoose={choose}
       readConsent={readConsentFromDocument}
-      reserveBodySpace={false}
+      reserveBodySpace={reserveBodySpace}
     />
   );
 }

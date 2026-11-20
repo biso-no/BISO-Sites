@@ -1,7 +1,9 @@
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { getTranslations } from "next-intl/server";
+import { ReplayConsent } from "@/components/replay-consent";
 import { getUserRolesForClient, requireAdminAccess } from "@/lib/authorization";
 import { ROLES } from "@/lib/roles";
+import { isSentryConfigured } from "@/lib/sentry-configured";
 import { getInboxCounts } from "./_actions/inbox";
 import { AdminShell } from "./_components/admin-shell";
 import { ListParamsProvider } from "./_components/use-list-params";
@@ -57,13 +59,17 @@ export default async function PortalAdminLayout({
   };
 
   return (
-    <AdminShell
-      aiCopilotEnabled={aiCopilotEnabled}
-      inboxCount={inboxCounts.total}
-      roles={roles}
-      user={user}
-    >
-      <ListParamsProvider>{children}</ListParamsProvider>
-    </AdminShell>
+    <>
+      <AdminShell
+        aiCopilotEnabled={aiCopilotEnabled}
+        inboxCount={inboxCounts.total}
+        roles={roles}
+        user={user}
+      >
+        <ListParamsProvider>{children}</ListParamsProvider>
+      </AdminShell>
+      {/* The shell's own scroller reserves the bar's height. */}
+      {isSentryConfigured() && <ReplayConsent reserveBodySpace={false} />}
+    </>
   );
 }

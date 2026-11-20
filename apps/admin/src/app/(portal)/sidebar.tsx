@@ -238,7 +238,7 @@ export function Sidebar({ user, roles, inboxCount }: SidebarProps) {
         {isSentryConfigured() && (
           <>
             <button
-              className="rounded-md px-1 py-1 text-left text-[11px] underline-offset-4 transition hover:underline"
+              className="rounded-md px-1.5 py-1.5 text-left text-[11px] underline-offset-4 transition hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current"
               onClick={openReplayConsentSettings}
               style={{ color: STUDIO.ink3 }}
               type="button"
@@ -246,7 +246,7 @@ export function Sidebar({ user, roles, inboxCount }: SidebarProps) {
               {tConsent("settings")}
             </button>
             <button
-              className="rounded-md px-1 py-1 text-left text-[11px] underline-offset-4 transition hover:underline"
+              className="rounded-md px-1.5 py-1.5 text-left text-[11px] underline-offset-4 transition hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current"
               onClick={report.open}
               style={{ color: STUDIO.ink3 }}
               type="button"

@@ -3,8 +3,6 @@ import type { Metadata } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { getLocale } from "@/app/actions/locale";
-import { ReplayConsent } from "@/components/replay-consent";
-import { isSentryConfigured } from "@/lib/sentry-configured";
 import { AnalyticsScript } from "./_components/analytics-script";
 import { inter, museoSans, museoSlab } from "./fonts";
 import Providers from "./providers";
@@ -38,7 +36,6 @@ export default async function RootLayout({
           <NextIntlClientProvider locale={locale} messages={messages}>
             <main>
               {children}
-              {isSentryConfigured() && <ReplayConsent />}
               <AnalyticsScript />
             </main>
           </NextIntlClientProvider>
