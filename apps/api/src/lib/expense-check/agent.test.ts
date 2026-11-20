@@ -298,14 +298,36 @@ function expenseStore(
     campus: [{ $id: "1", name: "Oslo" }],
     departments: [{ $id: "dept-1", Name: "Marketing", project_share: 0.5 }],
     events: [{ $id: "event-9", start_date: "2026-11-05T17:00:00.000+00:00" }],
+    // An earlier reimbursement with the same receipt file.
+    expense_attachments: [
+      {
+        $id: "old-1",
+        amount: 250,
+        date: "2026-11-01T11:00:00.000+00:00",
+        expense_id: "expense-0",
+        file_hash: "hash-1",
+      },
+    ],
     expense: [
+      {
+        $id: "expense-0",
+        $sequence: 7,
+        status: "pending",
+        userId: "user-0",
+      },
       {
         $id: "expense-1",
         approver_hints: JSON.stringify([
+          // A stale lookup from an earlier run: the fresh one counts.
           {
             attachmentId: "r1",
             code: "possible_duplicate",
-            data: { match: "file", reimbursementNumber: "R-0042" },
+            data: { match: "date_amount", reimbursementNumber: "R-0042" },
+          },
+          {
+            attachmentId: "r1",
+            code: "possible_duplicate",
+            data: { match: "date_amount", sameExpense: 1 },
           },
         ]),
         bank_account: "1234.56.78901",
@@ -412,6 +434,9 @@ describe("loadCheckInput", () => {
       "98765432",
       "1234.56.78901",
       "user-1",
+      // The earlier reimbursement is named by its number only.
+      "expense-0",
+      "user-0",
     ]) {
       expect(sent).not.toContain(personal);
     }
@@ -453,7 +478,11 @@ describe("loadCheckInput", () => {
         amountNok: 250,
         date: "2026-11-01",
         description: "Two pizzas",
-        duplicates: [{ earlierReimbursement: true, match: "file" }],
+        // Looked up before the agent runs, as the fixed steps will again.
+        duplicates: [
+          { match: "file", reimbursementNumber: "10007" },
+          { match: "date_amount", sameExpense: true },
+        ],
         note: "Pizza for the board",
         originalCurrency: null,
         receiptId: "r1",

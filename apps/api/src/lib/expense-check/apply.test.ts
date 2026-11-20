@@ -507,6 +507,56 @@ describe("applyCheck", () => {
     ]);
   });
 
+  it("an old app's type the upload AI replaced is named as the app's own", async () => {
+    // The submit put the upload AI's food over the app's taxi, and said so.
+    const legacy = (id: string) =>
+      receipt(id, {
+        account_number: 7350,
+        account_source: "type",
+        ai_confidence: 0.9,
+        ai_cost_type: "food",
+        cost_type: "food",
+        type_source: "legacy_app",
+      });
+    const store = setup([legacy("r1"), legacy("r2")], {
+      hints: ["r1", "r2"].map((attachmentId) => ({
+        attachmentId,
+        code: "app_type_replaced",
+        data: { aiType: "food", appType: "taxi" },
+      })),
+      projectShare: 0.1,
+    });
+
+    await checkAndApply(store, {
+      flags: [],
+      receipts: [
+        {
+          confidence: { type: 0.9 },
+          reason: "A train ticket",
+          receiptId: "r1",
+          type: "travel",
+        },
+        {
+          confidence: { type: 0.9 },
+          reason: "It was a taxi after all",
+          receiptId: "r2",
+          type: "taxi",
+        },
+      ],
+    });
+
+    expect(hintsFor(store, "r1")).toEqual([
+      {
+        attachmentId: "r1",
+        code: "app_type_replaced",
+        data: { aiType: "travel", appType: "taxi" },
+      },
+    ]);
+    // Back on the app's own type: nothing was replaced.
+    expect(store.patchOf("r2")).toMatchObject({ cost_type: "taxi" });
+    expect(hintsFor(store, "r2")).toEqual([]);
+  });
+
   it("own text gets the agent's account as ai_freeform", async () => {
     const store = setup(
       [

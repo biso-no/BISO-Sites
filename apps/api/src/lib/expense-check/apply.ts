@@ -138,6 +138,11 @@ interface Lists {
 }
 
 interface Work {
+  /**
+   * An old app's own type per receipt, from the submit's `app_type_replaced`
+   * hint: the type on the row is then the upload AI's pick, not the app's.
+   */
+  appTypes: Map<string, string>;
   changes: AppliedChange[];
   events: ExpenseEventInput[];
   expenseId: string;
@@ -430,11 +435,16 @@ function setType(
     field: "cost_type",
     note: noteOf(confidence, proposal.reason),
   });
-  if (row.type_source === ExpenseAttachmentsTypeSource.LEGACY_APP && before) {
+  const appType = work.appTypes.get(row.$id) ?? before;
+  if (
+    row.type_source === ExpenseAttachmentsTypeSource.LEGACY_APP &&
+    appType &&
+    appType !== type.slug
+  ) {
     addHint(work, {
       attachmentId: row.$id,
       code: "app_type_replaced",
-      data: { aiType: type.slug, appType: before },
+      data: { aiType: type.slug, appType },
     });
   }
   doubt(work, row, "type_unsure", confidence, proposal.reason);
@@ -879,6 +889,23 @@ function flagMissingProjects(
 
 // --- Writing ----------------------------------------------------------------
 
+/** The app's own type of each receipt whose type the submit's AI replaced. */
+function appTypesOf(expense: CheckedExpense): Map<string, string> {
+  const types = new Map<string, string>();
+  for (const hint of parseApproverHints(expense.approver_hints)) {
+    const appType = hint.data?.appType;
+    if (
+      hint.code === "app_type_replaced" &&
+      hint.attachmentId &&
+      typeof appType === "string" &&
+      appType
+    ) {
+      types.set(hint.attachmentId, appType);
+    }
+  }
+  return types;
+}
+
 /** The work without what it did to `receipts`, whose rows could not be saved. */
 function without(work: Work, receipts: Set<string>): Work {
   const kept = (attachmentId: string | null | undefined) =>
@@ -1026,6 +1053,7 @@ export async function applyCheck(
   const byId = new Map(rows.map((row) => [row.$id, row]));
   const lists = await loadLists(db, expense, answer, ctx.today);
   const work: Work = {
+    appTypes: appTypesOf(expense),
     changes: [],
     events: [],
     expenseId: expense.$id,

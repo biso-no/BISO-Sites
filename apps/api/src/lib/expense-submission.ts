@@ -1132,8 +1132,11 @@ function asksOccasion(
   return costTypes.some((slug) => findCostType(slug, allTypes)?.askOccasion);
 }
 
-/** Each receipt's possible duplicate in an earlier reimbursement, in order. */
-function findDuplicates(
+/**
+ * Each receipt's possible duplicate in an earlier reimbursement, in order.
+ * Cheap reads, so the check's agent gets them up front too.
+ */
+export function findDuplicates(
   db: Db,
   expenseId: string,
   receipts: { attachment: SubmittedAttachment; fileHash: string | null }[]
