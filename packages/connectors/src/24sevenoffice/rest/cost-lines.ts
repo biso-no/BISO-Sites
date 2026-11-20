@@ -6,6 +6,7 @@ import { finago } from "./client";
 import { DEPARTMENT_DIMENSION_TYPE } from "./departments";
 import { parseNextLink } from "./link-header";
 import { PROJECT_DIMENSION_TYPE } from "./projects";
+import type { components } from "./schema";
 
 export interface CostLine {
   accountNumber: number;
@@ -34,6 +35,33 @@ function nextPage(
     );
   }
   return page;
+}
+
+type TransactionLine = components["schemas"]["Transactions"][number];
+
+/** One booked line as a cost line, or null without a date or an amount. */
+function toCostLine(
+  line: TransactionLine,
+  accountNumber: number
+): CostLine | null {
+  if (!line.date || line.amount === undefined || line.amount === null) {
+    return null;
+  }
+  const dimensions = line.dimensions ?? [];
+  const dimension = (type: number) =>
+    dimensions.find((d) => d.dimensionType === type);
+  const idOf = (type: number) => {
+    const found = dimension(type);
+    return found ? String(found.value) : null;
+  };
+  return {
+    accountNumber: line.account?.number ?? accountNumber,
+    amount: line.amount,
+    date: line.date,
+    departmentId: idOf(DEPARTMENT_DIMENSION_TYPE),
+    projectId: idOf(PROJECT_DIMENSION_TYPE),
+    projectName: dimension(PROJECT_DIMENSION_TYPE)?.name ?? null,
+  };
 }
 
 /**
@@ -74,25 +102,12 @@ export async function listCostLines(input: {
         );
       }
       for (const line of data) {
-        if (!line.date || line.amount === undefined || line.amount === null) {
+        const costLine = toCostLine(line, accountNumber);
+        if (costLine) {
+          lines.push(costLine);
+        } else {
           skipped += 1;
-          continue;
         }
-        const dimensions = line.dimensions ?? [];
-        const idOf = (type: number) => {
-          const found = dimensions.find((d) => d.dimensionType === type);
-          return found ? String(found.value) : null;
-        };
-        lines.push({
-          accountNumber: line.account?.number ?? accountNumber,
-          amount: line.amount,
-          date: line.date,
-          departmentId: idOf(DEPARTMENT_DIMENSION_TYPE),
-          projectId: idOf(PROJECT_DIMENSION_TYPE),
-          projectName:
-            dimensions.find((d) => d.dimensionType === PROJECT_DIMENSION_TYPE)
-              ?.name ?? null,
-        });
       }
       page = nextPage(response.headers.get("Link"), page ?? 1);
     } while (page);

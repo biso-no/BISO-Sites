@@ -2,7 +2,11 @@ import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import { finago } from "./client";
 import { getProjects } from "./projects";
 
-type GetResult = { data: unknown; error?: unknown; response: Response };
+interface GetResult {
+  data: unknown;
+  error?: unknown;
+  response: Response;
+}
 
 function page(data: unknown, nextToken?: string): GetResult {
   const headers = new Headers();
@@ -17,17 +21,14 @@ function page(data: unknown, nextToken?: string): GetResult {
 
 function mockGet(results: GetResult[]) {
   let call = 0;
-  // biome-ignore lint/suspicious/noExplicitAny: partial openapi-fetch mock
-  return spyOn(finago, "GET").mockImplementation((async () => {
+  return spyOn(finago, "GET").mockImplementation((() => {
     const result = results[call];
     call += 1;
-    return result;
-    // biome-ignore lint/suspicious/noExplicitAny: partial openapi-fetch mock
+    return Promise.resolve(result);
   }) as any);
 }
 
 afterEach(() => {
-  // biome-ignore lint/suspicious/noExplicitAny: restore spies
   (finago.GET as any).mockRestore?.();
 });
 
@@ -43,7 +44,6 @@ describe("getProjects", () => {
       { projectId: "2", name: "Beta" },
     ]);
     expect(spy).toHaveBeenCalledTimes(2);
-    // biome-ignore lint/suspicious/noExplicitAny: inspecting mock call args
     const second = spy.mock.calls[1] as any;
     expect(second[1].params.query).toEqual({ continuationToken: "tok2" });
     expect(second[1].params.path).toEqual({ dimensionType: 1 });
