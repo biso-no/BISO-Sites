@@ -479,6 +479,27 @@ describe("key-aware scrubbing", () => {
 });
 
 describe("scrubBreadcrumb", () => {
+  // The SDK writes both pages of a navigation as relative paths, query and
+  // all, so they are scrubbed as addresses.
+  it("scrubs both addresses of a navigation", () => {
+    const out = scrubBreadcrumb({
+      category: "navigation",
+      data: { from: "/events?q=Kari+Nordmann", to: "/fs/approve/tok?x=1" },
+    });
+    expect(out.data).toEqual({
+      from: "/events",
+      to: "/fs/approve/[redacted]",
+    });
+  });
+
+  it("leaves from and to of other breadcrumbs to text scrubbing", () => {
+    const out = scrubBreadcrumb({
+      category: "mail",
+      data: { from: "Kari? Hi", to: "Hi? kari@biso.no" },
+    });
+    expect(out.data).toEqual({ from: "Kari? Hi", to: `Hi? ${REDACTED}` });
+  });
+
   it("scrubs message and url data", () => {
     const out = scrubBreadcrumb({
       message: "a@b.no",

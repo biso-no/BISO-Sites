@@ -437,6 +437,29 @@ const scrubConsoleBreadcrumb = (
   }),
 });
 
+/**
+ * A navigation names the page it left and the one it opened in `from` and
+ * `to`, as paths with their query when on the same site. Only there are
+ * those two keys addresses.
+ */
+const NAVIGATION_ADDRESS_KEYS = ["from", "to"] as const;
+
+const scrubBreadcrumbData = (
+  category: string | undefined,
+  data: Mutable
+): Mutable => {
+  const out = scrubRecord(data);
+  if (category === "navigation") {
+    for (const key of NAVIGATION_ADDRESS_KEYS) {
+      const address = data[key];
+      if (typeof address === "string") {
+        out[key] = scrubUrl(address);
+      }
+    }
+  }
+  return out;
+};
+
 export function scrubBreadcrumb(breadcrumb: Breadcrumb): Breadcrumb {
   try {
     const args = breadcrumb.data?.arguments;
@@ -448,7 +471,7 @@ export function scrubBreadcrumb(breadcrumb: Breadcrumb): Breadcrumb {
       out.message = scrubText(out.message);
     }
     if (out.data) {
-      out.data = scrubRecord(out.data);
+      out.data = scrubBreadcrumbData(out.category, out.data);
     }
     return out;
   } catch {
