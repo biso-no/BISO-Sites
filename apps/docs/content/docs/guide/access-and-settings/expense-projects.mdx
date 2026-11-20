@@ -19,7 +19,7 @@ covers:
 
 - A project is a Finago project, for example a yearly event. A receipt can be booked on one, so the cost shows up under that project in 24SevenOffice.
 - Only global admins see the **Prosjekter** (Projects) tab. In the sidebar, open **Utlegg** (Expenses), choose **Innstillinger** (Settings), then **Prosjekter**.
-- The list comes from Finago. It is brought up to date once a day, and you can start it yourself (see below).
+- The list comes from Finago. It is brought up to date once a day, and you can start it yourself (see below). The AI check that runs after a student submits uses this list to suggest a project, so a stale list means worse suggestions.
 </BeforeYouStart>
 
 ## Steps
@@ -72,7 +72,9 @@ If no projects have been synced yet, the **Prosjekt** field isn't shown, unless 
 - When the reimbursement is booked, the project goes on the receipt's cost line and on the payout line (account 2400). Payout lines are split by date and project, so receipts with different projects get a line each.
 - The approvers see the project on their Teams card, in the approval email and on the web approval page. When every receipt with an amount has the same project it is shown once. Statements without an amount don't count. On the Teams card a receipt with no project shows "none" when the projects differ. The email shows a dash, and the web approval page shows nothing.
 - The examples the AI learns from remember the project of a booked receipt.
-- The AI does not choose projects yet. Today a project is only set by a person.
+- The AI check suggests a project for each receipt after the student submits. It picks only among the department's projects, only an active one, and never one from a year that is over. A project the check sets shows in **Historikk** (History) as **Endret prosjekt** (Changed project), signed **AI check**. A project an approver or admin has set is never changed.
+- If the check is not sure, or finds no project although the department usually has one, the approvers see a note, and the receipt keeps no project. If this year's edition of a yearly event has not been created in Finago yet, the note says that the project for that series and year has not been created. Finance creates it in Finago and syncs. The check never books a receipt on last year's project. A cost that comes just after an event goes to the edition that has just finished.
+- The approvers can change or clear any project the check set, as in the steps above.
 </WhatHappensNext>
 
 ## What the student sees
@@ -81,6 +83,7 @@ Nothing. Students never see projects, in the website or the app.
 
 ## Common mistakes
 
+- Expecting the AI check to book a receipt on last year's project when this year's isn't created yet. It leaves the project empty and adds a note instead. Create the new year's project in Finago first.
 - Expecting a brand-new project to be listed at once. Sync from Finago first, or wait for the daily run.
 - Setting the project too late. An approved reimbursement can't be edited, so set it before the last approval.
 - Looking for a deactivated Finago project in the list. It is kept in the table because bookings refer to it, but it can't be chosen.
