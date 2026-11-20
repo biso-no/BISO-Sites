@@ -53,7 +53,7 @@ which the admin page shows as "Last refresh failed".
 - Sentry (optional): `SENTRY_DSN` (the biso-functions DSN; without it nothing is
   sent), `SENTRY_ENVIRONMENT` (default `production`) and
   `MEMBER_ROSTER_SYNC_SCHEDULE` (default `0 3 * * *`; keep it equal to the
-  console schedule). Failures are reported as errors (tag `function:
+  console schedule). Failures are reported as errors (tag `function_name:
   member-roster-sync`, no member data in the message) and each run checks in to
   the `member-roster-sync` cron monitor (UTC, 30 min margin, 20 min max runtime,
   issue after 2 failures). An overlap skip counts as a successful check-in.

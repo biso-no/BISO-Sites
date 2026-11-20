@@ -198,11 +198,20 @@ export function createReporter(config: ReporterConfig): Reporter {
   const pending = new Set<Promise<void>>();
   const controllers = new Set<AbortController>();
 
-  const send = (url: string, contentType: string, body: string): void => {
+  // in_progress sends still in flight, by check-in id, so the closing
+  // check-in can wait for them: Sentry drops a close that arrives first.
+  const inFlight = new Map<string, Promise<void>>();
+
+  const send = (
+    url: string,
+    contentType: string,
+    body: string,
+    after?: Promise<void>
+  ): Promise<void> | undefined => {
     try {
       const controller = new AbortController();
       controllers.add(controller);
-      const request = Promise.resolve()
+      const request: Promise<void> = (after ?? Promise.resolve())
         .then(() =>
           fetch(url, {
             method: "POST",
@@ -220,8 +229,9 @@ export function createReporter(config: ReporterConfig): Reporter {
           controllers.delete(controller);
         });
       pending.add(request);
+      return request;
     } catch {
-      // a reporter never throws into the function
+      return;
     }
   };
 
@@ -294,11 +304,21 @@ export function createReporter(config: ReporterConfig): Reporter {
           : {}),
       };
       const query = `status=${encodeURIComponent(status)}&check_in_id=${encodeURIComponent(checkInId)}&environment=${encodeURIComponent(environment)}`;
-      send(
+      const earlier = inFlight.get(checkInId);
+      const request = send(
         `${base}/cron/${encodeURIComponent(slug)}/${dsn.key}/?${query}`,
         "application/json",
-        JSON.stringify(body)
+        JSON.stringify(body),
+        earlier
       );
+      if (status === "in_progress" && request) {
+        inFlight.set(checkInId, request);
+        request.then(() => {
+          if (inFlight.get(checkInId) === request) {
+            inFlight.delete(checkInId);
+          }
+        });
+      }
       return checkInId;
     } catch {
       return;
@@ -329,6 +349,7 @@ export function createReporter(config: ReporterConfig): Reporter {
       }
       controllers.clear();
       pending.clear();
+      inFlight.clear();
     }
   };
 
@@ -344,6 +365,6 @@ export function reporterFromEnv(
     dsn: env.SENTRY_DSN,
     environment: env.SENTRY_ENVIRONMENT || "production",
     ...(deployment ? { release: `biso-functions@${deployment}` } : {}),
-    tags: { function: functionName },
+    tags: { function_name: functionName },
   });
 }

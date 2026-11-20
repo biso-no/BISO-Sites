@@ -86,7 +86,7 @@ these guards for when two passes do overlap:
   Do **not** set `APPWRITE_*` variables.
 - Sentry (optional): `SENTRY_DSN` (the biso-functions DSN; without it nothing is
   sent) and `SENTRY_ENVIRONMENT` (default `production`). Thrown errors and any
-  answer of 400 or above are reported as errors (tag `function:
+  answer of 400 or above are reported as errors (tag `function_name:
   content-notifier`; the message names the status, not the body). There is no
   cron monitor here: `scheduled-dispatch` watches this function's ping as
   `dispatch-content-notifier`. Sentry calls are capped at 2 s per run.

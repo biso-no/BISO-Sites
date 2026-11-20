@@ -56,7 +56,7 @@ describe("captureError", () => {
       dsn: DSN,
       environment: "staging",
       release: "biso-functions@dep1",
-      tags: { function: "scheduled-dispatch" },
+      tags: { function_name: "scheduled-dispatch" },
     });
     reporter.captureError(
       new Error("Konto 1234.56.78903 failed for ola@biso.no"),
@@ -78,7 +78,7 @@ describe("captureError", () => {
     expect(event.environment).toBe("staging");
     expect(event.release).toBe("biso-functions@dep1");
     expect(event.tags).toEqual({
-      function: "scheduled-dispatch",
+      function_name: "scheduled-dispatch",
       target: "orders",
     });
     const [entry] = event.exception.values;
@@ -177,6 +177,49 @@ describe("flush", () => {
   });
 });
 
+describe("check-in ordering", () => {
+  it("issues the closing check-in only after the in_progress one settled", async () => {
+    vi.useFakeTimers();
+    const events: string[] = [];
+    fetchMock.mockImplementation((url: string) => {
+      const status = new URL(url).searchParams.get("status");
+      events.push(`start:${status}`);
+      return new Promise((resolve) => {
+        setTimeout(
+          () => {
+            events.push(`end:${status}`);
+            resolve(new Response("{}"));
+          },
+          status === "in_progress" ? 300 : 0
+        );
+      });
+    });
+    const reporter = createReporter({ dsn: DSN });
+    const id = reporter.checkIn("a", "in_progress");
+    reporter.checkIn("a", "ok", { checkInId: id });
+    const flushed = reporter.flush();
+    await vi.advanceTimersByTimeAsync(400);
+    await flushed;
+    expect(events).toEqual([
+      "start:in_progress",
+      "end:in_progress",
+      "start:ok",
+      "end:ok",
+    ]);
+  });
+
+  it("still resolves within the cap when in_progress hangs", async () => {
+    vi.useFakeTimers();
+    fetchMock.mockImplementation(() => new Promise(() => undefined));
+    const reporter = createReporter({ dsn: DSN });
+    const id = reporter.checkIn("a", "in_progress");
+    expect(() => reporter.checkIn("a", "ok", { checkInId: id })).not.toThrow();
+    const flushed = reporter.flush();
+    await vi.advanceTimersByTimeAsync(2001);
+    await expect(flushed).resolves.toBeUndefined();
+  });
+});
+
 describe("reporterFromEnv", () => {
   it("reads env and tags the function", async () => {
     const reporter = reporterFromEnv(
@@ -192,7 +235,8 @@ describe("reporterFromEnv", () => {
     const event = JSON.parse(fetchMock.mock.calls[0][1].body.split("\n")[2]);
     expect(event.release).toBe("biso-functions@d9");
     expect(event.environment).toBe("dev");
-    expect(event.tags).toEqual({ function: "member-roster-sync" });
+    expect(event.tags).toEqual({ function_name: "member-roster-sync" });
+    expect(event.tags).not.toHaveProperty("function");
   });
 
   it("is inert without SENTRY_DSN and defaults the environment", () => {

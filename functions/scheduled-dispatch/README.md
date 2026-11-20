@@ -44,7 +44,7 @@ Set these on the function in the Appwrite console (**Settings → Variables**) �
   `JOBS_PUBLISH_SCHEDULED_URL`, `MEMBER_PASS_CLEANUP_URL`,
   `RECRUITMENT_RETENTION_CLEANUP_URL` — optional.
 - `SENTRY_DSN` — optional; the biso-functions DSN. Without it nothing is sent.
-  With it, failures are reported as Sentry errors (tag `function:
+  With it, failures are reported as Sentry errors (tag `function_name:
   scheduled-dispatch`) and the run checks in to cron monitors: `scheduled-dispatch`
   (the dispatcher itself) and one `dispatch-<target>` per configured URL, e.g.
   `ORDERS_RECONCILE_URL` becomes `dispatch-orders-reconcile`. Monitors are created
