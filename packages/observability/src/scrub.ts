@@ -29,9 +29,10 @@ const NATIONAL_ID = /\b\d{6} ?\d{5}\b/g;
 // starts, so a long run is not rescanned from each of its characters. `+`,
 // `%20` and `%2B` also start one, since form-encoded text joins words with
 // them (`body=Hello+my+name+is+kari@biso.no`); each start scans at most 64
-// characters, so that stays linear.
+// characters, so that stays linear. Percent-encoding writes the `@` as `%40`
+// and may use lower-case hex (`%2b`).
 const EMAIL =
-  /(^|[^A-Za-z0-9._%+-]|\+|%20|%2B)[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,253}\.[A-Za-z]{2,63}/g;
+  /(^|[^A-Za-z0-9._%+-]|\+|%20|%2[Bb])[A-Za-z0-9._%+-]{1,64}(?:@|%40)[A-Za-z0-9.-]{1,253}\.[A-Za-z]{2,63}/g;
 // Country code, check digits, then 11–30 characters, with or without spaces
 // every four (NO93 8601 1117 947, DE89 3704 0044 0532 0130 00).
 const IBAN = /\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){2,7}(?: ?[A-Z0-9]{1,3})?\b/g;

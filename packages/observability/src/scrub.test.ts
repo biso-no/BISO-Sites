@@ -119,6 +119,11 @@ describe("scrubText", () => {
     ["encoded space runs", `a${"%20a".repeat(66_000)}`],
     ["bare plus signs", "+".repeat(200_000)],
     ["bare encoded spaces", "%20".repeat(66_000)],
+    ["bare encoded at signs", "%40".repeat(66_000)],
+    ["encoded at-sign runs", `a${"%40a".repeat(50_000)}`],
+    ["lower-case encoded plus runs", `a${"%2ba".repeat(50_000)}`],
+    ["encoded addresses without a dot", `${"a%40b ".repeat(30_000)}`],
+    ["encoded plus signs before encoded at signs", "%2ba%40b".repeat(25_000)],
   ])("scrubs 200 KB of %s in well under 50 ms", (_label, text) => {
     const started = performance.now();
     scrubText(text);
@@ -137,6 +142,40 @@ describe("scrubText", () => {
     ["to=a%2Bb.c@biso.no&x=1", "c@biso.no"],
   ])("redacts an address in encoded text: %s", (text, address) => {
     expect(scrubText(text)).not.toContain(address);
+  });
+
+  // Form bodies and query strings as the browser encodes them: `@` becomes
+  // `%40`, and the hex may be lower-case.
+  it.each([
+    [
+      new URLSearchParams({
+        body: "Please contact kari.nordmann@biso.no about my refund",
+      }).toString(),
+      "kari.nordmann",
+    ],
+    [
+      `msg=${encodeURIComponent("Message from ola.nordmann@biso.no")}`,
+      "ola.nordmann",
+    ],
+    ["to=a%2bb.c%40biso.no&x=1", "c%40biso.no"],
+    ["to=a%2bb.c%40biso.no&x=1", "b.c"],
+    ["q=kari%40BISO.NO", "kari"],
+  ])("redacts a percent-encoded address: %s", (text, part) => {
+    const scrubbed = scrubText(text);
+    expect(scrubbed).not.toContain(part);
+    expect(scrubbed).toContain(REDACTED);
+  });
+
+  // `+` is a local-part character, so the words joined to the address before
+  // it go too; the text after it stays.
+  it("keeps the text after a percent-encoded address", () => {
+    expect(
+      scrubText(
+        new URLSearchParams({
+          body: "Please contact kari.nordmann@biso.no about my refund",
+        }).toString()
+      )
+    ).toBe(`body=${REDACTED}+about+my+refund`);
   });
 
   it("still redacts the longest real address and a long key prefix", () => {
