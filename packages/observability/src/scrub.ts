@@ -1,6 +1,6 @@
 import type {
   Breadcrumb,
-  ErrorEvent,
+  Event,
   Log,
   Metric,
   StackFrame,
@@ -444,7 +444,7 @@ const SAFE_EVENT_FIELDS = [
 ] as const;
 
 // Used when scrubbing throws: keep identity fields only, drop everything else.
-const safeEventFallback = <T extends ErrorEvent>(event: T): T => {
+const safeEventFallback = <T extends Event>(event: T): T => {
   const out: Mutable = {};
   for (const field of SAFE_EVENT_FIELDS) {
     try {
@@ -467,8 +467,8 @@ const safeEventFallback = <T extends ErrorEvent>(event: T): T => {
 };
 
 const scrubRequest = (
-  request: NonNullable<ErrorEvent["request"]>
-): NonNullable<ErrorEvent["request"]> => {
+  request: NonNullable<Event["request"]>
+): NonNullable<Event["request"]> => {
   const { cookies, data, query_string, headers, url, ...rest } = request;
   return {
     ...rest,
@@ -501,8 +501,8 @@ const scrubExceptionValue = (
 ): string => (type && isAiErrorName(type) ? type : scrubText(value));
 
 const scrubException = (
-  exception: NonNullable<ErrorEvent["exception"]>
-): NonNullable<ErrorEvent["exception"]> => ({
+  exception: NonNullable<Event["exception"]>
+): NonNullable<Event["exception"]> => ({
   ...exception,
   values: exception.values?.map((entry) => ({
     ...entry,
@@ -520,7 +520,11 @@ const scrubException = (
   })),
 });
 
-export function scrubEvent<T extends ErrorEvent>(event: T): T {
+/**
+ * An event made safe to send: `beforeSend` for error reports, and feedback
+ * (see `browser/feedback`), which `beforeSend` never sees.
+ */
+export function scrubEvent<T extends Event>(event: T): T {
   try {
     const out: T = { ...event };
     if (typeof out.message === "string") {

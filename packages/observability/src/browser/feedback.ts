@@ -3,10 +3,17 @@
  * button). Browser-only. `@sentry/nextjs` is imported for types only, so the
  * feedback code loads through the dynamic import below, on the first click.
  */
-import { type Client, type ClientOptions, getClient } from "@sentry/core";
+import {
+  type Client,
+  type ClientOptions,
+  type FeedbackEvent,
+  getClient,
+} from "@sentry/core";
 import type { feedbackIntegration } from "@sentry/nextjs";
+import { scrubEvent } from "../scrub";
 
 type FeedbackIntegration = ReturnType<typeof feedbackIntegration>;
+type FeedbackForm = Awaited<ReturnType<FeedbackIntegration["createForm"]>>;
 
 export type FeedbackApp = "web" | "admin";
 
@@ -37,6 +44,38 @@ const removeCurrentForm = (): void => {
   currentForm = undefined;
 };
 
+/** The open still in progress, so a double click opens one form. */
+let opening: Promise<void> | undefined;
+
+/**
+ * Feedback events skip `beforeSend`. `beforeSendFeedback` runs just before
+ * one is captured and may change it in place, so it gets the error-report
+ * scrubbing there: the page address (`contexts.feedback.url`) without its
+ * query, no email addresses or account numbers in the message, the user's
+ * id only.
+ */
+const scrubFeedbackEvent = (feedback: FeedbackEvent): void => {
+  const clean = scrubEvent(feedback);
+  for (const key of Object.keys(feedback)) {
+    Reflect.deleteProperty(feedback, key);
+  }
+  Object.assign(feedback, clean);
+};
+
+/**
+ * Puts keyboard focus in the message field. The browser ignores the form's
+ * own autofocus while the clicked link still has focus, and a menu that has
+ * just closed may hand focus back to its trigger a task later, so this tries
+ * again then.
+ */
+const focusMessageField = (form: FeedbackForm): void => {
+  // `@sentry/core` types the dialog's element as `unknown` (no DOM types).
+  const dialog = form.el as ParentNode | undefined;
+  const focus = () => dialog?.querySelector?.("textarea")?.focus();
+  focus();
+  setTimeout(focus, 0);
+};
+
 /** A client that sends nothing (no DSN) has nowhere to send a report. */
 const sendingClient = (): Client<ClientOptions> | undefined => {
   const client = getClient();
@@ -46,11 +85,7 @@ const sendingClient = (): Client<ClientOptions> | undefined => {
   return client;
 };
 
-/**
- * Opens the form, adding the integration on first use. Resolves without doing
- * anything when Sentry isn't set up, and never throws.
- */
-export async function openFeedbackForm(
+async function showForm(
   app: FeedbackApp,
   labels: FeedbackLabels
 ): Promise<void> {
@@ -65,6 +100,7 @@ export async function openFeedbackForm(
       FEEDBACK_INTEGRATION_NAME
     );
     if (!feedback) {
+      client.on("beforeSendFeedback", scrubFeedbackEvent);
       client.addIntegration(
         sentry.feedbackIntegration({
           autoInject: false,
@@ -95,10 +131,26 @@ export async function openFeedbackForm(
     currentForm = form;
     form.appendToDom();
     form.open();
+    focusMessageField(form);
   } catch (error) {
     if (!hasWarned) {
       hasWarned = true;
       console.warn("[sentry] the feedback form could not be opened", error);
     }
   }
+}
+
+/**
+ * Opens the form, adding the integration on first use. A second click while
+ * the first is still loading gets the same open. Resolves without doing
+ * anything when Sentry isn't set up, and never throws.
+ */
+export function openFeedbackForm(
+  app: FeedbackApp,
+  labels: FeedbackLabels
+): Promise<void> {
+  opening ??= showForm(app, labels).finally(() => {
+    opening = undefined;
+  });
+  return opening;
 }

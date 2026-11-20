@@ -2,11 +2,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FeedbackLabels } from "./feedback";
 
 const sentry = vi.hoisted(() => {
-  const makeForm = () => ({
-    appendToDom: vi.fn(),
-    open: vi.fn(),
-    removeFromDom: vi.fn(),
-  });
+  const makeForm = () => {
+    const messageField = { focus: vi.fn() };
+    return {
+      appendToDom: vi.fn(),
+      open: vi.fn(),
+      removeFromDom: vi.fn(),
+      messageField,
+      el: {
+        querySelector: vi.fn((selector: string) =>
+          selector === "textarea" ? messageField : null
+        ),
+      },
+    };
+  };
   type FakeForm = ReturnType<typeof makeForm>;
   const state = { forms: [] as FakeForm[] };
   const feedbackIntegration = vi.fn((options: Record<string, unknown>) => ({
@@ -26,8 +35,19 @@ const sentry = vi.hoisted(() => {
       enabled: withDsn,
     };
     const integrations = new Map<string, FakeFeedback>();
+    const hooks = new Map<string, ((...args: unknown[]) => void)[]>();
     return {
       integrations,
+      hooks,
+      on: vi.fn((hook: string, callback: (...args: unknown[]) => void) => {
+        hooks.set(hook, [...(hooks.get(hook) ?? []), callback]);
+        return () => undefined;
+      }),
+      emit: (hook: string, ...args: unknown[]) => {
+        for (const callback of hooks.get(hook) ?? []) {
+          callback(...args);
+        }
+      },
       getDsn: () => (options.dsn ? { host: "o1" } : undefined),
       getOptions: () => options,
       getIntegrationByName: (name: string) => integrations.get(name),
@@ -91,6 +111,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 describe("openFeedbackForm", () => {
@@ -176,6 +197,40 @@ describe("openFeedbackForm", () => {
     expect(sentry.state.forms).toHaveLength(0);
   });
 
+  it("opens one form when clicked twice while loading", async () => {
+    const { openFeedbackForm } = await loadFeedback();
+    await Promise.all([
+      openFeedbackForm("web", LABELS),
+      openFeedbackForm("web", LABELS),
+    ]);
+    expect(sentry.imports).toBe(1);
+    expect(sentry.state.forms).toHaveLength(1);
+    expect(sentry.state.forms[0]?.open).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens again once the first open has finished", async () => {
+    const { openFeedbackForm } = await loadFeedback();
+    await openFeedbackForm("web", LABELS);
+    await openFeedbackForm("web", LABELS);
+    expect(sentry.state.forms).toHaveLength(2);
+  });
+
+  it("puts focus in the message field, and again after a closing menu", async () => {
+    vi.useFakeTimers();
+    const { openFeedbackForm } = await loadFeedback();
+    await openFeedbackForm("web", LABELS);
+    const form = sentry.state.forms[0];
+    expect(form?.el.querySelector).toHaveBeenCalledWith("textarea");
+    expect(form?.messageField.focus).toHaveBeenCalledTimes(1);
+    expect(
+      form?.messageField.focus.mock.invocationCallOrder[0]
+    ).toBeGreaterThan(
+      form?.open.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY
+    );
+    vi.runAllTimers();
+    expect(form?.messageField.focus).toHaveBeenCalledTimes(2);
+  });
+
   it("never throws when the load fails, and warns once", async () => {
     sentry.failImport = true;
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
@@ -183,5 +238,55 @@ describe("openFeedbackForm", () => {
     await expect(openFeedbackForm("web", LABELS)).resolves.toBeUndefined();
     await expect(openFeedbackForm("web", LABELS)).resolves.toBeUndefined();
     expect(warn).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("feedback scrubbing", () => {
+  const feedbackEvent = () => ({
+    type: "feedback" as const,
+    level: "info" as const,
+    contexts: {
+      feedback: {
+        message:
+          "Refund to 1234 56 78901 please, or mail kari.nordmann@biso.no. See https://admin.biso.no/it/users?q=Kari",
+        url: "https://admin.biso.no/it/users?q=Kari",
+        source: "widget",
+        replay_id: "r1",
+      },
+    },
+    request: { url: "https://admin.biso.no/it/users?q=Kari" },
+    tags: { app: "admin", url: "https://admin.biso.no/it/users?q=Kari" },
+    user: { id: "u1", email: "kari.nordmann@biso.no" },
+  });
+
+  it("registers once, before the integration is added", async () => {
+    const { openFeedbackForm } = await loadFeedback();
+    await openFeedbackForm("admin", LABELS);
+    await openFeedbackForm("admin", LABELS);
+    expect(sentry.client?.hooks.get("beforeSendFeedback")).toHaveLength(1);
+    expect(sentry.client?.on.mock.invocationCallOrder[0]).toBeLessThan(
+      sentry.client?.addIntegration.mock.invocationCallOrder[0] ?? 0
+    );
+  });
+
+  it("scrubs the page address, the message and the user in place", async () => {
+    const { openFeedbackForm } = await loadFeedback();
+    await openFeedbackForm("admin", LABELS);
+    const event = feedbackEvent();
+    sentry.client?.emit("beforeSendFeedback", event, {});
+    expect(event.contexts.feedback.url).toBe("https://admin.biso.no/it/users");
+    expect(event.contexts.feedback.message).toBe(
+      "Refund to [redacted] please, or mail [redacted]. See https://admin.biso.no/it/users"
+    );
+    expect(event.request.url).toBe("https://admin.biso.no/it/users");
+    expect(event.tags).toEqual({
+      app: "admin",
+      url: "https://admin.biso.no/it/users",
+    });
+    expect(event.user).toEqual({ id: "u1" });
+    // What identifies the report stays.
+    expect(event.type).toBe("feedback");
+    expect(event.contexts.feedback.source).toBe("widget");
+    expect(event.contexts.feedback.replay_id).toBe("r1");
   });
 });
