@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = vi.hoisted(() => ({
   getRow: vi.fn(),
+  listRows: vi.fn(),
   incrementRowColumn: vi.fn(),
   updateRow: vi.fn(),
 }));
@@ -530,6 +531,18 @@ describe("runExpenseCheck", () => {
     expect(toAccounting.content).toContain("Dominos");
     expect(toAccounting.content).toContain("Fadderuke 2026");
     expect(toAccounting.content).toContain("The AI check did not finish");
+  });
+
+  it("a failed lookup still sends accounting's email once", async () => {
+    flags.states.expenses_ledger_posting = false;
+    db.listRows.mockRejectedValue(new Error("lookup down"));
+    silenceErrors();
+
+    await expect(
+      runExpenseCheck("expense-1", { agent: async () => true })
+    ).resolves.toBe("done");
+
+    expect(emailsTo("invoice-user")).toHaveLength(1);
   });
 
   it("a failed student copy fails nothing, and a re-run sends nothing again", async () => {

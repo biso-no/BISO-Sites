@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from "@react-pdf/renderer";
+import { pdfColumns } from "./expense-pdf-columns";
 
 interface ExpenseAttachment {
   /** Account label such as "7140 Reise"; empty or absent when none. */
@@ -227,6 +228,7 @@ function getLogoBase64(): string {
 
 function ExpensePdfDocument({ data }: { data: ExpenseTemplateData }) {
   const logoBase64 = getLogoBase64();
+  const { showDetails, widths } = pdfColumns(data.attachments);
   const detailRows = [
     { label: "Anledning:", value: data.occasion?.trim() ?? "" },
     { label: "Arrangement:", value: data.event?.trim() ?? "" },
@@ -314,44 +316,60 @@ function ExpensePdfDocument({ data }: { data: ExpenseTemplateData }) {
           {/* Expenses Table */}
           <View style={styles.expensesTable}>
             <View style={styles.tableHeader}>
-              <View style={styles.colDescription}>
+              <View
+                style={[styles.colDescription, { width: widths.description }]}
+              >
                 <Text style={styles.headerText}>Beskrivelse</Text>
               </View>
-              <View style={styles.colDate}>
+              <View style={[styles.colDate, { width: widths.date }]}>
                 <Text style={styles.headerText}>Dato</Text>
               </View>
-              <View style={styles.colType}>
-                <Text style={styles.headerText}>Type</Text>
-              </View>
-              <View style={styles.colAccount}>
-                <Text style={styles.headerText}>Konto</Text>
-              </View>
-              <View style={styles.colProject}>
-                <Text style={styles.headerText}>Prosjekt</Text>
-              </View>
-              <View style={styles.colAmount}>
+              {showDetails && (
+                <>
+                  <View style={[styles.colType, { width: widths.type }]}>
+                    <Text style={styles.headerText}>Type</Text>
+                  </View>
+                  <View style={[styles.colAccount, { width: widths.account }]}>
+                    <Text style={styles.headerText}>Konto</Text>
+                  </View>
+                  <View style={[styles.colProject, { width: widths.project }]}>
+                    <Text style={styles.headerText}>Prosjekt</Text>
+                  </View>
+                </>
+              )}
+              <View style={[styles.colAmount, { width: widths.amount }]}>
                 <Text style={styles.headerText}>Beløp</Text>
               </View>
             </View>
 
             {data.attachments.map((att, index) => (
               <View key={`att-${index}`} style={styles.tableRow}>
-                <View style={styles.colDescription}>
+                <View
+                  style={[styles.colDescription, { width: widths.description }]}
+                >
                   <Text style={styles.cellText}>{att.description}</Text>
                 </View>
-                <View style={styles.colDate}>
+                <View style={[styles.colDate, { width: widths.date }]}>
                   <Text style={styles.cellText}>{att.date}</Text>
                 </View>
-                <View style={styles.colType}>
-                  <Text style={styles.cellText}>{att.type ?? ""}</Text>
-                </View>
-                <View style={styles.colAccount}>
-                  <Text style={styles.cellText}>{att.account ?? ""}</Text>
-                </View>
-                <View style={styles.colProject}>
-                  <Text style={styles.cellText}>{att.project ?? ""}</Text>
-                </View>
-                <View style={styles.colAmount}>
+                {showDetails && (
+                  <>
+                    <View style={[styles.colType, { width: widths.type }]}>
+                      <Text style={styles.cellText}>{att.type ?? ""}</Text>
+                    </View>
+                    <View
+                      style={[styles.colAccount, { width: widths.account }]}
+                    >
+                      <Text style={styles.cellText}>{att.account ?? ""}</Text>
+                    </View>
+                    <View
+                      style={[styles.colProject, { width: widths.project }]}
+                    >
+                      <Text style={styles.cellText}>{att.project ?? ""}</Text>
+                    </View>
+                  </>
+                )}
+                <View style={[styles.colAmount, { width: widths.amount }]}>
                   <Text style={styles.cellText}>
                     {formatCurrency(att.amount)}
                   </Text>
@@ -361,18 +379,26 @@ function ExpensePdfDocument({ data }: { data: ExpenseTemplateData }) {
 
             {/* Subtotal */}
             <View style={styles.totalRow}>
-              <View style={styles.totalLabel} />
-              <Text style={styles.totalLabelText}>SUBTOTAL</Text>
-              <Text style={styles.totalAmount}>
+              <View style={[styles.totalLabel, { width: widths.totalBlank }]} />
+              <Text
+                style={[styles.totalLabelText, { width: widths.totalLabel }]}
+              >
+                SUBTOTAL
+              </Text>
+              <Text style={[styles.totalAmount, { width: widths.totalAmount }]}>
                 {formatCurrency(data.subtotal)}
               </Text>
             </View>
 
             {/* Total */}
             <View style={styles.totalRow}>
-              <View style={styles.totalLabel} />
-              <Text style={styles.totalLabelText}>TOTALT</Text>
-              <Text style={styles.totalAmount}>
+              <View style={[styles.totalLabel, { width: widths.totalBlank }]} />
+              <Text
+                style={[styles.totalLabelText, { width: widths.totalLabel }]}
+              >
+                TOTALT
+              </Text>
+              <Text style={[styles.totalAmount, { width: widths.totalAmount }]}>
                 {formatCurrency(data.total)}
               </Text>
             </View>

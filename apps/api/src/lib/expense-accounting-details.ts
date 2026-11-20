@@ -15,6 +15,16 @@ import { type HintLocale, hintSentence } from "./expense-hint-text";
 
 type Db = Awaited<ReturnType<typeof createAdminClient>>["db"];
 
+/** How much of a receipt's text names it in front of a flag, as on the card. */
+const RECEIPT_NAME_CHARS = 40;
+
+function shorten(text: string): string {
+  const chars = Array.from(text);
+  return chars.length > RECEIPT_NAME_CHARS
+    ? `${chars.slice(0, RECEIPT_NAME_CHARS - 1).join("")}…`
+    : text;
+}
+
 export interface AccountingLookups {
   accountNames: Map<number, string>;
   typeLabels: Map<string, string>;
@@ -90,7 +100,7 @@ export function buildAccountingDetails(
   const nameById = new Map(
     rows.map((row) => [
       row.$id,
-      row.description?.trim() || receiptType(row, lookups.typeLabels),
+      shorten(row.description?.trim() || receiptType(row, lookups.typeLabels)),
     ])
   );
   const flags = parseApproverHints(expense.approver_hints).flatMap((hint) => {

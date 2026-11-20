@@ -81,6 +81,7 @@ beforeEach(() => {
   db.listRows.mockReset();
 });
 
+const BANK_DIGITS = /9999|1111/;
 const BRACES = /[{}]/;
 
 describe("loadApprovalCardDetails", () => {
@@ -537,10 +538,23 @@ describe("loadApprovalCardDetails", () => {
           field: "project_unsure",
           note: "Could be two events.",
         },
+        {
+          $createdAt: "2026-11-12T10:00:01.000Z",
+          action: "edited",
+          actor_kind: "student",
+          after: "9999.99.99999",
+          before: "1111.11.11111",
+          field: "bank_account",
+        },
       ],
     });
     const { history } = await loadApprovalCardDetails(asDb(), "e1");
-    expect(history[0]?.text).toBe("AI flagged Taxi: Could be two events.");
+    expect(history.map((line) => line.text)).toContain(
+      "AI flagged Taxi: Could be two events."
+    );
+    expect(history.map((line) => line.text).join("\n")).not.toMatch(
+      BANK_DIGITS
+    );
   });
 
   it("a failed lookup still returns a sendable card", async () => {

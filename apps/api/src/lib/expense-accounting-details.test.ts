@@ -83,6 +83,30 @@ describe("buildAccountingDetails", () => {
     );
   });
 
+  it("caps a long receipt name in a flag line", () => {
+    const long = "x".repeat(80);
+    const { flags } = buildAccountingDetails(
+      expense({
+        approver_hints: JSON.stringify([
+          { attachmentId: "a1", code: "project_missing" },
+        ]),
+        expenseAttachments: [
+          {
+            $id: "a1",
+            account_number: null,
+            cost_type: null,
+            cost_type_text: null,
+            description: long,
+            project_name: null,
+          },
+        ],
+      }),
+      LOOKUPS,
+      "en"
+    );
+    expect(flags[0]?.startsWith(`${"x".repeat(39)}…: `)).toBe(true);
+  });
+
   it("has no flags when the check found nothing", () => {
     expect(buildAccountingDetails(expense(), LOOKUPS, "nb").flags).toEqual([]);
   });
