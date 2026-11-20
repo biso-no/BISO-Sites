@@ -1,3 +1,4 @@
+import { pickCheckNotes } from "@repo/shared/utils/expense-check-notes";
 import type { ApproverHint } from "@repo/shared/utils/expense-hints";
 import type { ExpenseDetailEvent } from "./expenses-data";
 
@@ -6,39 +7,33 @@ export function isChecking(state: string | null | undefined): boolean {
   return state === "queued" || state === "running";
 }
 
-/** The classification note reads "Confidence 0.8: reason"; only the reason is shown. */
-const CONFIDENCE_PREFIX = /^Confidence [\d.,]+: /;
-
-/** Events that carry the check's own reason for a change it made. */
-function isChangeEvent(event: ExpenseDetailEvent): boolean {
-  return (
-    event.action === "ai_classified" ||
-    event.action === "ai_account_chosen" ||
-    (event.action === "edited" && event.field === "project")
-  );
-}
-
 /**
- * The check's one-line reason for a receipt: the note of its latest change
- * event. A flag's note is used only when no hint for the receipt is shown, as
- * the hint says the same. Events come oldest first, as the detail loads them.
+ * The check's one-line reason for a receipt. A thin adapter over the shared
+ * `pickCheckNotes`, so the admin, the approval card and the email apply one
+ * rule. `hintShown` says a hint for the receipt is on screen: the flag's note
+ * is then left out, as the hint says the same. Events come oldest first, as
+ * the detail loads them.
  */
 export function checkReasonFor(
   events: readonly ExpenseDetailEvent[],
   attachmentId: string,
   hintShown: boolean
 ): string | null {
-  const notes = events.filter(
-    (event) =>
-      event.actorKind === "ai" &&
-      event.attachmentId === attachmentId &&
-      event.note?.trim()
-  );
-  const latestFirst = [...notes].reverse();
-  const wanted =
-    latestFirst.find(isChangeEvent) ?? (hintShown ? undefined : latestFirst[0]);
-  const note = wanted?.note?.trim();
-  return note ? note.replace(CONFIDENCE_PREFIX, "") : null;
+  const hints: ApproverHint[] = hintShown
+    ? [{ attachmentId, code: "type_unsure" }]
+    : [];
+  const notes = pickCheckNotes({
+    events: events.map((event) => ({
+      $createdAt: event.at,
+      action: event.action,
+      actor_kind: event.actorKind,
+      attachment_id: event.attachmentId,
+      field: event.field,
+      note: event.note,
+    })),
+    hints,
+  });
+  return notes.get(attachmentId) ?? null;
 }
 
 export function hintsForReceipt(
