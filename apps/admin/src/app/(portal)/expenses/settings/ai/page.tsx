@@ -87,7 +87,9 @@ export default async function ExpenseAiSettingsPage() {
         slug: type.slug,
         total: type.total,
       })),
-      projectKept: projectKeptStats(data.projectRows, now, days),
+      projectKept: data.projectRows
+        ? projectKeptStats(data.projectRows, now, days)
+        : null,
       total: stats.total,
     };
   };
@@ -111,6 +113,7 @@ export default async function ExpenseAiSettingsPage() {
           perTypeTitle: ta("perTypeTitle"),
           picks: ta("picks"),
           projectKept: ta("projectKept"),
+          projectKeptError: ta("projectKeptError"),
           projectKeptCount: ta.raw("projectKeptCount") as string,
           recurringEmpty: ta("recurringEmpty"),
           recurringHint: ta("recurringHint", {

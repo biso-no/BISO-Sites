@@ -43,7 +43,7 @@ import {
   parseListParams,
 } from "@/lib/list-params";
 import { paginationQueries } from "@/lib/list-queries";
-import { checkReasonFor, isChecking } from "./check-model";
+import { checkReasonFor, hintsForReceipt, isChecking } from "./check-model";
 
 export type ExpenseListView = "all" | "mine" | "attention";
 
@@ -765,6 +765,11 @@ export async function getExpenseDetail(
     id: e.$id,
     note: e.note,
   }));
+  const hints = await withHintTypeLabels(
+    db,
+    parseApproverHints(expense.approver_hints),
+    locale
+  );
   const bankAccount = expense.bank_account ?? "";
   return {
     bankAccount: permissions.canEditBankAccount
@@ -786,11 +791,7 @@ export async function getExpenseDetail(
         }
       : null,
     events,
-    hints: await withHintTypeLabels(
-      db,
-      parseApproverHints(expense.approver_hints),
-      locale
-    ),
+    hints,
     id: expense.$id,
     ledgerTransactionId:
       expense.ledger_transaction_id &&
@@ -804,7 +805,11 @@ export async function getExpenseDetail(
       parts.approvals.some((a) => a.approver_role === "national"),
     receipts: receipts.map((r) => ({
       ...r,
-      checkReason: checkReasonFor(events, r.id),
+      checkReason: checkReasonFor(
+        events,
+        r.id,
+        hintsForReceipt(hints, r.id).length > 0
+      ),
     })),
     reference: reimbursementNumber(expense.$sequence),
     status: expense.status,

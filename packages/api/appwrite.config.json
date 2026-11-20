@@ -5822,6 +5822,19 @@
                     "orders": [
                         "ASC"
                     ]
+                },
+                {
+                    "key": "idx_action_field",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "action",
+                        "field"
+                    ],
+                    "orders": [
+                        "ASC",
+                        "ASC"
+                    ]
                 }
             ]
         },

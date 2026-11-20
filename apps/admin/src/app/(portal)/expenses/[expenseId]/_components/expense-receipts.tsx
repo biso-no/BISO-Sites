@@ -161,10 +161,10 @@ export function ExpenseReceipts({
                         {t(`issues.${issue}`)}
                       </span>
                     ))}
-                    {hintsForReceipt(hints, r.id).map((hint, i) => (
+                    {hintsForReceipt(hints, r.id).map((hint) => (
                       <span
                         className="block"
-                        key={`${hint.code}-${i}`}
+                        key={`${hint.code}-${hint.attachmentId ?? ""}`}
                         style={{ color: STUDIO.ink3 }}
                       >
                         {hintLine(hint)}

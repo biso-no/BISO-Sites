@@ -246,6 +246,17 @@ describe("expense booking history", () => {
     );
   });
 
+  test("expense_events is indexed by action and field for the AI tab", () => {
+    const table = loadConfig().tables.find((t) => t.$id === "expense_events");
+    expect(table?.indexes).toContainEqual(
+      expect.objectContaining({
+        columns: ["action", "field"],
+        key: "idx_action_field",
+        type: "key",
+      })
+    );
+  });
+
   test("expense_attachments records the date each line was booked on", () => {
     const table = loadConfig().tables.find(
       (t) => t.$id === "expense_attachments"

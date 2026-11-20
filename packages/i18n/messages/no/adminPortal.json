@@ -1718,6 +1718,7 @@
       "overall": "AI-valg beholdt",
       "overallCount": "{kept} av {total} kvitteringer",
       "projectKept": "Prosjekter satt av AI-sjekken som ble beholdt",
+      "projectKeptError": "Kunne ikke laste prosjekttallet.",
       "projectKeptCount": "{kept} av {total} kvitteringer",
       "noData": "Ingen kvitteringer med AI-valg i denne perioden.",
       "capped": "Basert på de siste {count} kvitteringene.",

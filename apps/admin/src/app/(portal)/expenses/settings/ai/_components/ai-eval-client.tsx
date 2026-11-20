@@ -18,7 +18,7 @@ export interface AiEvalWindow {
     total: number;
   }[];
   /** Receipts where the check set a project, and how many it still has. */
-  projectKept: { kept: number; keptRate: number | null; total: number };
+  projectKept: { kept: number; keptRate: number | null; total: number } | null;
   total: number;
 }
 
@@ -69,6 +69,7 @@ export interface AiEvalLabels {
   projectKept: string;
   /** Contains `{kept}` and `{total}`. */
   projectKeptCount: string;
+  projectKeptError: string;
   recurringEmpty: string;
   recurringHint: string;
   recurringTitle: string;
@@ -296,14 +297,25 @@ export function AiEvalClient({
             <p className="mt-3 text-[12px]" style={{ color: STUDIO.ink4 }}>
               {labels.projectKept}
             </p>
-            <p className="font-medium text-2xl" style={{ color: STUDIO.ink }}>
-              {percent(stats.projectKept.keptRate)}
-            </p>
-            <p className="text-[12px]" style={{ color: STUDIO.ink4 }}>
-              {labels.projectKeptCount
-                .replace("{kept}", String(stats.projectKept.kept))
-                .replace("{total}", String(stats.projectKept.total))}
-            </p>
+            {stats.projectKept ? (
+              <>
+                <p
+                  className="font-medium text-2xl"
+                  style={{ color: STUDIO.ink }}
+                >
+                  {percent(stats.projectKept.keptRate)}
+                </p>
+                <p className="text-[12px]" style={{ color: STUDIO.ink4 }}>
+                  {labels.projectKeptCount
+                    .replace("{kept}", String(stats.projectKept.kept))
+                    .replace("{total}", String(stats.projectKept.total))}
+                </p>
+              </>
+            ) : (
+              <p className="text-[12px]" role="status">
+                {labels.projectKeptError}
+              </p>
+            )}
           </div>
           <div className="flex gap-1">
             {([30, 90] as const).map((value) => (

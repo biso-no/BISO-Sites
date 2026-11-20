@@ -1718,6 +1718,7 @@
       "overall": "AI picks kept",
       "overallCount": "{kept} of {total} receipts",
       "projectKept": "Projects set by the AI check that were kept",
+      "projectKeptError": "Could not load the project figure.",
       "projectKeptCount": "{kept} of {total} receipts",
       "noData": "No receipts with an AI pick in this period.",
       "capped": "Based on the latest {count} receipts.",
