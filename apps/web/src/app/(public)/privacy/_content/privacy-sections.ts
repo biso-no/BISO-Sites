@@ -132,7 +132,7 @@ We only use cookies to give you a better user experience on our services, so you
 We do not send names, email addresses or what you type into forms.
 
 **Only with your consent:**
-• Recordings of your visits, where all text and inputs are hidden and images and links are blocked. We record about 25% of visits, plus visits where an error happens.
+• Recordings of your visits, where all text and inputs are hidden and images are blocked. We record about 25% of visits, plus visits where an error happens.
 • You can withdraw your consent at any time under "Privacy settings" in the footer of biso.no, or in the sidebar of the admin.
 
 **Report a problem:**

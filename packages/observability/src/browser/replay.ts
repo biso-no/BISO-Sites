@@ -10,7 +10,8 @@
  *    personal data are never recorded (checked on consent and on every
  *    navigation).
  * 2. `REPLAY_OPTIONS`: text, inputs and media are masked or blocked, and so
- *    are links and frames.
+ *    are links that can carry personal data, and frames
+ *    (`REPLAY_BLOCKED_ELEMENTS`).
  * 3. `scrubReplayEvent`: the page addresses listed on each replay event lose
  *    their query and fragment.
  * 4. `scrubRecordingEvent`: so do the addresses in the recording's own
@@ -140,6 +141,45 @@ const deniedHere = (app: ReplayApp): boolean =>
 // 2–4. What a recording may hold
 // ---------------------------------------------------------------------------
 
+/**
+ * What a link can point at that may be personal data. rrweb can't mask
+ * `href` (or `src`/`srcset`): it turns them into absolute URLs without
+ * calling the mask function (`transformAttribute` in @sentry/replay 11.13.0).
+ * So these links are blocked instead. Relative links inside the Site stay
+ * (`/events/…`); their text is masked like all text.
+ */
+const PERSONAL_LINK_TARGETS = [
+  // An email address.
+  '[href^="mailto:" i]',
+  // A phone number.
+  '[href^="tel:" i]',
+  '[href^="sms:" i]',
+  // The app's deep links: `/auth/verify` shows
+  // `biso://auth/verify?userId=…&secret=…`, a live sign-in secret.
+  '[href^="biso:" i]',
+  // Absolute links, almost always to another site: an applicant's LinkedIn
+  // profile, a Stripe receipt, a SharePoint document.
+  '[href^="http" i]',
+  '[href^="//"]',
+  // A query: searches (`?q=Kari`), tokens and ids.
+  '[href*="?"]',
+  // An email address anywhere in the link, plain or percent-encoded.
+  '[href*="@"]',
+  '[href*="%40"]',
+];
+
+/**
+ * Recorded as an empty box of the same size, without attributes or content:
+ * links and image-map areas that can carry personal data, and every frame
+ * (rrweb keeps a frame's address as `rr_src`). The SDK's own block list
+ * (`.sentry-block`, `[data-sentry-block]`, …) still applies.
+ */
+export const REPLAY_BLOCKED_ELEMENTS: readonly string[] = [
+  ...PERSONAL_LINK_TARGETS.map((target) => `a${target}`),
+  ...PERSONAL_LINK_TARGETS.map((target) => `area${target}`),
+  "iframe",
+];
+
 /** Span ops whose description is a page or request address. */
 const ADDRESS_SPAN_OP = /^(?:navigation|resource)\./;
 
@@ -190,7 +230,7 @@ const REPLAY_OPTIONS = {
   // or a description. rrweb turns `href`, `src` and `srcset` into absolute
   // URLs without calling the mask function (`transformAttribute` in
   // @sentry/replay 11.13.0), so those three are listed for a later SDK that
-  // does; `block` below is what keeps them out today.
+  // does; `REPLAY_BLOCKED_ELEMENTS` is what keeps them out today.
   maskAttributes: [
     "title",
     "placeholder",
@@ -202,11 +242,7 @@ const REPLAY_OPTIONS = {
     "action",
     "formaction",
   ],
-  // Recorded as an empty box of the same size, without attributes or
-  // content. A link can point at anyone's email address (`mailto:`), profile
-  // or receipt, and a frame's address is kept as `rr_src`. The text inside is
-  // masked anyway. The SDK's own block list still applies.
-  block: ["a[href]", "area[href]", "iframe"],
+  block: [...REPLAY_BLOCKED_ELEMENTS],
   // Each page load asks the cookie afresh instead of resuming a stored session.
   stickySession: false,
   // No request or response headers or bodies in recordings.
