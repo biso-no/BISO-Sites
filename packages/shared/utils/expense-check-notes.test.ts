@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { type CheckNoteEvent, pickCheckNotes } from "./expense-check-notes";
+import {
+  CHECK_ACTOR_NAME,
+  type CheckNoteEvent,
+  pickCheckNotes,
+} from "./expense-check-notes";
 
 const AT = (n: number) => `2026-11-19T10:00:0${n}.000Z`;
 
@@ -11,6 +15,7 @@ function ai(
     $createdAt: AT(1),
     action,
     actor_kind: "ai",
+    actor_name: CHECK_ACTOR_NAME,
     attachment_id: "a1",
     note: "A reason.",
     ...over,
@@ -77,6 +82,23 @@ describe("pickCheckNotes", () => {
         hints: [{ attachmentId: "a2", code: "project_unsure" }],
       }).get("a1")
     ).toBe("Series year is unclear.");
+  });
+
+  it("a receipt only the upload AI or the fixed steps typed has no note", () => {
+    expect(CHECK_ACTOR_NAME).toBe("AI check");
+    const notes = pickCheckNotes({
+      events: [
+        // Written by the submit and the fixed steps: AI, but not the check.
+        ai("ai_classified", {
+          actor_name: null,
+          note: "Confidence 0.9: Taxi.",
+        }),
+        ai("ai_account_chosen", { actor_name: undefined, note: "A gift." }),
+        ai("ai_flagged", { actor_name: "Someone else", note: "A flag." }),
+      ],
+      hints: [],
+    });
+    expect(notes.size).toBe(0);
   });
 
   it("shows nothing for a receipt the check did not touch, or an empty note", () => {

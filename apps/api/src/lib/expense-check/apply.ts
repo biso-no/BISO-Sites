@@ -18,6 +18,7 @@ import {
   type FinagoProjectUsage,
   type LedgerAccounts,
 } from "@repo/api/types/appwrite";
+import { CHECK_ACTOR_NAME } from "@repo/shared/utils/expense-check-notes";
 import {
   AI_TYPE_CONFIDENCE_THRESHOLD,
   type CostTypeOption,
@@ -56,8 +57,8 @@ import { departmentEvents, type SiteEvent, websiteDates } from "./tools";
 type Db = Awaited<ReturnType<typeof createAdminClient>>["db"];
 type Row = ExpenseAttachments;
 
-/** How the check signs its history events. */
-const CHECK_ACTOR = "AI check";
+/** How the check signs its history events; the check's notes read only these. */
+const CHECK_ACTOR = CHECK_ACTOR_NAME;
 const PROJECT_FETCH_LIMIT = 5000;
 const USAGE_FETCH_LIMIT = 500;
 const ACCOUNT_FETCH_LIMIT = 100;

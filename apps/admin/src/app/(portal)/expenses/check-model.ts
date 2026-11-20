@@ -27,6 +27,7 @@ export function checkReasonFor(
       $createdAt: event.at,
       action: event.action,
       actor_kind: event.actorKind,
+      actor_name: event.actorName,
       attachment_id: event.attachmentId,
       field: event.field,
       note: event.note,

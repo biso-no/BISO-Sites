@@ -6,7 +6,9 @@
  * Per receipt: the note of the check's latest change (a type, an account or a
  * project), without its "Confidence x: " prefix. Failing that, the note of its
  * latest flag, but only when no hint tied to the receipt is shown already.
- * A receipt the check neither changed nor flagged has no note.
+ * A receipt the check neither changed nor flagged has no note. Only the
+ * check's own events count (`CHECK_ACTOR_NAME`): the submit and the fixed
+ * steps write AI events too, and their reasons are not the check's.
  */
 
 import type { ApproverHint } from "./expense-hints";
@@ -15,19 +17,31 @@ export interface CheckNoteEvent {
   $createdAt?: string;
   action: string;
   actor_kind: string;
+  actor_name?: string | null;
   attachment_id?: string | null;
   field?: string | null;
   note?: string | null;
 }
 
-const CHECK_ACTOR = "ai";
+/** How the background check signs its history events (`expense_events.actor_name`). */
+export const CHECK_ACTOR_NAME = "AI check";
+const CHECK_ACTOR_KIND = "ai";
 const CONFIDENCE_PREFIX = /^Confidence [\d.]+:\s*/;
+
+/** An event the background check itself wrote. */
+function isCheckEvent(event: CheckNoteEvent): boolean {
+  return (
+    event.actor_kind === CHECK_ACTOR_KIND &&
+    event.actor_name === CHECK_ACTOR_NAME
+  );
+}
 
 function isCheckChange(event: CheckNoteEvent): boolean {
   return (
-    event.action === "ai_classified" ||
-    event.action === "ai_account_chosen" ||
-    (event.action === "edited" && event.field === "project")
+    isCheckEvent(event) &&
+    (event.action === "ai_classified" ||
+      event.action === "ai_account_chosen" ||
+      (event.action === "edited" && event.field === "project"))
   );
 }
 
@@ -72,7 +86,7 @@ export function pickCheckNotes({
   );
   const byReceipt = new Map<string, CheckNoteEvent[]>();
   for (const event of newestFirst(events)) {
-    if (event.actor_kind !== CHECK_ACTOR || !event.attachment_id) {
+    if (!(isCheckEvent(event) && event.attachment_id)) {
       continue;
     }
     byReceipt.set(event.attachment_id, [
