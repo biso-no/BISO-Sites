@@ -104,10 +104,13 @@ async function readDraftExpenseIds(
   return drafts;
 }
 
-/** Parent statuses that mean an approver has been through the receipt. */
+/**
+ * Parent statuses that mean an approver has been through the receipt.
+ * `submitted` is left out: no current flow writes it, and it is shown as a
+ * pre-approval state.
+ */
 const REVIEWED_STATUSES: string[] = [
   ExpensesStatus.APPROVED,
-  ExpensesStatus.SUBMITTED,
   ExpensesStatus.SUCCESS,
 ];
 

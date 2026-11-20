@@ -205,7 +205,9 @@ describe("loadAiEvalData", () => {
 
     const data = await loadAiEvalData();
 
-    expect(data.projectRows).toHaveLength(3);
+    // "submitted" is a legacy status no current flow writes; it is not proof
+    // that an approver went through the receipt.
+    expect(data.projectRows).toHaveLength(2);
   });
 
   test("a receipt that is gone or has no project source is skipped", async () => {
