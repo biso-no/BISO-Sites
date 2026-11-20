@@ -8,8 +8,9 @@ import { PRIVACY_SECTIONS } from "./_content/privacy-sections";
 import { PrivacyContent } from "./_content/render-privacy-content";
 
 /**
- * Verbatim from the source document. Not derived from the build date: writing
- * "today" onto a legal page would assert a review that has not happened.
+ * The day this statement's text last changed, set by hand with that change.
+ * Not derived from the build date: writing "today" onto a legal page would
+ * assert a review that has not happened.
  */
 const LAST_UPDATED = "Last updated: 20 November 2026";
 const ORG_NUMBER = "Organization number: 987713380";

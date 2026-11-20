@@ -2,8 +2,9 @@ import { logServerRequestError } from "@repo/shared/utils/server-error-logging";
 import type { captureRequestError } from "@sentry/nextjs";
 import type { Instrumentation } from "next";
 
-// Set once Sentry has loaded. Sentry is never load-critical: if one of its
-// modules is missing from the build, the Site runs without it.
+// Set once Sentry has loaded. @sentry/nextjs is bundled into the build, so a
+// missing package fails the build; the catch in register() covers Sentry
+// failing to load or start at run time, and the Site then runs without it.
 let captureRequest: typeof captureRequestError | undefined;
 
 export async function register() {

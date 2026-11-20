@@ -13,6 +13,10 @@ describe("PRIVACY_SECTIONS", () => {
     for (const part of ["Sentry", "Frankfurt", "90 days", "Privacy settings"]) {
       expect(text).toContain(part);
     }
+    // Where "Privacy settings" is on each site.
+    expect(text).toContain("in the footer of biso.no");
+    expect(text).toContain("in the sidebar of the admin");
+    expect(text).not.toContain("at the bottom of the page");
   });
 
   it("lists the replay consent cookie and Sentry as storage", () => {
