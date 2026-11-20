@@ -123,6 +123,7 @@ function silenceErrors() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  db.listRows.mockReset();
   claims = 0;
   flags.states.expenses_ledger_posting = true;
   flags.states.expenses_module = true;
@@ -535,6 +536,15 @@ describe("runExpenseCheck", () => {
 
   it("a failed lookup still sends accounting's email once", async () => {
     flags.states.expenses_ledger_posting = false;
+    stored({
+      expenseAttachments: [
+        {
+          ...EXPENSE.expenseAttachments[0],
+          account_number: 7140,
+          cost_type: "travel",
+        } as (typeof EXPENSE.expenseAttachments)[number],
+      ],
+    });
     db.listRows.mockRejectedValue(new Error("lookup down"));
     silenceErrors();
 
@@ -542,6 +552,10 @@ describe("runExpenseCheck", () => {
       runExpenseCheck("expense-1", { agent: async () => true })
     ).resolves.toBe("done");
 
+    const tables = db.listRows.mock.calls.map(([, table]) => table);
+    expect(tables).toEqual(
+      expect.arrayContaining(["ledger_accounts", "expense_cost_types"])
+    );
     expect(emailsTo("invoice-user")).toHaveLength(1);
   });
 
