@@ -21,6 +21,7 @@
     "./browser/feedback": "./src/browser/feedback.ts"
   },
   "dependencies": {
+    "@sentry/browser-utils": "catalog:",
     "@sentry/core": "catalog:"
   },
   "peerDependencies": {

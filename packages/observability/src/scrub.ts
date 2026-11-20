@@ -48,21 +48,50 @@ const URL_SUFFIX = /[?#].*$/s;
 const URL_KEY = /(^|\.)(url|full|target|path|referer|referrer)$|^url/i;
 const DROPPED_SPAN_ATTRIBUTES = ["http.query", "url.query"];
 
+/**
+ * Pages whose path segment is a key. Whoever holds one of these links, with
+ * no sign-in, can approve an expense (`/fs/approve/<token>`, emailed to the
+ * approver), book an interview (`/recruitment/book/<token>`, emailed to the
+ * candidate) or scan member passes (`/scan/<token>`, the admin's guest
+ * scanner). `/shop/order/<orderId>`, where payment returns the buyer, needs
+ * the buyer's session, but the id still names their purchase.
+ *
+ * Used with `String.replace(pattern, "$1$2[redacted]")`: `$1` is where the
+ * path starts, `$2` the route, and the segment after it is the key. A route
+ * counts only at the start of a path: at the start of the text, after
+ * `//host`, or after a character other than a letter, digit or `_.~%-`, so
+ * `/members/scan/access` stays. A segment in square brackets is a Next.js
+ * route template (`app/(scan)/scan/[token]/page.js` in a stack frame) and
+ * stays too. Each start scans at most one host, so the scan stays linear.
+ */
+export const CAPABILITY_PATH_PATTERNS: readonly RegExp[] = [
+  /(^|\/\/[^/\s"'<>?#]*|[^\w.~%-])(\/fs\/approve\/)(?!\[|%5B)[^/?#\s"'<>]+/gi,
+  /(^|\/\/[^/\s"'<>?#]*|[^\w.~%-])(\/recruitment\/book\/)(?!\[|%5B)[^/?#\s"'<>]+/gi,
+  /(^|\/\/[^/\s"'<>?#]*|[^\w.~%-])(\/scan\/)(?!\[|%5B)[^/?#\s"'<>]+/gi,
+  /(^|\/\/[^/\s"'<>?#]*|[^\w.~%-])(\/shop\/order\/)(?!\[|%5B)[^/?#\s"'<>]+/gi,
+];
+
 type HeaderValue = string | string[] | undefined;
 type Mutable = Record<string, unknown>;
 
 // Keeps the address, drops the query and fragment.
 const dropUrlSuffix = (url: string): string => url.replace(URL_SUFFIX, "");
 
+const redactCapabilityPaths = (text: string): string =>
+  CAPABILITY_PATH_PATTERNS.reduce(
+    (out, pattern) => out.replace(pattern, `$1$2${REDACTED}`),
+    text
+  );
+
 export const scrubText = (text: string): string =>
-  text
-    .replace(EMBEDDED_URL, dropUrlSuffix)
+  redactCapabilityPaths(text.replace(EMBEDDED_URL, dropUrlSuffix))
     .replace(SECRET_PAIR, `$1$2=${REDACTED}`)
     .replace(EMAIL, `$1${REDACTED}`)
     .replace(IBAN, REDACTED)
     .replace(ACCOUNT_NUMBER, REDACTED)
     .replace(NATIONAL_ID, REDACTED);
 
+/** An address without its query, fragment, capability key or personal data. */
 export const scrubUrl = (url: string): string => scrubText(dropUrlSuffix(url));
 
 const REFERER_HEADERS = new Set(["referer", "referrer"]);

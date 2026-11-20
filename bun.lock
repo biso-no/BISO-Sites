@@ -353,6 +353,7 @@
       "name": "@repo/observability",
       "version": "0.0.0",
       "dependencies": {
+        "@sentry/browser-utils": "catalog:",
         "@sentry/core": "catalog:",
       },
       "devDependencies": {
@@ -601,6 +602,7 @@
     "@radix-ui/react-toolbar": "^1.1.11",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@react-pdf/renderer": "^4.3.3",
+    "@sentry/browser-utils": "11.13.0",
     "@sentry/bun": "11.13.0",
     "@sentry/core": "11.13.0",
     "@sentry/nextjs": "11.13.0",

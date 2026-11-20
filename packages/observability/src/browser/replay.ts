@@ -13,12 +13,13 @@
  *    are links that can carry personal data, and frames
  *    (`REPLAY_BLOCKED_ELEMENTS`).
  * 3. `scrubReplayEvent`: the page addresses listed on each replay event lose
- *    their query and fragment.
+ *    their query, fragment and capability key (`scrubUrl`).
  * 4. `scrubRecordingEvent`: so do the addresses in the recording's own
- *    navigation, request and breadcrumb entries.
+ *    navigation, request and breadcrumb entries, and a navigation or request
+ *    entry naming a page that is never recorded is left out.
  */
+import { addHistoryInstrumentationHandler } from "@sentry/browser-utils";
 import {
-  addHandler,
   type Client,
   type ClientOptions,
   type Event,
@@ -116,13 +117,30 @@ const normalizePath = (pathname: string): string => {
 const underPrefix = (path: string, prefix: string): boolean =>
   path === prefix || path.startsWith(`${prefix}/`);
 
-/** Whether Replay must not record the page at `href` (absolute or a path). */
+/** The base for a relative address outside a page, or on `about:blank`. */
+const FALLBACK_BASE = "https://biso.no";
+
+/** `href` read from the current page, as the browser would follow it. */
+const parseHref = (href: string): URL | undefined => {
+  const here = typeof location === "undefined" ? undefined : location.href;
+  for (const base of [here, FALLBACK_BASE]) {
+    try {
+      return new URL(href, base);
+    } catch {
+      // Not readable from this base; try the next.
+    }
+  }
+  return;
+};
+
+/**
+ * Whether Replay must not record the page at `href`: absolute, or relative to
+ * the current page.
+ */
 export function isReplayDenied(app: ReplayApp, href: string): boolean {
   const { paths, queryParams } = REPLAY_DENYLIST[app];
-  let url: URL;
-  try {
-    url = new URL(href, "https://biso.no");
-  } catch {
+  const url = parseHref(href);
+  if (!url) {
     // An address we can't read is treated as one we must not record.
     return true;
   }
@@ -194,14 +212,31 @@ const asRecord = (value: unknown): Record<string, unknown> | undefined =>
     ? (value as Record<string, unknown>)
     : undefined;
 
+/** A span naming, as its own address or the page it left, an unrecorded page. */
+const namesDeniedPage = (
+  app: ReplayApp,
+  frame: RecordingFrame,
+  data: Record<string, unknown> | undefined
+): boolean =>
+  [frame.description, data?.previous].some(
+    (address) => typeof address === "string" && isReplayDenied(app, address)
+  );
+
 /**
  * The recording's own entries (not rrweb's DOM events, which never reach
  * this hook): page loads, navigations and requests are spans described by
  * their full address, a navigation also names the page it left, and some
  * breadcrumbs Replay makes itself carry the page address in `data.url`. All
- * of them keep the address without its query and fragment.
+ * of them keep the address without its query, fragment and capability key.
+ *
+ * A span about a page that is never recorded is left out: when Replay is
+ * added it reads the page loads the browser has buffered, so the load of
+ * such a page, left before Replay loaded, would arrive with its address.
  */
-const scrubRecordingEvent = (event: RecordingEvent): RecordingEvent => {
+const scrubRecordingEvent = (
+  app: ReplayApp,
+  event: RecordingEvent
+): RecordingEvent | null => {
   const frame = event.data.payload as RecordingFrame;
   const data = asRecord(frame.data);
   if (
@@ -209,6 +244,9 @@ const scrubRecordingEvent = (event: RecordingEvent): RecordingEvent => {
     typeof frame.op === "string" &&
     ADDRESS_SPAN_OP.test(frame.op)
   ) {
+    if (namesDeniedPage(app, frame, data)) {
+      return null;
+    }
     if (typeof frame.description === "string") {
       frame.description = scrubUrl(frame.description);
     }
@@ -247,8 +285,13 @@ const REPLAY_OPTIONS = {
   stickySession: false,
   // No request or response headers or bodies in recordings.
   networkDetailAllowUrls: [],
-  beforeAddRecordingEvent: scrubRecordingEvent,
 } satisfies ReplayIntegrationOptions;
+
+/** The options for one app: which pages are never recorded differs. */
+const replayOptions = (app: ReplayApp): ReplayIntegrationOptions => ({
+  ...REPLAY_OPTIONS,
+  beforeAddRecordingEvent: (event) => scrubRecordingEvent(app, event),
+});
 
 /**
  * Replay events list every page address of the recording in `urls`, and
@@ -358,7 +401,7 @@ const addReplay = async (client: ReplayClient, app: ReplayApp) => {
   const options = client.getOptions();
   options.replaysSessionSampleRate = SAMPLE_RATES[app].replaySessions;
   options.replaysOnErrorSampleRate = SAMPLE_RATES[app].replayOnError;
-  client.addIntegration(sentry.replayIntegration(REPLAY_OPTIONS));
+  client.addIntegration(sentry.replayIntegration(replayOptions(app)));
 };
 
 /** Records on this page if the answer is yes and the page may be recorded. */
@@ -408,15 +451,17 @@ const stopForAddress = (app: ReplayApp, href: string | undefined): void => {
 
 /**
  * Follows every address change (Next's router uses the History API; Sentry
- * instruments it, and reports back and forward too). Starting again waits a
- * task, until the new address and page are in place.
+ * instruments it, and reports back and forward too). The SDK's own handler
+ * wraps the History API itself if nothing has yet, so this does not depend on
+ * the breadcrumbs integration. Starting again waits a task, until the new
+ * address and page are in place.
  */
 const watchNavigation = (app: ReplayApp): void => {
   if (watchingNavigation) {
     return;
   }
   watchingNavigation = true;
-  addHandler("history", (data: { to?: string }) => {
+  addHistoryInstrumentationHandler((data: { to?: string }) => {
     try {
       stopForAddress(app, data.to);
       setTimeout(() => {

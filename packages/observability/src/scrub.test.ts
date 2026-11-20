@@ -1,6 +1,7 @@
 import type { ErrorEvent, Log, Metric, StreamedSpanJSON } from "@sentry/core";
 import { describe, expect, it } from "vitest";
 import {
+  CAPABILITY_PATH_PATTERNS,
   REDACTED,
   redactHeaders,
   SENSITIVE_HEADERS,
@@ -201,6 +202,147 @@ describe("scrubUrl", () => {
     expect(scrubUrl("https://biso.no/u/ola@biso.no")).toBe(
       "https://biso.no/u/[redacted]"
     );
+  });
+});
+
+// Links that work without signing in: the path segment is the key.
+describe("capability links", () => {
+  it.each([
+    [
+      "https://biso.no/fs/approve/abc123?x=1",
+      "https://biso.no/fs/approve/[redacted]",
+    ],
+    ["/fs/approve/abc123?intent=approve", "/fs/approve/[redacted]"],
+    [
+      "https://biso.no/recruitment/book/tok_1-2.x",
+      "https://biso.no/recruitment/book/[redacted]",
+    ],
+    ["/recruitment/book/tok123#slot", "/recruitment/book/[redacted]"],
+    [
+      "https://admin.biso.no/scan/tok123",
+      "https://admin.biso.no/scan/[redacted]",
+    ],
+    [
+      "http://localhost:3001/scan/tok123?_rsc=1",
+      "http://localhost:3001/scan/[redacted]",
+    ],
+    ["/scan/tok123", "/scan/[redacted]"],
+    [
+      "https://biso.no/shop/order/6745a1b2c3d4?success=true",
+      "https://biso.no/shop/order/[redacted]",
+    ],
+    ["/shop/order/6745a1b2c3d4", "/shop/order/[redacted]"],
+    // The rest of the path stays, and so does the spelling of the route.
+    ["/fs/approve/abc%2Fdef/receipt", "/fs/approve/[redacted]/receipt"],
+    ["/FS/Approve/abc123", "/FS/Approve/[redacted]"],
+    // Sign-in links carry their secret in the query.
+    [
+      "https://biso.no/auth/verify?userId=u1&secret=s1",
+      "https://biso.no/auth/verify",
+    ],
+    ["/auth/verify?userId=u1&secret=s1", "/auth/verify"],
+  ])("scrubUrl(%s) is %s", (url, expected) => {
+    expect(scrubUrl(url)).toBe(expected);
+  });
+
+  it.each([
+    "/events/123",
+    "https://biso.no/events/123",
+    "https://biso.no/news/students-2026",
+    // Signed-in pages whose path only contains a capability route's name.
+    "https://admin.biso.no/members/scan/access",
+    "/members/scan/links",
+    "/shop/orders/6745a1b2c3d4",
+    "/fs/6745a1b2c3d4",
+    "/fs/approve",
+    "/scanner",
+    // Next's route templates, as stack frames and route names show them.
+    "/scan/[token]",
+    "/app/apps/admin/.next/server/app/(scan)/scan/[token]/page.js",
+    "https://biso.no/_next/static/chunks/app/(public)/fs/approve/%5Btoken%5D/page.js",
+  ])("scrubUrl keeps %s", (url) => {
+    expect(scrubUrl(url)).toBe(url);
+  });
+
+  it("redacts capability links inside text", () => {
+    expect(scrubText("GET /fs/approve/abc123 failed")).toBe(
+      "GET /fs/approve/[redacted] failed"
+    );
+    expect(
+      scrubText(
+        "fetch https://biso.no/recruitment/book/tok123?x=1 failed (504)"
+      )
+    ).toBe("fetch https://biso.no/recruitment/book/[redacted] failed (504)");
+    expect(scrubText('{"to":"/scan/tok123","from":"/shop/order/o1"}')).toBe(
+      '{"to":"/scan/[redacted]","from":"/shop/order/[redacted]"}'
+    );
+    expect(scrubText("redirectTo=/fs/approve/abc123&x=1")).toBe(
+      "redirectTo=/fs/approve/[redacted]"
+    );
+    expect(scrubText("scrubbed /scan/[redacted] stays")).toBe(
+      "scrubbed /scan/[redacted] stays"
+    );
+  });
+
+  it("redacts them in events, breadcrumbs, spans and logs", () => {
+    const event = scrubEvent({
+      type: undefined,
+      transaction: "/fs/approve/abc123",
+      request: { url: "https://biso.no/fs/approve/abc123?intent=approve" },
+      exception: {
+        values: [{ value: "Not found: /recruitment/book/tok123" }],
+      },
+      breadcrumbs: [
+        {
+          category: "navigation",
+          data: { from: "/fs/approve/abc123", to: "/events" },
+        },
+      ],
+    } as unknown as ErrorEvent);
+    expect(event.transaction).toBe("/fs/approve/[redacted]");
+    expect(event.request?.url).toBe("https://biso.no/fs/approve/[redacted]");
+    expect(event.exception?.values?.[0]?.value).toBe(
+      "Not found: /recruitment/book/[redacted]"
+    );
+    expect(event.breadcrumbs?.[0]?.data).toEqual({
+      from: "/fs/approve/[redacted]",
+      to: "/events",
+    });
+
+    const span = scrubSpan({
+      name: "GET /scan/tok123",
+      attributes: { "url.full": "https://admin.biso.no/scan/tok123" },
+    } as unknown as StreamedSpanJSON);
+    expect(span.name).toBe("GET /scan/[redacted]");
+    expect(span.attributes["url.full"]).toBe(
+      "https://admin.biso.no/scan/[redacted]"
+    );
+
+    const log = scrubLog({
+      level: "warn",
+      message: "order page failed for /shop/order/o1",
+      attributes: { path: "/shop/order/o1" },
+    } as Log);
+    expect(String(log.message)).toBe(
+      "order page failed for /shop/order/[redacted]"
+    );
+    expect(log.attributes).toEqual({ path: "/shop/order/[redacted]" });
+  });
+
+  it("has one pattern per capability route", () => {
+    expect(CAPABILITY_PATH_PATTERNS).toHaveLength(4);
+  });
+
+  it.each([
+    ["capability route runs", "/scan/".repeat(35_000)],
+    ["capability links", "/fs/approve/a".repeat(15_000)],
+    ["double slashes", "//".repeat(100_000)],
+    ["a long host after a double slash", `//${"a".repeat(200_000)}`],
+    ["double-slash hosts", "//a".repeat(66_000)],
+  ])("scrubs 200 KB of %s in well under 50 ms", (_label, text) => {
+    const started = performance.now();
+    scrubText(text);
+    expect(performance.now() - started).toBeLessThan(50);
   });
 });
 

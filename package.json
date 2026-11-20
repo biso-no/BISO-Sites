@@ -147,6 +147,7 @@
     "nodemailer": "^10.0.3",
     "sanitize-html": "2.18.1",
     "@types/sanitize-html": "^2.16.2",
+    "@sentry/browser-utils": "11.13.0",
     "@sentry/core": "11.13.0",
     "@sentry/nextjs": "11.13.0",
     "@sentry/bun": "11.13.0"

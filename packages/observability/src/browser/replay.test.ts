@@ -85,6 +85,24 @@ vi.mock("@sentry/core", async (importOriginal) => ({
   getClient: () => sentry.client,
 }));
 
+// The SDK's own history handler, which installs the History API wrapper
+// itself when nothing has yet (the breadcrumbs integration may be off).
+const sdkHistory = vi.hoisted(() => ({
+  addHandler: vi.fn<(handler: (data: { to?: string }) => void) => void>(),
+}));
+
+vi.mock("@sentry/browser-utils", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("@sentry/browser-utils")>();
+  sdkHistory.addHandler.mockImplementation(
+    original.addHistoryInstrumentationHandler
+  );
+  return {
+    ...original,
+    addHistoryInstrumentationHandler: sdkHistory.addHandler,
+  };
+});
+
 const loadController = () => import("./replay");
 
 const addedReplay = () => {
@@ -109,6 +127,7 @@ beforeEach(() => {
     return { replayIntegration: sentry.replayIntegration };
   });
   sentry.replayIntegration.mockClear();
+  sdkHistory.addHandler.mockClear();
   sentry.client = sentry.makeClient();
   sentry.imports = 0;
   sentry.failImport = false;
@@ -380,6 +399,23 @@ describe("isReplayDenied", () => {
     expect(isReplayDenied(app, href)).toBe(false);
   });
 
+  it("reads a relative address from the current page", async () => {
+    const { isReplayDenied } = await loadController();
+    visit("/fs/");
+    expect(isReplayDenied("web", "approve/tok123")).toBe(true);
+    visit("/recruitment/");
+    expect(isReplayDenied("web", "approve/tok123")).toBe(false);
+    visit("/it/users/u1", "https://admin.biso.no");
+    expect(isReplayDenied("admin", "u2")).toBe(true);
+    expect(isReplayDenied("admin", "../../members")).toBe(false);
+  });
+
+  it("reads a relative address from biso.no outside a page", async () => {
+    const { isReplayDenied } = await loadController();
+    expect(isReplayDenied("web", "approve/tok123")).toBe(false);
+    expect(isReplayDenied("web", "fs/approve/tok123")).toBe(true);
+  });
+
   it("keeps at least the agreed pages out", async () => {
     const { REPLAY_DENYLIST } = await loadController();
     expect(REPLAY_DENYLIST.web.paths).toEqual(
@@ -427,6 +463,26 @@ describe("applyReplayConsent on a page that is not recorded", () => {
 });
 
 describe("navigation", () => {
+  it("follows the address through Sentry's own history instrumentation", async () => {
+    visit("/");
+    const { applyReplayConsent } = await loadController();
+    await applyReplayConsent("web", "granted");
+    await applyReplayConsent("web", "denied");
+    await applyReplayConsent("web", "granted");
+    expect(sdkHistory.addHandler).toHaveBeenCalledTimes(1);
+    expect(sdkHistory.addHandler).toHaveBeenCalledWith(expect.any(Function));
+  });
+
+  it("stops before the router loads a relative address that is not recorded", async () => {
+    visit("/fs/");
+    const { applyReplayConsent, stopReplayBeforeNavigation } =
+      await loadController();
+    await applyReplayConsent("web", "granted");
+    expect(addedReplay().getRecordingMode()).toBe("buffer");
+    stopReplayBeforeNavigation("web", "approve/tok123");
+    expect(addedReplay().stop).toHaveBeenCalledWith({ flush: false });
+  });
+
   it("stops before the address changes to a page that is not recorded", async () => {
     visit("/");
     const { applyReplayConsent } = await loadController();
@@ -531,11 +587,13 @@ describe("addresses in what Replay sends", () => {
     timestamp: number;
     type: number;
   }
-  type RecordingHook = (event: RecordingEvent) => RecordingEvent;
+  type RecordingHook = (event: RecordingEvent) => RecordingEvent | null;
 
-  const recordingHook = async (): Promise<RecordingHook> => {
+  const recordingHook = async (
+    app: "web" | "admin" = "web"
+  ): Promise<RecordingHook> => {
     const { applyReplayConsent } = await loadController();
-    await applyReplayConsent("web", "granted");
+    await applyReplayConsent(app, "granted");
     const options = sentry.replayIntegration.mock.calls[0]?.[0] as {
       beforeAddRecordingEvent: RecordingHook;
     };
@@ -583,32 +641,78 @@ describe("addresses in what Replay sends", () => {
   it.each([
     [
       "navigation.push",
-      "https://biso.no/members?q=Kari#top",
-      "https://biso.no/members",
+      "https://biso.no/events?campus=oslo#top",
+      "https://biso.no/events",
     ],
-    [
-      "navigation.navigate",
-      "https://biso.no/auth/verify?userId=u1&secret=s1",
-      "https://biso.no/auth/verify",
-    ],
-    ["resource.fetch", "/api/users?q=Kari&_rsc=1", "/api/users"],
+    ["navigation.reload", "/news?page=2", "/news"],
+    ["resource.fetch", "/api/events?campus=oslo&_rsc=1", "/api/events"],
     [
       "resource.img",
       "https://biso.no/_next/image?url=x",
       "https://biso.no/_next/image",
     ],
-  ])("drops the query of a %s span description", async (op, description, expected) => {
+  ])("drops only the query of a %s span description", async (op, description, expected) => {
     const hook = await recordingHook();
     const result = hook(span(op, description)) as ReturnType<typeof span>;
     expect(result.data.payload.description).toBe(expected);
   });
 
-  it("drops the query of the page a navigation left", async () => {
+  it("drops only the query of the page a navigation left", async () => {
     const hook = await recordingHook();
     const result = hook(
-      span("navigation.push", "/news", { previous: "/members?q=Kari" })
+      span("navigation.push", "/news", { previous: "/events?campus=oslo" })
     ) as ReturnType<typeof span>;
-    expect(result.data.payload.data).toEqual({ previous: "/members" });
+    expect(result.data.payload.data).toEqual({ previous: "/events" });
+  });
+
+  // Replay reads the browser's buffered entries when it is added, so the
+  // page load of a page it never records (left before Replay loaded) would
+  // reach the recording with its whole address.
+  it.each([
+    ["web", span("navigation.navigate", "https://biso.no/fs/approve/tok")],
+    [
+      "web",
+      span(
+        "navigation.navigate",
+        "https://biso.no/auth/verify?userId=u1&secret=s1"
+      ),
+    ],
+    ["web", span("navigation.push", "/recruitment/book/tok")],
+    ["web", span("navigation.push", "https://biso.no/members?q=Kari#top")],
+    ["web", span("resource.fetch", "/api/users?q=Kari&_rsc=1")],
+    ["web", span("resource.script", "https://biso.no/shop/order/o1/x.js")],
+    [
+      "web",
+      span("navigation.push", "/events", { previous: "/fs/approve/tok" }),
+    ],
+    ["admin", span("navigation.navigate", "https://admin.biso.no/scan/tok")],
+    ["admin", span("navigation.push", "/it/users/u1")],
+    [
+      "admin",
+      span("navigation.push", "/members", { previous: "/members?q=Kari" }),
+    ],
+  ] as const)("leaves out a %s span about a page it never records", async (app, event) => {
+    const hook = await recordingHook(app);
+    expect(hook(structuredClone(event))).toBeNull();
+  });
+
+  // Each app has its own list: the admin's user pages are web's 404s.
+  it("keeps a web span about a page only the admin never records", async () => {
+    const hook = await recordingHook("web");
+    const result = hook(
+      span("navigation.push", "/it/users/u1?x=1")
+    ) as ReturnType<typeof span>;
+    expect(result.data.payload.description).toBe("/it/users/u1");
+  });
+
+  it("keeps an admin span about a page only web never records, without its key", async () => {
+    const hook = await recordingHook("admin");
+    const result = hook(
+      span("navigation.push", "https://biso.no/shop/order/o1?success=true")
+    ) as ReturnType<typeof span>;
+    expect(result.data.payload.description).toBe(
+      "https://biso.no/shop/order/[redacted]"
+    );
   });
 
   it("leaves other span descriptions alone", async () => {
