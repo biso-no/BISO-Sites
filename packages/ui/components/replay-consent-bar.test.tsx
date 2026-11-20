@@ -140,4 +140,25 @@ describe("ReplayConsentBar", () => {
       button(container, "No thanks").className
     );
   });
+
+  test("publishes its height while visible and clears it after a choice", async () => {
+    const proto = (window as unknown as { HTMLElement: typeof HTMLElement })
+      .HTMLElement.prototype;
+    Object.defineProperty(proto, "offsetHeight", {
+      configurable: true,
+      get: () => 140,
+    });
+    const root = document.documentElement;
+    const { container } = await mount();
+    expect(root.style.getPropertyValue("--replay-consent-bar-height")).toBe(
+      "140px"
+    );
+    expect(root.style.getPropertyValue("scroll-padding-bottom")).toBe("140px");
+    expect(document.body.style.paddingBottom).toBe("140px");
+    await act(async () => {
+      button(container, "No thanks").click();
+    });
+    expect(root.style.getPropertyValue("--replay-consent-bar-height")).toBe("");
+    expect(document.body.style.paddingBottom).toBe("");
+  });
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@repo/ui/components/ui/button";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export type ReplayConsentChoice = "granted" | "denied";
 
@@ -25,6 +25,9 @@ export interface ReplayConsentBarProps {
 /** Fired by "Privacy settings" links to bring the bar back after a choice. */
 export const REPLAY_CONSENT_OPEN_EVENT = "biso:replay-consent:open";
 
+/** Height of the visible bar, for other bottom-fixed UI to sit above it. */
+export const REPLAY_CONSENT_BAR_HEIGHT_VAR = "--replay-consent-bar-height";
+
 export function openReplayConsentSettings(): void {
   if (typeof window === "undefined") {
     return;
@@ -45,6 +48,35 @@ export function ReplayConsentBar({
 }: ReplayConsentBarProps) {
   const [visible, setVisible] = useState(false);
   const [pending, setPending] = useState(false);
+  const barRef = useRef<HTMLElement>(null);
+
+  // While visible, publish the bar's height and reserve that space so the
+  // whole page can be scrolled above it. Everything is undone when hidden.
+  useEffect(() => {
+    const bar = barRef.current;
+    if (!(visible && bar)) {
+      return;
+    }
+    const root = document.documentElement;
+    const apply = () => {
+      const height = `${bar.offsetHeight}px`;
+      root.style.setProperty(REPLAY_CONSENT_BAR_HEIGHT_VAR, height);
+      root.style.setProperty("scroll-padding-bottom", height);
+      document.body.style.paddingBottom = height;
+    };
+    apply();
+    const observer =
+      typeof ResizeObserver === "undefined"
+        ? undefined
+        : new ResizeObserver(apply);
+    observer?.observe(bar);
+    return () => {
+      observer?.disconnect();
+      root.style.removeProperty(REPLAY_CONSENT_BAR_HEIGHT_VAR);
+      root.style.removeProperty("scroll-padding-bottom");
+      document.body.style.paddingBottom = "";
+    };
+  }, [visible]);
 
   useEffect(() => {
     if (readConsent() === "unknown") {
@@ -78,6 +110,7 @@ export function ReplayConsentBar({
   return (
     <section
       aria-label={labels.title}
+      ref={barRef}
       className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
     >
       <div className="pointer-events-auto max-h-[60vh] w-full max-w-xl overflow-y-auto rounded-lg border border-border bg-background p-4 text-foreground shadow-lg">

@@ -69,7 +69,7 @@ export function OnboardingPopout({
         <motion.aside
           animate={{ opacity: 1, y: 0 }}
           aria-labelledby="onboarding-popout-title"
-          className="fixed bottom-6 left-6 z-50 w-72 max-w-[calc(100vw-3rem)] rounded-biso-lg border border-edge bg-surface-raised p-5 shadow-elev-2"
+          className="fixed bottom-[calc(var(--replay-consent-bar-height,0px)+1.5rem)] left-6 z-50 w-72 max-w-[calc(100vw-3rem)] rounded-biso-lg border border-edge bg-surface-raised p-5 shadow-elev-2"
           exit={{ opacity: 0, y: 16 }}
           initial={{ opacity: 0, y: 16 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
