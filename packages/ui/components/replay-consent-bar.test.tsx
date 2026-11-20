@@ -62,6 +62,22 @@ async function mount(props: Partial<ReplayConsentBarProps> = {}) {
   return { container, onChoose };
 }
 
+function stubOffsetHeight(value: number): () => void {
+  const proto = window.HTMLElement.prototype;
+  const original = Object.getOwnPropertyDescriptor(proto, "offsetHeight");
+  Object.defineProperty(proto, "offsetHeight", {
+    configurable: true,
+    get: () => value,
+  });
+  return () => {
+    if (original) {
+      Object.defineProperty(proto, "offsetHeight", original);
+    } else {
+      Reflect.deleteProperty(proto, "offsetHeight");
+    }
+  };
+}
+
 const button = (container: Element, text: string) =>
   [...container.querySelectorAll("button")].find(
     (b) => b.textContent === text
@@ -142,12 +158,7 @@ describe("ReplayConsentBar", () => {
   });
 
   test("publishes its height while visible and clears it after a choice", async () => {
-    const proto = (window as unknown as { HTMLElement: typeof HTMLElement })
-      .HTMLElement.prototype;
-    Object.defineProperty(proto, "offsetHeight", {
-      configurable: true,
-      get: () => 140,
-    });
+    const restore = stubOffsetHeight(140);
     const root = document.documentElement;
     const { container } = await mount();
     expect(root.style.getPropertyValue("--replay-consent-bar-height")).toBe(
@@ -160,5 +171,19 @@ describe("ReplayConsentBar", () => {
     });
     expect(root.style.getPropertyValue("--replay-consent-bar-height")).toBe("");
     expect(document.body.style.paddingBottom).toBe("");
+    expect(root.style.getPropertyValue("scroll-padding-bottom")).toBe("");
+    restore();
+  });
+
+  test("reserveBodySpace false publishes the height but leaves the body alone", async () => {
+    const restore = stubOffsetHeight(120);
+    const root = document.documentElement;
+    await mount({ reserveBodySpace: false });
+    expect(root.style.getPropertyValue("--replay-consent-bar-height")).toBe(
+      "120px"
+    );
+    expect(document.body.style.paddingBottom).toBe("");
+    expect(root.style.getPropertyValue("scroll-padding-bottom")).toBe("");
+    restore();
   });
 });

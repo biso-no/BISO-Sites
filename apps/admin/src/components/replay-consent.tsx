@@ -33,6 +33,7 @@ export function ReplayConsent() {
       }}
       onChoose={choose}
       readConsent={readConsentFromDocument}
+      reserveBodySpace={false}
     />
   );
 }

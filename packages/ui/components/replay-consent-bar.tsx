@@ -20,6 +20,11 @@ export interface ReplayConsentBarProps {
   onChoose: (choice: ReplayConsentChoice) => Promise<void> | void;
   /** The visitor's stored answer; the bar only shows for "unknown". */
   readConsent: () => ReplayConsentChoice | "unknown";
+  /**
+   * Pad the body and root scroll area by the bar's height (default). Pages
+   * with their own inner scroller pass false and use the height variable.
+   */
+  reserveBodySpace?: boolean;
 }
 
 /** Fired by "Privacy settings" links to bring the bar back after a choice. */
@@ -45,6 +50,7 @@ export function ReplayConsentBar({
   labels,
   onChoose,
   readConsent,
+  reserveBodySpace = true,
 }: ReplayConsentBarProps) {
   const [visible, setVisible] = useState(false);
   const [pending, setPending] = useState(false);
@@ -61,8 +67,10 @@ export function ReplayConsentBar({
     const apply = () => {
       const height = `${bar.offsetHeight}px`;
       root.style.setProperty(REPLAY_CONSENT_BAR_HEIGHT_VAR, height);
-      root.style.setProperty("scroll-padding-bottom", height);
-      document.body.style.paddingBottom = height;
+      if (reserveBodySpace) {
+        root.style.setProperty("scroll-padding-bottom", height);
+        document.body.style.paddingBottom = height;
+      }
     };
     apply();
     const observer =
@@ -76,7 +84,7 @@ export function ReplayConsentBar({
       root.style.removeProperty("scroll-padding-bottom");
       document.body.style.paddingBottom = "";
     };
-  }, [visible]);
+  }, [visible, reserveBodySpace]);
 
   useEffect(() => {
     if (readConsent() === "unknown") {
