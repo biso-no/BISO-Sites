@@ -37,6 +37,7 @@ import {
   type ExpenseActionError,
   type ExpenseActionResult,
 } from "../action-result";
+import { isChecking } from "../check-model";
 import { loadRebuildEvidence } from "../expenses-data";
 import { loadReceiptEditOptions } from "./edit-options";
 import {
@@ -90,6 +91,7 @@ async function loadForEdit(expenseId: string): Promise<Loaded | null> {
         "submitter_is_financial_manager",
         "submitter_is_controller",
         "department",
+        "check_state",
         "expenseAttachments.*",
       ]),
     ]),
@@ -181,7 +183,11 @@ async function editContext(loaded: Loaded): Promise<ReceiptEditContext> {
   };
 }
 
-/** Corrects one receipt of an expense. Each change is logged in the history. */
+/**
+ * Corrects one receipt of an expense. Each change is logged in the history.
+ * Refused while the background check works on the expense: its fixed steps
+ * write the receipts' types and accounts, and would overwrite the edit.
+ */
 export async function updateExpenseReceipt(input: {
   attachmentId: string;
   changes: ReceiptChanges;
@@ -191,6 +197,9 @@ export async function updateExpenseReceipt(input: {
     const loaded = await loadForEdit(input.expenseId);
     if (!loaded?.permissions.canEdit) {
       return { error: "forbidden" };
+    }
+    if (isChecking(loaded.expense.check_state)) {
+      return { error: "checking" };
     }
     const { db, expense } = loaded;
     const attachments: ExpenseAttachments[] = expense.expenseAttachments ?? [];
@@ -264,7 +273,8 @@ export async function updateExpenseReceipt(input: {
 /**
  * Sets (or clears) the Finago project on every receipt of an expense that has
  * an amount. Supporting statements are skipped. One history entry per receipt
- * that actually changed; nothing is written if the project is refused.
+ * that actually changed; nothing is written if the project is refused, or
+ * while the background check works on the expense.
  */
 export async function applyProjectToAllReceipts(
   expenseId: string,
@@ -274,6 +284,9 @@ export async function applyProjectToAllReceipts(
     const loaded = await loadForEdit(expenseId);
     if (!loaded?.permissions.canEdit) {
       return { error: "forbidden" };
+    }
+    if (isChecking(loaded.expense.check_state)) {
+      return { error: "checking" };
     }
     const { db, expense } = loaded;
     const ctx = await editContext(loaded);

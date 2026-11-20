@@ -149,6 +149,37 @@ describe("updateExpenseReceipt", () => {
     expect(db.updateRow).not.toHaveBeenCalled();
   });
 
+  test("refuses an edit while the check is still working on the expense", async () => {
+    getExpenseViewer.mockResolvedValue(
+      viewer({ emails: ["boss@example.com"], isGlobalAdmin: true })
+    );
+    for (const checkState of ["queued", "running"]) {
+      db.getRow.mockResolvedValue({ ...expense(), check_state: checkState });
+      const result = await updateExpenseReceipt({
+        attachmentId: "a1",
+        changes: { amount: 10 },
+        expenseId: "ex1",
+      });
+      expect(result).toEqual({ error: "checking" });
+    }
+    expect(db.updateRow).not.toHaveBeenCalled();
+    expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  test("an expense the check has finished can be edited", async () => {
+    for (const checkState of ["done", "fallback", null]) {
+      db.updateRow.mockClear();
+      db.getRow.mockResolvedValue({ ...expense(), check_state: checkState });
+      const result = await updateExpenseReceipt({
+        attachmentId: "a1",
+        changes: { description: `Taxi ${checkState}` },
+        expenseId: "ex1",
+      });
+      expect(result).toEqual({ data: { total: 250 } });
+      expect(db.updateRow).toHaveBeenCalledTimes(1);
+    }
+  });
+
   test("an on-behalf actor records admin as source and actor", async () => {
     getExpenseViewer.mockResolvedValue(
       viewer({ emails: ["boss@example.com"], isGlobalAdmin: true })
@@ -329,6 +360,16 @@ describe("applyProjectToAllReceipts", () => {
       }
       return Promise.resolve({ rows: [] });
     });
+
+  test("refuses to set a project while the check is still working", async () => {
+    withProjects();
+    db.getRow.mockResolvedValue({ ...expense(), check_state: "running" });
+
+    expect(await applyProjectToAllReceipts("ex1", "p1")).toEqual({
+      error: "checking",
+    });
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
 
   test("apply to all sets every receipt with an amount", async () => {
     withProjects();

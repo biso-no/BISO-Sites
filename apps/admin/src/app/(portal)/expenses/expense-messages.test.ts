@@ -4,6 +4,7 @@ import { loadMessages } from "@repo/i18n/messages";
 interface ExpenseMessages {
   changeApprover: Record<string, string>;
   decision: Record<string, string>;
+  edit: Record<string, string>;
   errors: Record<string, string>;
   onBehalfRoles: Record<string, string>;
   retry: Record<string, string>;
@@ -107,5 +108,25 @@ describe("a booking Finago has but the admin could not save", () => {
     expect(
       render(no.errors.booking_unrecorded as string, { transactionId: "tx-9" })
     ).toContain("(tx-9)");
+  });
+});
+
+describe("while the check is working", () => {
+  test("the receipts say they can be edited in a minute, in both languages", () => {
+    expect(en.edit.checking).toBe(
+      "This reimbursement is being checked. You can edit it in a minute."
+    );
+    expect(no.edit.checking).toBe(
+      "Dette utlegget blir sjekket. Du kan redigere det om et minutt."
+    );
+  });
+
+  test("a refused edit says why and when to try again", () => {
+    expect(en.errors.checking).toBe(
+      "This reimbursement is still being checked. Try again in a minute."
+    );
+    expect(no.errors.checking).toBe(
+      "Dette utlegget blir fortsatt sjekket. Prøv igjen om et minutt."
+    );
   });
 });

@@ -13,8 +13,10 @@ import { type ReceiptEditOptions, ReceiptEditor } from "./receipt-editor";
 
 interface Props {
   departmentName: string;
-  /** Present only when the viewer may edit receipts. */
+  /** Present only when the viewer may edit receipts now. */
   editOptions: ReceiptEditOptions | null;
+  /** The viewer may edit, but the check is still working: edits wait. */
+  editsWait: boolean;
   expenseId: string;
   /** All the expense's hints; each receipt shows the ones tied to it. */
   hints: ApproverHint[];
@@ -52,6 +54,7 @@ function projectText(r: ExpenseDetailReceipt, none: string): string {
 export function ExpenseReceipts({
   departmentName,
   editOptions,
+  editsWait,
   expenseId,
   hints,
   receipts,
@@ -66,6 +69,11 @@ export function ExpenseReceipts({
       <h3 className="px-5 pt-4 font-medium text-[14px]">
         {t("detail.receiptsTitle")}
       </h3>
+      {editsWait && (
+        <p className="px-5 pt-1 text-[13px]" style={{ color: STUDIO.ink3 }}>
+          {t("edit.checking")}
+        </p>
+      )}
       {receipts.length === 0 ? (
         <p className="px-5 py-4 text-[13px]" style={{ color: STUDIO.ink3 }}>
           {t("detail.noReceipts")}

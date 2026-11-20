@@ -1597,7 +1597,8 @@
       "bankAccount": "Bankkonto",
       "bankHint": "11 siffer. Mellomrom og punktum ignoreres.",
       "receiptDescription": "Endre det som bokføres for denne kvitteringen. Hver endring logges i historikken.",
-      "bankDescription": "Kontoen studenten får utbetalt til. Endringen logges i historikken."
+      "bankDescription": "Kontoen studenten får utbetalt til. Endringen logges i historikken.",
+      "checking": "Dette utlegget blir sjekket. Du kan redigere det om et minutt."
     },
     "eventTitleUnavailable": "Arrangement (tittel mangler)",
     "errors": {
@@ -1624,6 +1625,7 @@
       "posting_disabled": "Bokføring til Finago er slått av.",
       "api_failed": "Utleggstjenesten svarte ikke som forventet. Prøv igjen.",
       "in_progress": "Dette trinnet behandles allerede. Prøv igjen om et øyeblikk.",
+      "checking": "Dette utlegget blir fortsatt sjekket. Prøv igjen om et minutt.",
       "self_approver": "Studenten som leverte utlegget kan ikke være godkjenner.",
       "same_approver": "Den personen er allerede godkjenner for dette trinnet.",
       "retry_in_progress": "Noen andre prøver allerede denne bokføringen på nytt.",

@@ -1597,7 +1597,8 @@
       "bankAccount": "Bank account",
       "bankHint": "11 digits. Spaces and dots are ignored.",
       "receiptDescription": "Change what is booked for this receipt. Each change is logged in the history.",
-      "bankDescription": "The account the student is paid to. The change is logged in the history."
+      "bankDescription": "The account the student is paid to. The change is logged in the history.",
+      "checking": "This reimbursement is being checked. You can edit it in a minute."
     },
     "eventTitleUnavailable": "Event (title unavailable)",
     "errors": {
@@ -1624,6 +1625,7 @@
       "posting_disabled": "Booking to Finago is switched off.",
       "api_failed": "The expense service did not respond as expected. Try again.",
       "in_progress": "This step is already being processed. Try again in a moment.",
+      "checking": "This reimbursement is still being checked. Try again in a minute.",
       "self_approver": "The student who submitted the expense cannot be its approver.",
       "same_approver": "That person is already the approver for this step.",
       "retry_in_progress": "Someone else is already retrying this booking.",

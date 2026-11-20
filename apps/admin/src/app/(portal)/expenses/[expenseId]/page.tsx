@@ -38,12 +38,16 @@ export default async function ExpenseDetailPage({
     notFound();
   }
 
-  const editOptions = detail.permissions.canEdit
-    ? await loadReceiptEditOptions(
-        (await createAdminClient()).db,
-        detail.department.id || null
-      )
-    : null;
+  // While the check works on the expense the receipts are read-only: its
+  // fixed steps would overwrite an edit (the actions refuse one too).
+  const editsWait = detail.permissions.canEdit && detail.checking;
+  const editOptions =
+    detail.permissions.canEdit && !detail.checking
+      ? await loadReceiptEditOptions(
+          (await createAdminClient()).db,
+          detail.department.id || null
+        )
+      : null;
 
   const currentStep = detail.steps.find((step) => step.isCurrent);
 
@@ -91,6 +95,7 @@ export default async function ExpenseDetailPage({
       <ExpenseReceipts
         departmentName={detail.department.name}
         editOptions={editOptions}
+        editsWait={editsWait}
         expenseId={detail.id}
         hints={detail.hints}
         receipts={detail.receipts}

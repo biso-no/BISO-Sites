@@ -25,6 +25,8 @@ export type ExpenseActionError =
   | "not_rebuildable"
   | "posting_disabled"
   | "in_progress"
+  /** The background check is still working on the expense; edit in a minute. */
+  | "checking"
   | "self_approver"
   | "same_approver"
   | "retry_in_progress"
