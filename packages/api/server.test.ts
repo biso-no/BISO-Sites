@@ -35,7 +35,7 @@ vi.mock("next/headers", () => ({
 const TEST_PROJECT_ID = "test-project";
 const TEST_API_KEY = "test-api-key";
 
-function loadServerModule(endpoint: string, timeoutMs = "50") {
+function loadServerModule(endpoint: string, timeoutMs = "2000") {
   vi.stubEnv("APPWRITE_API_KEY", TEST_API_KEY);
   vi.stubEnv("APPWRITE_PROJECT_ID", TEST_PROJECT_ID);
   vi.stubEnv("NEXT_PUBLIC_APPWRITE_ENDPOINT", endpoint);

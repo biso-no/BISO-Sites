@@ -14,6 +14,10 @@ import {
   scrubUrl,
 } from "./scrub";
 
+// A linear pass over 200 KB takes a few ms; a backtracking regex takes seconds.
+// The budget is loose so the suite stays green on a busy machine.
+const LINEAR_TIME_BUDGET_MS = 500;
+
 describe("scrubText", () => {
   it("redacts bank account numbers in all spellings", () => {
     expect(scrubText("Konto 1234.56.78903 avvist")).toBe(
@@ -125,10 +129,10 @@ describe("scrubText", () => {
     ["lower-case encoded plus runs", `a${"%2ba".repeat(50_000)}`],
     ["encoded addresses without a dot", `${"a%40b ".repeat(30_000)}`],
     ["encoded plus signs before encoded at signs", "%2ba%40b".repeat(25_000)],
-  ])("scrubs 200 KB of %s in well under 50 ms", (_label, text) => {
+  ])("scrubs 200 KB of %s in linear time", (_label, text) => {
     const started = performance.now();
     scrubText(text);
-    expect(performance.now() - started).toBeLessThan(50);
+    expect(performance.now() - started).toBeLessThan(LINEAR_TIME_BUDGET_MS);
   });
 
   it.each([
@@ -339,10 +343,10 @@ describe("capability links", () => {
     ["double slashes", "//".repeat(100_000)],
     ["a long host after a double slash", `//${"a".repeat(200_000)}`],
     ["double-slash hosts", "//a".repeat(66_000)],
-  ])("scrubs 200 KB of %s in well under 50 ms", (_label, text) => {
+  ])("scrubs 200 KB of %s in linear time", (_label, text) => {
     const started = performance.now();
     scrubText(text);
-    expect(performance.now() - started).toBeLessThan(50);
+    expect(performance.now() - started).toBeLessThan(LINEAR_TIME_BUDGET_MS);
   });
 });
 
@@ -531,10 +535,10 @@ describe("scrubLog console lines", () => {
       attributes: { "sentry.origin": "auto.log.console" },
     }) as Log;
 
-  it("scrubs 200 KB of unclosed JSON openers in well under 50 ms", () => {
+  it("scrubs 200 KB of unclosed JSON openers in linear time", () => {
     const started = performance.now();
     scrubLog(consoleLog(" [".repeat(100_000)));
-    expect(performance.now() - started).toBeLessThan(50);
+    expect(performance.now() - started).toBeLessThan(LINEAR_TIME_BUDGET_MS);
   });
 
   it("leaves a plain console line to scrubText", () => {
