@@ -293,8 +293,9 @@ export function createReporter(config: ReporterConfig): Reporter {
             }
           : {}),
       };
+      const query = `status=${encodeURIComponent(status)}&check_in_id=${encodeURIComponent(checkInId)}&environment=${encodeURIComponent(environment)}`;
       send(
-        `${base}/cron/${encodeURIComponent(slug)}/${dsn.key}/`,
+        `${base}/cron/${encodeURIComponent(slug)}/${dsn.key}/?${query}`,
         "application/json",
         JSON.stringify(body)
       );

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createReporter, reporterFromEnv } from "./reporter";
 
 const DSN = "https://abc123@o42.ingest.de.sentry.io/777";
-const CRON_URL =
+const CRON_BASE =
   "https://o42.ingest.de.sentry.io/api/777/cron/scheduled-dispatch/abc123/";
 const ENVELOPE_URL =
   "https://o42.ingest.de.sentry.io/api/777/envelope/?sentry_key=abc123&sentry_version=7";
@@ -122,7 +122,9 @@ describe("checkIn", () => {
     await reporter.flush();
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe(CRON_URL);
+    expect(url).toBe(
+      `${CRON_BASE}?status=in_progress&check_in_id=${id}&environment=production`
+    );
     expect(init.method).toBe("POST");
     expect(JSON.parse(init.body)).toEqual({
       status: "in_progress",
@@ -137,6 +139,9 @@ describe("checkIn", () => {
         timezone: "UTC",
       },
     });
+    expect(fetchMock.mock.calls[1][0]).toBe(
+      `${CRON_BASE}?status=ok&check_in_id=${id}&environment=production`
+    );
     expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({
       status: "ok",
       check_in_id: id,
