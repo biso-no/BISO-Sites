@@ -170,6 +170,18 @@ describe("runExpenseCheck", () => {
     expect(outcome).toBe("fallback");
   });
 
+  it("an answer that left receipts out is done, and the fixed steps keep its flag", async () => {
+    const unchecked = { code: "ai_check_incomplete", data: { unchecked: 2 } };
+    aiCheck.runCheckAgent.mockResolvedValue({ extraHints: [unchecked] });
+
+    expect(await runExpenseCheck("expense-1")).toBe("done");
+    expect(fixedSteps.enrichUnsettled).toHaveBeenCalledWith(
+      expect.anything(),
+      "expense-1",
+      expect.objectContaining({ aiEnabled: true, extraHints: [unchecked] })
+    );
+  });
+
   it("asks the AI check by default, and is done when it answered", async () => {
     aiCheck.runCheckAgent.mockResolvedValue(true);
 

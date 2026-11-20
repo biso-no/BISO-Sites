@@ -95,10 +95,15 @@ export interface Write {
   table: string;
 }
 
-/** An in-memory `db` with the calls the check makes, recording every write. */
+/**
+ * An in-memory `db` with the calls the check makes, recording every write.
+ * Created rows are stored too, so a second run reads them back. An update to
+ * a `table/rowId` in `failUpdates` fails.
+ */
 export function memoryDb(tables: Record<string, Row[]>) {
   const writes: Write[] = [];
   const created: Write[] = [];
+  const failUpdates = new Set<string>();
   const find = (table: string, rowId: string): Row => {
     const row = tables[table]?.find((r) => r.$id === rowId);
     if (!row) {
@@ -116,6 +121,7 @@ export function memoryDb(tables: Record<string, Row[]>) {
       data: Record<string, unknown>
     ) => {
       created.push({ data, rowId, table });
+      tables[table] = [...(tables[table] ?? []), { $id: rowId, ...data }];
       return Promise.resolve({ $id: rowId, ...data });
     },
     getRow: (_database: string, table: string, rowId: string) =>
@@ -133,6 +139,11 @@ export function memoryDb(tables: Record<string, Row[]>) {
       rowId: string,
       data: Record<string, unknown>
     ) => {
+      if (failUpdates.has(`${table}/${rowId}`)) {
+        return Promise.reject(
+          new Error(`${table}/${rowId} could not be saved`)
+        );
+      }
       writes.push({ data, rowId, table });
       const row = tables[table]?.find((r) => r.$id === rowId);
       if (row) {
@@ -149,6 +160,7 @@ export function memoryDb(tables: Record<string, Row[]>) {
       created
         .filter((write) => write.table === "expense_events")
         .map((write) => write.data),
+    failUpdates,
     /** Every patch written to one receipt, merged. */
     patchOf: (rowId: string) =>
       Object.assign(

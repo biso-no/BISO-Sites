@@ -10,6 +10,7 @@ vi.mock("@repo/api/server", () => ({
 }));
 
 import {
+  buildCheckPrompt,
   CHECK_MAX_STEPS,
   type CheckAnswer,
   type CheckInput,
@@ -39,13 +40,13 @@ const INPUT: CheckInput = {
   occasion: "Board meeting",
   receipts: [
     {
-      amount: 250,
-      currency: "NOK",
+      amountNok: 250,
       date: "2026-11-01",
       description: "Pizza",
       duplicates: [],
       fileType: "image/jpeg",
       note: null,
+      originalCurrency: null,
       ownText: null,
       purchaseContext: null,
       receiptId: "r1",
@@ -232,15 +233,62 @@ describe("checkWithAgent", () => {
       },
     });
 
-    const logged = JSON.stringify(info.mock.calls);
-    expect(logged).toContain("view_receipt");
-    expect(logged).toContain(String(STEP_USAGE.inputTokens.total * 2));
-    expect(logged).toContain(String(STEP_USAGE.outputTokens.total * 2));
-    expect(logged).not.toContain("RECEIPT-FILE-BYTES");
+    const lines = info.mock.calls.map((call) => String(call[0]));
+    const { inputTokens, outputTokens } = STEP_USAGE;
+    expect(lines).toContain(
+      `[expense-check] expense-1: step 1 view_receipt (tool-calls); tokens in ${inputTokens.total} out ${outputTokens.total}`
+    );
+    expect(lines.at(-1)).toMatch(
+      new RegExp(
+        `^\\[expense-check\\] expense-1: the agent answered after 2 steps in \\d+ ms; tokens in ${inputTokens.total * 2} \\(cached ${inputTokens.cacheRead * 2}\\) out ${outputTokens.total * 2} \\(reasoning ${outputTokens.reasoning * 2}\\)$`
+      )
+    );
+    expect(JSON.stringify(info.mock.calls)).not.toContain("RECEIPT-FILE-BYTES");
   });
 });
 
-function expenseStore() {
+/** A stored expense; `euroReceipt` adds a second receipt paid in euros. */
+function expenseStore(options: { euroReceipt?: boolean } = {}) {
+  const euro = {
+    $id: "r2",
+    account_number: null,
+    account_source: null,
+    ai_confidence: null,
+    ai_cost_type: null,
+    amount: 1150,
+    cost_type: "travel",
+    cost_type_text: null,
+    date: "2026-11-02T11:00:00.000+00:00",
+    description: "Hotel in Berlin",
+    file_hash: "hash-2",
+    project_id: null,
+    type: "application/pdf",
+    type_source: "student",
+    url: "file-2",
+  };
+  const euroScan = {
+    $id: "scan-2",
+    file_hash: "hash-2",
+    result: JSON.stringify({
+      amountInNok: 1150,
+      classification: null,
+      exchangeRate: 11.5,
+      receipt: {
+        address: null,
+        amount: 100,
+        category: "accommodation",
+        city: "Berlin",
+        country: "Germany",
+        currency: "EUR",
+        date: "2026-11-02",
+        description: "One night",
+        documentType: "receipt",
+        purchaseContext: "Hotel",
+        receiptIssues: [],
+        vendor: "Hotel Mitte",
+      },
+    }),
+  };
   return memoryDb({
     campus: [{ $id: "1", name: "Oslo" }],
     departments: [{ $id: "dept-1", Name: "Marketing", project_share: 0.5 }],
@@ -284,6 +332,7 @@ function expenseStore() {
             type_source: null,
             url: "file-1",
           },
+          ...(options.euroReceipt ? [euro] : []),
         ],
         occasion: "Board meeting",
         user: {
@@ -335,13 +384,14 @@ function expenseStore() {
           },
         }),
       },
+      ...(options.euroReceipt ? [euroScan] : []),
     ],
   });
 }
 
 describe("loadCheckInput", () => {
   it("the prompt carries no name, email or bank account", async () => {
-    const store = expenseStore();
+    const store = expenseStore({ euroReceipt: true });
     const input = await loadCheckInput(store.db as never, "expense-1", TODAY);
     const model = scriptedModel([
       { calls: [{ input: ANSWER, name: "finish_check" }] },
@@ -369,14 +419,19 @@ describe("loadCheckInput", () => {
       "Kick-off party",
       "2026-11-05",
       "Meals during meetings",
+      "amountNok",
+      "originalCurrency",
     ]) {
       expect(sent).toContain(needed);
     }
+    // The amount is the student's NOK amount, never labelled with the
+    // receipt's own currency.
+    expect(buildCheckPrompt(input).prompt).not.toContain('"currency"');
   });
 
   it("describes each receipt as the check needs it", async () => {
     const input = await loadCheckInput(
-      expenseStore().db as never,
+      expenseStore({ euroReceipt: true }).db as never,
       "expense-1",
       TODAY
     );
@@ -390,17 +445,24 @@ describe("loadCheckInput", () => {
     expect(input.event).toEqual({ date: "2026-11-05", name: "Kick-off party" });
     expect(input.receipts).toEqual([
       expect.objectContaining({
-        amount: 250,
-        currency: "NOK",
+        amountNok: 250,
         date: "2026-11-01",
         description: "Two pizzas",
         duplicates: [{ earlierReimbursement: true, match: "file" }],
         note: "Pizza for the board",
+        originalCurrency: null,
         receiptId: "r1",
         type: null,
         typeSource: null,
         uploadPick: { confidence: 0.7, type: "food" },
         vendor: "Peppes Pizza",
+      }),
+      // Paid in euros: the amount stays the NOK amount; the receipt's own
+      // currency is shown on its own.
+      expect.objectContaining({
+        amountNok: 1150,
+        originalCurrency: "EUR",
+        receiptId: "r2",
       }),
     ]);
   });
@@ -421,6 +483,19 @@ describe("runCheckAgent", () => {
       cost_type: "food",
       type_source: null,
     });
+  });
+
+  it("an answer that leaves receipts out still answers, and hands the fixed steps its flag", async () => {
+    const store = expenseStore({ euroReceipt: true });
+    admin.current = { db: store.db, storage: {} };
+    const model = scriptedModel([
+      { calls: [{ input: ANSWER, name: "finish_check" }] },
+    ]);
+
+    expect(await runCheckAgent("expense-1", { model, today: TODAY })).toEqual({
+      extraHints: [{ code: "ai_check_incomplete", data: { unchecked: 1 } }],
+    });
+    expect(store.patchOf("r1")).toMatchObject({ cost_type: "food" });
   });
 
   it("applies nothing without an answer", async () => {

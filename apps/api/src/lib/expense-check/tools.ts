@@ -29,6 +29,11 @@ import {
 import { receiptFileId } from "@repo/shared/utils/receipt-file-id";
 import { tool } from "ai";
 import { z } from "zod";
+import {
+  END_COST_ACCOUNT,
+  FIRST_COST_ACCOUNT,
+  isCostAccount,
+} from "../expense-types";
 import { receiptDateInOslo, todayInOslo } from "../receipt-date";
 import { cleanExampleText, fitFileForModel } from "../receipt-scan";
 
@@ -55,8 +60,6 @@ const PREFIX_WORDS = 2;
 
 const MAX_ACCOUNTS = 20;
 const LEDGER_LIMIT = 1000;
-const FIRST_COST_ACCOUNT = 4000;
-const END_COST_ACCOUNT = 8000;
 
 const MAX_EVENTS = 20;
 const EVENT_FETCH_LIMIT = 100;
@@ -523,8 +526,7 @@ function searchAccounts({ db }: ToolDeps) {
         const accounts = rows
           .filter(
             (row) =>
-              row.account_number >= FIRST_COST_ACCOUNT &&
-              row.account_number < END_COST_ACCOUNT &&
+              isCostAccount(row.account_number) &&
               (String(row.account_number).startsWith(needle) ||
                 (row.name ?? "").toLowerCase().includes(needle))
           )

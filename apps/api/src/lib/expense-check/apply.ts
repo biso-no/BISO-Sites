@@ -12,6 +12,7 @@ import {
   ExpenseAttachmentsAccountSource,
   ExpenseAttachmentsProjectSource,
   ExpenseAttachmentsTypeSource,
+  type ExpenseEvents,
   type Expenses,
   type FinagoProjects,
   type FinagoProjectUsage,
@@ -41,9 +42,14 @@ import {
   shareClass,
 } from "@repo/shared/utils/finago-projects";
 import { hintsJson } from "../expense-submission";
-import { activeCostTypes, loadAllCostTypes } from "../expense-types";
+import {
+  activeCostTypes,
+  isCostAccount,
+  loadAllCostTypes,
+} from "../expense-types";
 import { receiptDateInOslo } from "../receipt-date";
 import type { CheckAnswer, CheckFlag, ReceiptAnswer } from "./agent";
+import { oneLine } from "./text";
 import { departmentEvents, type SiteEvent, websiteDates } from "./tools";
 
 type Db = Awaited<ReturnType<typeof createAdminClient>>["db"];
@@ -51,11 +57,11 @@ type Row = ExpenseAttachments;
 
 /** How the check signs its history events. */
 const CHECK_ACTOR = "AI check";
-const FIRST_COST_ACCOUNT = 4000;
-const END_COST_ACCOUNT = 8000;
 const PROJECT_FETCH_LIMIT = 5000;
 const USAGE_FETCH_LIMIT = 500;
 const ACCOUNT_FETCH_LIMIT = 100;
+/** The check's earlier flag rows read back, so a re-run doesn't repeat them. */
+const FLAG_HISTORY_LIMIT = 500;
 const MAX_NOTE_CHARS = 500;
 /** How much of a value the model made up is quoted back in a flag. */
 const MAX_QUOTED_CHARS = 60;
@@ -100,6 +106,13 @@ export interface ApplyContext {
   today: string;
 }
 
+export interface AppliedCheck {
+  changes: AppliedChange[];
+  hints: ApproverHint[];
+  /** Receipts with an amount the answer left out; they were not changed. */
+  unchecked: number;
+}
+
 export interface AppliedChange {
   after: string | number;
   before: string | number | null;
@@ -116,6 +129,8 @@ interface Lists {
   projects: FinagoProjects[];
   shareClass: ProjectShareClass | "unknown";
   siteEvents: SiteEvent[];
+  /** The day a receipt without a date is placed on. */
+  today: string;
   /** Active types, by slug. */
   types: Map<string, CostTypeOption>;
 }
@@ -133,18 +148,6 @@ interface Work {
   reasons: Map<string, string>;
   /** Stored hints this check made stale, by receipt. */
   stale: Map<string, Set<ApproverHintCode>>;
-}
-
-/** One line, at most `max` characters, ending in an ellipsis when cut. */
-function oneLine(value: string, max: number): string {
-  const text = value.replace(WHITESPACE_RUN, " ").trim();
-  const chars = Array.from(text);
-  return chars.length > max
-    ? `${chars
-        .slice(0, max - 1)
-        .join("")
-        .trimEnd()}…`
-    : text;
 }
 
 const hintText = (value: string) => oneLine(value, MAX_HINT_TEXT_CHARS);
@@ -218,6 +221,35 @@ function flag(work: Work, hint: ApproverHint, note?: string): void {
   });
 }
 
+type DoubtCode = "ai_account_unsure" | "project_unsure" | "type_unsure";
+
+const DOUBT_LEAD: Record<DoubtCode, string> = {
+  ai_account_unsure: "Not sure of the account",
+  project_unsure: "Not sure of the project",
+  type_unsure: "Not sure of the type",
+};
+
+/**
+ * Below 0.8 the check doubts the value now in place (its own, or the AI's
+ * that it kept), so a person should look. Never used on a person's value.
+ */
+function doubt(
+  work: Work,
+  row: Row,
+  code: DoubtCode,
+  confidence: number | undefined,
+  reason: string
+): void {
+  if (confidenceOf(confidence) >= AI_TYPE_CONFIDENCE_THRESHOLD) {
+    return;
+  }
+  flag(
+    work,
+    { attachmentId: row.$id, code, data: { reason: hintText(reason) } },
+    `${DOUBT_LEAD[code]}: ${reason}`
+  );
+}
+
 // --- Loading the lists ------------------------------------------------------
 
 async function loadAccounts(
@@ -234,10 +266,11 @@ async function loadAccounts(
     Query.limit(ACCOUNT_FETCH_LIMIT),
   ]);
   for (const row of rows) {
-    const inRange =
-      row.account_number >= FIRST_COST_ACCOUNT &&
-      row.account_number < END_COST_ACCOUNT;
-    if (row.active && inRange && numbers.includes(row.account_number)) {
+    if (
+      row.active &&
+      isCostAccount(row.account_number) &&
+      numbers.includes(row.account_number)
+    ) {
       accounts.set(row.account_number, { taxCode: row.tax_code ?? 0 });
     }
   }
@@ -317,6 +350,7 @@ async function loadLists(
     projects,
     shareClass: share,
     siteEvents,
+    today,
     types: new Map(activeCostTypes(allTypes).map((t) => [t.slug, t])),
   };
 }
@@ -379,23 +413,14 @@ function setType(
       data: { aiType: type.slug, appType: before },
     });
   }
-  if (confidence < AI_TYPE_CONFIDENCE_THRESHOLD) {
-    flag(
-      work,
-      {
-        attachmentId: row.$id,
-        code: "type_unsure",
-        data: { reason: hintText(proposal.reason) },
-      },
-      `Not sure of the type: ${proposal.reason}`
-    );
-  }
+  doubt(work, row, "type_unsure", confidence, proposal.reason);
 }
 
 /**
  * The type: never on own text (the student's words stay), never over a
- * person's choice (a student's gets `ai_check_disagrees` instead), and only
- * an active type.
+ * person's choice (a student's gets `ai_check_disagrees` instead, and no
+ * other flag), and only an active type. A type the AI set that the check
+ * keeps but doubts is flagged.
  */
 function applyType(
   work: Work,
@@ -408,6 +433,19 @@ function applyType(
     return;
   }
   const type = lists.types.get(slug);
+  const chosen =
+    CHOSEN_TYPE_SOURCES.has(row.type_source) ||
+    PERSON_SOURCES.has(row.account_source);
+  if (chosen) {
+    if (
+      type &&
+      slug !== row.cost_type &&
+      row.type_source === ExpenseAttachmentsTypeSource.STUDENT
+    ) {
+      disagree(work, row, slug, proposal.reason);
+    }
+    return;
+  }
   if (!type) {
     flag(work, {
       attachmentId: row.$id,
@@ -420,21 +458,11 @@ function applyType(
     });
     return;
   }
-  const chosen =
-    CHOSEN_TYPE_SOURCES.has(row.type_source) ||
-    PERSON_SOURCES.has(row.account_source);
-  if (chosen) {
-    if (
-      slug !== row.cost_type &&
-      row.type_source === ExpenseAttachmentsTypeSource.STUDENT
-    ) {
-      disagree(work, row, slug, proposal.reason);
-    }
-    return;
-  }
   if (slug !== row.cost_type) {
     setType(work, row, type, proposal);
+    return;
   }
+  doubt(work, row, "type_unsure", proposal.confidence.type, proposal.reason);
 }
 
 /** The account for the student's own text: an active cost account (4000-7999) only. */
@@ -466,6 +494,13 @@ function applyAccount(
     return;
   }
   if (row.account_number === number) {
+    doubt(
+      work,
+      row,
+      "ai_account_unsure",
+      proposal.confidence.account,
+      proposal.reason
+    );
     return;
   }
   const confidence = confidenceOf(proposal.confidence.account);
@@ -492,17 +527,7 @@ function applyAccount(
     field: "account_number",
     note: noteOf(confidence, proposal.reason),
   });
-  if (confidence < AI_TYPE_CONFIDENCE_THRESHOLD) {
-    flag(
-      work,
-      {
-        attachmentId: row.$id,
-        code: "ai_account_unsure",
-        data: { reason: hintText(proposal.reason) },
-      },
-      `Not sure of the account: ${proposal.reason}`
-    );
-  }
+  doubt(work, row, "ai_account_unsure", confidence, proposal.reason);
 }
 
 // --- Projects ---------------------------------------------------------------
@@ -540,26 +565,46 @@ function timingFor(
   });
 }
 
+type EditionVerdict =
+  | { kind: "fits" }
+  /** A dated edition held before the receipt, and not just before: last year's. */
+  | { kind: "held"; timing: SeriesTiming }
+  /** No event date to place it by; `newer` is a newer active edition, if any. */
+  | { kind: "undated"; newer: FinagoProjects | null };
+
 /**
- * A dated edition the receipt came after, more than just after it: last
- * year's project. Null when the edition is the next one, the one just held,
- * a later one, or has no year or date to tell.
+ * Whether an edition can take a receipt of this day: the next one, the one
+ * just held, or a later one fits; one held before does not. An edition with
+ * no event date can't be placed, so only the newest active one is taken.
  */
-function heldBefore(
+function editionVerdict(
   project: FinagoProjects,
-  receiptDay: string | null,
+  day: string,
   lists: Lists
-): SeriesTiming | null {
-  if (!receiptDay || project.year === null) {
-    return null;
+): EditionVerdict {
+  const { year } = project;
+  if (year === null) {
+    return { kind: "fits" };
   }
-  const timing = timingFor(lists, seriesOf(project), receiptDay);
-  const projectId = project.project_id;
-  if (timing.suggested === projectId || timing.recentlyHeld === projectId) {
-    return null;
+  const series = seriesOf(project);
+  const timing = timingFor(lists, series, day);
+  const id = project.project_id;
+  if (timing.suggested === id || timing.recentlyHeld === id) {
+    return { kind: "fits" };
   }
-  const own = timing.editions.find((e) => e.projectId === projectId);
-  return own?.eventDate && own.eventDate < receiptDay ? timing : null;
+  const own = timing.editions.find((edition) => edition.projectId === id);
+  if (!own?.eventDate) {
+    const newer = editionsOf(lists, series)
+      .filter((p) => p.active && p.year !== null && p.year > year)
+      .sort((a, b) => (b.year ?? 0) - (a.year ?? 0));
+    return { kind: "undated", newer: newer[0] ?? null };
+  }
+  return own.eventDate < day ? { kind: "held", timing } : { kind: "fits" };
+}
+
+/** The receipt's day in Oslo, or today for a receipt without one. */
+function dayOf(row: Row | undefined, lists: Lists): string {
+  return (row?.date ? receiptDateInOslo(row.date) : null) ?? lists.today;
 }
 
 function refuseHeldEdition(
@@ -611,11 +656,17 @@ function applyProject(
   lists: Lists
 ): void {
   const projectId = proposal.projectId?.trim();
-  if (
-    !projectId ||
-    projectId.toLowerCase() === "none" ||
-    PERSON_SOURCES.has(row.project_source)
-  ) {
+  if (!projectId || PERSON_SOURCES.has(row.project_source)) {
+    return;
+  }
+  if (projectId.toLowerCase() === "none") {
+    doubt(
+      work,
+      row,
+      "project_unsure",
+      proposal.confidence.project,
+      proposal.reason
+    );
     return;
   }
   const project = lists.candidates.get(projectId);
@@ -631,14 +682,36 @@ function applyProject(
     });
     return;
   }
-  const day = row.date ? receiptDateInOslo(row.date) : null;
-  const held = heldBefore(project, day, lists);
-  if (held) {
-    refuseHeldEdition(work, row, project, held, lists);
+  const verdict = editionVerdict(project, dayOf(row, lists), lists);
+  if (verdict.kind === "held") {
+    refuseHeldEdition(work, row, project, verdict.timing, lists);
     return;
+  }
+  if (verdict.kind === "undated") {
+    flag(work, {
+      attachmentId: row.$id,
+      code: "project_unsure",
+      data: {
+        reason: hintText(
+          verdict.newer
+            ? `${project.name} has no event date to check the year by, and ${verdict.newer.name} is newer, so it was not used.`
+            : `${project.name} has no event date, so its year could not be checked. ${proposal.reason}`
+        ),
+      },
+    });
+    if (verdict.newer) {
+      return;
+    }
   }
   if (row.project_id === project.project_id) {
     work.projectSet.add(row.$id);
+    doubt(
+      work,
+      row,
+      "project_unsure",
+      proposal.confidence.project,
+      proposal.reason
+    );
     return;
   }
   const confidence = confidenceOf(proposal.confidence.project);
@@ -666,17 +739,7 @@ function applyProject(
     field: "project",
     note: noteOf(confidence, proposal.reason),
   });
-  if (confidence < AI_TYPE_CONFIDENCE_THRESHOLD) {
-    flag(
-      work,
-      {
-        attachmentId: row.$id,
-        code: "project_unsure",
-        data: { reason: hintText(proposal.reason) },
-      },
-      `Not sure of the project: ${proposal.reason}`
-    );
-  }
+  doubt(work, row, "project_unsure", confidence, proposal.reason);
 }
 
 // --- Flags ------------------------------------------------------------------
@@ -686,11 +749,12 @@ function hasProject(work: Work, row: Row | undefined): boolean {
 }
 
 /**
- * A "not created yet" the code can confirm: a series the department books on,
- * and a year after every edition of it in Finago.
+ * A "not created yet" the code can confirm: a series the department books
+ * on, whose timing for the receipt's day says exactly this year is missing.
  */
 function confirmedMissing(
   flagged: CheckFlag,
+  day: string,
   lists: Lists
 ): { series: string; year: number } | null {
   const parsed = parseProjectName(flagged.series ?? "");
@@ -700,21 +764,23 @@ function confirmedMissing(
     return null;
   }
   const booked = new Set([...lists.candidates.values()].map(seriesOf));
-  const editions = editionsOf(lists, series);
-  const years = editions.flatMap((p) => (p.year === null ? [] : [p.year]));
-  if (!booked.has(series) || years.some((known) => known >= year)) {
+  if (!booked.has(series)) {
     return null;
   }
-  return { series: seriesLabel(editions, series), year };
+  const { missing } = timingFor(lists, series, day);
+  return missing?.year === year
+    ? { series: seriesLabel(editionsOf(lists, series), series), year }
+    : null;
 }
 
 function applyNotCreated(
   work: Work,
   flagged: CheckFlag,
-  attachmentId: string | undefined,
+  row: Row | undefined,
   lists: Lists
 ): void {
-  const missing = confirmedMissing(flagged, lists);
+  const attachmentId = row?.$id;
+  const missing = confirmedMissing(flagged, dayOf(row, lists), lists);
   if (missing) {
     flag(
       work,
@@ -767,7 +833,7 @@ function applyFlags(
         break;
       case "project_not_created":
         if (!hasProject(work, row)) {
-          applyNotCreated(work, flagged, attachmentId, lists);
+          applyNotCreated(work, flagged, row, lists);
         }
         break;
       default:
@@ -809,45 +875,149 @@ function flagMissingProjects(
 
 // --- Writing ----------------------------------------------------------------
 
-async function save(
+/** The work without what it did to `receipts`, whose rows could not be saved. */
+function without(work: Work, receipts: Set<string>): Work {
+  const kept = (attachmentId: string | null | undefined) =>
+    !(attachmentId && receipts.has(attachmentId));
+  return {
+    ...work,
+    changes: work.changes.filter((change) => kept(change.receiptId)),
+    events: work.events.filter((event) => kept(event.attachmentId)),
+    hints: work.hints.filter((hint) => kept(hint.attachmentId)),
+    stale: new Map([...work.stale].filter(([id]) => kept(id))),
+  };
+}
+
+const flagKey = (event: {
+  after?: string | null;
+  attachmentId?: string | null;
+  field?: string | null;
+  note?: string | null;
+}) =>
+  JSON.stringify([
+    event.attachmentId ?? null,
+    event.field ?? null,
+    event.after ?? null,
+    event.note ?? null,
+  ]);
+
+/**
+ * The events to write, without flags this expense's history already has
+ * word for word (a re-run of the check). If the history can't be read, all
+ * are written: a repeated line beats a lost one.
+ */
+async function unrepeated(
+  db: Db,
+  expenseId: string,
+  events: ExpenseEventInput[]
+): Promise<ExpenseEventInput[]> {
+  if (!events.some((event) => event.action === "ai_flagged")) {
+    return events;
+  }
+  try {
+    const { rows } = await db.listRows<ExpenseEvents>("app", "expense_events", [
+      Query.equal("expense_id", expenseId),
+      Query.equal("action", "ai_flagged"),
+      Query.limit(FLAG_HISTORY_LIMIT),
+    ]);
+    const seen = new Set(
+      rows.map((row) =>
+        flagKey({
+          after: row.after,
+          attachmentId: row.attachment_id,
+          field: row.field,
+          note: row.note,
+        })
+      )
+    );
+    return events.filter(
+      (event) => event.action !== "ai_flagged" || !seen.has(flagKey(event))
+    );
+  } catch (error) {
+    console.warn(
+      `[expense-check] could not read ${expenseId}'s earlier flags:`,
+      error
+    );
+    return events;
+  }
+}
+
+async function writeHints(
   db: Db,
   expense: CheckedExpense,
   work: Work
 ): Promise<void> {
-  await Promise.all(
-    [...work.patches].map(([rowId, data]) =>
+  if (work.hints.length === 0 && work.stale.size === 0) {
+    return;
+  }
+  const kept = parseApproverHints(expense.approver_hints).filter(
+    (hint) =>
+      !(
+        (hint.attachmentId &&
+          work.stale.get(hint.attachmentId)?.has(hint.code)) ||
+        work.hints.some((fresh) => sameHint(fresh, hint))
+      )
+  );
+  await db.updateRow("app", "expense", expense.$id, {
+    approver_hints: hintsJson([...kept, ...work.hints]),
+  });
+}
+
+/**
+ * Saves the receipts, then the hints and the history of the receipts that
+ * saved. A receipt that failed to save leaves no trace, and the save then
+ * throws, so the fixed steps take over as for any failed check.
+ */
+async function save(
+  db: Db,
+  expense: CheckedExpense,
+  work: Work
+): Promise<Work> {
+  const patches = [...work.patches];
+  const results = await Promise.allSettled(
+    patches.map(([rowId, data]) =>
       db.updateRow("app", "expense_attachments", rowId, data)
     )
   );
-  if (work.hints.length > 0 || work.stale.size > 0) {
-    const kept = parseApproverHints(expense.approver_hints).filter(
-      (hint) =>
-        !(
-          (hint.attachmentId &&
-            work.stale.get(hint.attachmentId)?.has(hint.code)) ||
-          work.hints.some((fresh) => sameHint(fresh, hint))
-        )
-    );
-    await db.updateRow("app", "expense", expense.$id, {
-      approver_hints: hintsJson([...kept, ...work.hints]),
-    });
+  const failed = new Set<string>();
+  let cause: unknown;
+  for (const [index, result] of results.entries()) {
+    const rowId = patches[index]?.[0];
+    if (result.status === "rejected" && rowId) {
+      failed.add(rowId);
+      cause ??= result.reason;
+    }
   }
-  await recordExpenseEvents(db, work.events);
+  const saved = failed.size > 0 ? without(work, failed) : work;
+  await writeHints(db, expense, saved);
+  await recordExpenseEvents(
+    db,
+    await unrepeated(db, expense.$id, saved.events)
+  );
+  if (failed.size > 0) {
+    throw new Error(
+      `[expense-check] ${failed.size} of the check's receipt changes on ${expense.$id} could not be saved`,
+      { cause }
+    );
+  }
+  return saved;
 }
 
 /**
  * Checks the agent's answer against the live lists and stores what passes:
  * receipt types, own-text accounts (`ai_freeform`) and projects
  * (`project_source: "ai_check"`), with an `expense_events` row for every
- * change and flag, and approver hints for the flags. Throws before writing
- * anything when the lists can't be read.
+ * change and flag, and approver hints for the flags. Receipts the answer
+ * leaves out are counted (`unchecked`) and flagged `ai_check_incomplete`.
+ * Throws before writing anything when the lists can't be read, and after
+ * saving the rest when a receipt can't be saved.
  */
 export async function applyCheck(
   db: Db,
   expense: CheckedExpense,
   answer: CheckAnswer,
   ctx: ApplyContext
-): Promise<{ changes: AppliedChange[]; hints: ApproverHint[] }> {
+): Promise<AppliedCheck> {
   const rows = expense.expenseAttachments ?? [];
   const byId = new Map(rows.map((row) => [row.$id, row]));
   const lists = await loadLists(db, expense, answer, ctx.today);
@@ -881,6 +1051,17 @@ export async function applyCheck(
   }
   applyFlags(work, answer.flags, byId, lists);
   flagMissingProjects(work, rows, answered, lists);
-  await save(db, expense, work);
-  return { changes: work.changes, hints: work.hints };
+  const unchecked = rows.filter(
+    (row) => isReceipt(row) && !answered.has(row.$id)
+  ).length;
+  if (unchecked > 0) {
+    // The rest of the answer stands; the fixed steps decide these receipts.
+    flag(
+      work,
+      { code: "ai_check_incomplete", data: { unchecked } },
+      `The check gave no answer for ${unchecked} ${unchecked === 1 ? "receipt" : "receipts"}`
+    );
+  }
+  const saved = await save(db, expense, work);
+  return { changes: saved.changes, hints: saved.hints, unchecked };
 }

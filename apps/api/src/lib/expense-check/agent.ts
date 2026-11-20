@@ -11,7 +11,10 @@ import type {
   ExpenseAttachments,
   Expenses,
 } from "@repo/api/types/appwrite";
-import { parseApproverHints } from "@repo/shared/utils/expense-hints";
+import {
+  type ApproverHint,
+  parseApproverHints,
+} from "@repo/shared/utils/expense-hints";
 import {
   type ProjectShareClass,
   shareClass,
@@ -29,6 +32,7 @@ import { activeCostTypes, loadAllCostTypes } from "../expense-types";
 import { receiptDateInOslo, todayInOslo } from "../receipt-date";
 import { findScan, type StoredScan } from "../receipt-scan";
 import { applyCheck } from "./apply";
+import { oneLine } from "./text";
 import { createCheckTools, createViewReceiptTool } from "./tools";
 
 type AdminClient = Awaited<ReturnType<typeof createAdminClient>>;
@@ -43,7 +47,7 @@ const FINISH = "finish_check";
 const MAX_TEXT_CHARS = 200;
 const MAX_OCCASION_CHARS = 1000;
 const MAX_ID_CHARS = 50;
-const WHITESPACE_RUN = /\s+/g;
+const MAX_CURRENCY_CHARS = 10;
 
 // --- The answer -------------------------------------------------------------
 
@@ -130,8 +134,8 @@ const finishCheck = tool({
 // --- What the agent sees up front -------------------------------------------
 
 export interface CheckReceipt {
-  amount: number;
-  currency: string | null;
+  /** The amount the student claims, in NOK (converted from the receipt's currency). */
+  amountNok: number;
   /** The receipt's day in Oslo. */
   date: string | null;
   /** What the receipt reader found was bought. */
@@ -144,6 +148,8 @@ export interface CheckReceipt {
   fileType: string;
   /** The description on the receipt row, as the student left it. */
   note: string | null;
+  /** The currency printed on the receipt, when it isn't NOK. */
+  originalCurrency: string | null;
   ownText: string | null;
   purchaseContext: string | null;
   receiptId: string;
@@ -201,8 +207,16 @@ function promptText(
   value: string | null | undefined,
   max = MAX_TEXT_CHARS
 ): string | null {
-  const text = (value ?? "").replace(WHITESPACE_RUN, " ").trim().slice(0, max);
-  return text || null;
+  return oneLine(value, max) || null;
+}
+
+/** The receipt's own currency, when it is not NOK. */
+function foreignCurrency(scan: StoredScan | null): string | null {
+  const currency = promptText(
+    scan?.receipt.currency?.toUpperCase(),
+    MAX_CURRENCY_CHARS
+  );
+  return currency && currency !== "NOK" ? currency : null;
 }
 
 function duplicatesOf(
@@ -231,13 +245,13 @@ function describeReceipt(
   const read = scan?.receipt;
   const amount = row.amount ?? 0;
   return {
-    amount,
-    currency: promptText(read?.currency, 10),
+    amountNok: amount,
     date: row.date ? receiptDateInOslo(row.date) : null,
     description: promptText(read?.description),
     duplicates: duplicatesOf(hints, row.$id),
     fileType: row.type,
     note: promptText(row.description),
+    originalCurrency: foreignCurrency(scan),
     ownText: promptText(row.cost_type_text),
     purchaseContext: promptText(read?.purchaseContext),
     receiptId: row.$id,
@@ -331,6 +345,8 @@ export async function loadCheckInput(
 }
 
 const INSTRUCTIONS = `You check a student's reimbursement for BISO (BI Student Organisation) right after it was submitted, before an approver sees it. You propose; code checks every value against the live lists, and a person approves. Work with the tools until every receipt is settled, then call finish_check once.
+
+amountNok is the amount the student claims, in NOK. originalCurrency, when set, is the currency printed on the receipt; the receipt's own total is in that currency.
 
 For each receipt with an amount above 0 decide:
 1. The expense type: one slug from the active types.
@@ -488,14 +504,21 @@ export async function checkWithAgent(
 }
 
 /**
+ * What the agent's turn gave the check: no answer (false), an answer (true),
+ * or an answer with hints the fixed steps must keep, such as
+ * `ai_check_incomplete` for receipts it left out.
+ */
+export type AgentAnswer = boolean | { extraHints: ApproverHint[] };
+
+/**
  * The AI check of one expense: reads it, lets the agent propose, and applies
- * what code accepts (`applyCheck`). True when the check answered (or had
- * nothing to check); false leaves the work to the fixed steps.
+ * what code accepts (`applyCheck`). False leaves the work to the fixed steps;
+ * an answer that left receipts out still counts, with its flag handed on.
  */
 export async function runCheckAgent(
   expenseId: string,
   options: { deadlineMs?: number; model?: LanguageModel; today?: string } = {}
-): Promise<boolean> {
+): Promise<AgentAnswer> {
   const { db, storage } = await createAdminClient();
   const today = options.today ?? todayInOslo();
   const input = await loadCheckInput(db, expenseId, today);
@@ -518,9 +541,16 @@ export async function runCheckAgent(
   const expense = await db.getRow<Expenses>("app", "expense", expenseId, [
     Query.select(CHECK_EXPENSE_COLUMNS),
   ]);
-  const { changes, hints } = await applyCheck(db, expense, answer, { today });
+  const { changes, hints, unchecked } = await applyCheck(db, expense, answer, {
+    today,
+  });
   console.info(
-    `[expense-check] ${expenseId}: applied ${changes.length} changes and ${hints.length} flags`
+    `[expense-check] ${expenseId}: applied ${changes.length} changes and ${hints.length} flags; ${unchecked} receipts left out`
   );
+  if (unchecked > 0) {
+    return {
+      extraHints: hints.filter((hint) => hint.code === "ai_check_incomplete"),
+    };
+  }
   return true;
 }

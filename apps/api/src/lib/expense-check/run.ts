@@ -22,7 +22,7 @@ import {
 } from "../expense-approval";
 import { enrichUnsettled, flagCheckIncomplete } from "../expense-submission";
 import { generateExpensePdf } from "../pdf/expense-pdf";
-import { runCheckAgent } from "./agent";
+import { type AgentAnswer, runCheckAgent } from "./agent";
 
 type AdminClient = Awaited<ReturnType<typeof createAdminClient>>;
 
@@ -30,10 +30,11 @@ export type CheckOutcome = "done" | "fallback" | "skipped";
 
 /**
  * The AI agent's part of the check: it settles what it can, stores it, and
- * answers whether it did. Without an answer the fixed steps do the work and
- * the approvers see `ai_check_incomplete`.
+ * answers whether it did (`AgentAnswer`), with any hints the fixed steps must
+ * keep. Without an answer the fixed steps do the work and the approvers see
+ * `ai_check_incomplete`.
  */
-export type CheckAgent = (expenseId: string) => Promise<boolean>;
+export type CheckAgent = (expenseId: string) => Promise<AgentAnswer>;
 
 /** No agent: the fixed steps alone, as the backstop's second try runs. */
 export const noAgent: CheckAgent = async () => false;
@@ -118,12 +119,18 @@ async function readAiEnabled(): Promise<boolean | null> {
 async function runFixedSteps(
   admin: AdminClient,
   expenseId: string,
-  check: { aiEnabled: boolean; answered: boolean; now: () => number }
+  check: {
+    aiEnabled: boolean;
+    /** Hints the agent's answer hands on; kept only when it answered. */
+    agentHints: ApproverHint[];
+    answered: boolean;
+    now: () => number;
+  }
 ): Promise<FinishedOutcome> {
   try {
     await enrichUnsettled(admin, expenseId, {
       aiEnabled: check.aiEnabled,
-      extraHints: check.answered ? [] : [INCOMPLETE],
+      extraHints: check.answered ? check.agentHints : [INCOMPLETE],
       now: check.now,
     });
     return check.answered
@@ -170,9 +177,12 @@ async function checkExpense(
   const ai = await readAiEnabled();
   const aiEnabled = ai === true;
   let answered = ai === false;
+  let agentHints: ApproverHint[] = [];
   if (aiEnabled && check.askAgent) {
     try {
-      answered = await check.agent(expenseId);
+      const answer = await check.agent(expenseId);
+      answered = answer !== false;
+      agentHints = typeof answer === "object" ? answer.extraHints : [];
     } catch (error) {
       console.error(
         `[expense-check] the agent failed for ${expenseId}; the fixed steps take over:`,
@@ -181,6 +191,7 @@ async function checkExpense(
     }
   }
   return await runFixedSteps(admin, expenseId, {
+    agentHints,
     aiEnabled,
     answered,
     now: check.now,

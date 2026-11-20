@@ -13,8 +13,15 @@ type Db = Awaited<ReturnType<typeof createAdminClient>>["db"];
 
 const COST_TYPE_LIMIT = 200;
 const LEDGER_LIMIT = 1000;
-const FIRST_COST_ACCOUNT = 4000;
-const END_COST_ACCOUNT = 8000;
+/** The cost accounts: 4000 up to, not including, 8000. */
+export const FIRST_COST_ACCOUNT = 4000;
+export const END_COST_ACCOUNT = 8000;
+
+export function isCostAccount(accountNumber: number): boolean {
+  return (
+    accountNumber >= FIRST_COST_ACCOUNT && accountNumber < END_COST_ACCOUNT
+  );
+}
 
 export interface CostAccountOption {
   accountNumber: number;
@@ -73,12 +80,7 @@ export async function loadCostAccounts(db: Db): Promise<CostAccountOption[]> {
     Query.limit(LEDGER_LIMIT),
   ]);
   return rows
-    .filter(
-      (row) =>
-        row.active &&
-        row.account_number >= FIRST_COST_ACCOUNT &&
-        row.account_number < END_COST_ACCOUNT
-    )
+    .filter((row) => row.active && isCostAccount(row.account_number))
     .map((row) => ({
       accountNumber: row.account_number,
       name: row.name ?? "",
