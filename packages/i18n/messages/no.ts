@@ -33,6 +33,7 @@ import press from "./no/press.json";
 import privacy from "./no/privacy.json";
 import projectDetail from "./no/projectDetail.json";
 import projects from "./no/projects.json";
+import replayConsent from "./no/replayConsent.json";
 import resources from "./no/resources.json";
 import shop from "./no/shop.json";
 import students from "./no/students.json";
@@ -62,6 +63,7 @@ export default {
   press,
   privacy,
   policies,
+  replayConsent,
   about,
   resources,
   membership,

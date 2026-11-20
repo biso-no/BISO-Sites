@@ -1,5 +1,6 @@
 "use client";
 
+import { openReplayConsentSettings } from "@repo/ui/components/replay-consent-bar";
 import { useDebounce } from "@repo/ui/hooks/use-debounce";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -27,6 +28,7 @@ import {
   Plus,
   Search,
   Settings,
+  ShieldCheck,
   ShoppingCart,
   Sparkles,
   X,
@@ -260,6 +262,13 @@ const ALL_COMMANDS: PaletteCommand[] = [
     navKey: "portal.news",
   },
   // Account
+  {
+    id: "privacy-settings",
+    group: "account",
+    label: "Privacy Settings",
+    icon: ShieldCheck,
+    action: openReplayConsentSettings,
+  },
   { id: "sign-out", group: "account", label: "Sign Out", icon: LogOut },
 ];
 

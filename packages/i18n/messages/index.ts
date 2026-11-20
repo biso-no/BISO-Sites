@@ -27,6 +27,7 @@ export const messageNamespaces = [
   "press",
   "privacy",
   "policies",
+  "replayConsent",
   "about",
   "resources",
   "membership",

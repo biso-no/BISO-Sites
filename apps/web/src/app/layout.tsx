@@ -7,6 +7,7 @@ import { getMessages } from "next-intl/server";
 import { Suspense } from "react";
 import { AnalyticsTracker } from "@/components/analytics-tracker";
 import { BiSignInNotice } from "@/components/bi-sign-in-notice";
+import { ReplayConsent } from "@/components/replay-consent";
 import { UmamiBeforeSend } from "@/components/umami-before-send";
 import { UMAMI_BEFORE_SEND } from "@/lib/analytics-privacy";
 import { museoSans, museoSlab } from "./fonts";
@@ -71,6 +72,7 @@ export default async function RootLayout({
               <BiSignInNotice />
             </Suspense>
             {children}
+            <ReplayConsent />
             {/* Drops the query string from `/auth/` page URLs before Umami
                 records them: `/auth/verify` carries a live sign-in secret. */}
             <UmamiBeforeSend />

@@ -1,5 +1,6 @@
 "use client";
 
+import { openReplayConsentSettings } from "@repo/ui/components/replay-consent-bar";
 import { ChevronDown, Command, LogOut, Sparkles } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -37,6 +38,7 @@ export function Sidebar({ user, roles, inboxCount }: SidebarProps) {
   const router = useRouter();
   const t = useTranslations("adminPortal.nav");
   const tSidebar = useTranslations("adminPortal.sidebar");
+  const tConsent = useTranslations("replayConsent");
 
   const tree = useMemo(
     () =>
@@ -230,6 +232,14 @@ export function Sidebar({ user, roles, inboxCount }: SidebarProps) {
             <LogOut size={15} />
           </button>
         </div>
+        <button
+          className="rounded-md px-1 py-1 text-left text-[11px] underline-offset-4 transition hover:underline"
+          onClick={openReplayConsentSettings}
+          style={{ color: STUDIO.ink3 }}
+          type="button"
+        >
+          {tConsent("settings")}
+        </button>
       </div>
     </aside>
   );
