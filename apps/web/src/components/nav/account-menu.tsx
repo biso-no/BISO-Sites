@@ -11,10 +11,11 @@ import {
   DropdownMenuTrigger,
 } from "@repo/ui/components/ui/dropdown-menu";
 import { cn } from "@repo/ui/lib/utils";
-import { ChevronDown, LogIn, LogOut } from "lucide-react";
+import { ChevronDown, LifeBuoy, LogIn, LogOut } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useTransition } from "react";
+import { useReportProblem } from "@/components/report-problem";
 import { signOut } from "@/lib/server";
 import type { NavAccount } from "@/lib/types/nav";
 import { ACCOUNT_LINKS, FINANCIAL_SERVICES_LINK_ID } from "./nav-config";
@@ -42,6 +43,7 @@ interface AccountMenuProps {
 export function AccountMenu({ account, className }: AccountMenuProps) {
   const t = useTranslations("common.navigation");
   const [isSigningOut, startSignOut] = useTransition();
+  const report = useReportProblem();
 
   if (!account) {
     // The header's secondary action: an outlined pill beside the one primary
@@ -111,6 +113,13 @@ export function AccountMenu({ account, className }: AccountMenuProps) {
         ))}
 
         <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="cursor-pointer gap-2"
+          onSelect={report.open}
+        >
+          <LifeBuoy aria-hidden className="size-4 text-ink-muted" />
+          {report.label}
+        </DropdownMenuItem>
         <DropdownMenuItem
           className="cursor-pointer gap-2"
           disabled={isSigningOut}

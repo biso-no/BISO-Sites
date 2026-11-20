@@ -1,0 +1,13 @@
+{
+  "link": "Rapporter et problem",
+  "formTitle": "Rapporter et problem",
+  "messageLabel": "Hva gikk galt?",
+  "messagePlaceholder": "Fortell hva du gjorde og hva som skjedde.",
+  "isRequiredLabel": "(påkrevd)",
+  "submitButtonLabel": "Send",
+  "cancelButtonLabel": "Avbryt",
+  "addScreenshotButtonLabel": "Legg til skjermbilde",
+  "removeScreenshotButtonLabel": "Fjern skjermbilde",
+  "successMessageText": "Takk. Vi har fått rapporten din.",
+  "errorGenericText": "Sendingen mislyktes. Prøv igjen."
+}

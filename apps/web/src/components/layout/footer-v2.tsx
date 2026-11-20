@@ -8,6 +8,7 @@ import { StatRow } from "@/components/ui/stat-row";
 import { cachedCampuses, cachedHomeCounts } from "@/lib/data/public-content";
 import { AppStoreBadge } from "./app-store-badge";
 import { FooterPrivacySettings } from "./footer-privacy-settings";
+import { FooterReportProblem } from "./footer-report-problem";
 import { FooterSocial } from "./footer-social";
 
 /**
@@ -181,6 +182,11 @@ export async function FooterV2() {
                 {column.id === "practical" && (
                   <li>
                     <FooterPrivacySettings label={tConsent("settings")} />
+                  </li>
+                )}
+                {column.id === "practical" && (
+                  <li>
+                    <FooterReportProblem />
                   </li>
                 )}
               </ul>

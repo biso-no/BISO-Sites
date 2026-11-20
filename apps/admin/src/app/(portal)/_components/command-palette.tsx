@@ -20,6 +20,7 @@ import {
   Inbox,
   Layers,
   LayoutDashboard,
+  LifeBuoy,
   LineChart,
   LogOut,
   MapPin,
@@ -36,6 +37,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useReportProblem } from "@/components/report-problem";
 import { setCampusFilter } from "@/lib/actions/campus";
 import { signOut } from "@/lib/actions/user";
 import type { UserRolesForClient } from "@/lib/authorization";
@@ -269,6 +271,12 @@ const ALL_COMMANDS: PaletteCommand[] = [
     icon: ShieldCheck,
     action: openReplayConsentSettings,
   },
+  {
+    id: "report-problem",
+    group: "account",
+    label: "Report a Problem",
+    icon: LifeBuoy,
+  },
   { id: "sign-out", group: "account", label: "Sign Out", icon: LogOut },
 ];
 
@@ -341,6 +349,7 @@ export function CommandPalette({
   aiCopilotEnabled: boolean;
   roles: UserRolesForClient;
 }) {
+  const reportProblem = useReportProblem();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
@@ -539,6 +548,10 @@ export function CommandPalette({
     if (command.id === "sign-out") {
       await signOut();
       router.push("/auth/login");
+      return;
+    }
+    if (command.id === "report-problem") {
+      reportProblem.open();
       return;
     }
     if (command.action) {

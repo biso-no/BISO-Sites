@@ -7,6 +7,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
+import { useReportProblem } from "@/components/report-problem";
 import { signOut } from "@/lib/actions/user";
 import type { UserRolesForClient } from "@/lib/authorization";
 import {
@@ -39,6 +40,7 @@ export function Sidebar({ user, roles, inboxCount }: SidebarProps) {
   const t = useTranslations("adminPortal.nav");
   const tSidebar = useTranslations("adminPortal.sidebar");
   const tConsent = useTranslations("replayConsent");
+  const report = useReportProblem();
 
   const tree = useMemo(
     () =>
@@ -239,6 +241,14 @@ export function Sidebar({ user, roles, inboxCount }: SidebarProps) {
           type="button"
         >
           {tConsent("settings")}
+        </button>
+        <button
+          className="rounded-md px-1 py-1 text-left text-[11px] underline-offset-4 transition hover:underline"
+          onClick={report.open}
+          style={{ color: STUDIO.ink3 }}
+          type="button"
+        >
+          {report.label}
         </button>
       </div>
     </aside>
