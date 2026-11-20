@@ -45,7 +45,7 @@ describe("POST /api/internal/after-probe", () => {
     expect(scheduled).toHaveLength(0);
   });
 
-  it("answers at once and logs alive lines every 15 seconds for 180", async () => {
+  it("answers at once, logs alive every 15 seconds to 285, and is done at 290", async () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
 
     const response = await POST(request({ authorization: `Bearer ${SECRET}` }));
@@ -54,18 +54,22 @@ describe("POST /api/internal/after-probe", () => {
     expect(scheduled).toHaveLength(1);
     expect(log).not.toHaveBeenCalled();
 
+    const lines = () => log.mock.calls.map((call) => String(call[0]));
     const run = scheduled[0]?.();
-    await vi.advanceTimersByTimeAsync(180_000);
-    await run;
-
-    const lines = log.mock.calls.map((call) => String(call[0]));
-    expect(lines[0]).toContain("[after-probe] start");
-    expect(lines.filter((l) => l.startsWith("[after-probe] alive"))).toEqual(
+    await vi.advanceTimersByTimeAsync(285_000);
+    // The slowest check needs about 240 s, so the probe outlasts it.
+    expect(lines().filter((l) => l.startsWith("[after-probe] alive"))).toEqual(
       Array.from(
-        { length: 12 },
+        { length: 19 },
         (_, i) => `[after-probe] alive ${(i + 1) * 15}`
       )
     );
-    expect(lines.at(-1)).toContain("[after-probe] done");
+    expect(lines().some((l) => l.includes("done"))).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(5000);
+    await run;
+
+    expect(lines()[0]).toContain("[after-probe] start, will run 290 s");
+    expect(lines().at(-1)).toBe("[after-probe] done at 290 s");
   });
 });
