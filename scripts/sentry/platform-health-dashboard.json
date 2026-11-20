@@ -1,10 +1,15 @@
 {
   "title": "BISO platform health",
   "projects": [
-    4512446739972176, 4512446740037712, 4512446740103248, 4512446740234320,
+    4512446739972176,
+    4512446740037712,
+    4512446740103248,
+    4512446740234320,
     4512446740299856
   ],
-  "environment": ["production"],
+  "environment": [
+    "production"
+  ],
   "period": "24h",
   "filters": {},
   "widgets": [
@@ -25,9 +30,16 @@
         {
           "name": "",
           "conditions": "event.type:error",
-          "fields": ["project", "count()"],
-          "aggregates": ["count()"],
-          "columns": ["project"],
+          "fields": [
+            "project",
+            "count()"
+          ],
+          "aggregates": [
+            "count()"
+          ],
+          "columns": [
+            "project"
+          ],
           "orderby": "-count()"
         }
       ]
@@ -49,9 +61,22 @@
         {
           "name": "",
           "conditions": "is:unresolved age:-24h",
-          "fields": ["issue", "title", "project", "events", "users"],
-          "aggregates": ["events", "users"],
-          "columns": ["issue", "title", "project"],
+          "fields": [
+            "issue",
+            "title",
+            "project",
+            "events",
+            "users"
+          ],
+          "aggregates": [
+            "events",
+            "users"
+          ],
+          "columns": [
+            "issue",
+            "title",
+            "project"
+          ],
           "orderby": "-events"
         }
       ]
@@ -73,16 +98,24 @@
         {
           "name": "LCP",
           "conditions": "project:biso-web is_transaction:1 has:measurements.lcp",
-          "fields": ["p75(measurements.lcp)"],
-          "aggregates": ["p75(measurements.lcp)"],
+          "fields": [
+            "p75(measurements.lcp)"
+          ],
+          "aggregates": [
+            "p75(measurements.lcp)"
+          ],
           "columns": [],
           "orderby": ""
         },
         {
           "name": "INP",
           "conditions": "project:biso-web has:measurements.inp",
-          "fields": ["p75(measurements.inp)"],
-          "aggregates": ["p75(measurements.inp)"],
+          "fields": [
+            "p75(measurements.inp)"
+          ],
+          "aggregates": [
+            "p75(measurements.inp)"
+          ],
           "columns": [],
           "orderby": ""
         }
@@ -105,9 +138,18 @@
         {
           "name": "",
           "conditions": "project:[biso-web,biso-api] span.op:http.server has:http.route",
-          "fields": ["transaction", "p95(span.duration)", "count()"],
-          "aggregates": ["p95(span.duration)", "count()"],
-          "columns": ["transaction"],
+          "fields": [
+            "transaction",
+            "p95(span.duration)",
+            "count()"
+          ],
+          "aggregates": [
+            "p95(span.duration)",
+            "count()"
+          ],
+          "columns": [
+            "transaction"
+          ],
           "orderby": "-p95(span.duration)"
         }
       ]
@@ -129,8 +171,14 @@
         {
           "name": "",
           "conditions": "span.op:http.client has:appwrite.client",
-          "fields": ["p95(span.duration)", "count()"],
-          "aggregates": ["p95(span.duration)", "count()"],
+          "fields": [
+            "p95(span.duration)",
+            "count()"
+          ],
+          "aggregates": [
+            "p95(span.duration)",
+            "count()"
+          ],
           "columns": [],
           "orderby": ""
         }
@@ -153,8 +201,12 @@
         {
           "name": "",
           "conditions": "",
-          "fields": ["sum(value,appwrite.timeout,counter,none)"],
-          "aggregates": ["sum(value,appwrite.timeout,counter,none)"],
+          "fields": [
+            "sum(value,appwrite.timeout,counter,none)"
+          ],
+          "aggregates": [
+            "sum(value,appwrite.timeout,counter,none)"
+          ],
           "columns": [],
           "orderby": ""
         }
@@ -166,7 +218,7 @@
       "displayType": "line",
       "widgetType": "tracemetrics",
       "interval": "1h",
-      "limit": null,
+      "limit": 5,
       "layout": {
         "x": 0,
         "y": 6,
@@ -177,17 +229,28 @@
         {
           "name": "completed",
           "conditions": "",
-          "fields": ["sum(value,payment.completed,counter,none)"],
-          "aggregates": ["sum(value,payment.completed,counter,none)"],
+          "fields": [
+            "sum(value,payment.completed,counter,none)"
+          ],
+          "aggregates": [
+            "sum(value,payment.completed,counter,none)"
+          ],
           "columns": [],
           "orderby": ""
         },
         {
           "name": "failed / cancelled",
           "conditions": "",
-          "fields": ["outcome", "sum(value,payment.failed,counter,none)"],
-          "aggregates": ["sum(value,payment.failed,counter,none)"],
-          "columns": ["outcome"],
+          "fields": [
+            "outcome",
+            "sum(value,payment.failed,counter,none)"
+          ],
+          "aggregates": [
+            "sum(value,payment.failed,counter,none)"
+          ],
+          "columns": [
+            "outcome"
+          ],
           "orderby": ""
         }
       ]
@@ -209,16 +272,24 @@
         {
           "name": "sent",
           "conditions": "",
-          "fields": ["sum(value,push.sent,counter,none)"],
-          "aggregates": ["sum(value,push.sent,counter,none)"],
+          "fields": [
+            "sum(value,push.sent,counter,none)"
+          ],
+          "aggregates": [
+            "sum(value,push.sent,counter,none)"
+          ],
           "columns": [],
           "orderby": ""
         },
         {
           "name": "failed",
           "conditions": "",
-          "fields": ["sum(value,push.failed,counter,none)"],
-          "aggregates": ["sum(value,push.failed,counter,none)"],
+          "fields": [
+            "sum(value,push.failed,counter,none)"
+          ],
+          "aggregates": [
+            "sum(value,push.failed,counter,none)"
+          ],
           "columns": [],
           "orderby": ""
         }
@@ -241,16 +312,24 @@
         {
           "name": "submitted",
           "conditions": "",
-          "fields": ["sum(value,expense.submitted,counter,none)"],
-          "aggregates": ["sum(value,expense.submitted,counter,none)"],
+          "fields": [
+            "sum(value,expense.submitted,counter,none)"
+          ],
+          "aggregates": [
+            "sum(value,expense.submitted,counter,none)"
+          ],
           "columns": [],
           "orderby": ""
         },
         {
           "name": "booking failed",
           "conditions": "",
-          "fields": ["sum(value,expense.booking_failed,counter,none)"],
-          "aggregates": ["sum(value,expense.booking_failed,counter,none)"],
+          "fields": [
+            "sum(value,expense.booking_failed,counter,none)"
+          ],
+          "aggregates": [
+            "sum(value,expense.booking_failed,counter,none)"
+          ],
           "columns": [],
           "orderby": ""
         }
@@ -278,8 +357,13 @@
             "count()",
             "sum(gen_ai.usage.total_tokens)"
           ],
-          "aggregates": ["count()", "sum(gen_ai.usage.total_tokens)"],
-          "columns": ["gen_ai.pipeline.name"],
+          "aggregates": [
+            "count()",
+            "sum(gen_ai.usage.total_tokens)"
+          ],
+          "columns": [
+            "gen_ai.pipeline.name"
+          ],
           "orderby": "-count()"
         }
       ]
@@ -301,9 +385,20 @@
         {
           "name": "",
           "conditions": "issue.category:feedback age:-7d",
-          "fields": ["issue", "title", "project", "events"],
-          "aggregates": ["events"],
-          "columns": ["issue", "title", "project"],
+          "fields": [
+            "issue",
+            "title",
+            "project",
+            "events"
+          ],
+          "aggregates": [
+            "events"
+          ],
+          "columns": [
+            "issue",
+            "title",
+            "project"
+          ],
           "orderby": "-events"
         }
       ]
