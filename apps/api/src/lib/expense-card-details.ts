@@ -519,6 +519,13 @@ function describeHistoryEvent(
       return `Posting date moved from ${event.before ?? ""} to ${after}`;
     case "booking_retried":
       return "Booking retried";
+    case "ai_flagged": {
+      const label = event.attachment_id
+        ? labelById.get(event.attachment_id)
+        : undefined;
+      const note = (event.note ?? "").slice(0, MAX_REASON_CHARS);
+      return `${actor} flagged${label ? ` ${label}` : ""}: ${note}`;
+    }
     default:
       return `Unknown event (${String(event.action)})`;
   }

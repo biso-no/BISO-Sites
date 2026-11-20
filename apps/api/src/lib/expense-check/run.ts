@@ -22,6 +22,7 @@ import {
 } from "../expense-approval";
 import { enrichUnsettled, flagCheckIncomplete } from "../expense-submission";
 import { generateExpensePdf } from "../pdf/expense-pdf";
+import { runCheckAgent } from "./agent";
 
 type AdminClient = Awaited<ReturnType<typeof createAdminClient>>;
 
@@ -34,10 +35,17 @@ export type CheckOutcome = "done" | "fallback" | "skipped";
  */
 export type CheckAgent = (expenseId: string) => Promise<boolean>;
 
-/** No agent yet (Stage 4 Task 5 plugs it in): no check gets an answer. */
+/** No agent: the fixed steps alone, as the backstop's second try runs. */
 export const noAgent: CheckAgent = async () => false;
 
+/**
+ * The AI check (`./agent`): the agent proposes with read-only tools, and code
+ * stores only what it validates.
+ */
+export const aiCheckAgent: CheckAgent = (expenseId) => runCheckAgent(expenseId);
+
 export interface CheckDeps {
+  /** The agent to ask; the AI check unless a caller passes another. */
   agent?: CheckAgent;
   /**
    * The caller's own `check_claim` increment result, such as the backstop's
@@ -415,7 +423,7 @@ export async function runExpenseCheck(
     check_started_at: new Date(now()).toISOString(),
   });
   const outcome = await checkExpense(admin, expenseId, {
-    agent: deps.agent ?? noAgent,
+    agent: deps.agent ?? aiCheckAgent,
     askAgent: !told,
     now,
   });

@@ -94,6 +94,23 @@ describe("describeEvent booked and approver changes", () => {
 });
 
 describe("describeEvent", () => {
+  test("a flag from the background check shows its note", () => {
+    expect(
+      describeEvent(
+        event({
+          action: "ai_flagged",
+          actorKind: "ai",
+          after: "BBL 2027",
+          field: "project_not_created",
+          note: "The project for BBL 2027 is not in Finago yet",
+        })
+      )
+    ).toEqual({
+      key: "aiFlagged",
+      values: { note: "The project for BBL 2027 is not in Finago yet" },
+    });
+  });
+
   test("edited amount carries before and after", () => {
     expect(
       describeEvent(

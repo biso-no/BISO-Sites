@@ -614,4 +614,10 @@ describe("admin expenses schema", () => {
       "booking_retried"
     );
   });
+
+  test("expense_events.action includes ai_flagged for the check's flags", () => {
+    expect(findColumn("expense_events", "action")?.elements).toContain(
+      "ai_flagged"
+    );
+  });
 });

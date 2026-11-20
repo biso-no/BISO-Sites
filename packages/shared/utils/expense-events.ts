@@ -24,7 +24,8 @@ export type ExpenseEventAction =
   | "booked"
   | "booking_failed"
   | "date_shifted"
-  | "booking_retried";
+  | "booking_retried"
+  | "ai_flagged";
 
 export interface ExpenseEventInput {
   action: ExpenseEventAction;

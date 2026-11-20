@@ -1563,6 +1563,7 @@
       "bookingFailed": "Bokføring feilet: {note}",
       "dateShifted": "Bokføringsdato flyttet fra {from} til {to}. {note}",
       "bookingRetried": "Bokføring prøvd på nytt",
+      "aiFlagged": "AI-sjekk: {note}",
       "unknown": "Ukjent hendelse ({action})",
       "reason": "Årsak",
       "noneValue": "ingen"

@@ -449,6 +449,31 @@ describe("loadApprovalCardDetails", () => {
     expect(query).toContain("6");
   });
 
+  it("renders a flag from the background check", async () => {
+    seed({
+      events: [
+        {
+          $createdAt: "2026-11-12T14:03:00.000Z",
+          action: "ai_flagged",
+          actor_kind: "ai",
+          actor_name: "AI check",
+          after: "food",
+          field: "ai_check_disagrees",
+          attachment_id: "a1",
+          note: "Thinks the type is food: pizza for the board",
+        },
+      ],
+      attachments: [TAXI],
+      costTypes: COST_TYPES,
+    });
+
+    const { history } = await loadApprovalCardDetails(asDb(), "e1");
+
+    expect(history[0]?.text).toBe(
+      "AI check flagged Taxi: Thinks the type is food: pizza for the board"
+    );
+  });
+
   it("a failed lookup still returns a sendable card", async () => {
     db.getRow.mockRejectedValue(new Error("boom"));
     db.listRows.mockRejectedValue(new Error("boom"));

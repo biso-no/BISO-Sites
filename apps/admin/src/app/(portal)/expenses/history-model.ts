@@ -155,6 +155,9 @@ export function describeEvent(
       };
     case "booking_retried":
       return { key: "bookingRetried", values: {} };
+    case "ai_flagged":
+      // The background check's note says what it flagged, in plain words.
+      return { key: "aiFlagged", values: { note: event.note ?? "" } };
     default:
       return { key: "unknown", values: { action: String(event.action) } };
   }

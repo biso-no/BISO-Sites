@@ -254,7 +254,7 @@ function titleOf(event: Events): string {
   return text(refs.find((ref) => ref?.title?.trim())?.title);
 }
 
-interface SiteEvent {
+export interface SiteEvent {
   date: string;
   departmentId: string | null;
   title: string;
@@ -290,7 +290,7 @@ async function queryEvents(
 }
 
 /** The department's events of the last years, newest first so the cap drops the oldest. */
-function departmentEvents(
+export function departmentEvents(
   db: ToolDeps["db"],
   departmentId: string,
   today: string
@@ -321,7 +321,7 @@ function titleNamesSeries(title: string, series: string): boolean {
 }
 
 /** Website event dates per edition: a department event naming the series, in the edition's year. */
-function websiteDates(
+export function websiteDates(
   editions: FinagoProjects[],
   series: string,
   events: SiteEvent[]

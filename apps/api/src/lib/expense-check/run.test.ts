@@ -39,6 +39,10 @@ vi.mock("../expense-approval", () => approval);
 const examples = vi.hoisted(() => ({ syncExamplesForExpense: vi.fn() }));
 vi.mock("@repo/shared/utils/expense-examples", () => examples);
 
+// The real AI check is never run here: its own tests use a scripted model.
+const aiCheck = vi.hoisted(() => ({ runCheckAgent: vi.fn() }));
+vi.mock("./agent", () => aiCheck);
+
 vi.mock("../pdf/expense-pdf", () => ({
   generateExpensePdf: vi.fn(async () => new Uint8Array([1, 2, 3])),
 }));
@@ -135,6 +139,7 @@ beforeEach(() => {
   fixedSteps.flagCheckIncomplete.mockResolvedValue(undefined);
   approval.ensureApprovalChain.mockResolvedValue(undefined);
   examples.syncExamplesForExpense.mockResolvedValue(undefined);
+  aiCheck.runCheckAgent.mockResolvedValue(false);
   messaging.createEmail.mockResolvedValue({});
   storage.createFile.mockResolvedValue({ $id: "pdf-1" });
   vi.stubEnv("INVOICE_USER_ID", "invoice-user");
@@ -160,8 +165,24 @@ describe("runExpenseCheck", () => {
       check_started_at: "2026-11-19T12:00:00.000Z",
       check_state: "running",
     });
-    // No agent yet: the fixed steps do the work, flagged for the approver.
+    // The AI check gave no answer: the fixed steps do the work, flagged for
+    // the approver.
     expect(outcome).toBe("fallback");
+  });
+
+  it("asks the AI check by default, and is done when it answered", async () => {
+    aiCheck.runCheckAgent.mockResolvedValue(true);
+
+    expect(await runExpenseCheck("expense-1")).toBe("done");
+    expect(aiCheck.runCheckAgent).toHaveBeenCalledWith("expense-1");
+    expect(callOrder(fixedSteps.enrichUnsettled)).toBeGreaterThan(
+      callOrder(aiCheck.runCheckAgent)
+    );
+    expect(fixedSteps.enrichUnsettled).toHaveBeenCalledWith(
+      expect.anything(),
+      "expense-1",
+      expect.objectContaining({ aiEnabled: true, extraHints: [] })
+    );
   });
 
   it("a double submit runs one check and notifies once", async () => {

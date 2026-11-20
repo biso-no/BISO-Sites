@@ -258,6 +258,7 @@ export enum ExpenseEventsAction {
   BOOKING_FAILED = "booking_failed",
   DATE_SHIFTED = "date_shifted",
   BOOKING_RETRIED = "booking_retried",
+  AI_FLAGGED = "ai_flagged",
 }
 
 export enum TourProgressStatus {

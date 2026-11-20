@@ -1563,6 +1563,7 @@
       "bookingFailed": "Booking failed: {note}",
       "dateShifted": "Posting date moved from {from} to {to}. {note}",
       "bookingRetried": "Booking retried",
+      "aiFlagged": "AI check: {note}",
       "unknown": "Unknown event ({action})",
       "reason": "Reason",
       "noneValue": "none"
