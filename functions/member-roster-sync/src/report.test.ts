@@ -69,19 +69,30 @@ describe("runMonitored", () => {
     expect(calls.some((call) => call.url.includes("/envelope/"))).toBe(false);
   });
 
-  it("closes error, captures, and rethrows when the run throws", async () => {
+  it("closes error, captures, and rethrows the original when the run throws", async () => {
     const r = reporter();
     await expect(
       runMonitored(r, () => Promise.reject(new Error("24SO down")), {})
     ).rejects.toThrow("24SO down");
     await r.flush();
     expect(checkIns()).toEqual(["in_progress", "error"]);
-    expect(
-      calls.some(
-        (call) =>
-          call.url.includes("/envelope/") && call.body.includes("24SO down")
+    expect(calls.some((call) => call.url.includes("/envelope/"))).toBe(true);
+  });
+
+  it("sends the error name and frames, never the message", async () => {
+    const r = reporter();
+    await expect(
+      runMonitored(
+        r,
+        () =>
+          Promise.reject(new Error("Customer Kari Nordmann AS already exists")),
+        {}
       )
-    ).toBe(true);
+    ).rejects.toThrow("Kari Nordmann");
+    await r.flush();
+    const envelope = calls.find((call) => call.url.includes("/envelope/"));
+    expect(envelope?.body).toContain("member-roster-sync failed: Error");
+    expect(envelope?.body).not.toContain("Kari");
   });
 
   it("closes error with a data-free message when ok is false", async () => {

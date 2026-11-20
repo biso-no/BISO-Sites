@@ -17,6 +17,24 @@ function monitorConfig(env: Record<string, string | undefined>) {
   };
 }
 
+const STACK_FRAME = /^\s+at /;
+
+/**
+ * A copy of the error that keeps its name and stack frames but never its
+ * message: 24SO messages can name companies or customers.
+ */
+function sanitized(error: unknown): Error {
+  const name = error instanceof Error ? error.name : "unknown";
+  const copy = new Error(`${SLUG} failed: ${name}`);
+  if (error instanceof Error && error.stack) {
+    const frames = error.stack
+      .split("\n")
+      .filter((line) => STACK_FRAME.test(line));
+    copy.stack = [`Error: ${copy.message}`, ...frames].join("\n");
+  }
+  return copy;
+}
+
 /**
  * Run the sync inside a Sentry cron check-in. An overlap skip closes `ok` so
  * it never alerts; a throw or `ok: false` closes `error` and sends an event
@@ -41,7 +59,7 @@ export async function runMonitored(
   try {
     result = await run();
   } catch (error) {
-    reporter.captureError(error);
+    reporter.captureError(sanitized(error));
     close("error");
     throw error;
   }
