@@ -3,6 +3,7 @@ import { MONO_STACK, STUDIO, StudioPanel } from "../../../_components/studio";
 import { normalizeLocale } from "../../../shop/_components/shop-studio-theme";
 import type { ExpenseDetailStep } from "../../expenses-data";
 import { ChangeApproverDialog } from "./change-approver-dialog";
+import { RebuildChainButton } from "./rebuild-chain-button";
 
 const STATUS_KEYS = ["pending", "approved", "rejected", "skipped"];
 
@@ -19,10 +20,12 @@ export function formatDateTime(iso: string, locale: string): string {
 
 export function ExpenseSteps({
   canChangeApprover = false,
+  canRebuildChain = false,
   expenseId,
   steps,
 }: {
   canChangeApprover?: boolean;
+  canRebuildChain?: boolean;
   expenseId: string;
   steps: ExpenseDetailStep[];
 }) {
@@ -32,9 +35,16 @@ export function ExpenseSteps({
     <StudioPanel className="mt-4 p-5">
       <h3 className="font-medium text-[14px]">{t("detail.stepsTitle")}</h3>
       {steps.length === 0 ? (
-        <p className="mt-2 text-[13px]" style={{ color: STUDIO.ink3 }}>
-          {t("detail.noSteps")}
-        </p>
+        <>
+          <p className="mt-2 text-[13px]" style={{ color: STUDIO.ink3 }}>
+            {t("detail.noSteps")}
+          </p>
+          {canRebuildChain && (
+            <div className="mt-3">
+              <RebuildChainButton expenseId={expenseId} />
+            </div>
+          )}
+        </>
       ) : (
         <ol className="mt-3 space-y-3">
           {steps.map((s) => {
@@ -61,6 +71,7 @@ export function ExpenseSteps({
                   {s.isCurrent && canChangeApprover && (
                     <ChangeApproverDialog
                       approvalId={s.id}
+                      approverRole={s.role}
                       expenseId={expenseId}
                     />
                   )}

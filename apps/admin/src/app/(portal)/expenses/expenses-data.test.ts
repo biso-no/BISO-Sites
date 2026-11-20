@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { Query } from "@repo/api";
+import { chainFailedIssueReason } from "@repo/shared/utils/expense-approvers";
 import type { ExpenseViewer } from "@/lib/expense-access";
 
 mock.module("server-only", () => ({}));
@@ -7,12 +8,18 @@ const db = { getRow: mock(), listRows: mock() };
 mock.module("@repo/api/server", () => ({
   createAdminClient: mock(async () => ({ db })),
 }));
+const isFeatureEnabled = mock(async (_key: string) => true);
+mock.module("@repo/shared/utils/feature-flags-server", () => ({
+  isFeatureEnabled,
+}));
 
 const {
   buildExpenseListQueries,
   getExpenseDetail,
   listExpenses,
+  loadRebuildEvidence,
   resolveExpenseListFilters,
+  withHintTypeLabels,
 } = await import("./expenses-data");
 
 const viewer = (over: Partial<ExpenseViewer> = {}): ExpenseViewer => ({
@@ -338,6 +345,30 @@ describe("listExpenses", () => {
   });
 });
 
+describe("listExpenses checking flag", () => {
+  const withState = async (check_state: string | null) => {
+    db.listRows.mockImplementation((_d: string, table: string) =>
+      table === "expense"
+        ? { rows: [{ ...expenseRow, check_state }], total: 1 }
+        : { rows: [] }
+    );
+    return (await listExpenses(viewer(), filters())).rows[0]?.checking;
+  };
+
+  test("is set while the check is queued or running", async () => {
+    expect(await withState("queued")).toBe(true);
+    expect(await withState("running")).toBe(true);
+    expect(await withState("done")).toBe(false);
+    expect(await withState("fallback")).toBe(false);
+    expect(await withState(null)).toBe(false);
+  });
+
+  test("the list reads the check state", async () => {
+    await withState("queued");
+    expect(db.listRows.mock.calls[0]?.[2].join("\n")).toContain("check_state");
+  });
+});
+
 describe("getExpenseDetail", () => {
   test("returns null for a draft", async () => {
     db.getRow.mockResolvedValue({
@@ -351,5 +382,71 @@ describe("getExpenseDetail", () => {
   test("returns null when the expense is missing", async () => {
     db.getRow.mockRejectedValue(Object.assign(new Error("nf"), { code: 404 }));
     expect(await getExpenseDetail(viewer(), "ex1")).toBeNull();
+  });
+});
+
+describe("loadRebuildEvidence", () => {
+  const issues = (reasons: string[]) =>
+    db.listRows.mockResolvedValue({
+      rows: reasons.map((reason) => ({ reason })),
+    });
+
+  test("finds the issue of a submission that found no approver", async () => {
+    isFeatureEnabled.mockResolvedValue(true);
+    issues([
+      "Approver is the submitter",
+      "No approver could be resolved. The reimbursement is pending with no approval step.",
+    ]);
+    expect(await loadRebuildEvidence(db as never, "ex1")).toEqual({
+      hasRebuildIssue: true,
+      ledgerPosting: true,
+    });
+    expect(db.listRows.mock.calls.at(-1)?.[2]).toContainEqual(
+      Query.equal("expense_id", "ex1")
+    );
+  });
+
+  test("finds the issue of a chain that failed after the background check", async () => {
+    isFeatureEnabled.mockResolvedValue(true);
+    issues([chainFailedIssueReason("mail down")]);
+    expect(await loadRebuildEvidence(db as never, "ex1")).toEqual({
+      hasRebuildIssue: true,
+      ledgerPosting: true,
+    });
+  });
+
+  test("an emailed expense has no such issue; the flag is read", async () => {
+    isFeatureEnabled.mockResolvedValue(false);
+    issues([]);
+    expect(await loadRebuildEvidence(db as never, "ex1")).toEqual({
+      hasRebuildIssue: false,
+      ledgerPosting: false,
+    });
+    expect(isFeatureEnabled).toHaveBeenCalledWith("expenses_ledger_posting");
+  });
+});
+
+describe("withHintTypeLabels", () => {
+  test("shows the type's label for the slug in ai_check_disagrees, in the viewer's language", async () => {
+    db.listRows.mockResolvedValue({
+      rows: [{ label: "Food", label_no: "Mat", slug: "food" }],
+    });
+    const hints = [
+      { code: "ai_check_disagrees" as const, data: { aiType: "food" } },
+      { code: "ai_check_disagrees" as const, data: { aiType: "retired" } },
+      { code: "occasion_missing" as const },
+    ];
+    expect(await withHintTypeLabels(db as never, hints, "no")).toEqual([
+      { code: "ai_check_disagrees", data: { aiType: "Mat" } },
+      { code: "ai_check_disagrees", data: { aiType: "retired" } },
+      { code: "occasion_missing" },
+    ]);
+  });
+
+  test("reads nothing when no hint names a type", async () => {
+    db.listRows.mockReset();
+    const hints = [{ code: "occasion_missing" as const }];
+    expect(await withHintTypeLabels(db as never, hints, "en")).toBe(hints);
+    expect(db.listRows).not.toHaveBeenCalled();
   });
 });

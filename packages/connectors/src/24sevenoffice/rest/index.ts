@@ -13,6 +13,7 @@ export {
   type ResolvedBookingDate,
   resolveBookingDate,
 } from "./booking-dates";
+export { type CostLine, listCostLines } from "./cost-lines";
 export {
   type BankAccountChange,
   type BankAccountType,
@@ -32,6 +33,7 @@ export {
   DEPARTMENT_DIMENSION_TYPE,
   type DimensionElement,
   getDepartments,
+  listDimensionElements,
 } from "./departments";
 export {
   type UploadDocumentResult,
@@ -43,6 +45,7 @@ export {
   toFiscalPeriods,
 } from "./fiscal-periods";
 export { getOrganizationName } from "./organization";
+export { getProjects, PROJECT_DIMENSION_TYPE } from "./projects";
 export {
   listTransactionLines,
   type PostedTransactionLine,

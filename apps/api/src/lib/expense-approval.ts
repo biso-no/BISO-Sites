@@ -8,9 +8,11 @@ import { ID, type Models, Query } from "@repo/api";
 import { appwriteErrorStatus } from "@repo/api/errors";
 import { createAdminClient } from "@repo/api/server";
 import {
+  type ExpenseApprovalIssues,
   type ExpenseApprovals,
   type ExpenseApprovalsApproverRole,
   ExpenseApprovalsStatus,
+  type ExpenseEvents,
   type Expenses,
   ExpensesStatus,
   type Users,
@@ -26,10 +28,15 @@ import {
   updateProactiveCard,
 } from "@repo/connectors/teams-bot";
 import {
+  chainFailedIssueReason,
   directoryKey,
   getCampusApprovalPlan,
+  isRebuildIssue,
+  NO_APPROVER_ISSUE_REASON,
 } from "@repo/shared/utils/expense-approvers";
 import { recordExpenseEvents } from "@repo/shared/utils/expense-events";
+import { deleteExamplesForExpense } from "@repo/shared/utils/expense-examples";
+import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { reimbursementNumber } from "@repo/shared/utils/reimbursement-number";
 import { type GuardedApproverStep, guardChain } from "./expense-approval-guard";
 import {
@@ -334,13 +341,197 @@ async function recordResolutionIssuesSafely(
   }
 }
 
+export interface CreateChainOptions {
+  /** A failure leaves the expense pending instead of returning it to draft. */
+  keepPendingOnFailure?: boolean;
+  /**
+   * A failure records an approval issue the IT queue can act on (rebuild the
+   * chain), then throws `ApprovalChainFailedError`. For the background check,
+   * where nobody is waiting for an answer.
+   */
+  recordIssue?: boolean;
+}
+
+/**
+ * The approval chain could not be built in the background, and an approval
+ * issue now says so. The expense is pending with no steps; a global admin
+ * rebuilds the chain once the cause is fixed.
+ */
+export class ApprovalChainFailedError extends Error {
+  constructor(cause: unknown) {
+    super(
+      `The approval chain could not be created: ${
+        cause instanceof Error ? cause.message : "unknown error"
+      }`,
+      { cause }
+    );
+    this.name = "ApprovalChainFailedError";
+  }
+}
+
+/** The issue of a chain that failed in the background, so IT can rebuild it. */
+async function recordChainFailureIssue(
+  context: ApprovalChainContext,
+  error: unknown
+): Promise<void> {
+  const { db } = await createAdminClient();
+  // The step that was to be notified first.
+  const firstPlanned = getCampusApprovalPlan({
+    campusId: context.campusId,
+    departmentId: context.departmentId,
+    submitterIsController: context.submitterIsController,
+    submitterIsFinancialManager: context.submitterIsFinancialManager,
+  }).at(0);
+  const cause = error instanceof Error ? error.message : "unknown error";
+  await db.createRow("app", "expense_approval_issues", ID.unique(), {
+    expense_id: context.expenseId,
+    campus_id: context.campusId,
+    department: context.departmentName ?? "(none)",
+    role_sought: firstPlanned?.role ?? "controller",
+    reason: truncateReason(chainFailedIssueReason(cause)),
+    status: "open",
+  });
+}
+
 /**
  * Resolves approvers, creates the chain rows, and notifies the first step.
  * Writes a remediation issue when an approver can't be found, once the chain
  * rows hold the claim, so a racing duplicate submit records none.
+ *
+ * With `recordIssue`, any other failure is recorded as an approval issue and
+ * thrown as `ApprovalChainFailedError`; when even that write fails, the
+ * original error is thrown, as nobody has been told. A row conflict is
+ * thrown as it is: another run holds the chain, so nothing failed.
  */
 export async function createApprovalChain(
+  context: ApprovalChainContext,
+  options: CreateChainOptions = {}
+): Promise<CreateChainResult> {
+  if (!options.recordIssue) {
+    return await buildApprovalChain(context, options);
+  }
+  try {
+    return await buildApprovalChain(context, options);
+  } catch (error) {
+    if (isRowConflictError(error)) {
+      throw error;
+    }
+    await recordChainFailureIssue(context, error);
+    throw new ApprovalChainFailedError(error);
+  }
+}
+
+/**
+ * Whether an approver was told about this submission: a `notified` event no
+ * older than the latest `submitted` one. `createApprovalChain` writes it once
+ * the chain stands and its first step was notified.
+ */
+async function notifiedSinceSubmit(
+  db: AdminDb,
+  expenseId: string
+): Promise<boolean> {
+  const latest = (action: "notified" | "submitted") =>
+    db.listRows<ExpenseEvents>("app", "expense_events", [
+      Query.equal("expense_id", expenseId),
+      Query.equal("action", action),
+      Query.orderDesc("$createdAt"),
+      Query.limit(1),
+    ]);
+  const [notified, submitted] = await Promise.all([
+    latest("notified"),
+    latest("submitted"),
+  ]);
+  const notifiedAt = notified.rows[0]?.$createdAt;
+  const submittedAt = submitted.rows[0]?.$createdAt;
+  return Boolean(notifiedAt && (!submittedAt || notifiedAt >= submittedAt));
+}
+
+/**
+ * The background check's approval chain, in background mode
+ * (`keepPendingOnFailure`, `recordIssue`), told to its first approver exactly
+ * once, also when the check runs again after being cut off.
+ *
+ * A row conflict means an earlier run created step rows. A `notified` event
+ * since the submit means the link went out, and nothing more is done.
+ * Without one nobody holds a link: when every step is still pending, the
+ * rows are deleted and the chain is built again in full, which notifies. A
+ * step already decided means the chain moved on, so IT gets a "Could not
+ * notify" issue to resend the current step instead.
+ */
+export async function ensureApprovalChain(
   context: ApprovalChainContext
+): Promise<void> {
+  const options = { keepPendingOnFailure: true, recordIssue: true };
+  try {
+    await createApprovalChain(context, options);
+    return;
+  } catch (error) {
+    if (!isRowConflictError(error)) {
+      throw error;
+    }
+  }
+
+  const { db } = await createAdminClient();
+  if (await notifiedSinceSubmit(db, context.expenseId)) {
+    return;
+  }
+  const { rows } = await db.listRows<ExpenseApprovals>(
+    "app",
+    "expense_approvals",
+    [
+      Query.equal("expense_id", context.expenseId),
+      Query.orderAsc("step"),
+      Query.limit(STEP_LOOKUP_LIMIT),
+    ]
+  );
+  const isPending = (row: ExpenseApprovals) =>
+    row.status === ExpenseApprovalsStatus.PENDING;
+  if (!rows.every(isPending)) {
+    const current = rows.find(isPending);
+    if (current) {
+      await writeNotificationIssue(
+        db,
+        current,
+        {
+          campusId: context.campusId,
+          department: context.departmentName ?? "(none)",
+        },
+        "no notification was recorded after the check"
+      );
+    }
+    return;
+  }
+  // One at a time: each row is read again just before its delete, because an
+  // approver may have opened the link since the list above. A row being
+  // decided (`decision_lock`) or already used (`consumed_at`) stops the
+  // rebuild and gets the resend issue instead. A failed read or delete
+  // throws, so the check stays running and tries again.
+  for (const row of rows) {
+    const current = await db.getRow<ExpenseApprovals>(
+      "app",
+      "expense_approvals",
+      row.$id
+    );
+    if (current.decision_lock > 0 || current.consumed_at) {
+      await writeNotificationIssue(
+        db,
+        current,
+        {
+          campusId: context.campusId,
+          department: context.departmentName ?? "(none)",
+        },
+        "an approver opened the link while the chain was being rebuilt"
+      );
+      return;
+    }
+    await db.deleteRow("app", "expense_approvals", row.$id);
+  }
+  await createApprovalChain(context, options);
+}
+
+async function buildApprovalChain(
+  context: ApprovalChainContext,
+  options: CreateChainOptions
 ): Promise<CreateChainResult> {
   const { db } = await createAdminClient();
 
@@ -362,11 +553,10 @@ export async function createApprovalChain(
   const { steps, issues } = guardChain(context, resolved, submitterEmail);
 
   if (steps.length === 0) {
-    // No chain row exists, so nothing is claimed and the expense is still a
-    // draft: these issue writes may throw, and the submission then fails with
-    // the draft untouched and resubmittable. Nobody approves this one, so the
-    // queue has to see it. The sought role is
-    // the plan's last step, the one that would have approved it.
+    // No chain row exists, so nothing is claimed: these issue writes may
+    // throw, and the caller then sees the failure. Nobody approves this one,
+    // so the queue has to see it. The sought role is the plan's last step,
+    // the one that would have approved it.
     const lastPlanned = getCampusApprovalPlan({
       campusId: context.campusId,
       departmentId: context.departmentId,
@@ -378,8 +568,7 @@ export async function createApprovalChain(
       {
         campusId: context.campusId,
         department: context.departmentName ?? "(none)",
-        reason:
-          "No approver could be resolved. The reimbursement is pending with no approval step.",
+        reason: NO_APPROVER_ISSUE_REASON,
         roleSought: lastPlanned?.role ?? "controller",
       },
     ]);
@@ -462,8 +651,9 @@ export async function createApprovalChain(
   } catch (error) {
     // Anything after the claim failed (a step row, the status write, or the
     // first approver being unreachable): delete the chain rows (which also
-    // invalidates any link already delivered) and return the expense to draft
-    // so it can be resubmitted cleanly, never stranded behind a 409.
+    // invalidates any link already delivered) and, unless the caller keeps it
+    // pending, return the expense to draft so it can be resubmitted cleanly,
+    // never stranded behind a 409.
     await Promise.all(
       created.map((row) =>
         db.deleteRow("app", "expense_approvals", row.$id).catch((cause) => {
@@ -474,16 +664,20 @@ export async function createApprovalChain(
         })
       )
     );
-    await db
-      .updateRow("app", "expense", context.expenseId, {
-        status: ExpensesStatus.DRAFT,
-      })
-      .catch((cause) => {
-        console.error(
-          `[expense-approval] rollback: could not return expense ${context.expenseId} to draft:`,
-          cause
-        );
-      });
+    // A rebuild or the background check works on an expense that was
+    // already submitted: it stays pending.
+    if (!options.keepPendingOnFailure) {
+      await db
+        .updateRow("app", "expense", context.expenseId, {
+          status: ExpensesStatus.DRAFT,
+        })
+        .catch((cause) => {
+          console.error(
+            `[expense-approval] rollback: could not return expense ${context.expenseId} to draft:`,
+            cause
+          );
+        });
+    }
     throw error;
   }
 
@@ -511,6 +705,8 @@ export interface ApprovalReceipt {
   description: string;
   fileId: string | null;
   id: string;
+  /** The Finago project the receipt is booked on, or null. */
+  projectName: string | null;
   type: string;
 }
 
@@ -616,6 +812,7 @@ export async function getApprovalContext(
       // Don't expose file ids once the link has expired — the file proxy rejects
       // them anyway, but this keeps the expired context from leaking ids.
       fileId: expired ? null : att.url,
+      projectName: att.project_name?.trim() || null,
       type: att.type,
     })),
   };
@@ -655,6 +852,7 @@ export type ApprovalErrorCode =
   | "link_expired"
   | "not_found"
   | "not_current_step"
+  | "not_pending"
   | "in_progress"
   | "self_approver"
   | "same_approver"
@@ -760,6 +958,9 @@ async function reconcileExpenseStatus(expenseId: string): Promise<void> {
 
   if (desired) {
     await db.updateRow("app", "expense", expenseId, { status: desired });
+    if (desired === ExpensesStatus.REJECTED) {
+      await deleteExamplesForExpense(db, expenseId);
+    }
   }
 }
 
@@ -799,6 +1000,15 @@ const GRAPH_LOOKUP_TIMEOUT_MS = 6000;
 const CARD_UPDATE_TIMEOUT_MS = 5000;
 const NOTE_SEPARATOR = " · ";
 const NOT_CURRENT_STEP_ERROR = "This step is not waiting for a decision.";
+const NOT_PENDING_ERROR =
+  "This reimbursement is no longer waiting for approval.";
+const HAS_STEPS_ERROR = "This reimbursement already has approval steps.";
+const NOT_REBUILDABLE_ERROR =
+  "Only a reimbursement left without an approval chain when it was submitted can have its approval chain rebuilt.";
+const ISSUE_LOOKUP_LIMIT = 100;
+/** More steps than any approval plan has. */
+const STEP_LOOKUP_LIMIT = 20;
+const HTTP_CONFLICT = 409;
 const ACCOUNT_MISSING_ERROR =
   "A receipt has no account yet. Set it in admin before approving.";
 
@@ -929,12 +1139,26 @@ async function decideStep(
     return decidedResult(row, refNumber);
   }
 
+  if (expense.status !== ExpensesStatus.PENDING) {
+    return { ok: false, code: "not_pending", error: NOT_PENDING_ERROR };
+  }
+
   if (input.requireCurrentStep && !(await isCurrentStep(db, row, expense))) {
     return {
       ok: false,
       code: "not_current_step",
       error: NOT_CURRENT_STEP_ERROR,
     };
+  }
+
+  // The card and the page hide Approve here, but an old card or a crafted
+  // call must not book an account nobody chose. Rejecting stays open. Checked
+  // after the expense status, so an old link on a decided expense says so.
+  if (
+    input.decision === "approved" &&
+    (await expenseLacksAccount(db, row.expense_id))
+  ) {
+    return { ok: false, code: "account_missing", error: ACCOUNT_MISSING_ERROR };
   }
 
   // Atomically claim this step before applying the decision. Appwrite has no
@@ -1005,6 +1229,36 @@ async function decideStep(
 }
 
 /**
+ * Closes the expense's open approval issues once it is rejected, so the IT
+ * queue stops offering fixes for a dead expense. Best-effort.
+ */
+async function resolveOpenIssues(
+  db: AdminDb,
+  expenseId: string
+): Promise<void> {
+  try {
+    const open = await db.listRows<Models.Row>(
+      "app",
+      "expense_approval_issues",
+      [
+        Query.equal("expense_id", expenseId),
+        Query.equal("status", "open"),
+        Query.limit(100),
+      ]
+    );
+    for (const issue of open.rows) {
+      await db.updateRow("app", "expense_approval_issues", issue.$id, {
+        status: "resolved",
+        resolved_by: "system: expense rejected",
+        resolved_at: new Date().toISOString(),
+      });
+    }
+  } catch (error) {
+    console.error("[expense-approval] could not resolve open issues:", error);
+  }
+}
+
+/**
  * After a step's decision is written: a rejection rejects the expense, an
  * approval confirms the directory entry and notifies the next step, or
  * finalizes the expense.
@@ -1020,6 +1274,9 @@ async function applyDecisionOutcome(
     await db.updateRow("app", "expense", row.expense_id, {
       status: ExpensesStatus.REJECTED,
     });
+    await resolveOpenIssues(db, row.expense_id);
+    // A rejected receipt teaches nothing; the delete logs its own failures.
+    await deleteExamplesForExpense(db, row.expense_id);
     await notifySubmitter(expense.userId, refNumber, "rejected", input.reason);
     return {
       ok: true,
@@ -1121,16 +1378,6 @@ export async function decideApproval(params: {
       error: "This approval link has expired.",
     };
   }
-  // The card and the page hide Approve here, but an old card or a crafted
-  // call must not book an account nobody chose. Rejecting stays open.
-  if (
-    params.decision === "approved" &&
-    row.status === ExpenseApprovalsStatus.PENDING &&
-    (await expenseLacksAccount(db, row.expense_id))
-  ) {
-    return { ok: false, code: "account_missing", error: ACCOUNT_MISSING_ERROR };
-  }
-
   return await decideStep(db, row, {
     actor: {
       email: row.approver_email.toLowerCase(),
@@ -1231,20 +1478,19 @@ async function notifyPendingStep(
 }
 
 /**
- * Records a remediation issue when an approver could not be notified, so the IT
- * "approval issues" queue surfaces it and can trigger a resend.
+ * Writes the "Could not notify" issue for a step: the IT queue offers a
+ * resend for it, which re-issues the approval link.
  */
-async function recordNotificationIssue(
-  expense: ExpenseSummaryRow,
+async function writeNotificationIssue(
+  db: AdminDb,
   stepRow: ExpenseApprovals,
-  error: unknown
+  place: { campusId: string; department: string | null },
+  message: string
 ): Promise<void> {
-  const { db } = await createAdminClient();
-  const message = error instanceof Error ? error.message : "unknown error";
   await db.createRow("app", "expense_approval_issues", ID.unique(), {
     expense_id: stepRow.expense_id,
-    campus_id: expense.campus,
-    department: expense.departmentRel?.Name ?? expense.department,
+    campus_id: place.campusId,
+    department: place.department,
     role_sought: stepRow.approver_role,
     reason: truncateReason(
       `Could not notify ${stepRow.approver_email} for step ${stepRow.step} (${message}). Use resend to re-issue the approval link.`
@@ -1254,14 +1500,44 @@ async function recordNotificationIssue(
 }
 
 /**
+ * Records a remediation issue when an approver could not be notified, so the IT
+ * "approval issues" queue surfaces it and can trigger a resend.
+ */
+async function recordNotificationIssue(
+  expense: ExpenseSummaryRow,
+  stepRow: ExpenseApprovals,
+  error: unknown
+): Promise<void> {
+  const { db } = await createAdminClient();
+  await writeNotificationIssue(
+    db,
+    stepRow,
+    {
+      campusId: expense.campus,
+      department: expense.departmentRel?.Name ?? expense.department,
+    },
+    error instanceof Error ? error.message : "unknown error"
+  );
+}
+
+/**
  * Re-issues a fresh token for the lowest pending approval step of an expense and
  * re-notifies that approver. Used by the IT remediation queue to recover a chain
  * whose next-step notification failed to deliver. Idempotent and safe to retry.
  */
 export async function resendApprovalNotification(
   expenseId: string
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; code?: "not_pending" }> {
   const { db } = await createAdminClient();
+  const expense = await db.getRow<Models.Row & { status: ExpensesStatus }>(
+    "app",
+    "expense",
+    expenseId,
+    [Query.select(["$id", "status"])]
+  );
+  if (expense.status !== ExpensesStatus.PENDING) {
+    return { ok: false, code: "not_pending", error: NOT_PENDING_ERROR };
+  }
   const pending = await db.listRows<ExpenseApprovals>(
     "app",
     "expense_approvals",
@@ -1278,6 +1554,185 @@ export async function resendApprovalNotification(
   }
   await reissueAndNotify(stepRow);
   return { ok: true };
+}
+
+/** True when a unique index already holds the row (a racing request got there first). */
+export function isRowConflictError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+  const { code, type } = error as { code?: unknown; type?: unknown };
+  return (
+    code === HTTP_CONFLICT ||
+    type === "row_already_exists" ||
+    type === "document_already_exists"
+  );
+}
+
+type RebuildExpenseRow = ExpenseSummaryRow & {
+  submitter_is_controller: boolean;
+  submitter_is_financial_manager: boolean;
+};
+
+/**
+ * Whether the expense has an issue `createApprovalChain` records when it
+ * leaves a submission with no steps, in any status: no step resolved, or the
+ * chain failed after the background check. A reimbursement sent to
+ * accounting by email is pending with no steps too, but never has one. An
+ * issue older than the expense's latest `submitted` event belongs to an
+ * earlier submission (the expense was resubmitted by email since), so it does
+ * not count. With no `submitted` event there is nothing to compare against
+ * and any such issue counts.
+ */
+async function hasRebuildIssue(
+  db: AdminDb,
+  expenseId: string
+): Promise<boolean> {
+  const [{ rows }, { rows: submitted }] = await Promise.all([
+    db.listRows<ExpenseApprovalIssues>("app", "expense_approval_issues", [
+      Query.equal("expense_id", expenseId),
+      Query.select(["reason", "$createdAt"]),
+      Query.orderAsc("$createdAt"),
+      Query.limit(ISSUE_LOOKUP_LIMIT),
+    ]),
+    db.listRows<ExpenseEvents>("app", "expense_events", [
+      Query.equal("expense_id", expenseId),
+      Query.equal("action", "submitted"),
+      Query.orderDesc("$createdAt"),
+      Query.limit(1),
+    ]),
+  ]);
+  const submittedAt = submitted[0]?.$createdAt;
+  return rows.some(
+    (row) =>
+      isRebuildIssue(row.reason) &&
+      (!submittedAt || row.$createdAt >= submittedAt)
+  );
+}
+
+export type RebuildErrorCode =
+  | "posting_disabled"
+  | "not_pending"
+  | "has_steps"
+  | "not_rebuildable"
+  | "not_found"
+  | "failed";
+
+/**
+ * Builds the approval chain again for a pending expense that has none because
+ * no approver could be found at submit, or the chain failed after the
+ * background check. Refused while direct booking is off, and for any expense
+ * without such an issue from that submit: one sent to accounting by email is
+ * handled there, and approving it here too would pay it twice. Uses the submitter's flags saved on the expense, so the plan is
+ * the one the submission would have got.
+ */
+export async function rebuildApprovalChain(params: {
+  actor: ApprovalActor;
+  expenseId: string;
+}): Promise<
+  | { ok: true; stepsCreated: number }
+  | { ok: false; code: RebuildErrorCode; error: string }
+> {
+  if (!(await isFeatureEnabled("expenses_ledger_posting"))) {
+    return {
+      ok: false,
+      code: "posting_disabled",
+      error: "expenses_ledger_posting disabled",
+    };
+  }
+  const { db } = await createAdminClient();
+  const expense = await db
+    .getRow<RebuildExpenseRow>("app", "expense", params.expenseId, [
+      Query.select([
+        ...EXPENSE_SUMMARY_SELECT,
+        "submitter_is_controller",
+        "submitter_is_financial_manager",
+      ]),
+    ])
+    .catch((error: unknown) => {
+      if (appwriteErrorStatus(error) === HTTP_NOT_FOUND) {
+        return null;
+      }
+      throw error;
+    });
+  if (!expense) {
+    return { ok: false, code: "not_found", error: "Expense not found." };
+  }
+  if (expense.status !== ExpensesStatus.PENDING) {
+    return { ok: false, code: "not_pending", error: NOT_PENDING_ERROR };
+  }
+  const existing = await db.listRows<ExpenseApprovals>(
+    "app",
+    "expense_approvals",
+    [Query.equal("expense_id", params.expenseId), Query.limit(1)]
+  );
+  if (existing.rows.length > 0) {
+    return {
+      ok: false,
+      code: "has_steps",
+      error: HAS_STEPS_ERROR,
+    };
+  }
+  if (!(await hasRebuildIssue(db, params.expenseId))) {
+    return {
+      ok: false,
+      code: "not_rebuildable",
+      error: NOT_REBUILDABLE_ERROR,
+    };
+  }
+
+  const submitter = await db
+    .getRow<Users>("app", "user", expense.userId, [
+      Query.select(["$id", "name"]),
+    ])
+    .catch((error: unknown) => {
+      if (appwriteErrorStatus(error) === HTTP_NOT_FOUND) {
+        return null;
+      }
+      throw error;
+    });
+  let result: CreateChainResult;
+  try {
+    result = await createApprovalChain(
+      {
+        ...buildContextFromExpense(
+          expense,
+          reimbursementNumber(expense.$sequence)
+        ),
+        submitterIsController: expense.submitter_is_controller,
+        submitterIsFinancialManager: expense.submitter_is_financial_manager,
+        submitterName: submitter?.name || "BISO member",
+        submitterUserId: expense.userId,
+      },
+      { keepPendingOnFailure: true }
+    );
+  } catch (error) {
+    if (isRowConflictError(error)) {
+      return { ok: false, code: "has_steps", error: HAS_STEPS_ERROR };
+    }
+    console.error("[expense-approval] rebuild failed:", error);
+    return {
+      ok: false,
+      code: "failed",
+      error:
+        "The approval chain could not be rebuilt. The expense is still pending with no steps. Try again.",
+    };
+  }
+  await recordExpenseEvents(db, [
+    {
+      action: "edited",
+      actorEmail: params.actor.email,
+      actorKind: params.actor.kind,
+      actorName: params.actor.name,
+      expenseId: params.expenseId,
+      field: "approval_chain",
+      note:
+        result.stepsCreated === 0
+          ? "rebuilt in admin: no approver found"
+          : `rebuilt in admin: ${result.stepsCreated} steps`,
+    },
+  ]);
+  return { ok: true, stepsCreated: result.stepsCreated };
 }
 
 /**
@@ -1370,7 +1825,12 @@ export async function changeStepApprover(params: {
   email: string;
   actor: ApprovalActor;
 }): Promise<
-  | { ok: true; notified: boolean; directorySaved: boolean }
+  | {
+      ok: true;
+      notified: boolean;
+      directorySaved: boolean;
+      directorySkipped?: boolean;
+    }
   | { ok: false; error: string; code: ApprovalErrorCode }
 > {
   const { db } = await createAdminClient();
@@ -1429,17 +1889,24 @@ export async function changeStepApprover(params: {
     approver_email: email,
   } as Partial<ExpenseApprovals>);
 
-  const target = directoryTarget(row, expense);
-  const directorySaved = await setAdminDirectoryApprover(db, {
-    aadId: person?.aadId ?? null,
-    campusId: target.campusId,
-    departmentId: target.departmentId,
-    displayName: person?.displayName ?? null,
-    email,
-    key: target.key,
-    role: row.approver_role,
-    scope: target.scope,
-  });
+  // The general manager is one organisation-wide directory entry (a step with
+  // role "national", also as a fallback for a missing president/controller);
+  // one expense must not rewrite it.
+  let directorySaved = false;
+  const directorySkipped = row.approver_role === "national";
+  if (!directorySkipped) {
+    const target = directoryTarget(row, expense);
+    directorySaved = await setAdminDirectoryApprover(db, {
+      aadId: person?.aadId ?? null,
+      campusId: target.campusId,
+      departmentId: target.departmentId,
+      displayName: person?.displayName ?? null,
+      email,
+      key: target.key,
+      role: row.approver_role,
+      scope: target.scope,
+    });
+  }
 
   await recordExpenseEvents(db, [
     {
@@ -1455,6 +1922,7 @@ export async function changeStepApprover(params: {
     },
   ]);
 
+  const skipped = directorySkipped ? { directorySkipped: true } : {};
   const stepRow: ExpenseApprovals = {
     ...row,
     approver_aad_id: person?.aadId ?? null,
@@ -1464,9 +1932,9 @@ export async function changeStepApprover(params: {
     await reissueAndNotify(stepRow, expense);
   } catch (error) {
     await recordNotificationIssue(expense, stepRow, error);
-    return { ok: true, notified: false, directorySaved };
+    return { ok: true, notified: false, directorySaved, ...skipped };
   }
-  return { ok: true, notified: true, directorySaved };
+  return { ok: true, notified: true, directorySaved, ...skipped };
 }
 
 function buildContextFromExpense(

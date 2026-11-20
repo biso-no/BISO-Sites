@@ -1,0 +1,89 @@
+---
+title: Finago projects on reimbursements
+description: How global admins keep the list of Finago projects, set the date of an event, and sync from Finago, and how finance and approvers set a project on a receipt.
+who: "Global admins (National + Operations Unit) for the Projects tab. For setting a project on a receipt: the current approver, or a global admin or campus controller acting for the step, while the reimbursement is pending."
+covers:
+  - apps/admin/src/app/(portal)/expenses/settings/projects/**
+  - apps/admin/src/app/(portal)/expenses/[expenseId]/_components/project-picker.tsx
+  - apps/api/src/app/api/cron/sync-finago-projects/**
+  - packages/shared/utils/finago-project-sync.ts
+  - packages/shared/utils/finago-project-run.ts
+  - packages/shared/utils/finago-projects.ts
+  - packages/connectors/src/24sevenoffice/rest/projects.ts
+  - packages/connectors/src/24sevenoffice/rest/cost-lines.ts
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- A project is a Finago project, for example a yearly event. A receipt can be booked on one, so the cost shows up under that project in 24SevenOffice.
+- Only global admins see the **Prosjekter** (Projects) tab. In the sidebar, open **Utlegg** (Expenses), choose **Innstillinger** (Settings), then **Prosjekter**.
+- The list comes from Finago. It is brought up to date once a day, and you can start it yourself (see below). The AI check that runs after a student submits uses this list to suggest a project, so a stale list means worse suggestions.
+</BeforeYouStart>
+
+## Steps
+
+<Steps>
+<Step title="Sync the projects from Finago">
+
+Choose **Hent prosjekter fra Finago** (Sync projects from Finago). You see **Hentet \{count} prosjekter** (Synced \{count} projects) when everything was fetched. If time ran out you see **Delvis hentet (\{count} prosjekter). Den daglige kjøringen fullfører resten.** (Partly synced. The daily run finishes it.) Nothing is lost: the next run continues from where this one stopped.
+
+If you see **En henting pågår, eller startet nettopp** (A sync is already running, or just started), wait a few minutes. A run that started less than 5 minutes ago blocks a new one. If it fails you see **Kunne ikke hente prosjekter** (Could not sync projects).
+
+The sync reads Finago's projects and about two years of bookings on the cost accounts (6000 to 7999, and the accounts the expense types use). From that it works out which departments use which project. **Siste fullstendige henting** (Last full sync) shows when it last finished completely.
+
+A project that Finago has deactivated is kept in the table with its history and never deleted. It is not listed in the Projects tab or in the receipt picker, and can't be chosen. A receipt that already has such a project still shows it by name.
+
+If Finago's list comes back empty, or with fewer than half of the projects that are active now, the sync marks nothing as deactivated that time, because that is more likely a fault in Finago than real closures. If it reads no bookings at all, it keeps the dates and counts it had.
+
+</Step>
+<Step title="Read the list">
+
+Projects are grouped by series, so a yearly event is listed with all its years. Each row shows the name, the year, which departments use it (**Brukt av**), the first and last booking (**Første postering**, **Siste postering**) and the latest spending peak (**Siste kostnadstopp**). The peak is the middle of the last two-week stretch with at least half the spending of the project's busiest two weeks. Use **Avdeling** (Department) to show one department's projects.
+
+</Step>
+<Step title="Set the date of an event">
+
+Above the date field, **Dato i bruk** (Date in use) shows the date receipts are matched against now, and where it comes from: **satt her** (set here), **arrangement på nettsiden** (event on the website), **måneden i prosjektnavnet** (month in the project name) or **anslått fra tidligere posteringer** (estimated from past bookings). **Ingen dato i bruk ennå** (No date in use yet) means no source gives one.
+
+In **Arrangementsdato** (Event date), pick a date and choose **Lagre** (Save). **Fjern** (Clear) removes it. The date you set wins over every other source, so use it when the date in use is wrong or the event hasn't been booked yet. You see **Arrangementsdato lagret** (Event date saved) or **Arrangementsdato fjernet** (Event date cleared).
+
+Without a date from you, the system uses the event on the website, then a month in the project's name (it counts as the 15th), then the usual day of the year of past editions: their own dates, or else their latest spending peak. A series that spends twice a year, such as KD with a spring and an autumn peak, is placed at the later one. If its event is the earlier one, set the date here.
+
+</Step>
+<Step title="Set a project on a receipt">
+
+Open the reimbursement and choose **Rediger** (Edit) on a receipt. In **Prosjekt** (Project), choose **Velg prosjekt** (Choose project). The department's own projects come first, then **Andre prosjekter** (Other projects), and **Ingen** (None) clears it. Search with **Søk på navn** (Search by name). A department's projects are those it booked on in the last 24 months, plus newer years of the same series.
+
+Choose **Lagre bare prosjektet på alle kvitteringer** (Save only the project on all receipts) to set the same project on every receipt of the reimbursement. It saves only the project, not other edits you haven't saved yet. You see **Prosjekt satt på \{count} kvitteringer** (Project set on \{count} receipts). Receipts that are already booked and supporting statements are skipped. If some receipts fail you see **Prosjekt satt på \{changed} kvitteringer; \{failed} kunne ikke lagres. Prøv igjen.** (Project set on \{changed} receipts; \{failed} could not be saved. Try again.)
+
+To remove the project from every receipt, choose **Ingen** (None) and then the same button. It asks **Klikk igjen for å fjerne prosjektet fra alle kvitteringer** (Click again to remove the project from every receipt), so click it a second time. Picking in **Prosjekt** in between starts over. Changing the project on a single receipt that is already booked is refused, because its lines are already in Finago. A project that has been deactivated is refused with **Det prosjektet er ikke tilgjengelig.** (That project is not available.) Every change is written to **Historikk** (History) as **Endret prosjekt fra … til …** (Changed project from … to …), with **ingen** (none) for an empty side.
+
+If no projects have been synced yet, the **Prosjekt** field isn't shown, unless the receipt already has a project.
+
+</Step>
+</Steps>
+
+<WhatHappensNext>
+
+## What happens next
+
+- When the reimbursement is booked, the project goes on the receipt's cost line and on the payout line (account 2400). Payout lines are split by date and project, so receipts with different projects get a line each.
+- The approvers see the project on their Teams card, in the approval email and on the web approval page. When every receipt with an amount has the same project it is shown once. Statements without an amount don't count. On the Teams card a receipt with no project shows "none" when the projects differ. The email shows a dash, and the web approval page shows nothing.
+- The examples the AI learns from remember the project of a booked receipt.
+- The AI check suggests a project for each receipt after the student submits. It picks only among the department's projects, only an active one, and never one from a year that is over. A project the check sets shows in **Historikk** (History) as **Endret prosjekt** (Changed project), signed **AI check**. A project an approver or admin has set is never changed.
+- If the check is less than 80 percent sure of a project, it still sets its best guess and the approvers see a note that it isn't sure. An approver should look at it and change it if it is wrong, because what is there when the reimbursement is approved is what gets booked. If it finds no project although the department usually has one, the approvers see a note and the receipt has no project. If this year's edition of a yearly event has not been created in Finago yet, the note says that the project for that series and year has not been created. Finance creates it in Finago and syncs. The check never books a receipt on last year's project. A cost that comes just after an event goes to the edition that has just finished.
+- The approvers can change or clear any project the check set, as in the steps above.
+</WhatHappensNext>
+
+## What the student sees
+
+Nothing. Students never see projects, in the website or the app.
+
+## Common mistakes
+
+- Expecting the AI check to book a receipt on last year's project when this year's isn't created yet. It leaves the project empty and adds a note instead. Create the new year's project in Finago first.
+- Expecting a brand-new project to be listed at once. Sync from Finago first, or wait for the daily run.
+- Setting the project too late. An approved reimbursement can't be edited, so set it before the last approval.
+- Looking for a deactivated Finago project in the list. It is kept in the table because bookings refer to it, but it can't be chosen.

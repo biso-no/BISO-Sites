@@ -6,6 +6,7 @@
  */
 
 import { finago } from "./client";
+import { parseNextLink } from "./link-header";
 import type { components } from "./schema";
 
 export const DEPARTMENT_DIMENSION_TYPE = 2;
@@ -15,10 +16,12 @@ export const CAMPUS_DIMENSION_TYPE = 101;
 export type DimensionElement = components["schemas"]["DimensionElement"];
 
 /**
- * Fetches all department dimension elements from Finago.
+ * Fetches all (active) elements of one dimension type from Finago.
  * Follows Link-header pagination automatically.
  */
-export async function getDepartments(): Promise<DimensionElement[]> {
+export async function listDimensionElements(
+  dimensionType: number
+): Promise<DimensionElement[]> {
   const results: DimensionElement[] = [];
   let continuationToken: string | undefined;
 
@@ -27,7 +30,7 @@ export async function getDepartments(): Promise<DimensionElement[]> {
       "/dimensions/{dimensionType}/elements",
       {
         params: {
-          path: { dimensionType: DEPARTMENT_DIMENSION_TYPE },
+          path: { dimensionType },
           query: continuationToken ? { continuationToken } : undefined,
           // Authorization is required by the generated types; the client
           // middleware overwrites this with a live token before each request.
@@ -35,49 +38,34 @@ export async function getDepartments(): Promise<DimensionElement[]> {
         },
       }
     );
-    console.log("Response:", response);
 
     if (error) {
       throw new Error(
-        `[Finago] Failed to fetch departments: ${JSON.stringify(error)}`
+        `[Finago] Failed to fetch dimension ${dimensionType} elements: ${JSON.stringify(error)}`
       );
     }
 
-    if (data) {
-      results.push(...data);
+    if (!data) {
+      throw new Error(
+        `[Finago] Dimension ${dimensionType} elements came back without data`
+      );
     }
+    results.push(...data);
 
-    continuationToken = parseNextContinuationToken(
-      response.headers.get("Link")
-    );
+    const next = parseNextLink(response.headers.get("Link"));
+    const nextToken = next?.searchParams.get("continuationToken") ?? undefined;
+    if (next && (!nextToken || nextToken === continuationToken)) {
+      throw new Error(
+        `[Finago] Dimension ${dimensionType} paging gave no new continuation token`
+      );
+    }
+    continuationToken = nextToken;
   } while (continuationToken);
 
   return results;
 }
 
-/**
- * Parses the `continuationToken` query parameter from a Link header's `next` relation.
- * Example header: `<https://...?continuationToken=abc>; rel="next"`
- */
-const LINK_URL_REGEX = /<([^>]+)>/;
-const LINK_REL_REGEX = /rel="([^"]+)"/;
-
-function parseNextContinuationToken(
-  linkHeader: string | null
-): string | undefined {
-  if (!linkHeader) {
-    return undefined;
-  }
-
-  for (const part of linkHeader.split(",")) {
-    const urlMatch = part.match(LINK_URL_REGEX);
-    const relMatch = part.match(LINK_REL_REGEX);
-
-    if (urlMatch && relMatch?.[1] === "next") {
-      const url = new URL(urlMatch[1]);
-      return url.searchParams.get("continuationToken") ?? undefined;
-    }
-  }
-
-  return undefined;
+/** Fetches all department dimension elements from Finago. */
+export function getDepartments(): Promise<DimensionElement[]> {
+  return listDimensionElements(DEPARTMENT_DIMENSION_TYPE);
 }

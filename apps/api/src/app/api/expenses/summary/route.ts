@@ -8,6 +8,7 @@ import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
 import {
   buildExpenseSummaryPrompt,
+  capSummary,
   normalizeExpenseSummaryRequest,
 } from "@/lib/expense-summary";
 
@@ -91,7 +92,7 @@ export async function POST(req: NextRequest) {
       NextResponse.json({
         occasionSuggestion: object.occasionSuggestion,
         success: true,
-        summary: object.summary,
+        summary: capSummary(object.summary),
       }),
       origin
     );

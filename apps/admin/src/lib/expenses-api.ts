@@ -4,7 +4,13 @@ const TRAILING_SLASHES = /\/+$/;
 
 export type ExpensesApiResult<T> =
   | { ok: true; data: T }
-  | { ok: false; error: string; code?: string };
+  | {
+      ok: false;
+      error: string;
+      code?: string;
+      /** Finago's transaction, when the api booked one it could not save. */
+      transactionId?: string;
+    };
 
 /**
  * Calls an internal expenses route on the api service, server to server, with
@@ -50,11 +56,17 @@ export async function callExpensesApi<T>(
       typeof json?.error === "string" && json.error
         ? json.error
         : response.statusText || `Request failed (${response.status})`;
-    const code = (json as { code?: unknown } | null)?.code;
+    const { code, transactionId } = (json ?? {}) as {
+      code?: unknown;
+      transactionId?: unknown;
+    };
     return {
       ok: false,
       error: message,
       ...(typeof code === "string" ? { code } : {}),
+      ...(typeof transactionId === "string" && transactionId
+        ? { transactionId }
+        : {}),
     };
   }
   return { ok: true, data: json as T };

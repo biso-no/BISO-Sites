@@ -25,18 +25,43 @@ interface Tables {
   aiRows?: object[];
   drafts?: string[];
   ownTextRows?: object[];
+  projectEvents?: object[];
+  projectEventsError?: boolean;
+  projectReceipts?: object[];
+  /** Status per parent expense id; others read as approved. */
+  statuses?: Record<string, string>;
 }
 
 function seed(tables: Tables) {
   db.listRows.mockImplementation(
     (_db: string, table: string, queries: string[]) => {
       const text = queries.join("\n");
+      if (table === "expense_events") {
+        return tables.projectEventsError
+          ? Promise.reject(new Error("no index"))
+          : Promise.resolve(paged(tables.projectEvents ?? [], queries));
+      }
+      if (
+        table === "expense_attachments" &&
+        text.includes('"attribute":"$id"')
+      ) {
+        return Promise.resolve({ rows: tables.projectReceipts ?? [] });
+      }
       if (table === "expense_attachments") {
         return Promise.resolve(
           text.includes('"attribute":"ai_cost_type"')
             ? paged(tables.aiRows ?? [], queries)
             : paged(tables.ownTextRows ?? [], queries)
         );
+      }
+      if (table === "expense" && !text.includes('"draft"')) {
+        const statuses = tables.statuses ?? {};
+        return Promise.resolve({
+          rows: [...text.matchAll(/"(e\d+|x\d+)"/g)].map(([, $id]) => ({
+            $id,
+            status: statuses[$id as string] ?? "approved",
+          })),
+        });
       }
       if (table === "expense") {
         const drafts = tables.drafts ?? [];
@@ -125,5 +150,105 @@ describe("loadAiEvalData", () => {
       { costTypeText: "parking " },
       { costTypeText: "Parking" },
     ]);
+  });
+
+  test("a project the check set counts as kept while its source is still the check", async () => {
+    seed({
+      projectEvents: [
+        { $createdAt: NOW, attachment_id: "a1" },
+        { $createdAt: NOW, attachment_id: "a2" },
+        { $createdAt: NOW, attachment_id: "a2" },
+        { $createdAt: NOW, attachment_id: "a3" },
+      ],
+      projectReceipts: [
+        { $id: "a1", expense_id: "e1", project_source: "ai_check" },
+        { $id: "a2", expense_id: "e2", project_source: "approver" },
+        { $id: "a3", expense_id: "e3", project_source: "ai_check" },
+      ],
+      statuses: { e3: "success" },
+    });
+
+    const data = await loadAiEvalData();
+
+    expect(data.projectRows).toEqual([
+      { createdAt: NOW, kept: true },
+      { createdAt: NOW, kept: false },
+      { createdAt: NOW, kept: true },
+    ]);
+    const eventQuery = db.listRows.mock.calls
+      .find(([, table]) => table === "expense_events")?.[2]
+      .join("\n");
+    expect(eventQuery).toContain('"attribute":"field"');
+    expect(eventQuery).toContain('"attribute":"actor_kind"');
+  });
+
+  test("pending and rejected receipts do not count toward the project kept-rate", async () => {
+    seed({
+      projectEvents: ["a1", "a2", "a3", "a4", "a5", "a6"].map((id) => ({
+        $createdAt: NOW,
+        attachment_id: id,
+      })),
+      projectReceipts: ["a1", "a2", "a3", "a4", "a5", "a6"].map((id, i) => ({
+        $id: id,
+        expense_id: `e${i + 1}`,
+        project_source: "ai_check",
+      })),
+      statuses: {
+        e1: "pending",
+        e2: "rejected",
+        e3: "failed",
+        e4: "approved",
+        e5: "submitted",
+        e6: "success",
+      },
+    });
+
+    const data = await loadAiEvalData();
+
+    // "submitted" is a legacy status no current flow writes; it is not proof
+    // that an approver went through the receipt.
+    expect(data.projectRows).toHaveLength(2);
+  });
+
+  test("a receipt that is gone or has no project source is skipped", async () => {
+    seed({
+      projectEvents: ["a1", "a2", "a3"].map((id) => ({
+        $createdAt: NOW,
+        attachment_id: id,
+      })),
+      projectReceipts: [
+        { $id: "a1", expense_id: "e1", project_source: null },
+        { $id: "a2", expense_id: "e2", project_source: "ai_check" },
+      ],
+    });
+
+    const data = await loadAiEvalData();
+
+    expect(data.projectRows).toEqual([{ createdAt: NOW, kept: true }]);
+  });
+
+  test("a failed project read leaves the type stats in place", async () => {
+    seed({ aiRows: [aiRow(1)], projectEventsError: true });
+
+    const data = await loadAiEvalData();
+
+    expect(data.projectRows).toBeNull();
+    expect(data.rows).toHaveLength(1);
+  });
+
+  test("more project events than the cap mark the data as capped", async () => {
+    seed({
+      projectEvents: Array.from({ length: AI_EVAL_ROW_CAP + 1 }, (_, i) => ({
+        $createdAt: NOW,
+        attachment_id: `a${i}`,
+      })),
+    });
+
+    expect((await loadAiEvalData()).capped).toBe(true);
+  });
+
+  test("has no project picks when the check set none", async () => {
+    seed({});
+    expect((await loadAiEvalData()).projectRows).toEqual([]);
   });
 });

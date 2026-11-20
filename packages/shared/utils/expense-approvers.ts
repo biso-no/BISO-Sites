@@ -54,6 +54,80 @@ export interface ApprovalPlanInput {
 export const EXPENSE_APPROVER_DOMAIN = "biso.no";
 export const NATIONAL_APPROVER_EMAIL = `manager@${EXPENSE_APPROVER_DOMAIN}`;
 
+const NO_APPROVER_ISSUE_PREFIX = "No approver could be resolved";
+
+/**
+ * The approval issue recorded when no step of a submission resolves; the
+ * reimbursement is then pending with no steps. A reimbursement sent to
+ * accounting by email is pending with no steps too, but has no such issue.
+ */
+export const NO_APPROVER_ISSUE_REASON = `${NO_APPROVER_ISSUE_PREFIX}. The reimbursement is pending with no approval step.`;
+
+/** True for the issue of a submission that found no approver at all. */
+export function isNoApproverIssue(reason: string | null | undefined): boolean {
+  return reason?.startsWith(NO_APPROVER_ISSUE_PREFIX) ?? false;
+}
+
+// Never "Could not notify": that prefix offers a resend, and a failed chain
+// has no step left to resend.
+const CHAIN_FAILED_ISSUE_PREFIX = "The approval chain could not be created";
+
+/**
+ * The approval issue recorded when the chain could not be built after the
+ * background check: its steps were removed and the reimbursement waits as
+ * pending with none.
+ */
+export function chainFailedIssueReason(cause: string): string {
+  return `${CHAIN_FAILED_ISSUE_PREFIX} after the check (${cause}). The reimbursement is pending with no approval step; rebuild the chain once the cause is fixed.`;
+}
+
+// Neither "Could not notify" (a resend) nor a rebuild prefix: the check
+// itself never finished, so neither action would finish it.
+const CHECK_STUCK_ISSUE_PREFIX = "The background check could not finish";
+/** How much of the last error the issue quotes; the reason holds 500. */
+const MAX_STUCK_CAUSE_CHARS = 200;
+const WHITESPACE_RUN = /\s+/g;
+
+/**
+ * The approval issue the backstop records when it gives up on a check after
+ * three takeovers. `told`: the approvers (or accounting) were told before,
+ * and only the run that repairs a racing submit's writes keeps failing.
+ */
+export function checkStuckIssueReason(input: {
+  cause?: string;
+  told: boolean;
+}): string {
+  const cause = (input.cause ?? "").replace(WHITESPACE_RUN, " ").trim();
+  const quoted = cause
+    ? ` (${
+        cause.length > MAX_STUCK_CAUSE_CHARS
+          ? `${cause.slice(0, MAX_STUCK_CAUSE_CHARS - 3)}...`
+          : cause
+      })`
+    : "";
+  const next =
+    "fix the cause, then start the check again (developer docs: A reimbursement stays on Checking).";
+  return input.told
+    ? `${CHECK_STUCK_ISSUE_PREFIX} its repair after three tries${quoted}. Its approvers or accounting were told before; ${next}`
+    : `${CHECK_STUCK_ISSUE_PREFIX} or notify anyone after three tries${quoted}. The reimbursement is pending and has probably not reached anyone; check its history for a notification first, then ${next}`;
+}
+
+/** True for the issue of a check the backstop gave up on. */
+export function isCheckStuckIssue(reason: string | null | undefined): boolean {
+  return reason?.startsWith(CHECK_STUCK_ISSUE_PREFIX) ?? false;
+}
+
+/**
+ * True for an issue that lets a global admin rebuild the approval chain: no
+ * approver was found, or the chain failed after the check.
+ */
+export function isRebuildIssue(reason: string | null | undefined): boolean {
+  return (
+    isNoApproverIssue(reason) ||
+    (reason?.startsWith(CHAIN_FAILED_ISSUE_PREFIX) ?? false)
+  );
+}
+
 const OSLO_CAMPUS_ID = "1";
 const NATIONAL_CAMPUS_ID = "5";
 

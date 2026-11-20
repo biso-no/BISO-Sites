@@ -5,6 +5,7 @@ import {
   buildApprovalCard,
   buildApprovalEmailHtml,
   CARD_MAX_BYTES,
+  projectSummary,
 } from "./cards";
 
 function receipt(index: number, text = `Vendor ${index}`): ApprovalCardReceipt {
@@ -306,5 +307,81 @@ describe("buildApprovalEmailHtml", () => {
     expect(html).not.toContain("<script>");
     expect(html).not.toContain('"><b>');
     expect(html).toContain("&lt;script&gt;");
+  });
+});
+
+describe("project on the approval card and email", () => {
+  const one = [
+    { ...receipt(1), projectName: "Fadderuke 2026" },
+    { ...receipt(2), projectName: "Fadderuke 2026" },
+  ];
+  const mixed = [
+    { ...receipt(1), projectName: "Fadderuke 2026" },
+    { ...receipt(2), projectName: "Julebord 2026" },
+  ];
+  const email = (receipts: ApprovalCardReceipt[]) =>
+    buildApprovalEmailHtml({
+      ...baseData({ receipts }),
+      approveUrl: "https://x/a",
+      rejectUrl: "https://x/r",
+    });
+
+  test("the card shows one project when every receipt shares it", () => {
+    const card = JSON.stringify(buildApprovalCard(baseData({ receipts: one })));
+    expect(card.split("Fadderuke 2026")).toHaveLength(2);
+    expect(email(one).split("Fadderuke 2026")).toHaveLength(2);
+  });
+
+  test("the card shows each receipt's project when they differ", () => {
+    const all = texts(buildApprovalCard(baseData({ receipts: mixed })));
+    expect(all.some((t) => t.includes("Fadderuke 2026"))).toBe(true);
+    expect(all.some((t) => t.includes("Julebord 2026"))).toBe(true);
+    const html = email(mixed);
+    expect(html).toContain("Fadderuke 2026");
+    expect(html).toContain("Julebord 2026");
+  });
+
+  test("no receipts means no per-receipt projects", () => {
+    expect(projectSummary([])).toEqual({ perReceipt: false, shared: null });
+  });
+
+  test("no project means no project line", () => {
+    const all = texts(buildApprovalCard(baseData()));
+    expect(all.some((t) => t.includes("Project"))).toBe(false);
+    expect(email([receipt(1)])).not.toContain("Project");
+  });
+});
+
+describe("the check's reason per receipt", () => {
+  const noted = baseData({
+    receipts: [{ ...receipt(1), checkNote: "A Ruter ticket." }, receipt(2)],
+  });
+
+  test("the card shows it under the receipt, and only where there is one", () => {
+    const lines = texts(buildApprovalCard(noted) as Record<string, unknown>);
+    expect(lines.filter((line) => line.startsWith("AI check:"))).toEqual([
+      "AI check: A Ruter ticket.",
+    ]);
+  });
+
+  test("the email shows it and escapes it", () => {
+    const html = buildApprovalEmailHtml({
+      ...baseData({
+        receipts: [{ ...receipt(1), checkNote: "<b>Taxi</b> & bus" }],
+      }),
+      approveUrl: "https://a",
+      rejectUrl: "https://r",
+    });
+    expect(html).toContain("AI check: &lt;b&gt;Taxi&lt;/b&gt; &amp; bus");
+    expect(html).not.toContain("<b>Taxi</b>");
+  });
+
+  test("a receipt without one adds no line", () => {
+    const html = buildApprovalEmailHtml({
+      ...baseData(),
+      approveUrl: "https://a",
+      rejectUrl: "https://r",
+    });
+    expect(html).not.toContain("AI check:");
   });
 });

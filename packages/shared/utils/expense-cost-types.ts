@@ -30,6 +30,9 @@ export interface CostTypeOption {
 /** Minimum AI confidence for its suggested type to be applied on its own. */
 export const AI_TYPE_CONFIDENCE_THRESHOLD = 0.8;
 
+/** The expense description column holds this many characters. */
+export const EXPENSE_DESCRIPTION_MAX = 800;
+
 /** How many of the latest booked examples the AI re-run check scores. */
 export const AI_RERUN_LIMIT = 200;
 

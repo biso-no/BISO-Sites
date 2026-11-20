@@ -3,6 +3,7 @@
 import type { Campus, Users } from "@repo/api/types/appwrite";
 import { approvalSwitchFor } from "@repo/shared/utils/expense-approvers";
 import { RECEIPT_FILE_ACCEPT } from "@repo/shared/utils/expense-attachments";
+import { EXPENSE_DESCRIPTION_MAX } from "@repo/shared/utils/expense-cost-types";
 import { ScrollArea } from "@repo/ui/components/ui/scroll-area";
 import {
   Select,
@@ -48,9 +49,11 @@ import {
 import { ProfileCompletionBanner } from "./profile-completion-banner";
 import { ReceiptNotices } from "./receipt-notices";
 import {
+  isAmountMissing,
   isTypeMissing,
   needsType,
   occasionRequired,
+  type SubmitGaps,
   submitGaps,
   typeChoice,
   visibleTypeState,
@@ -136,6 +139,8 @@ function RowTypeControl({
 
 interface ReceiptRowProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
+  /** The way to scan the receipt again, when its file is still at hand. */
+  getRetryScan?: (id: string) => (() => void) | undefined;
   onSelect: (id: string) => void;
   onUpdate: (id: string, updates: Partial<Receipt>) => void;
   receipt: Receipt;
@@ -146,6 +151,7 @@ interface ReceiptRowProps {
 }
 
 export function ReceiptRow({
+  getRetryScan,
   receipt,
   selectedId,
   onSelect,
@@ -225,7 +231,12 @@ export function ReceiptRow({
                   slot="inline"
                   typeOptions={typeOptions}
                 />
-                <ReceiptNotices className="mt-1" compact receipt={receipt} />
+                <ReceiptNotices
+                  className="mt-1"
+                  compact
+                  onRetry={getRetryScan?.(receipt.id)}
+                  receipt={receipt}
+                />
               </div>
             </div>
             {receipt.status === "analyzing" && (
@@ -512,6 +523,7 @@ interface ExpenseReportProps {
   description: string;
   /** The event suggestion or the chosen event, shown under the questions. */
   eventMatch?: ReactNode;
+  getRetryScan?: (id: string) => (() => void) | undefined;
   isGeneratingSummary: boolean;
   isSavingDraft: boolean;
   isSubmitting: boolean;
@@ -589,6 +601,31 @@ function approvalSwitchConfig(
   return null;
 }
 
+/** The hint under the submit button for each gap, in the order submit visits them. */
+const SUBMIT_HINTS: [keyof SubmitGaps, string][] = [
+  ["amountsMissing", "composer.report.submitHintAmounts"],
+  ["typesMissing", "composer.report.submitHintTypes"],
+  ["occasionMissing", "composer.report.submitHintOccasion"],
+];
+
+/**
+ * Brings the first receipt that could not be read and has no amount into
+ * view, and opens it: its details hold the amount field.
+ */
+function revealFirstMissingAmount(
+  receipts: Receipt[],
+  onSelect: (id: string) => void
+) {
+  const first = receipts.find(isAmountMissing);
+  if (!first) {
+    return;
+  }
+  document
+    .getElementById(receiptRowId(first.id))
+    ?.scrollIntoView({ block: "center" });
+  onSelect(first.id);
+}
+
 /** Brings the first receipt without a type into view and onto its picker. */
 function revealFirstMissingType(receipts: Receipt[]) {
   const first = receipts.find(isTypeMissing);
@@ -605,19 +642,25 @@ function revealFirstMissingType(receipts: Receipt[]) {
 }
 
 /**
- * What pressing submit does. Nothing missing disables the button: it takes
- * the student to the first receipt that still needs a type, then to the
+ * What pressing submit does. Nothing missing disables the button: it opens
+ * the first receipt that could not be read and still needs its amount, then
+ * takes the student to the first receipt that still needs a type, then to the
  * occasion, whose error shows from then on until it has an answer.
  */
 function useSubmitGate(
   receipts: Receipt[],
-  gaps: { occasionMissing: boolean; typesMissing: boolean },
-  onSubmit: () => void
+  gaps: SubmitGaps,
+  onSubmit: () => void,
+  onSelect: (id: string) => void
 ) {
   const occasionRef = useRef<HTMLTextAreaElement>(null);
   const [occasionAsked, setOccasionAsked] = useState(false);
 
   const handleSubmit = () => {
+    if (gaps.amountsMissing) {
+      revealFirstMissingAmount(receipts, onSelect);
+      return;
+    }
     if (gaps.typesMissing) {
       revealFirstMissingType(receipts);
       return;
@@ -669,6 +712,7 @@ export function ExpenseReport({
   occasionFromAi = false,
   onOccasionChange,
   eventMatch,
+  getRetryScan,
 }: ExpenseReportProps) {
   const t = useTranslations("expenses");
   const locale = useLocale();
@@ -711,12 +755,11 @@ export function ExpenseReport({
     askOccasion || occasionError || occasion.trim().length > 0
   );
   const gaps = submitGaps(receipts, typeOptions, occasion);
-  const submitHints = [
-    gaps.typesMissing && t("composer.report.submitHintTypes"),
-    gaps.occasionMissing && t("composer.report.submitHintOccasion"),
-  ].filter((hint): hint is string => Boolean(hint));
+  const submitHints = SUBMIT_HINTS.filter(([gap]) => gaps[gap]).map(([, key]) =>
+    t(key)
+  );
 
-  const submitGate = useSubmitGate(receipts, gaps, onSubmit);
+  const submitGate = useSubmitGate(receipts, gaps, onSubmit, onSelect);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadState, setUploadState] = useState<UploadState>(null);
@@ -965,6 +1008,7 @@ export function ExpenseReport({
                 className={cn(fieldClass, "min-h-[80px] resize-none")}
                 disabled={isGeneratingSummary}
                 id="expense-description"
+                maxLength={EXPENSE_DESCRIPTION_MAX}
                 onChange={(e) => onDescriptionChange(e.target.value)}
                 placeholder={t("composer.report.descriptionPlaceholder")}
                 value={description}
@@ -1062,6 +1106,7 @@ export function ExpenseReport({
                   receipts.map((receipt) => (
                     <ReceiptRow
                       fileInputRef={fileInputRef}
+                      getRetryScan={getRetryScan}
                       key={receipt.id}
                       onSelect={onSelect}
                       onUpdate={onUpdate}

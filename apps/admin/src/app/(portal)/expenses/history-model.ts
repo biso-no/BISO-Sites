@@ -18,10 +18,13 @@ const EDITABLE_FIELDS = [
   "bank_account",
   "occasion",
   "approver_email",
+  "project",
 ] as const;
 
 /** Localised words the notes are shown with; without them a note stays as stored. */
 export interface HistoryLabels {
+  /** Stands in for an empty project, as in "Changed project from none to KD 2026". */
+  none: string;
   /** The word before a reason, as in "Reason: Too high". */
   reason: string;
   /** Role labels keyed like `adminPortal.expenses.roles`. */
@@ -82,11 +85,20 @@ function describeDecision(
       };
 }
 
-function describeEdit(event: ExpenseDetailEvent): DescribedEvent {
+function describeEdit(
+  event: ExpenseDetailEvent,
+  labels?: HistoryLabels
+): DescribedEvent {
   const field = event.field ?? "";
   const known = EDITABLE_FIELDS.find((f) => f === field);
-  const show = (value: string | null) =>
-    field === "bank_account" && value ? maskBankAccount(value) : (value ?? "");
+  const show = (value: string | null) => {
+    if (field === "project" && !value) {
+      return labels?.none ?? "";
+    }
+    return field === "bank_account" && value
+      ? maskBankAccount(value)
+      : (value ?? "");
+  };
   const values = { after: show(event.after), before: show(event.before) };
   return known
     ? { key: `edited.${known}`, values }
@@ -106,7 +118,7 @@ export function describeEvent(
     case "ai_account_chosen":
       return { key: "aiAccountChosen", values: { account: event.after ?? "" } };
     case "edited":
-      return describeEdit(event);
+      return describeEdit(event, labels);
     case "approved":
       return describeDecision("approved", event.note, labels);
     case "rejected":
@@ -115,7 +127,7 @@ export function describeEvent(
       // A person swapping the approver is an edit; the resolver's pick is not.
       return event.field === "approver_email" &&
         (event.actorKind === "admin" || event.actorKind === "approver")
-        ? describeEdit(event)
+        ? describeEdit(event, labels)
         : { key: "approverResolved", values: { email: event.after ?? "" } };
     case "notified":
       return { key: "notified", values: { email: event.after ?? "" } };
@@ -143,6 +155,9 @@ export function describeEvent(
       };
     case "booking_retried":
       return { key: "bookingRetried", values: {} };
+    case "ai_flagged":
+      // The background check's note says what it flagged, in plain words.
+      return { key: "aiFlagged", values: { note: event.note ?? "" } };
     default:
       return { key: "unknown", values: { action: String(event.action) } };
   }

@@ -2,10 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
   approvalSwitchFor,
   CAMPUS_MAILBOX_SLUGS,
+  chainFailedIssueReason,
+  checkStuckIssueReason,
   DEFAULT_DIRECTORY_EMAILS,
   directoryKey,
   getCampusApprovalPlan,
+  isCheckStuckIssue,
+  isNoApproverIssue,
+  isRebuildIssue,
   NATIONAL_APPROVER_EMAIL,
+  NO_APPROVER_ISSUE_REASON,
 } from "./expense-approvers";
 
 const controller = { kind: "directory", role: "controller" } as const;
@@ -233,5 +239,58 @@ describe("directory defaults", () => {
   it("cannot be changed at run time", () => {
     expect(Object.isFrozen(CAMPUS_MAILBOX_SLUGS)).toBe(true);
     expect(Object.isFrozen(CAMPUS_MAILBOX_SLUGS["1"])).toBe(true);
+  });
+});
+
+describe("isNoApproverIssue", () => {
+  it("knows the issue of a submission that found no approver", () => {
+    expect(isNoApproverIssue(NO_APPROVER_ISSUE_REASON)).toBe(true);
+    expect(isNoApproverIssue("Approver is the submitter")).toBe(false);
+    expect(isNoApproverIssue(null)).toBe(false);
+  });
+});
+
+describe("isRebuildIssue", () => {
+  it("lets a chain be rebuilt after no approver or a failed background chain", () => {
+    const failed = chainFailedIssueReason("mail down");
+    expect(failed).toContain("mail down");
+    expect(isRebuildIssue(NO_APPROVER_ISSUE_REASON)).toBe(true);
+    expect(isRebuildIssue(failed)).toBe(true);
+    // A failed chain is not "no approver", and it offers no resend.
+    expect(isNoApproverIssue(failed)).toBe(false);
+    expect(failed.startsWith("Could not notify")).toBe(false);
+    expect(isRebuildIssue("Could not notify a@biso.no for step 1")).toBe(false);
+    expect(isRebuildIssue(undefined)).toBe(false);
+  });
+});
+
+describe("checkStuckIssueReason", () => {
+  it("says the check gave up after three tries, with the last error", () => {
+    const stuck = checkStuckIssueReason({ cause: "mail down", told: false });
+    expect(stuck).toBe(
+      "The background check could not finish or notify anyone after three tries (mail down). The reimbursement is pending and has probably not reached anyone; check its history for a notification first, then fix the cause, then start the check again (developer docs: A reimbursement stays on Checking)."
+    );
+    expect(isCheckStuckIssue(stuck)).toBe(true);
+    // Neither a resend nor a rebuild fits it.
+    expect(stuck.startsWith("Could not notify")).toBe(false);
+    expect(isRebuildIssue(stuck)).toBe(false);
+    expect(isCheckStuckIssue(chainFailedIssueReason("x"))).toBe(false);
+    expect(isCheckStuckIssue(null)).toBe(false);
+  });
+
+  it("leaves an unknown error out, and says when the approvers were told", () => {
+    expect(checkStuckIssueReason({ told: false })).toContain(
+      "after three tries. The reimbursement"
+    );
+    const told = checkStuckIssueReason({ cause: "db down", told: true });
+    expect(isCheckStuckIssue(told)).toBe(true);
+    expect(told).toContain("were told before");
+    expect(told).not.toContain("probably not reached anyone");
+  });
+
+  it("stays within the issue's 500 characters", () => {
+    expect(
+      checkStuckIssueReason({ cause: "x".repeat(2000), told: false }).length
+    ).toBeLessThanOrEqual(500);
   });
 });

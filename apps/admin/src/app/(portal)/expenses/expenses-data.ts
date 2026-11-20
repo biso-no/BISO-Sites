@@ -13,12 +13,14 @@ import {
   ExpensesStatus,
   type LedgerAccounts,
 } from "@repo/api/types/appwrite";
+import { isRebuildIssue } from "@repo/shared/utils/expense-approvers";
 import { costTypeLabel } from "@repo/shared/utils/expense-cost-types";
 import {
   type ApproverHint,
   parseApproverHints,
   parseReceiptIssues,
 } from "@repo/shared/utils/expense-hints";
+import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { receiptFileId } from "@repo/shared/utils/receipt-file-id";
 import { reimbursementNumber } from "@repo/shared/utils/reimbursement-number";
 import {
@@ -29,6 +31,8 @@ import {
   expensePermissions,
   expenseVisibilityQueries,
   maskBankAccount,
+  needsRebuildEvidence,
+  type RebuildEvidence,
 } from "@/lib/expense-access";
 import {
   emptyResult,
@@ -39,6 +43,7 @@ import {
   parseListParams,
 } from "@/lib/list-params";
 import { paginationQueries } from "@/lib/list-queries";
+import { checkReasonFor, hintsForReceipt, isChecking } from "./check-model";
 
 export type ExpenseListView = "all" | "mine" | "attention";
 
@@ -54,6 +59,8 @@ export interface ExpenseListFilters {
 
 export interface ExpenseListRow {
   campusName: string;
+  /** The background check is still queued or running. */
+  checking: boolean;
   currentStep: { approverEmail: string; role: string } | null;
   departmentName: string;
   flags: { approverIssue: boolean; failed: boolean; hints: number };
@@ -86,6 +93,7 @@ const SELECT = [
   "campus",
   "department",
   "approver_hints",
+  "check_state",
   "userId",
   "user.name",
   "departmentRel.Name",
@@ -335,6 +343,7 @@ export async function listExpenses(
       );
       return {
         campusName: row.campusRel?.name ?? "",
+        checking: isChecking(row.check_state),
         currentStep: current
           ? {
               approverEmail: current.approver_email,
@@ -368,6 +377,8 @@ export interface ExpenseDetailReceipt {
   aiCostType: string | null;
   amount: number | null;
   bookedDate: string | null;
+  /** The check's one-line reason, from its latest event for this receipt. */
+  checkReason: string | null;
   costType: string | null;
   costTypeLabel: string | null;
   costTypeText: string | null;
@@ -376,6 +387,8 @@ export interface ExpenseDetailReceipt {
   fileId: string | null;
   id: string;
   isSupporting: boolean;
+  projectId: string | null;
+  projectName: string | null;
   receiptIssues: string[];
 }
 
@@ -417,6 +430,8 @@ export interface ExpenseDetail {
   bankAccount: string;
   bookingFailure: string | null;
   campus: { id: string; name: string };
+  /** The background check is still queued or running. */
+  checking: boolean;
   department: { id: string; name: string };
   description: string;
   /** `title` is null when the event row no longer carries its name. */
@@ -455,6 +470,7 @@ const DETAIL_SELECT = [
   "event_id",
   "eventName",
   "approver_hints",
+  "check_state",
   "userId",
   "ledger_transaction_id",
   "submitter_is_financial_manager",
@@ -483,6 +499,7 @@ function toReceipt(row: ExpenseAttachments): ExpenseDetailReceipt {
     aiCostType: row.ai_cost_type,
     amount: row.amount,
     bookedDate: row.booked_date,
+    checkReason: null,
     costType: row.cost_type,
     costTypeLabel: null,
     costTypeText: row.cost_type_text,
@@ -491,6 +508,8 @@ function toReceipt(row: ExpenseAttachments): ExpenseDetailReceipt {
     fileId: receiptFileId(row.url),
     id: row.$id,
     isSupporting: (row.amount ?? 0) <= 0,
+    projectId: row.project_id,
+    projectName: row.project_name,
     receiptIssues: parseReceiptIssues(row.receipt_issues),
   };
 }
@@ -582,6 +601,109 @@ async function withReceiptLabels(
   });
 }
 
+/** Swaps the type slug in an `ai_check_disagrees` hint for the type's label. */
+export async function withHintTypeLabels(
+  db: Db,
+  hints: ApproverHint[],
+  locale: string
+): Promise<ApproverHint[]> {
+  const slugs = [
+    ...new Set(
+      hints.flatMap((h) =>
+        typeof h.data?.aiType === "string" ? [h.data.aiType] : []
+      )
+    ),
+  ];
+  if (slugs.length === 0) {
+    return hints;
+  }
+  const { rows } = await db.listRows<ExpenseCostTypes>(
+    "app",
+    "expense_cost_types",
+    [
+      Query.equal("slug", slugs),
+      Query.select(["slug", "label", "label_no"]),
+      Query.limit(LOOKUP_LIMIT),
+    ]
+  );
+  return hints.map((hint) => {
+    const slug = hint.data?.aiType;
+    const type = rows.find((t) => t.slug === slug);
+    return type && hint.data
+      ? {
+          ...hint,
+          data: {
+            ...hint.data,
+            aiType: costTypeLabel(
+              { label: type.label, labelNo: type.label_no },
+              locale
+            ),
+          },
+        }
+      : hint;
+  });
+}
+
+/**
+ * Whether an empty approval chain may be rebuilt: direct booking is on and the
+ * submission recorded that no approver was found, or that the chain failed
+ * after the background check. Read only when it can matter
+ * (`needsRebuildEvidence`).
+ */
+export async function loadRebuildEvidence(
+  db: Db,
+  expenseId: string
+): Promise<RebuildEvidence> {
+  const [ledgerPosting, issues] = await Promise.all([
+    isFeatureEnabled("expenses_ledger_posting"),
+    db.listRows<ExpenseApprovalIssues>("app", "expense_approval_issues", [
+      Query.equal("expense_id", expenseId),
+      Query.select(["reason"]),
+      Query.orderAsc("$createdAt"),
+      Query.limit(LOOKUP_LIMIT),
+    ]),
+  ]);
+  return {
+    hasRebuildIssue: issues.rows.some((row) => isRebuildIssue(row.reason)),
+    ledgerPosting,
+  };
+}
+
+/** What the viewer may do on the detail page. */
+async function detailPermissions(
+  db: Db,
+  viewer: ExpenseViewer,
+  expense: Expenses,
+  approvals: ExpenseApprovals[]
+): Promise<ExpensePermissions> {
+  const accessSteps = approvals.map((a) => ({
+    $id: a.$id,
+    approver_email: a.approver_email,
+    approver_role: a.approver_role,
+    status: a.status,
+    step: a.step,
+  }));
+  const rebuild = needsRebuildEvidence(
+    viewer,
+    expense.status,
+    accessSteps.length
+  )
+    ? await loadRebuildEvidence(db, expense.$id)
+    : undefined;
+  return expensePermissions(
+    viewer,
+    {
+      campus: expense.campus,
+      status: expense.status,
+      submitter_is_controller: expense.submitter_is_controller,
+      submitter_is_financial_manager: expense.submitter_is_financial_manager,
+      userId: expense.userId,
+    },
+    accessSteps,
+    rebuild
+  );
+}
+
 /**
  * One expense for the detail page, or null when it is missing, a draft or not
  * the viewer's to see.
@@ -612,23 +734,11 @@ export async function getExpenseDetail(
     expense.$id,
     expense.status === ExpensesStatus.FAILED
   );
-  const accessSteps = parts.approvals.map((a) => ({
-    $id: a.$id,
-    approver_email: a.approver_email,
-    approver_role: a.approver_role,
-    status: a.status,
-    step: a.step,
-  }));
-  const permissions = expensePermissions(
+  const permissions = await detailPermissions(
+    db,
     viewer,
-    {
-      campus: expense.campus,
-      status: expense.status,
-      submitter_is_controller: expense.submitter_is_controller,
-      submitter_is_financial_manager: expense.submitter_is_financial_manager,
-      userId: expense.userId,
-    },
-    accessSteps
+    expense,
+    parts.approvals
   );
   if (!permissions.canView) {
     return null;
@@ -642,6 +752,24 @@ export async function getExpenseDetail(
       .map(toReceipt),
     locale
   );
+  const events = parts.events.map((e) => ({
+    action: e.action,
+    actorEmail: e.actor_email,
+    actorKind: e.actor_kind,
+    actorName: e.actor_name,
+    after: e.after,
+    at: e.$createdAt,
+    attachmentId: e.attachment_id,
+    before: e.before,
+    field: e.field,
+    id: e.$id,
+    note: e.note,
+  }));
+  const hints = await withHintTypeLabels(
+    db,
+    parseApproverHints(expense.approver_hints),
+    locale
+  );
   const bankAccount = expense.bank_account ?? "";
   return {
     bankAccount: permissions.canEditBankAccount
@@ -650,6 +778,7 @@ export async function getExpenseDetail(
     bookingFailure:
       expense.status === ExpensesStatus.FAILED ? parts.failureNote : null,
     campus: { id: expense.campus, name: expense.campusRel?.name ?? "" },
+    checking: isChecking(expense.check_state),
     department: {
       id: expense.department,
       name: expense.departmentRel?.Name ?? "",
@@ -661,20 +790,8 @@ export async function getExpenseDetail(
           title: expense.eventName ?? null,
         }
       : null,
-    events: parts.events.map((e) => ({
-      action: e.action,
-      actorEmail: e.actor_email,
-      actorKind: e.actor_kind,
-      actorName: e.actor_name,
-      after: e.after,
-      at: e.$createdAt,
-      attachmentId: e.attachment_id,
-      before: e.before,
-      field: e.field,
-      id: e.$id,
-      note: e.note,
-    })),
-    hints: parseApproverHints(expense.approver_hints),
+    events,
+    hints,
     id: expense.$id,
     ledgerTransactionId:
       expense.ledger_transaction_id &&
@@ -686,7 +803,14 @@ export async function getExpenseDetail(
     presidentFallback:
       expense.campus !== NATIONAL_CAMPUS_ID &&
       parts.approvals.some((a) => a.approver_role === "national"),
-    receipts,
+    receipts: receipts.map((r) => ({
+      ...r,
+      checkReason: checkReasonFor(
+        events,
+        r.id,
+        hintsForReceipt(hints, r.id).length > 0
+      ),
+    })),
     reference: reimbursementNumber(expense.$sequence),
     status: expense.status,
     steps: parts.approvals.map((a) => ({

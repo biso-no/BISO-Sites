@@ -16,6 +16,8 @@ covers:
   - apps/admin/src/lib/announcements/send.ts
   - functions/content-notifier/**
   - packages/ai/src/models.ts
+  - apps/api/src/lib/expense-check/**
+  - apps/api/src/app/api/cron/expense-check-backstop/**
   - packages/shared/recruitment/apply.ts
   - apps/api/src/app/api/recruitment/applications/route.ts
   - apps/web/src/app/actions/jobs.ts
@@ -170,6 +172,27 @@ If every admin page fails with an error instead, and the admin logs `[getUserAut
 **Check.** Open scheduled-dispatch's latest executions in the console, and match what you see against the table in [Scheduled jobs](/developers/keep-it-running/scheduled-jobs#check-that-its-working). For the members page, open member-roster-sync's executions instead.
 
 **Fix.** The same table gives the fix for each case. After Appwrite has been down, check that new scheduled-dispatch executions appear every 5 minutes again.
+
+## A reimbursement stays on Checking
+
+**What you see.** In the admin, a reimbursement shows the **Sjekker** (Checking) badge for much longer than a minute or two, has no approval steps, and its approvers have not been told. Or a student says nobody has answered their reimbursement.
+
+**What it means.** The background check ([The expense check](/developers/reference/ai#the-expense-check)) has `check_state` `queued` or `running` and didn't finish. A normal check ends in a minute or two. The usual causes are that the api Site was restarted or deployed during the run, that the host cut the background work short (see [Check that background work survives](/developers/keep-it-running/deploying#check-that-background-work-survives)), or that notifying failed: `INVOICE_USER_ID` unset while `expenses_ledger_posting` is off. A chain that can't be built is not a stuck check: the check ends, an approval issue is recorded, and the reimbursement shows no badge (see [Fix expense approval issues](/guide/access-and-settings/expense-approvals), the issue **The approval chain could not be created**, and its **Bygg godkjenningsflyten på nytt** action).
+
+**Check**
+
+1. **Wait 15 minutes.** The backstop (`EXPENSE_CHECK_BACKSTOP_URL`, every 5 minutes) takes over any check that has been stuck for over 10 minutes, at most 5 per run, oldest first, and runs them side by side. Most stuck checks finish by themselves, with the notice sent and the badge gone.
+2. **The backstop is running?** Open scheduled-dispatch's latest executions and look for `EXPENSE_CHECK_BACKSTOP_URL`. If the line is missing, the variable isn't set on the function. If it fails, see [Scheduled jobs](/developers/keep-it-running/scheduled-jobs#check-that-its-working). The api's own log for the route starts with `[Expense Check Backstop]`.
+3. **The api's log for the expense**, searched for its id: lines starting `[expense-check]` say what failed: `the agent failed`, `could not decide ... without the AI` or an Appwrite error. A line `the approval chain failed` means the check ended and an approval issue was recorded, as described under **What it means** above.
+4. **An approval issue that starts "The background check could not finish".** After three takeovers of the same check the backstop stops trying it and records this issue once, with the last error in brackets when it knows it. The badge stays. The issue says whether anyone was told: "has probably not reached anyone" (a run that notified and then died before its final write looks the same, so check the history for a `notified` event or the accounting email before restarting), or, when only the repair run of a racing submit kept failing, that the approvers or accounting were told before.
+5. **The columns exist.** If `check_state` or its indexes aren't in the production schema, submissions fail and the log shows an Appwrite error about an unknown attribute. The owner pushes the schema before the api is deployed.
+
+**Fix**
+
+- **The backstop wasn't running:** set `EXPENSE_CHECK_BACKSTOP_URL` on scheduled-dispatch and redeploy it, or call the route by hand with `curl -X POST https://api.biso.no/api/cron/expense-check-backstop -H "Authorization: Bearer $CRON_SECRET"`. It answers with how many checks it found and ran.
+- **It runs but the check stays stuck:** a check taken over twice runs without the AI agent, so it only fails on notifying. Fix the cause from the log (set `INVOICE_USER_ID`) and the next tick finishes it.
+- **The backstop gave up (the issue above):** fix the cause from the issue and the log first. Then start the check again: in the Appwrite console, set the expense's `check_claim` to `2`. The next tick takes it over again (without the agent, as the row is `running`), runs the fixed steps and tells the approvers or accounting. Mark the issue as resolved once the badge is gone. If it fails twice more, the backstop gives up again.
+- **Background work is cut short on every check:** run the probe, and raise the api Site's timeout to 300 seconds.
 
 ## Appwrite is down
 

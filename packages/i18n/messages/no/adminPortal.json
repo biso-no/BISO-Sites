@@ -1420,7 +1420,8 @@
     "flags": {
       "hints": "{count} tips til godkjenneren",
       "failed": "Bokføring feilet",
-      "approverIssue": "Fant ingen godkjenner"
+      "approverIssue": "Fant ingen godkjenner",
+      "checking": "AI sjekker fortsatt dette utlegget"
     },
     "none": "—",
     "empty": {
@@ -1460,10 +1461,13 @@
       "amount": "Beløp",
       "type": "Type",
       "account": "Konto",
+      "project": "Prosjekt",
       "ai": "AI-notat",
       "booked": "Bokført",
       "supporting": "Underlag",
       "aiType": "AI: {type} ({confidence} %)",
+      "checkNote": "AI-sjekk: {reason}",
+      "checkingBadge": "Sjekker",
       "previewLabel": "Åpne kvittering {name} i en ny fane"
     },
     "steps": {
@@ -1522,7 +1526,15 @@
       "account_missing": "Det er ikke satt en konto for denne kvitteringstypen.",
       "app_type_replaced": "Appen sa «{appType}», men AI valgte «{aiType}».",
       "type_defaulted": "Ingen type ble valgt, så Annet ble brukt.",
-      "occasion_missing": "Anledning mangler."
+      "occasion_missing": "Anledning mangler.",
+      "type_unsure": "AI var usikker på hvilken type denne kvitteringen er.",
+      "type_unsure_reason": "AI var usikker på hvilken type denne kvitteringen er: {reason}",
+      "project_unsure": "AI var usikker på hvilket prosjekt dette hører til.",
+      "project_unsure_reason": "AI var usikker på hvilket prosjekt dette hører til: {reason}",
+      "project_missing": "Det ble ikke funnet noe prosjekt for dette utlegget.",
+      "project_not_created": "Prosjektet for {series} {year} er ikke opprettet ennå.",
+      "ai_check_incomplete": "AI-sjekken ble ikke ferdig, så AI har ikke sett på alt i dette utlegget.",
+      "ai_check_disagrees": "Studenten valgte en type som AI ikke ville valgt. AI foreslår «{aiType}»."
     },
     "history": {
       "submitted": "Sendte inn utlegget",
@@ -1532,6 +1544,7 @@
         "amount": "Endret beløp fra {before} til {after}",
         "total": "Endret sum fra {before} til {after}",
         "account_number": "Endret konto fra {before} til {after}",
+        "project": "Endret prosjekt fra {before} til {after}",
         "cost_type": "Endret type fra {before} til {after}",
         "cost_type_text": "Endret typetekst fra «{before}» til «{after}»",
         "date": "Endret dato fra {before} til {after}",
@@ -1553,8 +1566,10 @@
       "bookingFailed": "Bokføring feilet: {note}",
       "dateShifted": "Bokføringsdato flyttet fra {from} til {to}. {note}",
       "bookingRetried": "Bokføring prøvd på nytt",
+      "aiFlagged": "AI-sjekk: {note}",
       "unknown": "Ukjent hendelse ({action})",
-      "reason": "Årsak"
+      "reason": "Årsak",
+      "noneValue": "ingen"
     },
     "edit": {
       "edit": "Rediger",
@@ -1564,6 +1579,17 @@
       "chooseAccount": "Velg konto",
       "searchAccount": "Søk på nummer eller navn",
       "noAccountFound": "Ingen treff på konto",
+      "project": "Prosjekt",
+      "chooseProject": "Velg prosjekt",
+      "searchProject": "Søk på navn",
+      "noProjectFound": "Fant ikke prosjektet",
+      "noProject": "Ingen",
+      "otherProjects": "Andre prosjekter",
+      "suggestedFor": "Foreslått for {department}",
+      "applyProjectToAll": "Lagre bare prosjektet på alle kvitteringer",
+      "confirmClearAll": "Klikk igjen for å fjerne prosjektet fra alle kvitteringer",
+      "projectPartlyApplied": "Prosjekt satt på {changed} kvitteringer; {failed} kunne ikke lagres. Prøv igjen.",
+      "projectAppliedToAll": "Prosjekt satt på {count, plural, one {# kvittering} other {# kvitteringer}}",
       "save": "Lagre",
       "saved": "Lagret",
       "saveError": "Kunne ikke lagre",
@@ -1571,7 +1597,8 @@
       "bankAccount": "Bankkonto",
       "bankHint": "11 siffer. Mellomrom og punktum ignoreres.",
       "receiptDescription": "Endre det som bokføres for denne kvitteringen. Hver endring logges i historikken.",
-      "bankDescription": "Kontoen studenten får utbetalt til. Endringen logges i historikken."
+      "bankDescription": "Kontoen studenten får utbetalt til. Endringen logges i historikken.",
+      "checking": "Dette utlegget blir sjekket. Du kan redigere det om et minutt."
     },
     "eventTitleUnavailable": "Arrangement (tittel mangler)",
     "errors": {
@@ -1581,11 +1608,14 @@
       "invalid_date": "Datoen må være mellom 2000-01-01 og i dag.",
       "invalid_description": "Beskrivelsen må være 1 til 255 tegn.",
       "invalid_type": "Den utleggstypen er ikke tilgjengelig.",
+      "invalid_project": "Det prosjektet er ikke tilgjengelig.",
       "invalid_account": "Det er ikke en aktiv utleggskonto.",
       "invalid_bank_account": "Dette er ikke et gyldig norsk kontonummer. Sjekk sifrene.",
       "supporting_receipt": "Et vedlegg har bare dato og beskrivelse.",
       "failed": "Kunne ikke lagre. Prøv igjen.",
       "not_current_step": "Dette trinnet venter ikke lenger på en avgjørelse.",
+      "not_pending": "Dette utlegget venter ikke lenger på godkjenning.",
+      "account_missing": "En kvittering mangler konto. Velg konto før du godkjenner.",
       "reason_required": "Skriv en begrunnelse på opptil 1 000 tegn.",
       "invalid_email": "Bruk en e-postadresse som slutter på @biso.no.",
       "already_decided": "Dette trinnet er allerede avgjort på en annen måte. Siden er oppdatert.",
@@ -1595,11 +1625,15 @@
       "posting_disabled": "Bokføring til Finago er slått av.",
       "api_failed": "Utleggstjenesten svarte ikke som forventet. Prøv igjen.",
       "in_progress": "Dette trinnet behandles allerede. Prøv igjen om et øyeblikk.",
+      "checking": "Dette utlegget blir fortsatt sjekket. Prøv igjen om et minutt.",
       "self_approver": "Studenten som leverte utlegget kan ikke være godkjenner.",
       "same_approver": "Den personen er allerede godkjenner for dette trinnet.",
       "retry_in_progress": "Noen andre prøver allerede denne bokføringen på nytt.",
       "booking_failed": "Bokføringen mislyktes igjen.",
-      "status_write_failed": "Finago har bokføringen, men lagring av status feilet. Ikke prøv på nytt; kontakt IT."
+      "status_write_failed": "Finago har bokføringen, men statusen kunne ikke lagres. Ikke bokfør utlegget på nytt: når det viser «Bokføring feilet» (innen omtrent 15 minutter), fullfører «Prøv bokføring på nytt» lagringen.",
+      "booking_unrecorded": "Finago har bokføringen ({transactionId}), men den kunne ikke lagres her. Ikke prøv på nytt; kontakt IT.",
+      "has_steps": "Dette utlegget har allerede godkjenningstrinn.",
+      "not_rebuildable": "Bare et utlegg som sto uten godkjenningsflyt da det ble levert, kan få godkjenningsflyten bygget på nytt."
     },
     "decision": {
       "title": "Avgjørelse",
@@ -1622,7 +1656,13 @@
       "save": "Bytt og send",
       "changed": "Godkjenner byttet og varslet",
       "changedNoNotice": "Godkjenner byttet, men varselet kunne ikke sendes. Det ligger under godkjenningsproblemer.",
-      "directoryNotSaved": "Den lagrede godkjenneren for fremtidige utlegg kunne ikke oppdateres."
+      "directoryNotSaved": "Den lagrede godkjenneren for fremtidige utlegg kunne ikke oppdateres.",
+      "directorySkipped": "Endret bare for dette utlegget. Daglig leder settes under Innstillinger → Godkjennere."
+    },
+    "rebuild": {
+      "button": "Bygg godkjenningsflyten på nytt",
+      "done": "Godkjenningsflyten er bygget på nytt.",
+      "noneFound": "Fant ingen godkjenner. Sett opp godkjennerne først, og prøv igjen."
     },
     "retry": {
       "button": "Prøv bokføring på nytt",
@@ -1672,12 +1712,16 @@
     "syncError": "Kunne ikke synkronisere kontoer",
     "tabApprovers": "Godkjennere",
     "tabAi": "AI",
+    "tabProjects": "Prosjekter",
     "ai": {
       "description": "Hvor ofte AI-ens utgiftstype ble beholdt, og egentekstene folk skriver i stedet.",
       "window30": "Siste 30 dager",
       "window90": "Siste 90 dager",
       "overall": "AI-valg beholdt",
       "overallCount": "{kept} av {total} kvitteringer",
+      "projectKept": "Prosjekter satt av AI-sjekken som ble beholdt",
+      "projectKeptError": "Kunne ikke laste prosjekttallet.",
+      "projectKeptCount": "{kept} av {total} kvitteringer",
       "noData": "Ingen kvitteringer med AI-valg i denne perioden.",
       "capped": "Basert på de siste {count} kvitteringene.",
       "perTypeTitle": "Per type",
@@ -1694,23 +1738,26 @@
       "makeType": "Lag en type av dette",
       "loadError": "Kunne ikke laste AI-resultatene",
       "rerunTitle": "Sjekk mot dagens oppsett",
-      "rerunHint": "Kjører AI-en på nytt på de siste {limit} bokførte kvitteringene, med dagens typer og prompt, og teller hvor ofte den velger typen som ble bokført. Ingenting lagres.",
+      "rerunHint": "Kjører AI-en på nytt på de siste {limit} eksemplene, med dagens typer og prompt, og teller hvor ofte den velger forventet type. Eksempler fra bokførte utlegg telles hver for seg, atskilt fra de som ikke er bokført ennå. Ingenting lagres.",
       "rerunRun": "Kjør sjekk",
       "rerunPending": "Kjører. Dette kan ta opptil to minutter.",
-      "rerunHitRate": "Ville valgt den bokførte typen",
+      "rerunHitRate": "Ville valgt forventet type",
+      "rerunConfirmed": "Bokførte eksempler",
+      "rerunUnconfirmed": "Ikke bokført ennå",
+      "rerunScoreCount": "{hits} av {checked}",
       "rerunChecked": "Sjekket {checked} av {considered}",
       "rerunStoppedEarly": "Stoppet tidlig for å holde tidsgrensen. Resten ble ikke sjekket.",
       "rerunMissesTitle": "Bom",
       "rerunNoMisses": "Ingen bom.",
       "rerunVendor": "Leverandør",
       "rerunDescription": "Beskrivelse",
-      "rerunExpected": "Bokført type",
+      "rerunExpected": "Forventet type",
       "rerunPredicted": "AI-ens valg",
       "rerunConfidence": "Sikkerhet",
       "rerunNoPick": "Ingen type",
       "rerunFailed": "Kunne ikke sjekke {count}. De er ikke regnet med.",
       "rerunLowConfidence": "under {threshold} %",
-      "rerunUnscored": "Resten har bare studentens egentekst, så det finnes ingen type å bedømme."
+      "rerunUnscored": "Resten er utelatt: de har ingen type å sammenligne med, bare studentens egentekst, en type ingen har bekreftet, eller verken butikk eller beskrivelse å gå på."
     },
     "approvers": {
       "description": "Hvem som godkjenner utlegg, per avdeling og campus. Rader funnet av AI viser hvor sikker den var; bekreft eller endre dem her. Endringer logges.",
@@ -1768,6 +1815,41 @@
         "admin": "Admin",
         "confirmed": "Bekreftet"
       }
+    },
+    "projects": {
+      "description": "Prosjektene som er hentet fra Finago. Arrangementsdatoen brukes av AI-en til å finne ut hvilket prosjekt en kvittering hører til. Hvis du setter en dato, går den foran alle andre kilder.",
+      "sync": "Hent prosjekter fra Finago",
+      "syncing": "Henter…",
+      "syncDone": "Hentet {count} prosjekter.",
+      "syncPartial": "Delvis hentet ({count} prosjekter). Den daglige kjøringen fullfører resten.",
+      "syncError": "Kunne ikke hente prosjekter. Prøv igjen, eller vent på den daglige kjøringen.",
+      "syncBusy": "En henting pågår, eller startet nettopp. Vent noen minutter og prøv igjen.",
+      "lastSynced": "Siste fullstendige henting: {time}",
+      "neverSynced": "Ingen fullstendig henting er gjort ennå.",
+      "department": "Avdeling",
+      "allDepartments": "Alle avdelinger",
+      "none": "Ingen prosjekter ennå. Hent dem fra Finago.",
+      "noMatch": "Ingen prosjekter for denne avdelingen.",
+      "year": "År",
+      "usedBy": "Brukt av",
+      "noUsers": "Ingen posteringer ennå",
+      "firstBooking": "Første postering",
+      "lastBooking": "Siste postering",
+      "peak": "Siste kostnadstopp",
+      "eventDate": "Arrangementsdato",
+      "inUse": "Dato i bruk: {date} ({source})",
+      "noDateInUse": "Ingen dato i bruk ennå. Sett en, eller vent på posteringer.",
+      "sourceFinance": "satt her",
+      "sourceWebsite": "arrangement på nettsiden",
+      "sourceName": "måneden i prosjektnavnet",
+      "sourceBookings": "anslått fra tidligere posteringer",
+      "save": "Lagre",
+      "clear": "Fjern",
+      "saved": "Arrangementsdato lagret",
+      "cleared": "Arrangementsdato fjernet",
+      "saveError": "Kunne ikke lagre arrangementsdatoen",
+      "invalidDate": "Det er ikke en gyldig dato.",
+      "loadError": "Kunne ikke laste prosjekter. Prøv igjen senere."
     }
   },
   "shopAccounting": {

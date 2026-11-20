@@ -8,6 +8,7 @@ covers:
   - apps/admin/src/app/(portal)/_actions/varsling.ts
   - apps/admin/src/app/(portal)/_actions/member-pass-scanners.ts
   - apps/api/src/app/api/expenses/submit/route.ts
+  - apps/api/src/lib/expense-check/run.ts
   - packages/shared/utils/push-dispatch.ts
   - apps/admin/src/lib/announcements/send.ts
   - packages/shared/member-pass/wallet-config.ts
@@ -53,12 +54,12 @@ Read this before you change how the platform sends email or push, or how the mem
 
 **What it does.** Sends email to Appwrite users through the email provider set up under **Messaging** in the Appwrite console. The provider isn't in the repo.
 
-- While `expenses_ledger_posting` is off, a submitted reimbursement is emailed with its cover sheet and receipts to the student, and to accounting. Accounting's inbox is the Appwrite user in `INVOICE_USER_ID`, because Messaging only mails users (`apps/api/src/app/api/expenses/submit/route.ts`).
+- While `expenses_ledger_posting` is off, a submitted reimbursement is emailed with a cover sheet and the receipts to accounting, then to the student, after the background AI check has run (`submitByEmail` in `apps/api/src/lib/expense-check/run.ts`). Accounting's email and cover sheet list type, account and project for each receipt, the occasion, the event and the check's flags. The student's copy has a plain cover sheet with only the description, date and amount of each receipt, made once accounting's email is out. Accounting's inbox is the Appwrite user in `INVOICE_USER_ID`, because Messaging only mails users.
 - While the flag is on, the student gets an email when their reimbursement is approved or rejected (`apps/api/src/lib/expense-approval.ts`).
 
 Sign-in links by email, on the website and in the app, are sent by Appwrite itself, with Appwrite's own email settings. They aren't in the repo either.
 
-**When it fails.** While `expenses_ledger_posting` is off and `INVOICE_USER_ID` is unset, every reimbursement submission fails before anything is sent. A message Appwrite accepted but couldn't deliver shows under **Messaging**, then **Messages**, in the console, with its errors.
+**When it fails.** While `expenses_ledger_posting` is off and `INVOICE_USER_ID` is unset, the student's submission still succeeds, but the check can't send anything. It stays `running`, and the backstop tries again every 5 minutes without anyone getting an email, until it gives up after three takeovers and records an approval issue. Set the variable before you switch the module on. A message Appwrite accepted but couldn't deliver shows under **Messaging**, then **Messages**, in the console, with its errors.
 
 **Test it safely.** Your own project has no email provider until you add one. Add one with your own mailbox or a test service, and make `INVOICE_USER_ID` a user in your project. The reimbursement emails also need the `expenses` storage bucket, because the cover sheet is stored there first. The schema copy in [Local setup](/developers/change-it/local-setup#point-the-apps-at-your-own-appwrite-project) has no buckets, so create it in your project.
 

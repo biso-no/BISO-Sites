@@ -4,6 +4,7 @@ import {
   type EvalRow,
   keptStats,
   normalizeOwnText,
+  projectKeptStats,
   RECURRING_MIN_COUNT,
   recurringOwnTexts,
 } from "./ai-model";
@@ -136,5 +137,43 @@ describe("recurringOwnTexts", () => {
       rows.push(withText(`text ${i}`), withText(`text ${i}`));
     }
     expect(recurringOwnTexts(rows, 2)).toHaveLength(20);
+  });
+});
+
+describe("projectKeptStats", () => {
+  const pick = (kept: boolean, createdAt = "2026-11-01T10:00:00Z") => ({
+    createdAt,
+    kept,
+  });
+
+  test("counts the projects the check set that are still the same", () => {
+    const stats = projectKeptStats(
+      [pick(true), pick(true), pick(false)],
+      NOW,
+      30
+    );
+    expect(stats.total).toBe(3);
+    expect(stats.kept).toBe(2);
+    expect(stats.keptRate).toBeCloseTo(2 / 3);
+  });
+
+  test("leaves out picks older than the window", () => {
+    const stats = projectKeptStats(
+      [pick(true), pick(false, "2026-08-01T10:00:00Z")],
+      NOW,
+      30
+    );
+    expect(stats.total).toBe(1);
+    expect(
+      projectKeptStats([pick(false, "2026-09-20T10:00:00Z")], NOW, 90).total
+    ).toBe(1);
+  });
+
+  test("has no rate without picks", () => {
+    expect(projectKeptStats([], NOW, 30)).toEqual({
+      kept: 0,
+      keptRate: null,
+      total: 0,
+    });
   });
 });

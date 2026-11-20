@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-const BATCH_SIZE = 5;
+const BATCH_SIZE = 10;
 
 function readBearerToken(request: NextRequest): string | null {
   const authHeader = request.headers.get("authorization");
@@ -57,15 +57,21 @@ export async function POST(req: NextRequest) {
   const { db } = await createAdminClient();
   const pending = await db.listRows<Expenses>("app", "expense", [
     Query.equal("status", ExpensesStatus.APPROVED),
+    Query.orderAsc("$updatedAt"),
     Query.limit(BATCH_SIZE),
   ]);
 
   let posted = 0;
+  let skipped = 0;
   let failed = 0;
   for (const expense of pending.rows) {
     try {
-      await postApprovedExpense(expense.$id);
-      posted += 1;
+      const outcome = await postApprovedExpense(expense.$id);
+      if (outcome === "posted") {
+        posted += 1;
+      } else {
+        skipped += 1;
+      }
     } catch {
       failed += 1;
     }
@@ -78,6 +84,7 @@ export async function POST(req: NextRequest) {
       success: failed === 0,
       considered: pending.rows.length,
       posted,
+      skipped,
       failed,
     },
     { status: failed > 0 ? 500 : 200 }

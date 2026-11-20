@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
+import { PROJECT_DIMENSION_TYPE } from "./projects";
 import {
   buildExpenseTransactionInput,
   buildShopReversalTransactionInput,
@@ -154,6 +155,78 @@ describe("buildExpenseTransactionInput", () => {
       receipts: [{ accountNumber: 7140, amount: 10, ref: "att-1" }],
     });
     expect(JSON.stringify(input)).not.toContain("att-1");
+  });
+});
+
+describe("buildExpenseTransactionInput projects", () => {
+  const dims = [{ dimensionType: 2, value: "101" }];
+  const customer = { dimensionType: 5, value: "4992" };
+  const base = {
+    transactionTypeNumber: 5,
+    supplierAccountNumber: 2400,
+    date: "2026-06-25",
+    bankAccount: "1234.56.78901",
+    customerId: 4992,
+    dimensions: dims,
+  };
+  const project = (value: string) => ({
+    dimensionType: PROJECT_DIMENSION_TYPE,
+    value,
+  });
+
+  test("a receipt's project goes on its cost line", () => {
+    const input = buildExpenseTransactionInput({
+      ...base,
+      receipts: [
+        { accountNumber: 7140, amount: 100, projectId: "77" },
+        { accountNumber: 7310, amount: 50 },
+      ],
+    });
+    const [withProject, without] = input.lines.filter((l) => l.amount > 0);
+    expect(withProject.dimensions).toEqual([...dims, project("77")]);
+    expect(without.dimensions).toEqual(dims);
+  });
+
+  test("the payout line carries the project", () => {
+    const input = buildExpenseTransactionInput({
+      ...base,
+      receipts: [{ accountNumber: 7140, amount: 100, projectId: "77" }],
+    });
+    const credit = input.lines.find((l) => l.amount < 0);
+    expect(credit?.dimensions).toEqual([...dims, customer, project("77")]);
+  });
+
+  test("splits the payout line by project on one date", () => {
+    const input = buildExpenseTransactionInput({
+      ...base,
+      receipts: [
+        { accountNumber: 7140, amount: 100, projectId: "77" },
+        { accountNumber: 7310, amount: 50, projectId: "88" },
+        { accountNumber: 7320, amount: 25, projectId: "77" },
+      ],
+    });
+    const credits = input.lines.filter((l) => l.amount < 0);
+    expect(credits.map((c) => c.amount)).toEqual([-125, -50]);
+    expect(credits[0].dimensions).toEqual([...dims, customer, project("77")]);
+    expect(credits[1].dimensions).toEqual([...dims, customer, project("88")]);
+    const sum = input.lines.reduce((a, l) => a + Math.round(l.amount * 100), 0);
+    expect(sum).toBe(0);
+  });
+
+  test("receipts without a project book as before", () => {
+    const input = buildExpenseTransactionInput({
+      ...base,
+      receipts: [
+        { accountNumber: 7140, amount: 100 },
+        { accountNumber: 7310, amount: 50, projectId: null },
+      ],
+    });
+    const credits = input.lines.filter((l) => l.amount < 0);
+    expect(credits).toHaveLength(1);
+    expect(credits[0].dimensions).toEqual([...dims, customer]);
+    for (const debit of input.lines.filter((l) => l.amount > 0)) {
+      expect(debit.dimensions).toEqual(dims);
+    }
   });
 });
 

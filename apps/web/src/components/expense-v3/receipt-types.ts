@@ -93,6 +93,18 @@ export function missingTypes(receipts: Receipt[]): Receipt[] {
 }
 
 /**
+ * A receipt whose scan failed, with no amount yet. Sent as it is, a row
+ * without an amount becomes a supporting document and is not reimbursed, so
+ * the student enters the amount first. A statement attached to a receipt has
+ * none on purpose.
+ */
+export function isAmountMissing(receipt: Receipt): boolean {
+  return (
+    Boolean(receipt.scanFailed) && !receipt.parentId && receipt.amount <= 0
+  );
+}
+
+/**
  * The state the type picker shows. "Choose a type" appears only on a receipt
  * that needs one: a reopened draft's bank statement carries `needs_choice`
  * too, but it has no amount and needs no type.
@@ -117,14 +129,25 @@ export function typeChoice(
       };
 }
 
-export type ReceiptNotice = ReceiptIssueCode | "possible_duplicate";
+export type ReceiptNotice =
+  | ReceiptIssueCode
+  | "amount_missing"
+  | "possible_duplicate"
+  | "scan_failed";
 
 /** The receipt-check and duplicate notices a receipt shows; none on a statement. */
 export function receiptNotices(receipt: Receipt): ReceiptNotice[] {
   if (receipt.parentId || receipt.documentType === "bank-statement") {
     return [];
   }
-  const notices: ReceiptNotice[] = [...(receipt.receiptIssues ?? [])];
+  const notices: ReceiptNotice[] = [];
+  if (receipt.scanFailed) {
+    notices.push("scan_failed");
+  }
+  if (isAmountMissing(receipt)) {
+    notices.push("amount_missing");
+  }
+  notices.push(...(receipt.receiptIssues ?? []));
   if (receipt.possibleDuplicate) {
     notices.push("possible_duplicate");
   }
@@ -145,13 +168,20 @@ export function occasionRequired(
   );
 }
 
-/** What still keeps the report from being submitted, as far as types go. */
+export interface SubmitGaps {
+  amountsMissing: boolean;
+  occasionMissing: boolean;
+  typesMissing: boolean;
+}
+
+/** What still keeps the report from being submitted: amounts, types, occasion. */
 export function submitGaps(
   receipts: Receipt[],
   options: ExpenseTypeOption[],
   occasion: string
-): { occasionMissing: boolean; typesMissing: boolean } {
+): SubmitGaps {
   return {
+    amountsMissing: receipts.some(isAmountMissing),
     occasionMissing:
       occasionRequired(receipts, options) && occasion.trim().length === 0,
     typesMissing: receipts.some(isTypeMissing),

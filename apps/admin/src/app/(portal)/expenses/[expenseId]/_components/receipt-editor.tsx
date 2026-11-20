@@ -17,12 +17,15 @@ import { toast } from "sonner";
 import { osloDayOf, todayInOslo } from "@/lib/oslo-day";
 import { LedgerAccountPicker } from "../../_components/ledger-account-picker";
 import type { ExpenseDetailReceipt } from "../../expenses-data";
-import { updateExpenseReceipt } from "../actions";
-import type { EditAccountOption } from "../edit-options";
+import { applyProjectToAllReceipts, updateExpenseReceipt } from "../actions";
+import type { EditAccountOption, ProjectOption } from "../edit-options";
 import type { ExpenseTypeOption, ReceiptChanges } from "../receipt-edit";
+import { applyAllStep } from "./apply-project-to-all";
+import { ProjectPicker } from "./project-picker";
 
 export interface ReceiptEditOptions {
   accounts: EditAccountOption[];
+  projects: ProjectOption[];
   types: ExpenseTypeOption[];
 }
 
@@ -37,10 +40,12 @@ function parseAmount(text: string): number {
 
 /** The edit button of one receipt row and its dialog. */
 export function ReceiptEditor({
+  departmentName,
   expenseId,
   options,
   receipt,
 }: {
+  departmentName: string;
   expenseId: string;
   options: ReceiptEditOptions;
   receipt: ExpenseDetailReceipt;
@@ -56,6 +61,7 @@ export function ReceiptEditor({
   };
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [confirmingClear, setConfirmingClear] = useState(false);
 
   const initial = {
     accountNumber: receipt.accountNumber,
@@ -63,6 +69,7 @@ export function ReceiptEditor({
     costType: receipt.costType ?? "",
     date: osloDayOf(receipt.date) ?? "",
     description: receipt.description ?? "",
+    projectId: receipt.projectId,
   };
   const [draft, setDraft] = useState(initial);
 
@@ -70,8 +77,14 @@ export function ReceiptEditor({
     if (next) {
       setDraft(initial);
     }
+    setConfirmingClear(false);
     setOpen(next);
   };
+
+  // No projects to pick (none synced, or the tables are not there yet):
+  // hide the picker unless the receipt already has one.
+  const showProjects =
+    options.projects.length > 0 || receipt.projectId !== null;
 
   const typeLabel = (type: ExpenseTypeOption) =>
     locale === "no" && type.labelNo ? type.labelNo : type.label;
@@ -111,6 +124,9 @@ export function ReceiptEditor({
     if (draft.amount !== initial.amount) {
       changes.amount = parseAmount(draft.amount);
     }
+    if (draft.projectId !== initial.projectId) {
+      changes.projectId = draft.projectId;
+    }
     return changes;
   };
 
@@ -129,6 +145,41 @@ export function ReceiptEditor({
       setOpen(false);
       router.refresh();
     });
+
+  const applyToAll = () => {
+    const step = applyAllStep(confirmingClear, {
+      kind: "click",
+      projectId: draft.projectId,
+    });
+    setConfirmingClear(step.confirmingClear);
+    if (!step.apply) {
+      return;
+    }
+    startTransition(async () => {
+      const result = await applyProjectToAllReceipts(
+        expenseId,
+        draft.projectId
+      );
+      if ("error" in result) {
+        toast.error(t(`errors.${result.error}`));
+        return;
+      }
+      if (result.data.failed > 0) {
+        toast.error(
+          t("edit.projectPartlyApplied", {
+            changed: result.data.changed,
+            failed: result.data.failed,
+          })
+        );
+      } else {
+        toast.success(
+          t("edit.projectAppliedToAll", { count: result.data.changed })
+        );
+      }
+      setOpen(false);
+      router.refresh();
+    });
+  };
 
   return (
     <Dialog onOpenChange={reset} open={open}>
@@ -189,6 +240,44 @@ export function ReceiptEditor({
                   value={draft.accountNumber}
                 />
               </div>
+              {showProjects && (
+                <div>
+                  <span className="block">{t("edit.project")}</span>
+                  <ProjectPicker
+                    currentName={receipt.projectName}
+                    labels={{
+                      label: t("edit.project"),
+                      none: t("edit.noProject"),
+                      noneChosen: t("edit.chooseProject"),
+                      noProjectFound: t("edit.noProjectFound"),
+                      others: t("edit.otherProjects"),
+                      search: t("edit.searchProject"),
+                      suggested: t("edit.suggestedFor", {
+                        department: departmentName,
+                      }),
+                    }}
+                    onChange={(projectId) => {
+                      setDraft({ ...draft, projectId });
+                      setConfirmingClear(
+                        applyAllStep(confirmingClear, { kind: "pick" })
+                          .confirmingClear
+                      );
+                    }}
+                    options={options.projects}
+                    value={draft.projectId}
+                  />
+                  <button
+                    className="mt-1 text-[12px] underline"
+                    disabled={pending}
+                    onClick={applyToAll}
+                    type="button"
+                  >
+                    {confirmingClear
+                      ? t("edit.confirmClearAll")
+                      : t("edit.applyProjectToAll")}
+                  </button>
+                </div>
+              )}
             </>
           )}
           <div>

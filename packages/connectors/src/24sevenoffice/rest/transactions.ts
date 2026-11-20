@@ -19,6 +19,7 @@ import {
   DEPARTMENT_DIMENSION_TYPE,
 } from "./departments";
 import type { FiscalPeriod } from "./fiscal-periods";
+import { PROJECT_DIMENSION_TYPE } from "./projects";
 import type { components } from "./schema";
 
 const COMMENT_MAX_LENGTH = 75;
@@ -44,6 +45,8 @@ export interface ExpenseReceiptLine {
   comment?: string;
   /** Receipt date (YYYY-MM-DD); falls back to the params `date`. */
   date?: string;
+  /** Finago project dimension value; set on the cost and payout lines. */
+  projectId?: string | null;
   /** Our attachment id. Never sent to Finago. */
   ref?: string;
   /** Tax code number (see GET /taxes); defaults to 0 (no tax). */
@@ -91,39 +94,60 @@ export function buildExpenseTransactionInput(
       ? params.dimensions
       : undefined;
 
-  // Finago balances per date, so sum each date in integer øre and credit it.
-  const centsByDate = new Map<string, number>();
+  const withProject = (
+    base: DimensionT[] | undefined,
+    projectId: string | null | undefined
+  ): DimensionT[] | undefined => {
+    if (!projectId) {
+      return base;
+    }
+    return [
+      ...(base ?? []),
+      { dimensionType: PROJECT_DIMENSION_TYPE, value: projectId },
+    ];
+  };
+
+  // Finago balances per date, so sum each (date, project) in integer øre and
+  // credit it; a date with two projects gets two payout lines.
+  const groups = new Map<
+    string,
+    { cents: number; date: string; projectId: string | null }
+  >();
   const debitLines: TransactionLineT[] = params.receipts.map((receipt) => {
     const date = receipt.date ?? params.date;
     const amount = round2(receipt.amount);
-    centsByDate.set(
-      date,
-      (centsByDate.get(date) ?? 0) + Math.round(amount * CENTS)
-    );
+    const projectId = receipt.projectId || null;
+    const key = `${date}|${projectId ?? ""}`;
+    const group = groups.get(key) ?? { cents: 0, date, projectId };
+    group.cents += Math.round(amount * CENTS);
+    groups.set(key, group);
     return {
       accountNumber: receipt.accountNumber,
       amount,
       date,
       tax: { number: receipt.taxCode ?? 0 },
       comment: receipt.comment?.slice(0, COMMENT_MAX_LENGTH),
-      dimensions,
+      dimensions: withProject(dimensions, projectId),
     };
   });
-  const dates = [...centsByDate.keys()].sort();
+  const orderedGroups = [...groups.values()].sort((a, b) =>
+    a.date.localeCompare(b.date)
+  );
+  const dates = orderedGroups.map((group) => group.date);
 
-  const creditDimensions: DimensionT[] = [
-    ...(dimensions ?? []),
-    {
-      dimensionType: CUSTOMER_DIMENSION_TYPE,
-      value: String(params.customerId),
-    },
-  ];
-  const creditLines: TransactionLineT[] = dates.map((date) => ({
+  const customerDimension: DimensionT = {
+    dimensionType: CUSTOMER_DIMENSION_TYPE,
+    value: String(params.customerId),
+  };
+  const creditLines: TransactionLineT[] = orderedGroups.map((group) => ({
     accountNumber: params.supplierAccountNumber,
-    amount: -((centsByDate.get(date) ?? 0) / CENTS),
-    date,
+    amount: -(group.cents / CENTS),
+    date: group.date,
     tax: { number: 0 },
-    dimensions: creditDimensions,
+    dimensions: withProject(
+      [...(dimensions ?? []), customerDimension],
+      group.projectId
+    ),
     invoice: {
       bankAccount: params.bankAccount,
       dueDate: params.dueDate,

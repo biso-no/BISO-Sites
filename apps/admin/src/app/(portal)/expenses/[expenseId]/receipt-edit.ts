@@ -5,6 +5,8 @@
 import {
   type ExpenseAttachments,
   ExpenseAttachmentsAccountSource,
+  ExpenseAttachmentsProjectSource,
+  ExpenseAttachmentsTypeSource,
 } from "@repo/api/types/appwrite";
 import { osloDayOf } from "@/lib/oslo-day";
 import type { ExpenseActionError } from "../action-result";
@@ -19,6 +21,8 @@ export interface ReceiptChanges {
   costType?: string;
   date?: string;
   description?: string;
+  /** A Finago project id; null clears it. */
+  projectId?: string | null;
 }
 
 export interface ExpenseTypeOption {
@@ -31,6 +35,8 @@ export interface ExpenseTypeOption {
 
 export interface ReceiptEditContext {
   accounts: Map<number, { active: boolean; taxCode: number | null }>;
+  /** Active projects only, by Finago project id. */
+  projects: Map<string, { active: boolean; name: string }>;
   source: "approver" | "admin";
   /** Today's Oslo day, `YYYY-MM-DD`. */
   today: string;
@@ -113,6 +119,9 @@ function applyCostType(
     ExpenseAttachmentsAccountSource[
       ctx.source === "admin" ? "ADMIN" : "APPROVER"
     ];
+  // A person picked this type, so it may teach later classifications.
+  work.patch.type_source =
+    ExpenseAttachmentsTypeSource[ctx.source === "admin" ? "ADMIN" : "APPROVER"];
   work.accountNumber = type.accountNumber;
   return null;
 }
@@ -203,6 +212,39 @@ function applyAmount(
   return null;
 }
 
+function applyProject(
+  current: ExpenseAttachments,
+  projectId: string | null,
+  ctx: ReceiptEditContext,
+  work: Working
+): ExpenseActionError | null {
+  const project = projectId === null ? null : ctx.projects.get(projectId);
+  if (projectId !== null && !project?.active) {
+    return "invalid_project";
+  }
+  if ((current.project_id ?? null) === projectId) {
+    return null;
+  }
+  if (current.booked_date) {
+    // The lines are already in Finago; a new project would not follow them.
+    return "already_booked";
+  }
+  work.events.push({
+    after: project?.name ?? null,
+    before: current.project_name ?? current.project_id ?? null,
+    field: "project",
+  });
+  work.patch.project_id = projectId;
+  work.patch.project_name = project?.name ?? null;
+  // A person chose (or cleared) it; no AI confidence applies any more.
+  work.patch.project_source =
+    ExpenseAttachmentsProjectSource[
+      ctx.source === "admin" ? "ADMIN" : "APPROVER"
+    ];
+  work.patch.project_confidence = null;
+  return null;
+}
+
 /** Plans one receipt correction. Only fields that actually change are patched and logged. */
 export function planReceiptEdit(
   current: ExpenseAttachments,
@@ -214,7 +256,8 @@ export function planReceiptEdit(
     isSupporting &&
     (changes.amount !== undefined ||
       changes.costType !== undefined ||
-      changes.accountNumber !== undefined)
+      changes.accountNumber !== undefined ||
+      changes.projectId !== undefined)
   ) {
     return { error: "supporting_receipt" };
   }
@@ -240,6 +283,9 @@ export function planReceiptEdit(
   }
   if (changes.amount !== undefined) {
     steps.push(applyAmount(current, changes.amount, work));
+  }
+  if (changes.projectId !== undefined) {
+    steps.push(applyProject(current, changes.projectId, ctx, work));
   }
   const error = steps.find((step) => step !== null);
   if (error) {

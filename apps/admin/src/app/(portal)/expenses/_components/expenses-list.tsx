@@ -18,7 +18,7 @@ import type {
   ExpenseListRow,
   ExpenseListView,
 } from "../expenses-data";
-import { ExpenseStatusBadge } from "./expense-status-badge";
+import { CheckingBadge, ExpenseStatusBadge } from "./expense-status-badge";
 
 export interface FilterOption {
   label: string;
@@ -195,6 +195,7 @@ export function ExpensesList({
               <div>{fmtNOK(row.total)}</div>
               <div className="flex flex-wrap items-center gap-1.5">
                 <ExpenseStatusBadge status={row.status} />
+                {row.checking && <CheckingBadge />}
                 {row.flags.failed && (
                   <AlertTriangle
                     aria-label={t("flags.failed")}

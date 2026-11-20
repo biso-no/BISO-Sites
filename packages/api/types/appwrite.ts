@@ -40,6 +40,13 @@ export enum ExpensesStatus {
   FAILED = "failed",
 }
 
+export enum ExpensesCheckState {
+  QUEUED = "queued",
+  RUNNING = "running",
+  DONE = "done",
+  FALLBACK = "fallback",
+}
+
 export enum ContentTemplatesFamily {
   PAGE = "page",
   POLICY = "policy",
@@ -251,6 +258,7 @@ export enum ExpenseEventsAction {
   BOOKING_FAILED = "booking_failed",
   DATE_SHIFTED = "date_shifted",
   BOOKING_RETRIED = "booking_retried",
+  AI_FLAGGED = "ai_flagged",
 }
 
 export enum TourProgressStatus {
@@ -423,11 +431,19 @@ export enum ExpenseAttachmentsTypeSource {
   AI = "ai",
   STUDENT = "student",
   LEGACY_APP = "legacy_app",
+  APPROVER = "approver",
+  ADMIN = "admin",
 }
 
 export enum ExpenseAttachmentsAccountSource {
   TYPE = "type",
   AI_FREEFORM = "ai_freeform",
+  APPROVER = "approver",
+  ADMIN = "admin",
+}
+
+export enum ExpenseAttachmentsProjectSource {
+  AI_CHECK = "ai_check",
   APPROVER = "approver",
   ADMIN = "admin",
 }
@@ -566,6 +582,21 @@ export enum PageDraftsLocale {
 
 export enum ExpenseTypeExamplesSource {
   STUDENT = "student",
+  APPROVER = "approver",
+  ADMIN = "admin",
+}
+
+export enum ExpenseTypeExamplesTypeSource {
+  AI = "ai",
+  STUDENT = "student",
+  LEGACY_APP = "legacy_app",
+  APPROVER = "approver",
+  ADMIN = "admin",
+}
+
+export enum ExpenseTypeExamplesAccountSource {
+  TYPE = "type",
+  AI_FREEFORM = "ai_freeform",
   APPROVER = "approver",
   ADMIN = "admin",
 }
@@ -721,6 +752,10 @@ export type Expenses = Models.Row & {
   occasion: string | null;
   event_id: string | null;
   approver_hints: string | null;
+  check_state: ExpensesCheckState | null;
+  check_claim: number;
+  check_started_at: string | null;
+  check_finished_at: string | null;
 };
 
 export type ContentTemplates = Models.Row & {
@@ -850,6 +885,7 @@ export type Departments = Models.Row & {
   slug: string | null;
   theme_dark: string | null;
   theme_accent: string | null;
+  project_share: number | null;
 };
 
 export type StopPlaces = Models.Row & {
@@ -1559,6 +1595,11 @@ export type ExpenseAttachments = Models.Row & {
   ocr_amount: number | null;
   file_hash: string | null;
   receipt_issues: string | null;
+  example_id: string | null;
+  project_id: string | null;
+  project_name: string | null;
+  project_source: ExpenseAttachmentsProjectSource | null;
+  project_confidence: number | null;
 };
 
 export type JobInterviews = Models.Row & {
@@ -1929,6 +1970,42 @@ export type ExpenseTypeExamples = Models.Row & {
   final_text: string | null;
   account_number: number | null;
   source: ExpenseTypeExamplesSource;
+  confirmed: boolean;
+  department_id: string | null;
+  type_source: ExpenseTypeExamplesTypeSource | null;
+  account_source: ExpenseTypeExamplesAccountSource | null;
+  project_id: string | null;
+  project_name: string | null;
+};
+
+export type FinagoProjects = Models.Row & {
+  project_id: string;
+  name: string;
+  series: string | null;
+  year: number | null;
+  active: boolean;
+  event_date: string | null;
+  peak_date: string | null;
+  first_line_date: string | null;
+  last_line_date: string | null;
+  line_count: number;
+  synced_at: string | null;
+};
+
+export type FinagoProjectUsage = Models.Row & {
+  project_id: string;
+  department_id: string;
+  line_count: number;
+  first_line_date: string | null;
+  last_line_date: string | null;
+  synced_at: string | null;
+};
+
+export type FinagoSyncState = Models.Row & {
+  last_attempt_at: string | null;
+  last_full_at: string | null;
+  next_offset: number;
+  last_result: string | null;
 };
 
 export type ExpenseApprovers = Models.Row & {

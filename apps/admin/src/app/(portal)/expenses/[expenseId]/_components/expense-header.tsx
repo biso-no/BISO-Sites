@@ -1,8 +1,14 @@
-import type { ApproverHint } from "@repo/shared/utils/expense-hints";
+import {
+  type ApproverHint,
+  hintTextKey,
+} from "@repo/shared/utils/expense-hints";
 import { useTranslations } from "next-intl";
 import { MONO_STACK, STUDIO, StudioPanel } from "../../../_components/studio";
 import { fmtNOK } from "../../../shop/_components/shop-studio-theme";
-import { ExpenseStatusBadge } from "../../_components/expense-status-badge";
+import {
+  CheckingBadge,
+  ExpenseStatusBadge,
+} from "../../_components/expense-status-badge";
 import type { ExpenseDetail } from "../../expenses-data";
 import { BankAccountEditor } from "./bank-account-editor";
 
@@ -41,6 +47,7 @@ export function ExpenseHeader({ detail }: { detail: ExpenseDetail }) {
           {detail.reference}
         </h2>
         <ExpenseStatusBadge status={detail.status} />
+        {detail.checking && <CheckingBadge />}
       </div>
       <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Field label={t("submittedBy")}>
@@ -99,12 +106,10 @@ export function ExpenseHeader({ detail }: { detail: ExpenseDetail }) {
   );
 }
 
-export function ExpenseHints({ hints }: { hints: ApproverHint[] }) {
+/** The localised sentence for one approver hint. */
+export function useHintLine(): (hint: ApproverHint) => string {
   const t = useTranslations("adminPortal.expenses");
-  if (hints.length === 0) {
-    return null;
-  }
-  const line = (hint: ApproverHint) => {
+  return (hint) => {
     const data = hint.data ?? {};
     if (hint.code === "receipt_issue") {
       const issue = String(data.issue ?? "");
@@ -112,12 +117,17 @@ export function ExpenseHints({ hints }: { hints: ApproverHint[] }) {
         issue: issue ? t(`issues.${issue}` as never) : "",
       });
     }
-    const key =
-      hint.code === "possible_duplicate" && data.reimbursementNumber
-        ? "possible_duplicate_number"
-        : hint.code;
+    const key = hintTextKey(hint.code, data);
     return t(`hintsText.${key}` as never, data as never);
   };
+}
+
+export function ExpenseHints({ hints }: { hints: ApproverHint[] }) {
+  const t = useTranslations("adminPortal.expenses");
+  const line = useHintLine();
+  if (hints.length === 0) {
+    return null;
+  }
   return (
     <section
       aria-label={t("detail.hintsTitle")}

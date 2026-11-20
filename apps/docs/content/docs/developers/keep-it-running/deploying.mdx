@@ -7,6 +7,7 @@ covers:
   - apps/api/package.json
   - apps/*/Dockerfile
   - apps/*/src/app/api/health/**
+  - apps/api/src/app/api/internal/after-probe/**
   - apps/docs/app/api/health/**
   - functions/*/README.md
   - functions/*/package.json
@@ -148,7 +149,7 @@ Its README says it is deployed through the console's Git integration, and that t
 | Scopes | None. It only makes HTTP calls. |
 | Variables | `CRON_SECRET` and the target URLs. See [Scheduled jobs](/developers/keep-it-running/scheduled-jobs). |
 
-Keep the timeout above 300 seconds. Two of its targets, order reconciliation and expense posting, are allowed 300 seconds each (`functions/scheduled-dispatch/src/main.ts`). Appwrite allows at most 900.
+Keep the timeout above 300 seconds. Four of its targets, order reconciliation, expense posting, the Finago project sync and the expense check backstop, are allowed 300 seconds each (`functions/scheduled-dispatch/src/main.ts`). Appwrite allows at most 900.
 
 Don't run `appwrite push` for this function from `packages/api`. The config there would set the timeout back to 60 seconds, and it names the production project.
 
@@ -274,6 +275,23 @@ Each lists one Appwrite user with the app's API key, with a 3-second limit.
 Every `ready` call costs a Site execution and an Appwrite request, so don't point an uptime monitor at it every few seconds.
 
 Docs has `/api/health` only. Check `https://docs.biso.no/api/health`.
+
+### Check that background work survives
+
+The expense AI check runs in the background after a student submits (Next.js `after()`). A normal check takes a minute or two, but the slowest takes about four: up to 2 minutes for the agent, about 80 seconds for the fixed steps and about 20 for notifying. Run the probe once after you raise the api Site's function timeout to 300 seconds, and again if you change the Site's runtime settings.
+
+```bash
+curl -s -X POST https://api.biso.no/api/internal/after-probe \
+  -H "Authorization: Bearer $CRON_SECRET"
+```
+
+It answers `{"started":true}` at once (the route is `apps/api/src/app/api/internal/after-probe/route.ts`). In the api Site's logs in the Appwrite console, look for lines starting `[after-probe]`: `start, will run 290 s`, then `alive 15`, `alive 30` and so on every 15 seconds up to `alive 285`, then `done at 290 s`.
+
+- `[after-probe] alive 285`, the last tick, appears (and then `done at 290 s`): background work lives long enough. The AI check can be switched on.
+- The last `alive` line is lower than 285: the host cut the background task short at about that many seconds. Raise the Site's timeout, or the check will be cut off and approvers get the plain notification with the flag that the check did not finish.
+- No `[after-probe]` lines at all: the host stops work as soon as the response is sent, so `after()` does not run there.
+
+`401` means the secret is wrong, and `500` means the api Site has no `CRON_SECRET`.
 
 ### Then check by hand
 

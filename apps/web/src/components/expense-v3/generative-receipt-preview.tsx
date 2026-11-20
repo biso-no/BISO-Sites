@@ -27,6 +27,7 @@ import type { Receipt } from "./store";
 import type { ExpenseTypeOption } from "./types";
 
 interface GenerativeReceiptPreviewProps {
+  getRetryScan?: (id: string) => (() => void) | undefined;
   onInsert?: (afterId: string, receipt: Receipt) => void;
   onUpdate: (updates: Partial<Receipt>) => void;
   receipt: Receipt;
@@ -123,6 +124,7 @@ async function uploadBankStatement({
 }
 
 export function GenerativeReceiptPreview({
+  getRetryScan,
   receipt,
   onUpdate,
   onInsert,
@@ -198,7 +200,12 @@ export function GenerativeReceiptPreview({
         </div>
 
         <div className="space-y-6">
-          {isProcessing ? null : <ReceiptNotices receipt={receipt} />}
+          {isProcessing ? null : (
+            <ReceiptNotices
+              onRetry={getRetryScan?.(receipt.id)}
+              receipt={receipt}
+            />
+          )}
 
           <Field
             isLoading={isProcessing}

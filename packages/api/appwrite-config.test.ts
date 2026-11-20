@@ -246,6 +246,17 @@ describe("expense booking history", () => {
     );
   });
 
+  test("expense_events is indexed by action and field for the AI tab", () => {
+    const table = loadConfig().tables.find((t) => t.$id === "expense_events");
+    expect(table?.indexes).toContainEqual(
+      expect.objectContaining({
+        columns: ["action", "field"],
+        key: "idx_action_field",
+        type: "key",
+      })
+    );
+  });
+
   test("expense_attachments records the date each line was booked on", () => {
     const table = loadConfig().tables.find(
       (t) => t.$id === "expense_attachments"
@@ -286,10 +297,35 @@ describe("expense AI schema", () => {
         "final_cost_type",
         "account_number",
         "source",
+        "confirmed",
+        "department_id",
+        "type_source",
+        "account_source",
       ])
     );
     expect(table?.indexes?.some((i) => i.columns?.[0] === "vendor_key")).toBe(
       true
+    );
+    expect(
+      table?.indexes?.some(
+        (i) => i.type === "key" && i.columns?.[0] === "confirmed"
+      )
+    ).toBe(true);
+    expect(
+      table?.indexes?.some(
+        (i) => i.type === "fulltext" && i.columns?.[0] === "description"
+      )
+    ).toBe(true);
+  });
+
+  test("expense_attachments has example_id and approver/admin type sources", () => {
+    const table = findTable("expense_attachments");
+    expect(columnKeys("expense_attachments")).toContain("example_id");
+    const typeSource = table?.columns?.find((c) => c.key === "type_source") as
+      | { elements?: string[] }
+      | undefined;
+    expect(typeSource?.elements).toEqual(
+      expect.arrayContaining(["approver", "admin"])
     );
   });
 
@@ -317,10 +353,182 @@ describe("expense AI schema", () => {
     );
   });
 
+  test("expense carries the background check state", () => {
+    const column = (key: string) =>
+      findTable("expense")?.columns?.find((c) => c.key === key);
+    expect(column("check_state")).toMatchObject({
+      default: null,
+      elements: ["queued", "running", "done", "fallback"],
+      format: "enum",
+      required: false,
+    });
+    expect(column("check_claim")).toMatchObject({
+      default: 0,
+      required: false,
+      type: "integer",
+    });
+    for (const key of ["check_started_at", "check_finished_at"]) {
+      expect(column(key), key).toMatchObject({
+        required: false,
+        type: "datetime",
+      });
+    }
+  });
+
   test("expense_cost_types has a Norwegian label and an occasion flag", () => {
     expect(columnKeys("expense_cost_types")).toEqual(
       expect.arrayContaining(["label_no", "ask_occasion"])
     );
+  });
+});
+
+describe("finago projects schema", () => {
+  const OPS_READ = ['read("team:sg-app-dept-operationsunit")'];
+  // "departments" exists in both the app and 24so databases.
+  const findTable = (id: string) =>
+    loadConfig().tables.find(
+      (t) => t.$id === id && (t as { databaseId?: string }).databaseId === "app"
+    );
+  const findColumn = (tableId: string, key: string) =>
+    findTable(tableId)?.columns?.find((c) => c.key === key);
+  const columnKeys = (id: string) => findTable(id)?.columns?.map((c) => c.key);
+
+  test("finago_projects is server-only with a unique project_id and a series index", () => {
+    const table = findTable("finago_projects");
+    expect(table).toBeDefined();
+    expect(table?.$permissions).toEqual(OPS_READ);
+    expect(columnKeys("finago_projects")).toEqual(
+      expect.arrayContaining([
+        "project_id",
+        "name",
+        "series",
+        "year",
+        "active",
+        "event_date",
+        "peak_date",
+        "first_line_date",
+        "last_line_date",
+        "line_count",
+        "synced_at",
+      ])
+    );
+    expect(findColumn("finago_projects", "project_id")).toMatchObject({
+      required: true,
+      size: 20,
+      type: "string",
+    });
+    expect(findColumn("finago_projects", "name")).toMatchObject({
+      required: true,
+      size: 255,
+    });
+    expect(findColumn("finago_projects", "active")).toMatchObject({
+      default: true,
+      type: "boolean",
+    });
+    expect(findColumn("finago_projects", "line_count")).toMatchObject({
+      default: 0,
+      type: "integer",
+    });
+    for (const key of [
+      "event_date",
+      "peak_date",
+      "first_line_date",
+      "last_line_date",
+      "synced_at",
+    ]) {
+      expect(findColumn("finago_projects", key)?.type, key).toBe("datetime");
+    }
+    expect(table?.indexes).toContainEqual(
+      expect.objectContaining({ columns: ["project_id"], type: "unique" })
+    );
+    expect(table?.indexes).toContainEqual(
+      expect.objectContaining({ columns: ["series"], type: "key" })
+    );
+  });
+
+  test("finago_sync_state is server-only with the attempt, full-run and offset columns", () => {
+    const table = findTable("finago_sync_state");
+    expect(table).toBeDefined();
+    expect(table?.$permissions).toEqual(OPS_READ);
+    expect(columnKeys("finago_sync_state")).toEqual([
+      "last_attempt_at",
+      "last_full_at",
+      "next_offset",
+      "last_result",
+    ]);
+    expect(findColumn("finago_sync_state", "next_offset")).toMatchObject({
+      default: 0,
+      type: "integer",
+    });
+    expect(findColumn("finago_sync_state", "last_result")).toMatchObject({
+      size: 1000,
+      type: "string",
+    });
+  });
+
+  test("finago_project_usage is server-only with a unique project and department pair", () => {
+    const table = findTable("finago_project_usage");
+    expect(table).toBeDefined();
+    expect(table?.$permissions).toEqual(OPS_READ);
+    expect(columnKeys("finago_project_usage")).toEqual(
+      expect.arrayContaining([
+        "project_id",
+        "department_id",
+        "line_count",
+        "first_line_date",
+        "last_line_date",
+        "synced_at",
+      ])
+    );
+    expect(findColumn("finago_project_usage", "department_id")).toMatchObject({
+      required: true,
+      size: 40,
+    });
+    expect(table?.indexes).toContainEqual(
+      expect.objectContaining({
+        columns: ["project_id", "department_id"],
+        type: "unique",
+      })
+    );
+    expect(table?.indexes).toContainEqual(
+      expect.objectContaining({ columns: ["department_id"], type: "key" })
+    );
+  });
+
+  test("departments has a nullable project_share", () => {
+    expect(findColumn("departments", "project_share")).toMatchObject({
+      required: false,
+      type: "double",
+    });
+  });
+
+  test("expense_attachments carries the project and where it came from", () => {
+    expect(findColumn("expense_attachments", "project_id")).toMatchObject({
+      required: false,
+      size: 20,
+    });
+    expect(findColumn("expense_attachments", "project_name")).toMatchObject({
+      required: false,
+      size: 255,
+    });
+    expect(findColumn("expense_attachments", "project_source")).toMatchObject({
+      elements: ["ai_check", "approver", "admin"],
+      required: false,
+    });
+    expect(findColumn("expense_attachments", "project_confidence")?.type).toBe(
+      "double"
+    );
+  });
+
+  test("expense_type_examples keeps the confirmed project", () => {
+    expect(findColumn("expense_type_examples", "project_id")).toMatchObject({
+      required: false,
+      size: 20,
+    });
+    expect(findColumn("expense_type_examples", "project_name")).toMatchObject({
+      required: false,
+      size: 255,
+    });
   });
 });
 
@@ -391,6 +599,15 @@ describe("admin expenses schema", () => {
     ).toBe(true);
   });
 
+  test("expense indexes the backstop's check filters", () => {
+    expect(hasKeyIndex("expense", "idx_check_state", ["check_state"])).toBe(
+      true
+    );
+    expect(
+      hasKeyIndex("expense", "idx_check_started_at", ["check_started_at"])
+    ).toBe(true);
+  });
+
   test("expense has campus and department list indexes", () => {
     expect(hasKeyIndex("expense", "idx_campus", ["campus"])).toBe(true);
     expect(hasKeyIndex("expense", "idx_department", ["department"])).toBe(true);
@@ -406,6 +623,12 @@ describe("admin expenses schema", () => {
   test("expense_events.action includes booking_retried", () => {
     expect(findColumn("expense_events", "action")?.elements).toContain(
       "booking_retried"
+    );
+  });
+
+  test("expense_events.action includes ai_flagged for the check's flags", () => {
+    expect(findColumn("expense_events", "action")?.elements).toContain(
+      "ai_flagged"
     );
   });
 });

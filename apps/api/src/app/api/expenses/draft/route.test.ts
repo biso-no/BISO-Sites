@@ -78,6 +78,43 @@ describe("expense draft route", () => {
     );
   });
 
+  it("never returns the project to the student", async () => {
+    adminDb.getRow.mockResolvedValue({
+      $id: "expense-1",
+      status: "draft",
+      userId: "submitter-1",
+    });
+    adminDb.updateRow.mockResolvedValue({
+      $id: "expense-1",
+      expenseAttachments: [
+        {
+          $id: "att-1",
+          amount: 100,
+          project_confidence: 0.9,
+          project_id: "p1",
+          project_name: "Fadderuke 2026",
+          project_source: "ai",
+        },
+      ],
+    });
+
+    const response = await POST(
+      draftRequest({ ...DRAFT_BODY, expenseId: "expense-1" })
+    );
+
+    const body = await response.json();
+    expect(body.draft.expenseAttachments).toEqual([
+      {
+        $id: "att-1",
+        amount: 100,
+        project_confidence: null,
+        project_id: null,
+        project_name: null,
+        project_source: null,
+      },
+    ]);
+  });
+
   it("updates an owned draft through the admin client, never the caller's session", async () => {
     adminDb.getRow.mockResolvedValue({
       $id: "expense-1",

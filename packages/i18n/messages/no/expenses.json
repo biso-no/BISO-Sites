@@ -64,6 +64,7 @@
     "backToReport": "Tilbake til rapporten",
     "toast": {
       "receiptFailed": "Kunne ikke behandle kvitteringen",
+      "scanFailed": "Klarte ikke å lese kvitteringen — fyll inn selv.",
       "statementLinked": "Kontoutskriften er koblet til {name}",
       "statementLinkedFallback": "kvitteringen",
       "selectBeforeUpload": "Velg campus og enhet før du laster opp kvitteringer",
@@ -120,6 +121,7 @@
       "occasionPlaceholder": "F.eks. styremøte, seks styremedlemmer",
       "occasionError": "Svar på dette før du sender inn",
       "occasionSuggested": "Foreslått ut fra kvitteringene. Sjekk og endre om nødvendig.",
+      "submitHintAmounts": "Skriv inn beløpet for kvitteringene vi ikke klarte å lese",
       "submitHintTypes": "Velg type for alle kvitteringene",
       "submitHintOccasion": "Fyll inn anledningen og hvem det var for",
       "eventLabel": "Arrangement",
@@ -204,7 +206,10 @@
       "missing_seller": "Kvitteringen mangler selger",
       "missing_date": "Kvitteringen mangler dato",
       "missing_total": "Kvitteringen mangler totalbeløp",
-      "possible_duplicate": "Ser ut som en kvittering som allerede er sendt inn"
+      "possible_duplicate": "Ser ut som en kvittering som allerede er sendt inn",
+      "scan_failed": "Vi klarte ikke å lese kvitteringen. Fyll inn selv, eller prøv igjen.",
+      "amount_missing": "Skriv inn beløpet fra kvitteringen. Er dette en kontoutskrift for en annen kvittering, fjern den og legg den ved den kvitteringen.",
+      "retry": "Prøv igjen"
     }
   }
 }

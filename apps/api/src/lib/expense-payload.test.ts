@@ -82,6 +82,17 @@ describe("expense payload helpers", () => {
     expect(parseExpensePayload(BASE)?.eventName).toBeUndefined();
   });
 
+  it("a description longer than 800 characters is cut to 800", () => {
+    const long = parseExpensePayload({ ...BASE, description: "d".repeat(900) });
+    expect(long?.description).toBe("d".repeat(800));
+    expect(
+      parseExpensePayload({ ...BASE, description: "Team lunch" })?.description
+    ).toBe("Team lunch");
+    expect(
+      parseExpensePayload({ ...BASE, description: null })?.description
+    ).toBeNull();
+  });
+
   it("writes an occasion and event sent as null, which clears them", () => {
     const payload = parseExpensePayload({
       ...BASE,

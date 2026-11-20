@@ -4,6 +4,8 @@ import { loadMessages } from "@repo/i18n/messages";
 interface ExpenseMessages {
   changeApprover: Record<string, string>;
   decision: Record<string, string>;
+  edit: Record<string, string>;
+  errors: Record<string, string>;
   onBehalfRoles: Record<string, string>;
   retry: Record<string, string>;
   steps: Record<string, string>;
@@ -79,5 +81,52 @@ describe("approver and retry warnings", () => {
       "The booking service did not answer. Check in Finago whether the expense was booked before you retry."
     );
     expect(no.retry.apiFailed).toContain("Finago");
+  });
+});
+
+describe("a booking Finago has but the admin could not save", () => {
+  test("a failed status save never invites booking it again", () => {
+    expect(en.errors.status_write_failed).toBe(
+      "Finago has the booking, but saving the status failed. Don't book it again: once the reimbursement shows Booking failed (within about 15 minutes), Retry finishes saving it."
+    );
+    for (const message of [
+      en.errors.status_write_failed,
+      no.errors.status_write_failed,
+    ]) {
+      expect(message).not.toContain("nothing is booked twice");
+      expect(message).not.toContain("ingenting bokføres to ganger");
+    }
+    expect(no.errors.status_write_failed).toContain("Bokføring feilet");
+  });
+
+  test("an unrecorded booking names the transaction and says not to retry", () => {
+    expect(
+      render(en.errors.booking_unrecorded as string, { transactionId: "tx-9" })
+    ).toBe(
+      "Finago has the booking (tx-9) but it could not be saved here. Do not retry; contact IT."
+    );
+    expect(
+      render(no.errors.booking_unrecorded as string, { transactionId: "tx-9" })
+    ).toContain("(tx-9)");
+  });
+});
+
+describe("while the check is working", () => {
+  test("the receipts say they can be edited in a minute, in both languages", () => {
+    expect(en.edit.checking).toBe(
+      "This reimbursement is being checked. You can edit it in a minute."
+    );
+    expect(no.edit.checking).toBe(
+      "Dette utlegget blir sjekket. Du kan redigere det om et minutt."
+    );
+  });
+
+  test("a refused edit says why and when to try again", () => {
+    expect(en.errors.checking).toBe(
+      "This reimbursement is still being checked. Try again in a minute."
+    );
+    expect(no.errors.checking).toBe(
+      "Dette utlegget blir fortsatt sjekket. Prøv igjen om et minutt."
+    );
   });
 });

@@ -57,3 +57,22 @@ export function ExpenseStatusBadge({ status }: { status: string }) {
     </span>
   );
 }
+
+/** Shown next to the status while the background AI check is still working. */
+export function CheckingBadge() {
+  const t = useTranslations("adminPortal.expenses");
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 font-medium text-[11px] uppercase tracking-[0.05em]"
+      style={{
+        background: TONES.submitted?.bg,
+        borderColor: TONES.submitted?.border,
+        color: TONES.submitted?.color,
+        fontFamily: MONO_STACK,
+      }}
+      title={t("flags.checking")}
+    >
+      {t("receipts.checkingBadge")}
+    </span>
+  );
+}

@@ -7,6 +7,7 @@ import {
   spyOn,
   test,
 } from "bun:test";
+import { Query } from "@repo/api";
 import type { ExpenseActionError } from "../action-result";
 
 const db = {
@@ -22,10 +23,16 @@ mock.module("server-only", () => ({}));
 const getExpenseViewer = mock();
 mock.module("@/lib/expense-viewer", () => ({ getExpenseViewer }));
 mock.module("next/cache", () => ({ revalidatePath: mock(() => undefined) }));
+const isFeatureEnabled = mock(async (_key: string) => true);
+mock.module("@repo/shared/utils/feature-flags-server", () => ({
+  isFeatureEnabled,
+}));
 
 const {
+  applyProjectToAllReceipts,
   changeExpenseApprover,
   decideExpenseStep,
+  rebuildExpenseChain,
   retryExpenseBooking,
   updateExpenseBankAccount,
   updateExpenseReceipt,
@@ -86,15 +93,14 @@ const steps = [
   },
 ];
 
-let freshAttachments: { amount: number }[] = [];
-
 beforeEach(() => {
-  freshAttachments = [{ amount: 100.46 }, { amount: 70 }, { amount: 0 }];
   for (const fn of Object.values(db)) {
     fn.mockReset();
   }
   getExpenseViewer.mockReset();
   getExpenseViewer.mockResolvedValue(viewer());
+  isFeatureEnabled.mockReset();
+  isFeatureEnabled.mockResolvedValue(true);
   fetchMock.mockReset();
   globalThis.fetch = fetchMock as unknown as typeof fetch;
   process.env.NEXT_PUBLIC_API_BASE_URL = "https://api.example.test";
@@ -105,9 +111,6 @@ beforeEach(() => {
   db.listRows.mockImplementation((_d: string, table: string) => {
     if (table === "expense_approvals") {
       return Promise.resolve({ rows: steps });
-    }
-    if (table === "expense_attachments") {
-      return Promise.resolve({ rows: freshAttachments });
     }
     return Promise.resolve({ rows: [] });
   });
@@ -146,6 +149,37 @@ describe("updateExpenseReceipt", () => {
     expect(db.updateRow).not.toHaveBeenCalled();
   });
 
+  test("refuses an edit while the check is still working on the expense", async () => {
+    getExpenseViewer.mockResolvedValue(
+      viewer({ emails: ["boss@example.com"], isGlobalAdmin: true })
+    );
+    for (const checkState of ["queued", "running"]) {
+      db.getRow.mockResolvedValue({ ...expense(), check_state: checkState });
+      const result = await updateExpenseReceipt({
+        attachmentId: "a1",
+        changes: { amount: 10 },
+        expenseId: "ex1",
+      });
+      expect(result).toEqual({ error: "checking" });
+    }
+    expect(db.updateRow).not.toHaveBeenCalled();
+    expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  test("an expense the check has finished can be edited", async () => {
+    for (const checkState of ["done", "fallback", null]) {
+      db.updateRow.mockClear();
+      db.getRow.mockResolvedValue({ ...expense(), check_state: checkState });
+      const result = await updateExpenseReceipt({
+        attachmentId: "a1",
+        changes: { description: `Taxi ${checkState}` },
+        expenseId: "ex1",
+      });
+      expect(result).toEqual({ data: { total: 250 } });
+      expect(db.updateRow).toHaveBeenCalledTimes(1);
+    }
+  });
+
   test("an on-behalf actor records admin as source and actor", async () => {
     getExpenseViewer.mockResolvedValue(
       viewer({ emails: ["boss@example.com"], isGlobalAdmin: true })
@@ -179,6 +213,14 @@ describe("updateExpenseReceipt", () => {
   });
 
   test("recomputes the total after an amount change", async () => {
+    db.getRow.mockResolvedValueOnce(expense()).mockResolvedValueOnce({
+      $id: "ex1",
+      expenseAttachments: [
+        { $id: "a1", amount: 100.46 },
+        { $id: "a2", amount: 70 },
+        { $id: "stmt", amount: 0 },
+      ],
+    });
     const result = await updateExpenseReceipt({
       attachmentId: "a1",
       changes: { amount: 100.456 },
@@ -208,6 +250,91 @@ describe("updateExpenseReceipt", () => {
     expect(events[1]).toMatchObject({ after: "170.46", before: "250" });
   });
 
+  test("recomputes the total from every receipt of the expense", async () => {
+    // Receipts without an expense_id column value still count: the total
+    // is read through the expense's expenseAttachments relation.
+    db.getRow.mockResolvedValueOnce(expense()).mockResolvedValueOnce({
+      $id: "ex1",
+      expenseAttachments: [
+        { $id: "a1", amount: 100 },
+        { $id: "a2", amount: 50.5 },
+        { $id: "stmt", amount: 0 },
+      ],
+    });
+    const result = await updateExpenseReceipt({
+      attachmentId: "a1",
+      changes: { amount: 100 },
+      expenseId: "ex1",
+    });
+    expect(result).toEqual({ data: { total: 150.5 } });
+    expect(db.getRow.mock.calls[1]).toEqual([
+      "app",
+      "expense",
+      "ex1",
+      [
+        Query.select([
+          "$id",
+          "expenseAttachments.$id",
+          "expenseAttachments.amount",
+        ]),
+      ],
+    ]);
+    expect(db.updateRow).toHaveBeenCalledWith("app", "expense", "ex1", {
+      total: 150.5,
+    });
+  });
+
+  test("saving an edit updates the receipt's example", async () => {
+    const legacy = {
+      ...attachment("a1", 200),
+      type_source: "legacy_app",
+    };
+    db.getRow.mockResolvedValue({
+      ...expense(),
+      department: "dept1",
+      expenseAttachments: [legacy, attachment("a2", 50)],
+    });
+    db.listRows.mockImplementation((_d: string, table: string) => {
+      if (table === "expense_approvals") {
+        return Promise.resolve({ rows: steps });
+      }
+      if (table === "expense_cost_types") {
+        return Promise.resolve({
+          rows: [
+            {
+              account_number: 6800,
+              active: true,
+              label: "Office",
+              slug: "office",
+              tax_code: 1,
+            },
+          ],
+        });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+    const result = await updateExpenseReceipt({
+      attachmentId: "a1",
+      changes: { costType: "office" },
+      expenseId: "ex1",
+    });
+    expect(result).toHaveProperty("data");
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "expense_attachments",
+      "a1",
+      expect.objectContaining({ type_source: "approver" })
+    );
+    const example = db.createRow.mock.calls.find(
+      (call) => call[1] === "expense_type_examples"
+    );
+    expect(example?.[3]).toMatchObject({
+      department_id: "dept1",
+      final_cost_type: "office",
+      type_source: "approver",
+    });
+  });
+
   test("a no-op change writes nothing", async () => {
     const result = await updateExpenseReceipt({
       attachmentId: "a1",
@@ -217,6 +344,122 @@ describe("updateExpenseReceipt", () => {
     expect(result).toEqual({ data: { total: 250 } });
     expect(db.updateRow).not.toHaveBeenCalled();
     expect(db.createRow).not.toHaveBeenCalled();
+  });
+});
+
+describe("applyProjectToAllReceipts", () => {
+  const withProjects = () =>
+    db.listRows.mockImplementation((_d: string, table: string) => {
+      if (table === "expense_approvals") {
+        return Promise.resolve({ rows: steps });
+      }
+      if (table === "finago_projects") {
+        return Promise.resolve({
+          rows: [{ active: true, name: "Fadderullan 2026", project_id: "p1" }],
+        });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+  test("refuses to set a project while the check is still working", async () => {
+    withProjects();
+    db.getRow.mockResolvedValue({ ...expense(), check_state: "running" });
+
+    expect(await applyProjectToAllReceipts("ex1", "p1")).toEqual({
+      error: "checking",
+    });
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+
+  test("apply to all sets every receipt with an amount", async () => {
+    withProjects();
+    db.getRow.mockResolvedValue({
+      ...expense(),
+      expenseAttachments: [
+        attachment("a1", 200),
+        { ...attachment("a2", 50), project_id: "p1" },
+        attachment("stmt", 0),
+      ],
+    });
+    const result = await applyProjectToAllReceipts("ex1", "p1");
+    expect(result).toEqual({ data: { changed: 1, failed: 0 } });
+    const updates = db.updateRow.mock.calls.filter(
+      (call) => call[1] === "expense_attachments"
+    );
+    // a2 already has it and the statement is skipped.
+    expect(updates.map((call) => call[2])).toEqual(["a1"]);
+    expect(updates[0]?.[3]).toMatchObject({
+      project_id: "p1",
+      project_name: "Fadderullan 2026",
+      project_source: "approver",
+    });
+    const events = db.createRow.mock.calls
+      .map((call) => call[3] as Record<string, unknown>)
+      .filter((e) => e.field === "project");
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      action: "edited",
+      attachment_id: "a1",
+    });
+  });
+
+  test("a failure part-way leaves events for exactly the rows written", async () => {
+    withProjects();
+    db.getRow.mockResolvedValue(expense());
+    db.updateRow
+      .mockResolvedValueOnce({})
+      .mockRejectedValueOnce(new Error("boom"));
+    const spy = spyOn(console, "error").mockImplementation(() => undefined);
+    const result = await applyProjectToAllReceipts("ex1", "p1");
+    spy.mockRestore();
+    expect(result).toEqual({ data: { changed: 1, failed: 1 } });
+    const events = db.createRow.mock.calls
+      .map((call) => call[3] as Record<string, unknown>)
+      .filter((e) => e.field === "project");
+    expect(events.map((e) => e.attachment_id)).toEqual(["a1"]);
+  });
+
+  test("refuses when the expense stopped being pending", async () => {
+    withProjects();
+    db.getRow
+      .mockResolvedValueOnce(expense())
+      .mockResolvedValueOnce({ $id: "ex1", status: "approved" });
+    expect(await applyProjectToAllReceipts("ex1", "p1")).toEqual({
+      error: "not_pending",
+    });
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+
+  test("booked receipts are not changed", async () => {
+    withProjects();
+    db.getRow.mockResolvedValue({
+      ...expense(),
+      expenseAttachments: [
+        { ...attachment("a1", 200), booked_date: "2026-11-02T00:00:00.000Z" },
+        attachment("a2", 50),
+      ],
+    });
+    const result = await applyProjectToAllReceipts("ex1", "p1");
+    expect(result).toEqual({ data: { changed: 1, failed: 0 } });
+    const updates = db.updateRow.mock.calls.map((call) => call[2]);
+    expect(updates).toEqual(["a2"]);
+  });
+
+  test("refuses a viewer who cannot edit", async () => {
+    withProjects();
+    getExpenseViewer.mockResolvedValue(viewer({ emails: ["other@x.no"] }));
+    expect(await applyProjectToAllReceipts("ex1", "p1")).toEqual({
+      error: "forbidden",
+    });
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+
+  test("an unknown project changes nothing", async () => {
+    withProjects();
+    expect(await applyProjectToAllReceipts("ex1", "zzz")).toEqual({
+      error: "invalid_project",
+    });
+    expect(db.updateRow).not.toHaveBeenCalled();
   });
 });
 
@@ -452,6 +695,28 @@ describe("changeExpenseApprover", () => {
     expect(result).toEqual({ error: "not_current_step" });
   });
 
+  test("passes directorySkipped through for a general-manager step", async () => {
+    globalAdmin();
+    fetchMock.mockResolvedValue(
+      Response.json({
+        result: {
+          directorySaved: false,
+          directorySkipped: true,
+          notified: true,
+          ok: true,
+        },
+      })
+    );
+    const result = await changeExpenseApprover({
+      approvalId: "s1",
+      email: "new@biso.no",
+      expenseId: "ex1",
+    });
+    expect(result).toEqual({
+      data: { directorySaved: false, directorySkipped: true, notified: true },
+    });
+  });
+
   test("accepts a biso address in any case and reports notified", async () => {
     globalAdmin();
     fetchMock.mockResolvedValue(
@@ -465,7 +730,11 @@ describe("changeExpenseApprover", () => {
       expenseId: "ex1",
     });
     expect(result).toEqual({
-      data: { directorySaved: false, notified: false },
+      data: {
+        directorySaved: false,
+        directorySkipped: false,
+        notified: false,
+      },
     });
     expect(apiUrl()).toBe(
       "https://api.example.test/api/expenses/admin/change-approver"
@@ -539,6 +808,26 @@ describe("retryExpenseBooking", () => {
     }
   });
 
+  test("a booking it could not record carries its transaction id", async () => {
+    failedExpense();
+    globalAdmin();
+    fetchMock.mockResolvedValue(
+      Response.json(
+        {
+          code: "booking_unrecorded",
+          error:
+            "Finago has the booking (tx-9) but it could not be saved here.",
+          transactionId: "tx-9",
+        },
+        { status: 400 }
+      )
+    );
+    expect(await retryExpenseBooking({ expenseId: "ex1" })).toEqual({
+      error: "booking_unrecorded",
+      transactionId: "tx-9",
+    });
+  });
+
   test("keeps Finago's message for a failed booking", async () => {
     failedExpense();
     globalAdmin();
@@ -592,5 +881,77 @@ describe("changeExpenseApprover api codes", () => {
         expenseId: "ex1",
       })
     ).toEqual({ error: "self_approver" });
+  });
+});
+
+describe("rebuildExpenseChain", () => {
+  const NO_APPROVER_ISSUE = {
+    reason:
+      "No approver could be resolved. The reimbursement is pending with no approval step.",
+  };
+  // A pending expense with no steps, and the given approval issues.
+  const emptyChain = (issues: object[] = [NO_APPROVER_ISSUE]) => {
+    db.getRow.mockResolvedValue(expense());
+    db.listRows.mockImplementation((_d: string, table: string) =>
+      Promise.resolve({
+        rows: table === "expense_approval_issues" ? issues : [],
+      })
+    );
+  };
+  const globalAdmin = () =>
+    getExpenseViewer.mockResolvedValue(
+      viewer({ emails: ["boss@example.com"], isGlobalAdmin: true })
+    );
+
+  test("only global admins can rebuild a chain", async () => {
+    emptyChain();
+    getExpenseViewer.mockResolvedValue(viewer({ isCampusAdmin: true }));
+    expect(await rebuildExpenseChain("ex1")).toEqual({ error: "forbidden" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("refuses an expense that went to accounting by email", async () => {
+    emptyChain([]);
+    globalAdmin();
+    expect(await rebuildExpenseChain("ex1")).toEqual({ error: "forbidden" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("refuses while direct booking is off", async () => {
+    emptyChain();
+    globalAdmin();
+    isFeatureEnabled.mockResolvedValue(false);
+    expect(await rebuildExpenseChain("ex1")).toEqual({ error: "forbidden" });
+    expect(isFeatureEnabled).toHaveBeenCalledWith("expenses_ledger_posting");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("maps the api's not_rebuildable refusal", async () => {
+    emptyChain();
+    globalAdmin();
+    fetchMock.mockResolvedValue(
+      Response.json({ code: "not_rebuildable", error: "no" }, { status: 400 })
+    );
+    expect(await rebuildExpenseChain("ex1")).toEqual({
+      error: "not_rebuildable",
+    });
+  });
+
+  test("calls the rebuild route for a global admin", async () => {
+    emptyChain();
+    globalAdmin();
+    fetchMock.mockResolvedValue(
+      Response.json({ result: { ok: true, stepsCreated: 2 } })
+    );
+    expect(await rebuildExpenseChain("ex1")).toEqual({
+      data: { stepsCreated: 2 },
+    });
+    expect(apiUrl()).toBe(
+      "https://api.example.test/api/expenses/admin/rebuild-chain"
+    );
+    expect(apiBody()).toMatchObject({
+      actor: { kind: "admin" },
+      expenseId: "ex1",
+    });
   });
 });

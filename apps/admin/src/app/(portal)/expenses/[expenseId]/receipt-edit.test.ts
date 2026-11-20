@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import {
   type ExpenseAttachments,
   ExpenseAttachmentsAccountSource,
+  ExpenseAttachmentsProjectSource,
+  ExpenseAttachmentsTypeSource,
 } from "@repo/api/types/appwrite";
 import {
   type ExpenseTypeOption,
@@ -47,6 +49,10 @@ const ctx = (over: Partial<ReceiptEditContext> = {}): ReceiptEditContext => ({
     [7300, { active: true, taxCode: null }],
     [7400, { active: false, taxCode: 3 }],
   ]),
+  projects: new Map([
+    ["p1", { active: true, name: "Fadderullan 2026" }],
+    ["p2", { active: false, name: "Gamle Dager 2019" }],
+  ]),
   source: "approver",
   today: "2026-11-12",
   types,
@@ -69,11 +75,48 @@ describe("planReceiptEdit", () => {
       cost_type: "office",
       cost_type_text: null,
       tax_code: 1,
+      type_source: ExpenseAttachmentsTypeSource.APPROVER,
     });
     expect(plan.events).toEqual([
       { after: "office", before: "food", field: "cost_type" },
       { after: "6800", before: "7140", field: "account_number" },
     ]);
+  });
+
+  test("a type change by an admin records admin", () => {
+    const plan = ok(
+      planReceiptEdit(
+        current(),
+        { costType: "office" },
+        ctx({ source: "admin" })
+      )
+    );
+    expect(plan.patch.type_source).toBe(ExpenseAttachmentsTypeSource.ADMIN);
+  });
+
+  test("a legacy app receipt corrected by an approver teaches", () => {
+    const plan = ok(
+      planReceiptEdit(
+        current({ type_source: ExpenseAttachmentsTypeSource.LEGACY_APP }),
+        { costType: "office" },
+        ctx()
+      )
+    );
+    expect(plan.patch.type_source).toBe(ExpenseAttachmentsTypeSource.APPROVER);
+  });
+
+  test("an account-only edit does not mark the type as human-chosen", () => {
+    const plan = ok(
+      planReceiptEdit(
+        current({ type_source: ExpenseAttachmentsTypeSource.LEGACY_APP }),
+        { accountNumber: 7300 },
+        ctx()
+      )
+    );
+    expect(plan.patch).not.toHaveProperty("type_source");
+    expect(plan.patch.account_source).toBe(
+      ExpenseAttachmentsAccountSource.APPROVER
+    );
   });
 
   test("account change keeps the type and takes the account's tax code", () => {
@@ -223,5 +266,79 @@ describe("planReceiptEdit", () => {
       planReceiptEdit(statement, { description: "Bank statement" }, ctx())
     );
     expect(plan.patch).toEqual({ description: "Bank statement" });
+  });
+
+  test("sets a project and records who chose it", () => {
+    const plan = ok(planReceiptEdit(current(), { projectId: "p1" }, ctx()));
+    expect(plan.patch).toEqual({
+      project_confidence: null,
+      project_id: "p1",
+      project_name: "Fadderullan 2026",
+      project_source: ExpenseAttachmentsProjectSource.APPROVER,
+    });
+    expect(plan.events).toEqual([
+      { after: "Fadderullan 2026", before: null, field: "project" },
+    ]);
+    const asAdmin = ok(
+      planReceiptEdit(current(), { projectId: "p1" }, ctx({ source: "admin" }))
+    );
+    expect(asAdmin.patch.project_source).toBe(
+      ExpenseAttachmentsProjectSource.ADMIN
+    );
+  });
+
+  test("refuses an inactive project", () => {
+    expect(planReceiptEdit(current(), { projectId: "p2" }, ctx())).toEqual({
+      error: "invalid_project",
+    });
+    expect(planReceiptEdit(current(), { projectId: "nope" }, ctx())).toEqual({
+      error: "invalid_project",
+    });
+  });
+
+  test("clearing the project logs before and after", () => {
+    const plan = ok(
+      planReceiptEdit(
+        current({ project_id: "p1", project_name: "Fadderullan 2026" }),
+        { projectId: null },
+        ctx()
+      )
+    );
+    expect(plan.patch).toEqual({
+      project_confidence: null,
+      project_id: null,
+      project_name: null,
+      project_source: ExpenseAttachmentsProjectSource.APPROVER,
+    });
+    expect(plan.events).toEqual([
+      { after: null, before: "Fadderullan 2026", field: "project" },
+    ]);
+  });
+
+  test("the same project changes and logs nothing", () => {
+    const plan = ok(
+      planReceiptEdit(
+        current({ project_id: "p1", project_name: "Fadderullan 2026" }),
+        { projectId: "p1" },
+        ctx()
+      )
+    );
+    expect(plan).toEqual({ events: [], patch: {} });
+  });
+
+  test("a supporting statement takes no project", () => {
+    expect(
+      planReceiptEdit(current({ amount: 0 }), { projectId: "p1" }, ctx())
+    ).toEqual({ error: "supporting_receipt" });
+  });
+
+  test("a booked receipt keeps its project", () => {
+    expect(
+      planReceiptEdit(
+        current({ booked_date: "2026-11-02T00:00:00.000Z" }),
+        { projectId: "p1" },
+        ctx()
+      )
+    ).toEqual({ error: "already_booked" });
   });
 });
