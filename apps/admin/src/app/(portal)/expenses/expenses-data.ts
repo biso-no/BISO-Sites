@@ -43,6 +43,7 @@ import {
   parseListParams,
 } from "@/lib/list-params";
 import { paginationQueries } from "@/lib/list-queries";
+import { checkReasonFor, isChecking } from "./check-model";
 
 export type ExpenseListView = "all" | "mine" | "attention";
 
@@ -58,6 +59,8 @@ export interface ExpenseListFilters {
 
 export interface ExpenseListRow {
   campusName: string;
+  /** The background check is still queued or running. */
+  checking: boolean;
   currentStep: { approverEmail: string; role: string } | null;
   departmentName: string;
   flags: { approverIssue: boolean; failed: boolean; hints: number };
@@ -90,6 +93,7 @@ const SELECT = [
   "campus",
   "department",
   "approver_hints",
+  "check_state",
   "userId",
   "user.name",
   "departmentRel.Name",
@@ -339,6 +343,7 @@ export async function listExpenses(
       );
       return {
         campusName: row.campusRel?.name ?? "",
+        checking: isChecking(row.check_state),
         currentStep: current
           ? {
               approverEmail: current.approver_email,
@@ -372,6 +377,8 @@ export interface ExpenseDetailReceipt {
   aiCostType: string | null;
   amount: number | null;
   bookedDate: string | null;
+  /** The check's one-line reason, from its latest event for this receipt. */
+  checkReason: string | null;
   costType: string | null;
   costTypeLabel: string | null;
   costTypeText: string | null;
@@ -423,6 +430,8 @@ export interface ExpenseDetail {
   bankAccount: string;
   bookingFailure: string | null;
   campus: { id: string; name: string };
+  /** The background check is still queued or running. */
+  checking: boolean;
   department: { id: string; name: string };
   description: string;
   /** `title` is null when the event row no longer carries its name. */
@@ -461,6 +470,7 @@ const DETAIL_SELECT = [
   "event_id",
   "eventName",
   "approver_hints",
+  "check_state",
   "userId",
   "ledger_transaction_id",
   "submitter_is_financial_manager",
@@ -489,6 +499,7 @@ function toReceipt(row: ExpenseAttachments): ExpenseDetailReceipt {
     aiCostType: row.ai_cost_type,
     amount: row.amount,
     bookedDate: row.booked_date,
+    checkReason: null,
     costType: row.cost_type,
     costTypeLabel: null,
     costTypeText: row.cost_type_text,
@@ -741,6 +752,19 @@ export async function getExpenseDetail(
       .map(toReceipt),
     locale
   );
+  const events = parts.events.map((e) => ({
+    action: e.action,
+    actorEmail: e.actor_email,
+    actorKind: e.actor_kind,
+    actorName: e.actor_name,
+    after: e.after,
+    at: e.$createdAt,
+    attachmentId: e.attachment_id,
+    before: e.before,
+    field: e.field,
+    id: e.$id,
+    note: e.note,
+  }));
   const bankAccount = expense.bank_account ?? "";
   return {
     bankAccount: permissions.canEditBankAccount
@@ -749,6 +773,7 @@ export async function getExpenseDetail(
     bookingFailure:
       expense.status === ExpensesStatus.FAILED ? parts.failureNote : null,
     campus: { id: expense.campus, name: expense.campusRel?.name ?? "" },
+    checking: isChecking(expense.check_state),
     department: {
       id: expense.department,
       name: expense.departmentRel?.Name ?? "",
@@ -760,19 +785,7 @@ export async function getExpenseDetail(
           title: expense.eventName ?? null,
         }
       : null,
-    events: parts.events.map((e) => ({
-      action: e.action,
-      actorEmail: e.actor_email,
-      actorKind: e.actor_kind,
-      actorName: e.actor_name,
-      after: e.after,
-      at: e.$createdAt,
-      attachmentId: e.attachment_id,
-      before: e.before,
-      field: e.field,
-      id: e.$id,
-      note: e.note,
-    })),
+    events,
     hints: await withHintTypeLabels(
       db,
       parseApproverHints(expense.approver_hints),
@@ -789,7 +802,10 @@ export async function getExpenseDetail(
     presidentFallback:
       expense.campus !== NATIONAL_CAMPUS_ID &&
       parts.approvals.some((a) => a.approver_role === "national"),
-    receipts,
+    receipts: receipts.map((r) => ({
+      ...r,
+      checkReason: checkReasonFor(events, r.id),
+    })),
     reference: reimbursementNumber(expense.$sequence),
     status: expense.status,
     steps: parts.approvals.map((a) => ({

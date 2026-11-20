@@ -92,6 +92,7 @@ export default async function ExpenseDetailPage({
         departmentName={detail.department.name}
         editOptions={editOptions}
         expenseId={detail.id}
+        hints={detail.hints}
         receipts={detail.receipts}
       />
       <ExpenseSteps

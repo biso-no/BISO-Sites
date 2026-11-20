@@ -17,6 +17,8 @@ export interface AiEvalWindow {
     slug: string;
     total: number;
   }[];
+  /** Receipts where the check set a project, and how many it still has. */
+  projectKept: { kept: number; keptRate: number | null; total: number };
   total: number;
 }
 
@@ -24,6 +26,7 @@ export interface RerunLabels {
   /** Contains `{checked}` and `{considered}`. */
   checked: string;
   confidence: string;
+  confirmed: string;
   description: string;
   /** The message for each action error code; `failed` is the fallback. */
   errors: Record<string, string>;
@@ -40,8 +43,11 @@ export interface RerunLabels {
   pending: string;
   predicted: string;
   run: string;
+  /** Contains `{hits}` and `{checked}`. */
+  scoreCount: string;
   stoppedEarly: string;
   title: string;
+  unconfirmed: string;
   unscored: string;
   vendor: string;
 }
@@ -60,6 +66,9 @@ export interface AiEvalLabels {
   ownText: string;
   perTypeTitle: string;
   picks: string;
+  projectKept: string;
+  /** Contains `{kept}` and `{total}`. */
+  projectKeptCount: string;
   recurringEmpty: string;
   recurringHint: string;
   recurringTitle: string;
@@ -153,7 +162,29 @@ function RerunSection({
           <p className="font-medium text-2xl" style={{ color: STUDIO.ink }}>
             {percent(result.hitRate)}
           </p>
-          <p className="text-[12px]" style={{ color: STUDIO.ink4 }}>
+          <dl className="mt-2 grid grid-cols-2 gap-3 text-[13px]">
+            {(
+              [
+                [labels.confirmed, result.confirmed],
+                [labels.unconfirmed, result.unconfirmed],
+              ] as const
+            ).map(([name, score]) => (
+              <div key={name}>
+                <dt className="text-[12px]" style={{ color: STUDIO.ink4 }}>
+                  {name}
+                </dt>
+                <dd>
+                  <span className="font-medium">{percent(score.hitRate)}</span>
+                  <span className="ml-1" style={{ color: STUDIO.ink4 }}>
+                    {labels.scoreCount
+                      .replace("{hits}", String(score.hits))
+                      .replace("{checked}", String(score.checked))}
+                  </span>
+                </dd>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-2 text-[12px]" style={{ color: STUDIO.ink4 }}>
             {labels.checked
               .replace("{checked}", String(result.checked))
               .replace("{considered}", String(result.considered))}
@@ -261,6 +292,17 @@ export function AiEvalClient({
               {labels.overallCount
                 .replace("{kept}", String(stats.kept))
                 .replace("{total}", String(stats.total))}
+            </p>
+            <p className="mt-3 text-[12px]" style={{ color: STUDIO.ink4 }}>
+              {labels.projectKept}
+            </p>
+            <p className="font-medium text-2xl" style={{ color: STUDIO.ink }}>
+              {percent(stats.projectKept.keptRate)}
+            </p>
+            <p className="text-[12px]" style={{ color: STUDIO.ink4 }}>
+              {labels.projectKeptCount
+                .replace("{kept}", String(stats.projectKept.kept))
+                .replace("{total}", String(stats.projectKept.total))}
             </p>
           </div>
           <div className="flex gap-1">

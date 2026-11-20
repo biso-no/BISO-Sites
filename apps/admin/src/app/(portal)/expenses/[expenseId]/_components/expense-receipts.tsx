@@ -1,3 +1,4 @@
+import type { ApproverHint } from "@repo/shared/utils/expense-hints";
 import { useLocale, useTranslations } from "next-intl";
 import { MONO_STACK, STUDIO, StudioPanel } from "../../../_components/studio";
 import {
@@ -5,7 +6,9 @@ import {
   fmtNOK,
   normalizeLocale,
 } from "../../../shop/_components/shop-studio-theme";
+import { hintsForReceipt } from "../../check-model";
 import type { ExpenseDetailReceipt } from "../../expenses-data";
+import { useHintLine } from "./expense-header";
 import { type ReceiptEditOptions, ReceiptEditor } from "./receipt-editor";
 
 interface Props {
@@ -13,6 +16,8 @@ interface Props {
   /** Present only when the viewer may edit receipts. */
   editOptions: ReceiptEditOptions | null;
   expenseId: string;
+  /** All the expense's hints; each receipt shows the ones tied to it. */
+  hints: ApproverHint[];
   receipts: ExpenseDetailReceipt[];
 }
 
@@ -48,9 +53,11 @@ export function ExpenseReceipts({
   departmentName,
   editOptions,
   expenseId,
+  hints,
   receipts,
 }: Props) {
   const t = useTranslations("adminPortal.expenses");
+  const hintLine = useHintLine();
   const locale = normalizeLocale(useLocale());
   const date = (iso: string | null) => (iso ? fmtDate(iso, locale) : t("none"));
 
@@ -154,6 +161,23 @@ export function ExpenseReceipts({
                         {t(`issues.${issue}`)}
                       </span>
                     ))}
+                    {hintsForReceipt(hints, r.id).map((hint, i) => (
+                      <span
+                        className="block"
+                        key={`${hint.code}-${i}`}
+                        style={{ color: STUDIO.ink3 }}
+                      >
+                        {hintLine(hint)}
+                      </span>
+                    ))}
+                    {r.checkReason && (
+                      <span
+                        className="block text-[12px]"
+                        style={{ color: STUDIO.ink4 }}
+                      >
+                        {t("receipts.checkNote", { reason: r.checkReason })}
+                      </span>
+                    )}
                   </td>
                   <td className="px-3 py-2">{date(r.bookedDate)}</td>
                   {editOptions && (

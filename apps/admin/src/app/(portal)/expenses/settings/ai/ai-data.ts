@@ -4,14 +4,20 @@ import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import {
   type ExpenseAttachments,
+  ExpenseAttachmentsProjectSource,
   type ExpenseCostTypes,
+  type ExpenseEvents,
   type Expenses,
   ExpensesStatus,
 } from "@repo/api/types/appwrite";
 import { redirect } from "next/navigation";
 import { getUserAuthContext } from "@/lib/authorization";
 import { ROLES } from "@/lib/roles";
-import { AI_EVAL_WINDOW_DAYS, type EvalRow } from "./ai-model";
+import {
+  AI_EVAL_WINDOW_DAYS,
+  type EvalRow,
+  type ProjectPickRow,
+} from "./ai-model";
 
 const MS_PER_DAY = 86_400_000;
 const PAGE_SIZE = 500;
@@ -26,6 +32,8 @@ export interface AiEvalData {
   capped: boolean;
   /** Every non-draft receipt with an own text, AI pick or not. */
   ownTextRows: Pick<EvalRow, "costTypeText">[];
+  /** One per receipt where the background check set a project. */
+  projectRows: ProjectPickRow[];
   /** Non-draft receipts with an AI pick. */
   rows: EvalRow[];
   typeLabels: { label: string; labelNo: string | null; slug: string }[];
@@ -96,6 +104,62 @@ async function readDraftExpenseIds(
   return drafts;
 }
 
+/**
+ * Receipts where the background check set a project, from its history rows,
+ * and whether each project is still the check's: a later approver or admin
+ * edit changes `project_source`.
+ */
+async function readProjectPicks(
+  db: AdminDb,
+  since: string
+): Promise<ProjectPickRow[]> {
+  const events: ExpenseEvents[] = [];
+  while (events.length < AI_EVAL_ROW_CAP) {
+    const page = await db.listRows<ExpenseEvents>("app", "expense_events", [
+      Query.equal("action", "edited"),
+      Query.equal("field", "project"),
+      Query.equal("actor_kind", "ai"),
+      Query.greaterThanEqual("$createdAt", since),
+      Query.select(["attachment_id", "$createdAt"]),
+      Query.orderDesc("$createdAt"),
+      Query.limit(PAGE_SIZE),
+      Query.offset(events.length),
+    ]);
+    events.push(...page.rows);
+    if (page.rows.length < PAGE_SIZE) {
+      break;
+    }
+  }
+  // The latest change of a receipt's project is the one that counts.
+  const latest = new Map<string, string>();
+  for (const event of events) {
+    if (event.attachment_id && !latest.has(event.attachment_id)) {
+      latest.set(event.attachment_id, event.$createdAt);
+    }
+  }
+  const ids = [...latest.keys()];
+  const sources = new Map<string, string | null>();
+  for (let i = 0; i < ids.length; i += ID_CHUNK) {
+    const chunk = ids.slice(i, i + ID_CHUNK);
+    const page = await db.listRows<ExpenseAttachments>(
+      "app",
+      "expense_attachments",
+      [
+        Query.equal("$id", chunk),
+        Query.select(["$id", "project_source"]),
+        Query.limit(ID_CHUNK),
+      ]
+    );
+    for (const row of page.rows) {
+      sources.set(row.$id, row.project_source);
+    }
+  }
+  return ids.map((id) => ({
+    createdAt: latest.get(id) as string,
+    kept: sources.get(id) === ExpenseAttachmentsProjectSource.AI_CHECK,
+  }));
+}
+
 export async function loadAiEvalData(): Promise<AiEvalData> {
   await requireGlobalAdmin();
   const { db } = await createAdminClient();
@@ -105,7 +169,7 @@ export async function loadAiEvalData(): Promise<AiEvalData> {
 
   // The own texts are read on their own: a student who typed one may have
   // had no AI pick at all.
-  const [picks, ownTexts, types] = await Promise.all([
+  const [picks, ownTexts, types, projectRows] = await Promise.all([
     readAttachments(db, [
       Query.isNotNull("ai_cost_type"),
       Query.greaterThanEqual("$createdAt", since),
@@ -127,6 +191,7 @@ export async function loadAiEvalData(): Promise<AiEvalData> {
       Query.select(["slug", "label", "label_no"]),
       Query.limit(TYPES_LIMIT),
     ]),
+    readProjectPicks(db, since),
   ]);
 
   const expenseIds = [
@@ -145,6 +210,7 @@ export async function loadAiEvalData(): Promise<AiEvalData> {
     ownTextRows: ownTexts.rows
       .filter(notDraft)
       .map((row) => ({ costTypeText: row.cost_type_text })),
+    projectRows,
     rows: picks.rows.filter(notDraft).map((row) => ({
       aiConfidence: row.ai_confidence,
       aiCostType: row.ai_cost_type,

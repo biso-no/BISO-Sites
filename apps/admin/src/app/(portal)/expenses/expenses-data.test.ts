@@ -345,6 +345,30 @@ describe("listExpenses", () => {
   });
 });
 
+describe("listExpenses checking flag", () => {
+  const withState = async (check_state: string | null) => {
+    db.listRows.mockImplementation((_d: string, table: string) =>
+      table === "expense"
+        ? { rows: [{ ...expenseRow, check_state }], total: 1 }
+        : { rows: [] }
+    );
+    return (await listExpenses(viewer(), filters())).rows[0]?.checking;
+  };
+
+  test("is set while the check is queued or running", async () => {
+    expect(await withState("queued")).toBe(true);
+    expect(await withState("running")).toBe(true);
+    expect(await withState("done")).toBe(false);
+    expect(await withState("fallback")).toBe(false);
+    expect(await withState(null)).toBe(false);
+  });
+
+  test("the list reads the check state", async () => {
+    await withState("queued");
+    expect(db.listRows.mock.calls[0]?.[2].join("\n")).toContain("check_state");
+  });
+});
+
 describe("getExpenseDetail", () => {
   test("returns null for a draft", async () => {
     db.getRow.mockResolvedValue({

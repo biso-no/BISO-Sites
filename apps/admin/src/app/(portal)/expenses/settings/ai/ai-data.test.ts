@@ -25,12 +25,23 @@ interface Tables {
   aiRows?: object[];
   drafts?: string[];
   ownTextRows?: object[];
+  projectEvents?: object[];
+  projectReceipts?: object[];
 }
 
 function seed(tables: Tables) {
   db.listRows.mockImplementation(
     (_db: string, table: string, queries: string[]) => {
       const text = queries.join("\n");
+      if (table === "expense_events") {
+        return Promise.resolve({ rows: tables.projectEvents ?? [] });
+      }
+      if (
+        table === "expense_attachments" &&
+        text.includes('"attribute":"$id"')
+      ) {
+        return Promise.resolve({ rows: tables.projectReceipts ?? [] });
+      }
       if (table === "expense_attachments") {
         return Promise.resolve(
           text.includes('"attribute":"ai_cost_type"')
@@ -125,5 +136,39 @@ describe("loadAiEvalData", () => {
       { costTypeText: "parking " },
       { costTypeText: "Parking" },
     ]);
+  });
+
+  test("a project the check set counts as kept while its source is still the check", async () => {
+    seed({
+      projectEvents: [
+        { $createdAt: NOW, attachment_id: "a1" },
+        { $createdAt: NOW, attachment_id: "a2" },
+        { $createdAt: NOW, attachment_id: "a2" },
+        { $createdAt: NOW, attachment_id: "a3" },
+      ],
+      projectReceipts: [
+        { $id: "a1", project_source: "ai_check" },
+        { $id: "a2", project_source: "approver" },
+        { $id: "a3", project_source: "ai_check" },
+      ],
+    });
+
+    const data = await loadAiEvalData();
+
+    expect(data.projectRows).toEqual([
+      { createdAt: NOW, kept: true },
+      { createdAt: NOW, kept: false },
+      { createdAt: NOW, kept: true },
+    ]);
+    const eventQuery = db.listRows.mock.calls
+      .find(([, table]) => table === "expense_events")?.[2]
+      .join("\n");
+    expect(eventQuery).toContain('"attribute":"field"');
+    expect(eventQuery).toContain('"attribute":"actor_kind"');
+  });
+
+  test("has no project picks when the check set none", async () => {
+    seed({});
+    expect((await loadAiEvalData()).projectRows).toEqual([]);
   });
 });

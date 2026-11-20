@@ -14,6 +14,7 @@ import {
   AI_EVAL_WINDOW_DAYS,
   keptStats,
   OWN_TEXT_KEY,
+  projectKeptStats,
   RECURRING_MIN_COUNT,
   recurringOwnTexts,
 } from "./ai-model";
@@ -86,6 +87,7 @@ export default async function ExpenseAiSettingsPage() {
         slug: type.slug,
         total: type.total,
       })),
+      projectKept: projectKeptStats(data.projectRows, now, days),
       total: stats.total,
     };
   };
@@ -108,6 +110,8 @@ export default async function ExpenseAiSettingsPage() {
           ownText: ta("ownText"),
           perTypeTitle: ta("perTypeTitle"),
           picks: ta("picks"),
+          projectKept: ta("projectKept"),
+          projectKeptCount: ta.raw("projectKeptCount") as string,
           recurringEmpty: ta("recurringEmpty"),
           recurringHint: ta("recurringHint", {
             count: RECURRING_MIN_COUNT,
@@ -117,6 +121,7 @@ export default async function ExpenseAiSettingsPage() {
           rerun: {
             checked: ta("rerunChecked"),
             confidence: ta("rerunConfidence"),
+            confirmed: ta("rerunConfirmed"),
             description: ta("rerunDescription"),
             errors: {
               ai_disabled: te("ai_disabled"),
@@ -135,8 +140,10 @@ export default async function ExpenseAiSettingsPage() {
             pending: ta("rerunPending"),
             predicted: ta("rerunPredicted"),
             run: ta("rerunRun"),
+            scoreCount: ta.raw("rerunScoreCount") as string,
             stoppedEarly: ta("rerunStoppedEarly"),
             title: ta("rerunTitle"),
+            unconfirmed: ta("rerunUnconfirmed"),
             unscored: ta("rerunUnscored"),
             vendor: ta("rerunVendor"),
           },

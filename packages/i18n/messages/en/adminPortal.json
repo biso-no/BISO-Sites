@@ -1420,7 +1420,8 @@
     "flags": {
       "hints": "{count, plural, one {# hint for the approver} other {# hints for the approver}}",
       "failed": "Booking failed",
-      "approverIssue": "No approver could be found"
+      "approverIssue": "No approver could be found",
+      "checking": "The AI is still checking this expense"
     },
     "none": "—",
     "empty": {
@@ -1465,6 +1466,8 @@
       "booked": "Booked",
       "supporting": "Supporting statement",
       "aiType": "AI: {type} ({confidence}%)",
+      "checkNote": "AI check: {reason}",
+      "checkingBadge": "Checking",
       "previewLabel": "Open receipt {name} in a new tab"
     },
     "steps": {
@@ -1714,6 +1717,8 @@
       "window90": "Last 90 days",
       "overall": "AI picks kept",
       "overallCount": "{kept} of {total} receipts",
+      "projectKept": "Projects set by the AI check that were kept",
+      "projectKeptCount": "{kept} of {total} receipts",
       "noData": "No receipts with an AI pick in this period.",
       "capped": "Based on the latest {count} receipts.",
       "perTypeTitle": "By type",
@@ -1730,23 +1735,26 @@
       "makeType": "Make this a type",
       "loadError": "Could not load the AI results",
       "rerunTitle": "Check against today's setup",
-      "rerunHint": "Runs the AI again on the latest {limit} booked receipts, with today's types and prompt, and counts how often it picks the type that was booked. Nothing is saved.",
+      "rerunHint": "Runs the AI again on the latest {limit} examples, with today's types and prompt, and counts how often it picks the expected type. Examples from booked reimbursements are scored apart from those not booked yet. Nothing is saved.",
       "rerunRun": "Run check",
       "rerunPending": "Running. This can take up to two minutes.",
-      "rerunHitRate": "Would pick the booked type",
+      "rerunHitRate": "Would pick the expected type",
+      "rerunConfirmed": "Booked examples",
+      "rerunUnconfirmed": "Not booked yet",
+      "rerunScoreCount": "{hits} of {checked}",
       "rerunChecked": "Checked {checked} of {considered}",
       "rerunStoppedEarly": "Stopped early to stay within the time limit. The rest were not checked.",
       "rerunMissesTitle": "Misses",
       "rerunNoMisses": "No misses.",
       "rerunVendor": "Vendor",
       "rerunDescription": "Description",
-      "rerunExpected": "Booked type",
+      "rerunExpected": "Expected type",
       "rerunPredicted": "AI's pick",
       "rerunConfidence": "Confidence",
       "rerunNoPick": "No pick",
       "rerunFailed": "Could not check {count}. They are not counted.",
       "rerunLowConfidence": "below {threshold} %",
-      "rerunUnscored": "The rest only have the student's own text, so there is no type to score."
+      "rerunUnscored": "The rest were left out: they have no type to compare, only the student's own text, a type nobody has confirmed, or no shop or description to go on."
     },
     "approvers": {
       "description": "Who approves expenses, per department and campus. Rows found by the AI show how sure it was; confirm or change them here. Changes are audited.",

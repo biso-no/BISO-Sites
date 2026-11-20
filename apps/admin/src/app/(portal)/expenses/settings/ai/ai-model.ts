@@ -129,3 +129,36 @@ export function recurringOwnTexts(
   }
   return result.sort((a, b) => b.count - a.count).slice(0, RECURRING_LIMIT);
 }
+
+/** A receipt where the check set a project; `kept` when it is still the check's. */
+export interface ProjectPickRow {
+  createdAt: string;
+  kept: boolean;
+}
+
+export interface ProjectKeptStats {
+  kept: number;
+  keptRate: number | null;
+  total: number;
+}
+
+/** How often the project the check set was kept, in the last `days` days. */
+export function projectKeptStats(
+  rows: ProjectPickRow[],
+  now: Date,
+  days: 30 | 90
+): ProjectKeptStats {
+  const since = now.getTime() - days * MS_PER_DAY;
+  let total = 0;
+  let kept = 0;
+  for (const row of rows) {
+    if (Date.parse(row.createdAt) < since) {
+      continue;
+    }
+    total += 1;
+    if (row.kept) {
+      kept += 1;
+    }
+  }
+  return { kept, keptRate: total === 0 ? null : kept / total, total };
+}

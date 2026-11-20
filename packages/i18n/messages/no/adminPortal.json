@@ -1420,7 +1420,8 @@
     "flags": {
       "hints": "{count} tips til godkjenneren",
       "failed": "Bokføring feilet",
-      "approverIssue": "Fant ingen godkjenner"
+      "approverIssue": "Fant ingen godkjenner",
+      "checking": "AI sjekker fortsatt dette utlegget"
     },
     "none": "—",
     "empty": {
@@ -1465,6 +1466,8 @@
       "booked": "Bokført",
       "supporting": "Underlag",
       "aiType": "AI: {type} ({confidence} %)",
+      "checkNote": "AI-sjekk: {reason}",
+      "checkingBadge": "Sjekker",
       "previewLabel": "Åpne kvittering {name} i en ny fane"
     },
     "steps": {
@@ -1714,6 +1717,8 @@
       "window90": "Siste 90 dager",
       "overall": "AI-valg beholdt",
       "overallCount": "{kept} av {total} kvitteringer",
+      "projectKept": "Prosjekter satt av AI-sjekken som ble beholdt",
+      "projectKeptCount": "{kept} av {total} kvitteringer",
       "noData": "Ingen kvitteringer med AI-valg i denne perioden.",
       "capped": "Basert på de siste {count} kvitteringene.",
       "perTypeTitle": "Per type",
@@ -1730,23 +1735,26 @@
       "makeType": "Lag en type av dette",
       "loadError": "Kunne ikke laste AI-resultatene",
       "rerunTitle": "Sjekk mot dagens oppsett",
-      "rerunHint": "Kjører AI-en på nytt på de siste {limit} bokførte kvitteringene, med dagens typer og prompt, og teller hvor ofte den velger typen som ble bokført. Ingenting lagres.",
+      "rerunHint": "Kjører AI-en på nytt på de siste {limit} eksemplene, med dagens typer og prompt, og teller hvor ofte den velger forventet type. Eksempler fra bokførte utlegg telles hver for seg, atskilt fra de som ikke er bokført ennå. Ingenting lagres.",
       "rerunRun": "Kjør sjekk",
       "rerunPending": "Kjører. Dette kan ta opptil to minutter.",
-      "rerunHitRate": "Ville valgt den bokførte typen",
+      "rerunHitRate": "Ville valgt forventet type",
+      "rerunConfirmed": "Bokførte eksempler",
+      "rerunUnconfirmed": "Ikke bokført ennå",
+      "rerunScoreCount": "{hits} av {checked}",
       "rerunChecked": "Sjekket {checked} av {considered}",
       "rerunStoppedEarly": "Stoppet tidlig for å holde tidsgrensen. Resten ble ikke sjekket.",
       "rerunMissesTitle": "Bom",
       "rerunNoMisses": "Ingen bom.",
       "rerunVendor": "Leverandør",
       "rerunDescription": "Beskrivelse",
-      "rerunExpected": "Bokført type",
+      "rerunExpected": "Forventet type",
       "rerunPredicted": "AI-ens valg",
       "rerunConfidence": "Sikkerhet",
       "rerunNoPick": "Ingen type",
       "rerunFailed": "Kunne ikke sjekke {count}. De er ikke regnet med.",
       "rerunLowConfidence": "under {threshold} %",
-      "rerunUnscored": "Resten har bare studentens egentekst, så det finnes ingen type å bedømme."
+      "rerunUnscored": "Resten er utelatt: de har ingen type å sammenligne med, bare studentens egentekst, en type ingen har bekreftet, eller verken butikk eller beskrivelse å gå på."
     },
     "approvers": {
       "description": "Hvem som godkjenner utlegg, per avdeling og campus. Rader funnet av AI viser hvor sikker den var; bekreft eller endre dem her. Endringer logges.",
