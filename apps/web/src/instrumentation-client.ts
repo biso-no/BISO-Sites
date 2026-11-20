@@ -1,6 +1,7 @@
 import {
   applyReplayConsent,
   readConsentFromDocument,
+  stopReplayBeforeNavigation,
 } from "@repo/observability/browser/replay";
 import {
   buildBrowserOptions,
@@ -30,8 +31,17 @@ init({
   integrations: [browserProfilingIntegration()],
 });
 
-// Replay loads and records only if this visitor said yes (consent cookie);
-// otherwise none of its code is fetched. Never rejects, so nothing awaits it.
+// Replay loads and records only if this visitor said yes (consent cookie), and
+// never on the pages in `REPLAY_DENYLIST`; otherwise none of its code is
+// fetched. Never rejects, so nothing awaits it.
 applyReplayConsent("web", readConsentFromDocument());
 
-export const onRouterTransitionStart = captureRouterTransitionStart;
+// Before the router fetches the next page: Replay stops first if that page is
+// never recorded (sign-in links and the like carry secrets in the address).
+export function onRouterTransitionStart(
+  href: string,
+  navigationType: "push" | "replace" | "traverse"
+): void {
+  stopReplayBeforeNavigation("web", href);
+  captureRouterTransitionStart(href, navigationType);
+}
