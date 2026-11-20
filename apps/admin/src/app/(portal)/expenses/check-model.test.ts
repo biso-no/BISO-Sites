@@ -31,7 +31,7 @@ describe("isChecking", () => {
   });
 });
 
-describe("checkReasonFor", () => {
+describe("checkReasonFor (adapter over the shared picker)", () => {
   test("takes the reason out of a classification note", () => {
     const events = [
       event({ note: "Confidence 0.82: Taxi receipt from the airport" }),
@@ -48,6 +48,22 @@ describe("checkReasonFor", () => {
       event({ attachmentId: "a2", id: "e3", note: "Confidence 0.9: Other" }),
     ];
     expect(checkReasonFor(events, "a1", false)).toBe("New reason");
+  });
+
+  test("the newest change note wins when events are oldest first with different times", () => {
+    const events = [
+      event({
+        at: "2026-11-19T10:00:00Z",
+        id: "e1",
+        note: "Confidence 0.6: Older reason",
+      }),
+      event({
+        at: "2026-11-19T10:05:00Z",
+        id: "e2",
+        note: "Confidence 0.9: Newest reason",
+      }),
+    ];
+    expect(checkReasonFor(events, "a1", false)).toBe("Newest reason");
   });
 
   test("ignores people and events without a note", () => {

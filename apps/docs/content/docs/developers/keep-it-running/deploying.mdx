@@ -149,7 +149,7 @@ Its README says it is deployed through the console's Git integration, and that t
 | Scopes | None. It only makes HTTP calls. |
 | Variables | `CRON_SECRET` and the target URLs. See [Scheduled jobs](/developers/keep-it-running/scheduled-jobs). |
 
-Keep the timeout above 300 seconds. Two of its targets, order reconciliation and expense posting, are allowed 300 seconds each (`functions/scheduled-dispatch/src/main.ts`). Appwrite allows at most 900.
+Keep the timeout above 300 seconds. Four of its targets, order reconciliation, expense posting, the Finago project sync and the expense check backstop, are allowed 300 seconds each (`functions/scheduled-dispatch/src/main.ts`). Appwrite allows at most 900.
 
 Don't run `appwrite push` for this function from `packages/api`. The config there would set the timeout back to 60 seconds, and it names the production project.
 

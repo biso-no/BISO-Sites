@@ -159,7 +159,7 @@ On the IT pages, global admins may do everything. Campus admins may look up acco
 **When it fails.**
 
 - The card and the email are sent separately. If one fails, the log says `[expense-approval] Teams notify failed:` or `[expense-approval] Email notify failed:`, and the other is still sent.
-- If neither reaches the first approver, the check fails after the student has already been answered. The reimbursement stays `pending` and the check stays `running`, so the backstop tries again (every 5 minutes, after 10 minutes of waiting).
+- If neither reaches the first approver, `ensureApprovalChain` records an approval issue (`The approval chain could not be created`) and throws `ApprovalChainFailedError`. The check catches it (`submitForApproval` in `expense-check/run.ts`) and ends `done` or `fallback`, so the backstop doesn't retry. The reimbursement stays `pending` with no steps until a global admin rebuilds the chain from the admin.
 - If an approver can't be found, or a later approver can't be reached, the api records an issue. Staff see it in the admin under **Utlegg** (Expenses), in the **Trenger oppfølging** (Needs attention) view (`/expenses?view=attention`), and a global admin or the campus controller can send the approval again from there. The old address `/it/expense-approvals` redirects there.
 - A card click that fails the bot's sign-in check answers `401`, and the api logs `[teams/bot] auth failed:`.
 

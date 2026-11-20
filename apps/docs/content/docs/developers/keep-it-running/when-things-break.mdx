@@ -177,7 +177,7 @@ If every admin page fails with an error instead, and the admin logs `[getUserAut
 
 **What you see.** In the admin, a reimbursement shows the **Sjekker** (Checking) badge for much longer than a minute or two, has no approval steps, and its approvers have not been told. Or a student says nobody has answered their reimbursement.
 
-**What it means.** The background check ([The expense check](/developers/reference/ai#the-expense-check)) has `check_state` `queued` or `running` and didn't finish. A normal check ends in a minute or two. The usual causes are that the api Site was restarted or deployed during the run, that the host cut the background work short (see [Check that background work survives](/developers/keep-it-running/deploying#check-that-background-work-survives)), or that notifying failed: `INVOICE_USER_ID` unset while `expenses_ledger_posting` is off, or an approval chain that couldn't be built.
+**What it means.** The background check ([The expense check](/developers/reference/ai#the-expense-check)) has `check_state` `queued` or `running` and didn't finish. A normal check ends in a minute or two. The usual causes are that the api Site was restarted or deployed during the run, that the host cut the background work short (see [Check that background work survives](/developers/keep-it-running/deploying#check-that-background-work-survives)), or that notifying failed: `INVOICE_USER_ID` unset while `expenses_ledger_posting` is off. A chain that can't be built is not a stuck check: the check ends, an approval issue is recorded, and the reimbursement shows no badge (see [Fix expense approval issues](/guide/access-and-settings/expense-approvals), the issue **The approval chain could not be created**, and its **Bygg godkjenningsflyten på nytt** action).
 
 **Check**
 
@@ -189,8 +189,7 @@ If every admin page fails with an error instead, and the admin logs `[getUserAut
 **Fix**
 
 - **The backstop wasn't running:** set `EXPENSE_CHECK_BACKSTOP_URL` on scheduled-dispatch and redeploy it, or call the route by hand with `curl -X POST https://api.biso.no/api/cron/expense-check-backstop -H "Authorization: Bearer $CRON_SECRET"`. It answers with how many checks it found and ran.
-- **It runs but the check stays stuck:** a check taken over twice runs without the AI agent, so it only fails on notifying. Fix the cause from the log (set `INVOICE_USER_ID`, or fix the approver directory) and the next tick finishes it.
-- **The approval chain failed:** the reimbursement has an approval issue starting `The approval chain could not be created`. Once the cause is fixed, a global admin chooses **Bygg godkjenningsflyten på nytt** (Rebuild approval chain) on the reimbursement.
+- **It runs but the check stays stuck:** a check taken over twice runs without the AI agent, so it only fails on notifying. Fix the cause from the log (set `INVOICE_USER_ID`) and the next tick finishes it.
 - **Background work is cut short on every check:** run the probe, and raise the api Site's timeout to 300 seconds.
 
 ## Appwrite is down

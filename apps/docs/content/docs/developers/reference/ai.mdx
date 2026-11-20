@@ -100,16 +100,16 @@ After a student submits a reimbursement, an AI agent checks it in the background
 
   Each tool call except `view_receipt` has a 5 second limit, `view_receipt` 15.
 - **Limits.** At most 12 steps (`CHECK_MAX_STEPS`), and the last one offers only `finish_check`. The whole run has a 120 second deadline (`CHECK_DEADLINE_MS`). The log has one line per step and the token use of the run (`[expense-check] <id>: ...`), never a tool's input or output.
-- **The answer.** Per receipt: `type`, `accountNumber`, `projectId` or `"none"`, a confidence for each field and a one-sentence `reason`. Also flags: `type_unsure`, `account_unsure`, `project_unsure`, `project_missing` and `project_not_created` (with `series` and `year`).
+- **The answer.** Per receipt: `type`, `accountNumber`, `projectId` or `"none"`, a confidence for each field and a one-sentence `reason`. Also flags: `type_unsure`, `account_unsure`, `project_unsure`, `project_missing` and `project_not_created` (with `series` and `year`). The agent's `account_unsure` is stored as the hint `ai_account_unsure`; the others keep their names.
 - **What the code keeps** (`apply.ts`). The agent only proposes.
   - A type must be an active type, an account an active cost account in range, and a project one of the department's candidates and active. Anything else is dropped and flagged, never stored.
   - A type chosen by the student, an approver or an admin is never changed. If the agent disagrees with a student's type, the approvers get the hint `ai_check_disagrees`. An account or project set by an approver or admin is left too.
-  - A confidence below 0.8 (`AI_TYPE_CONFIDENCE_THRESHOLD`) gives a `*_unsure` hint, and the value isn't stored.
+  - A confidence below 0.8 (`AI_TYPE_CONFIDENCE_THRESHOLD`) gives a `*_unsure` hint. The value is still stored, as the check's best guess, and the hint tells the approvers to look at it. What stands when the reimbursement is approved is what gets booked.
   - Last year's project is never booked. If next year's edition doesn't exist in Finago, the receipt gets `project_not_created`. A cost shortly after an event goes to the edition that has just finished.
   - Flags go to the approvers in the hints and the history, never to the student.
 - **History.** Each change is written to `expense_events` with the actor `AI check`: `ai_classified`, `ai_account_chosen`, and `edited` with the field `project`. Each flag is `ai_flagged`. [Accounting](/developers/reference/accounting#what-the-check-does-after-submit) says how they are shown.
 - **The fixed steps.** When the agent fails, passes its deadline or gives no answer, the fixed steps of the earlier submission flow (`enrichUnsettled` in `expense-submission.ts`) settle what is left, the hint `ai_check_incomplete` is added, and the approvers are told anyway. The state is then `fallback`, otherwise `done`. The backstop's second try for a check skips the agent and runs the fixed steps only.
-- **Switches.** The check asks the agent only while both `expenses_module` and `expenses_ocr` are on. With either off, or when the flags can't be read, there is no agent: the fixed steps run with no model call and the approvers are still told.
+- **Switches.** The check asks the agent only while both `expenses_module` and `expenses_ocr` are on. With either flag off, there is no agent: the fixed steps run with no model call, the check ends `done`, and the approvers are told with no `ai_check_incomplete`. When the flags can't be read, the AI counts as unavailable: the same steps run, but the check ends `fallback` and the approvers see `ai_check_incomplete`.
 - **Cost.** One tool loop of up to 12 model calls per reimbursement, on the balanced model, plus receipt views. The log line with the token use is the number to watch.
 
 ## The page editor copilot
