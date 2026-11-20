@@ -25,6 +25,7 @@ import type {
   ContentNotifications,
   ContentTranslations,
 } from "@repo/api/types/appwrite";
+import { reporterFromEnv } from "@repo/observability/functions";
 import {
   contentTableFor,
   NOTIFY_DEFAULT_DELAY_MINUTES,
@@ -33,6 +34,7 @@ import {
 import { dispatchAnnouncement } from "@repo/shared/utils/push-dispatch";
 import { handleRequest } from "./handler";
 import { isAnotherDispatchRunning, STALE_EXECUTION_MS } from "./overlap";
+import { reportResponse } from "./report";
 import type { NotifierDeps, TranslationRow } from "./run";
 import { adoptRuntimeApiKey } from "./runtime-key";
 
@@ -219,6 +221,18 @@ async function anotherDispatchRunning(
 }
 
 export default async function main(context: AppwriteContext) {
+  const reporter = reporterFromEnv(process.env, "content-notifier");
+  try {
+    return await handle(context, reporter);
+  } finally {
+    await reporter.flush();
+  }
+}
+
+async function handle(
+  context: AppwriteContext,
+  reporter: ReturnType<typeof reporterFromEnv>
+) {
   const { req, res, log, error } = context;
   adoptRuntimeApiKey(req.headers);
   try {
@@ -231,6 +245,7 @@ export default async function main(context: AppwriteContext) {
       req,
       secret: process.env.CRON_SECRET,
     });
+    reportResponse(reporter, result.status);
     if (result.status >= HTTP_BAD_REQUEST) {
       error(
         `${LOG_TAG} answered ${result.status}: ${JSON.stringify(result.body)}`
@@ -238,6 +253,7 @@ export default async function main(context: AppwriteContext) {
     }
     return res.json(result.body, result.status);
   } catch (err) {
+    reporter.captureError(err);
     const message = err instanceof Error ? err.message : String(err);
     error(`${LOG_TAG} failed: ${message}`);
     return res.json({ error: message, ok: false }, HTTP_SERVER_ERROR);

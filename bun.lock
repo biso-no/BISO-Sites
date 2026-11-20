@@ -194,6 +194,7 @@
       "version": "1.0.0",
       "dependencies": {
         "@repo/api": "workspace:*",
+        "@repo/observability": "workspace:*",
         "@repo/shared": "workspace:*",
       },
       "devDependencies": {
@@ -208,6 +209,7 @@
       "dependencies": {
         "@repo/api": "workspace:*",
         "@repo/connectors": "workspace:*",
+        "@repo/observability": "workspace:*",
         "@repo/shared": "workspace:*",
       },
       "devDependencies": {
