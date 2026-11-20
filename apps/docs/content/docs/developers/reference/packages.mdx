@@ -221,7 +221,7 @@ AI on the Vercel AI SDK: the two Anthropic models, the admin assistant and its t
 
 ## `@repo/observability`
 
-Everything the apps share for Sentry: sample rates, the rules that remove personal data from events, and small helpers. Each app keeps only the files Next.js requires (`instrumentation.ts`, `instrumentation-client.ts`, `sentry.server.config.ts`) and calls into this package. [Monitoring and health](/developers/keep-it-running/monitoring-and-health#sentry) says what Sentry receives.
+Everything the apps share for Sentry: sample rates, the rules that remove personal data from events, and small helpers. Each app keeps only the files Next.js and Sentry require (`instrumentation.ts`, `instrumentation-client.ts` and `sentry.server.config.ts`, a name Sentry's SDK looks for) and calls into this package. The website and the admin also keep their own tunnel route (`api/relay`) and the consent and report-a-problem components. The api has no `instrumentation-client.ts`, because it has no browser code. [Monitoring and health](/developers/keep-it-running/monitoring-and-health#sentry) says what Sentry receives.
 
 | Import | What it gives you |
 |---|---|
@@ -232,11 +232,11 @@ Everything the apps share for Sentry: sample rates, the rules that remove person
 | `@repo/observability/consent`, `/browser/replay`, `/browser/feedback` | The recordings choice, the replay controller and the "Report a problem" form |
 | `@repo/observability/relay` | The size check for the browser tunnel |
 | `@repo/observability/build`, `/user` | Release naming, `SENTRY_TRANSPILE_PACKAGES`, and setting the signed-in user id |
-| `@repo/observability/functions` | The reporter the three Appwrite functions use. It has no imports, because the functions load it by path. |
+| `@repo/observability/functions` | The reporter the Appwrite functions use. It has no imports, so a function can load it by path. Only scheduled-dispatch does: it loads the reporter file by its relative path. content-notifier and member-roster-sync import `@repo/observability/functions`. |
 
 - **A change to a privacy rule goes in two places.** The scrubber in `scrub.ts` has a private copy in `functions/reporter.ts`, and a test fails when the two disagree.
 - **Add a metric name in `metrics.ts`, never inline.** Names and labels are a fixed list so that nothing personal can be attached.
-- **Never import `@sentry/*` straight into app code.** Go through this package, so the privacy rules apply.
+- **Never import `@sentry/*` outside the Sentry entry files** (`instrumentation*.ts`, `sentry.server.config.ts`, `global-error.tsx` and the tunnel route). Always start the SDK through `buildServerOptions` or `buildBrowserOptions`, so the privacy rules apply.
 - **Upgrading `@sentry/*` needs a build check.** See [After upgrading @sentry/*](/developers/keep-it-running/deploying#after-upgrading-sentry).
 
 ## `@repo/i18n`

@@ -46,11 +46,12 @@ All four build with `output: "standalone"`, traced from the repo root. [Deployin
 | `@repo/payment` | `packages/payment` | Vipps MobilePay and Stripe, refunds and reconciliation. Mostly used by `apps/api`. |
 | `@repo/ai` | `packages/ai` | AI SDK setup, the Anthropic models, prompts, the admin assistant's tools and server helpers such as the recruitment screener. |
 | `@repo/i18n` | `packages/i18n` | Locales (`no` and `en`, default `no`) and the message files in `messages/no` and `messages/en`. |
+| `@repo/observability` | `packages/observability` | Sentry set-up shared by the apps and functions: sample rates, the scrubber that removes personal data, AI spans, business counts and the functions' reporter. See [Monitoring and health](/developers/keep-it-running/monitoring-and-health#sentry). |
 | `@repo/tours` | `packages/tours` | Guided tours in the admin. |
 | `@repo/wp-import` | `packages/wp-import` | A one-off command-line import from the old WordPress site into Appwrite. |
 | `@repo/typescript-config` | `packages/typescript-config` | Shared `tsconfig` presets. |
 
-The table in the root `CLAUDE.md` leaves out `@repo/tours`, `@repo/wp-import` and the `functions/` folder.
+The table in the root `CLAUDE.md` leaves out `@repo/observability`, `@repo/tours`, `@repo/wp-import` and the `functions/` folder.
 
 ### Functions
 

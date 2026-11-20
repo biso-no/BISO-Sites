@@ -305,6 +305,6 @@ Docs has `/api/health` only. Check `https://docs.biso.no/api/health`.
 
 1. Open any production event in the project of the app you deployed. `environment` should say `production` and `release` should name the new commit (`biso-<app>@<12 characters>`). An empty project after a deploy usually means the Site was built without `NEXT_PUBLIC_SENTRY_DSN`.
 2. Open its stack trace. Frames should show file names and lines from the repo. Minified frames mean the source map upload failed: check `SENTRY_AUTH_TOKEN` and the build log.
-3. After the first deploy of a Site, look at `runtime.name` on an event. `bun` means the build ran on Bun, and `node` means it ran on Node. Both work. Appwrite calls and AI calls are traced either way, and a Bun build also traces outbound requests to other services.
+3. `runtime.name` on an event says `node` whether the Site runs on Node or on Bun, because the Sentry SDK is bundled into the build. A Site run on Bun doesn't get the outbound request spans that Sentry's Bun setup would add. Appwrite calls and AI calls keep their own spans either way.
 4. For the admin, send a test error from the operations page, as in [Monitoring and health](/developers/keep-it-running/monitoring-and-health#send-a-test-error).
 5. For the functions, set `SENTRY_DSN` and redeploy, then check **Crons** in Sentry after the next run. [Scheduled jobs](/developers/keep-it-running/scheduled-jobs#how-sentry-watches-them) lists the monitors.

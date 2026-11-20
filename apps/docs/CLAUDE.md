@@ -544,11 +544,14 @@ confident wrong answer. To move both tiers to newer models, change
 ### Nothing is stored
 
 - The route logs nothing: not the question, not the answer and not errors.
-  With a Sentry DSN set, the call sends one span (`docs.ask`) with the model,
-  the token counts and the error type, never the question or the answer
+  With a Sentry DSN set, the call sends one span, named `chat <model>` with
+  op `gen_ai.chat`, and the feature `docs.ask` in `gen_ai.pipeline.name`. It
+  carries the model, the token counts and the error's class (for example
+  `AI_APICallError`), never the question or the answer
   (`packages/observability/src/ai.ts`).
-  Its `onError` handler does nothing, because the default one logs the error,
-  which can carry the request.
+- Its `onError` is `span.onError`: it marks the span failed and logs nothing,
+  because the AI SDK's default handler logs the error, which can carry the
+  request.
 - Every response from `/api/ask` is `Cache-Control: no-store`.
 - The browser holds the current answer in React state only. Nothing goes in
   storage, and a reload clears it.
