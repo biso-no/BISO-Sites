@@ -162,6 +162,38 @@ describe("POST /api/cron/expense-check-backstop", () => {
     expect(await response.json()).toMatchObject({ ran: 0, skipped: 1 });
   });
 
+  it("runs the tick's takeovers side by side, so each gets the whole budget", async () => {
+    stuck([
+      { $id: "expense-1", check_claim: 1 },
+      { $id: "expense-2", check_claim: 1 },
+      { $id: "expense-3", check_claim: 1 },
+    ]);
+    const started: string[] = [];
+    let finishFirst: () => void = () => undefined;
+    run.runExpenseCheck.mockImplementation((expenseId: string) => {
+      started.push(expenseId);
+      if (expenseId !== "expense-1") {
+        return Promise.resolve("done");
+      }
+      return new Promise((resolve) => {
+        finishFirst = () => resolve("done");
+      });
+    });
+
+    const response = POST(request());
+
+    // The oldest is still running when the others start.
+    await vi.waitFor(() =>
+      expect(started).toEqual(["expense-1", "expense-2", "expense-3"])
+    );
+    finishFirst();
+    expect(await (await response).json()).toMatchObject({
+      failed: 0,
+      found: 3,
+      ran: 3,
+    });
+  });
+
   it("goes on after one expense fails, and counts it", async () => {
     stuck([
       { $id: "expense-1", check_claim: 1 },

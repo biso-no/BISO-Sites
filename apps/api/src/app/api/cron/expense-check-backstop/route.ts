@@ -8,7 +8,8 @@ import { noAgent, runExpenseCheck } from "@/lib/expense-check/run";
 /**
  * Backstop for the reimbursement background check. If the instance dies after
  * the submit, a check stays `queued` or `running` and nobody is told; every
- * tick this takes over the ones that are stale, oldest first, at most 5.
+ * tick this takes over the ones that are stale, oldest first, at most 5, and
+ * runs them side by side so each fits in the route's 300 s.
  *
  * Stale means 10 minutes since the check was started (`check_started_at`, for
  * `running`) or since the row last changed (`$updatedAt`, for `queued`). The
@@ -144,12 +145,16 @@ export async function POST(request: Request) {
       ran: 0,
       skipped: 0,
     };
-    for (const expense of rows) {
-      try {
-        await takeOver(db, expense, counts);
-      } catch (error) {
+    // Side by side: each run gets the route's whole time, as a run in the
+    // submit's `after()` would. One after another, the second run would be
+    // cut off part-way and go fallback-only on the next takeover.
+    const results = await Promise.allSettled(
+      rows.map((expense) => takeOver(db, expense, counts))
+    );
+    for (const [index, result] of results.entries()) {
+      if (result.status === "rejected") {
         counts.failed += 1;
-        console.error(`${LOG_TAG} ${expense.$id} failed:`, error);
+        console.error(`${LOG_TAG} ${rows[index]?.$id} failed:`, result.reason);
       }
     }
     console.log(`${LOG_TAG} Done`, counts);
