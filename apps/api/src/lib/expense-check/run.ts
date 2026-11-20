@@ -215,15 +215,20 @@ function formatDate(date: Date): string {
 }
 
 /**
- * Renders and stores the PDF cover sheet, then returns the email attachment
- * ids: the cover sheet first, followed by the receipts.
+ * Renders and stores a PDF cover sheet, and returns its attachment id.
+ *
+ * With `details`, it is accounting's sheet: each receipt's type, account and
+ * project, then the occasion, the event and the check's flags. Without, it is
+ * the plain sheet the student gets: description, date and amount only
+ * (`pdfColumns` then keeps the three original columns), because a student
+ * never sees accounts, projects or the check's flags.
  */
-async function storeEmailAttachments(
+async function storeCoverSheet(
   storage: AdminClient["storage"],
   expense: Expenses,
   refNumber: string,
-  details: AccountingDetails
-): Promise<string[]> {
+  details: AccountingDetails | null
+): Promise<string> {
   const profile = expense.user;
   const addressParts = [profile?.address, profile?.zip, profile?.city].filter(
     Boolean
@@ -243,11 +248,15 @@ async function storeEmailAttachments(
       description: att.description ?? "",
       date: att.date ? formatDate(new Date(att.date)) : "",
       amount: att.amount ?? 0,
-      ...details.receipts[index],
+      ...(details ? details.receipts[index] : {}),
     })),
-    event: details.event,
-    flags: details.flags,
-    occasion: details.occasion,
+    ...(details
+      ? {
+          event: details.event,
+          flags: details.flags,
+          occasion: details.occasion,
+        }
+      : {}),
     subtotal: expense.total,
     total: expense.total,
   });
@@ -257,13 +266,14 @@ async function storeEmailAttachments(
     ID.unique(),
     InputFile.fromBuffer(pdfBuffer, `refusjon-${refNumber}.pdf`)
   );
+  return `${EXPENSES_BUCKET}:${uploadedPdf.$id}`;
+}
 
-  return [
-    `${EXPENSES_BUCKET}:${uploadedPdf.$id}`,
-    ...expense.expenseAttachments.map(
-      (attachment) => `${EXPENSES_BUCKET}:${attachment.url}`
-    ),
-  ];
+/** The receipt files, as email attachment ids. */
+function receiptAttachments(expense: Expenses): string[] {
+  return expense.expenseAttachments.map(
+    (attachment) => `${EXPENSES_BUCKET}:${attachment.url}`
+  );
 }
 
 const HTML_ESCAPES: Record<string, string> = {
@@ -325,11 +335,12 @@ function accountingSummaryHtml(
 }
 
 /**
- * Direct booking off: emails the cover sheet and receipts to accounting,
- * then a copy to the submitter. The expense is `pending` since the submit.
- * Only a failure before accounting's email is sent throws, so the check stays
- * `running` and the backstop tries again without anyone getting it twice;
- * the submitter's copy is best-effort.
+ * Direct booking off: emails the detailed cover sheet and receipts to
+ * accounting, then a copy to the submitter with the plain sheet. The expense
+ * is `pending` since the submit. Only a failure before accounting's email is
+ * sent throws, so the check stays `running` and the backstop tries again
+ * without anyone getting it twice; the submitter's copy, its sheet included,
+ * is best-effort and made only once accounting's email is out.
  */
 async function submitByEmail(
   { db, messaging, storage }: AdminClient,
@@ -346,7 +357,8 @@ async function submitByEmail(
   const refNumber = reimbursementNumber(expense.$sequence);
   const submitterName = expense.user?.name ?? "";
   const lookups = await loadAccountingLookups(db, expense);
-  const attachments = await storeEmailAttachments(
+  const receipts = receiptAttachments(expense);
+  const accountingSheet = await storeCoverSheet(
     storage,
     expense,
     refNumber,
@@ -370,11 +382,17 @@ async function submitByEmail(
     <p>BISO Invoice</p>
 `,
     users: [invoiceUserId],
-    attachments,
+    attachments: [accountingSheet, ...receipts],
     html: true,
   });
 
   try {
+    const studentSheet = await storeCoverSheet(
+      storage,
+      expense,
+      refNumber,
+      null
+    );
     await messaging.createEmail({
       messageId: ID.unique(),
       subject: `Expense ${refNumber} has been received`,
@@ -384,7 +402,7 @@ async function submitByEmail(
     <p>Reimbursement number: ${refNumber}</p>
 `,
       users: [expense.userId],
-      attachments,
+      attachments: [studentSheet, ...receipts],
       html: true,
     });
   } catch (error) {

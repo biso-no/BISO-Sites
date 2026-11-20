@@ -52,6 +52,7 @@ vi.mock("@repo/api/file", () => ({
 }));
 
 import { generateExpensePdf } from "../pdf/expense-pdf";
+import { pdfColumns } from "../pdf/expense-pdf-columns";
 import { runExpenseCheck } from "./run";
 
 const NOW = Date.parse("2026-11-19T12:00:00.000Z");
@@ -145,6 +146,8 @@ beforeEach(() => {
   aiCheck.runCheckAgent.mockResolvedValue(false);
   messaging.createEmail.mockResolvedValue({});
   storage.createFile.mockResolvedValue({ $id: "pdf-1" });
+  vi.mocked(generateExpensePdf).mockReset();
+  vi.mocked(generateExpensePdf).mockResolvedValue(Buffer.from([1, 2, 3]));
   vi.stubEnv("INVOICE_USER_ID", "invoice-user");
 });
 
@@ -532,6 +535,89 @@ describe("runExpenseCheck", () => {
     expect(toAccounting.content).toContain("Dominos");
     expect(toAccounting.content).toContain("Fadderuke 2026");
     expect(toAccounting.content).toContain("The AI check did not finish");
+  });
+
+  it("the student's copy is the plain sheet", async () => {
+    flags.states.expenses_ledger_posting = false;
+    storage.createFile
+      .mockResolvedValueOnce({ $id: "pdf-accounting" })
+      .mockResolvedValueOnce({ $id: "pdf-student" });
+    stored({
+      approver_hints: JSON.stringify([
+        {
+          attachmentId: "att-1",
+          code: "ai_check_disagrees",
+          data: { aiType: "food" },
+        },
+        { code: "ai_check_incomplete" },
+      ]),
+      eventName: "Kickoff night",
+      expenseAttachments: [
+        {
+          $id: "att-1",
+          account_number: 7140,
+          amount: 100,
+          cost_type: "travel",
+          cost_type_text: null,
+          date: "2026-11-01",
+          description: "Dominos",
+          project_name: "Fadderuke 2026",
+          url: "file-1",
+        },
+      ],
+      occasion: "Kickoff",
+    } as never);
+
+    await runExpenseCheck("expense-1", { agent: async () => true });
+
+    const [toAccounting, toStudent] = messaging.createEmail.mock.calls.map(
+      ([email]) => email
+    );
+    expect(toAccounting.attachments).toEqual([
+      "expenses:pdf-accounting",
+      "expenses:file-1",
+    ]);
+    // The student never gets the detailed sheet: their own plain one instead.
+    expect(toStudent.users).toEqual(["user-1"]);
+    expect(toStudent.attachments).toEqual([
+      "expenses:pdf-student",
+      "expenses:file-1",
+    ]);
+    const sheets = vi
+      .mocked(generateExpensePdf)
+      .mock.calls.map(([data]) => data);
+    expect(sheets).toHaveLength(2);
+    const [, studentSheet] = sheets;
+    expect(studentSheet?.attachments).toEqual([
+      { amount: 100, date: expect.any(String), description: "Dominos" },
+    ]);
+    expect(pdfColumns(studentSheet?.attachments ?? []).showDetails).toBe(false);
+    expect(studentSheet).not.toHaveProperty("flags");
+    expect(studentSheet).not.toHaveProperty("event");
+    expect(studentSheet).not.toHaveProperty("occasion");
+    // Nor does the body name an account, a project or a flag.
+    for (const secret of ["7140", "Fadderuke", "travel", "food", "AI"]) {
+      expect(toStudent.content).not.toContain(secret);
+    }
+    // Rendered after accounting's email went out, so it never holds it up.
+    expect(
+      vi.mocked(generateExpensePdf).mock.invocationCallOrder[1] ?? 0
+    ).toBeGreaterThan(callOrder(messaging.createEmail));
+  });
+
+  it("a student sheet that fails fails nothing, and accounting got theirs", async () => {
+    flags.states.expenses_ledger_posting = false;
+    vi.mocked(generateExpensePdf)
+      .mockResolvedValueOnce(Buffer.from([1]))
+      .mockRejectedValueOnce(new Error("render failed"));
+    silenceErrors();
+
+    expect(
+      await runExpenseCheck("expense-1", { agent: async () => true })
+    ).toBe("done");
+    expect(emailsTo("invoice-user")).toHaveLength(1);
+    expect(emailsTo("user-1")).toHaveLength(0);
+    expect(finalState()).toMatchObject({ check_state: "done" });
   });
 
   it("a failed lookup still sends accounting's email once", async () => {
