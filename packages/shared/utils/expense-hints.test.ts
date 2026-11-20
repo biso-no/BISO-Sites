@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  type ApproverHint,
   codeOnlyHint,
   hintTextKey,
   MAX_HINT_REASON_CHARS,
@@ -153,24 +154,25 @@ describe("codeOnlyHint", () => {
         data: { match: "file", reimbursementNumber: "10042" },
       })
     ).toEqual({ attachmentId: "a1", code: "possible_duplicate" });
-    for (const hint of [
+    const needed: ApproverHint[] = [
       {
         attachmentId: "a1",
-        code: "project_not_created" as const,
+        code: "project_not_created",
         data: { series: "BBL", year: 2027 },
       },
       {
         attachmentId: "a1",
-        code: "amount_differs" as const,
+        code: "amount_differs",
         data: { entered: 10, read: 12 },
       },
       {
         attachmentId: "a1",
-        code: "app_type_replaced" as const,
+        code: "app_type_replaced",
         data: { aiType: "food", appType: "taxi" },
       },
-      { code: "receipt_issue" as const, data: { issue: "unreadable" } },
-    ]) {
+      { code: "receipt_issue", data: { issue: "unreadable" } },
+    ];
+    for (const hint of needed) {
       expect(codeOnlyHint(hint)).toEqual(hint);
     }
   });
