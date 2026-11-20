@@ -18,6 +18,7 @@ import {
   statusPanelPrimaryAction,
   statusPanelSecondaryAction,
 } from "@/components/ui/status-panel";
+import { isSentryConfigured } from "@/lib/sentry-configured";
 import { signOut } from "@/lib/server";
 import type { NavAccount, NavProjectLink } from "@/lib/types/nav";
 import { accountLinksFor } from "./account-menu";
@@ -204,17 +205,19 @@ export function MobileDrawer({
         </DrawerGroup>
       )}
 
-      <button
-        className="type-body-sm flex w-full items-center gap-2 rounded-biso-sm px-2 py-1.5 text-ink transition-colors hover:bg-surface-raised hover:text-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
-        onClick={() => {
-          onNavigate();
-          report.open();
-        }}
-        type="button"
-      >
-        <LifeBuoy aria-hidden className="size-4 shrink-0 text-ink-muted" />
-        {report.label}
-      </button>
+      {isSentryConfigured() && (
+        <button
+          className="type-body-sm flex w-full items-center gap-2 rounded-biso-sm px-2 py-1.5 text-ink transition-colors hover:bg-surface-raised hover:text-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          onClick={() => {
+            onNavigate();
+            report.open();
+          }}
+          type="button"
+        >
+          <LifeBuoy aria-hidden className="size-4 shrink-0 text-ink-muted" />
+          {report.label}
+        </button>
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
         <LocaleSwitcher className="text-ink" size="sm" variant="ghost" />

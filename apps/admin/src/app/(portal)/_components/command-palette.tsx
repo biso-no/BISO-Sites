@@ -48,6 +48,7 @@ import type {
 } from "@/lib/palette-search-model";
 import { type RecentEntry, readRecents, recordRecent } from "@/lib/recents";
 import { hasNavAccess, type NavKey } from "@/lib/roles";
+import { isSentryConfigured } from "@/lib/sentry-configured";
 import { searchEverything } from "../_actions/palette-search";
 import { OPEN_ASSISTANT_EVENT } from "./assistant/assistant-widget";
 import { MONO_STACK, SERIF_STACK, STUDIO } from "./studio";
@@ -60,6 +61,8 @@ interface PaletteCommand {
   id: string;
   label: string;
   navKey?: NavKey;
+  /** Shown only when this build reports to Sentry (`isSentryConfigured`). */
+  needsSentry?: true;
 }
 
 type PaletteRow =
@@ -270,12 +273,14 @@ const ALL_COMMANDS: PaletteCommand[] = [
     label: "Privacy Settings",
     icon: ShieldCheck,
     action: openReplayConsentSettings,
+    needsSentry: true,
   },
   {
     id: "report-problem",
     group: "account",
     label: "Report a Problem",
     icon: LifeBuoy,
+    needsSentry: true,
   },
   { id: "sign-out", group: "account", label: "Sign Out", icon: LogOut },
 ];
@@ -454,6 +459,9 @@ export function CommandPalette({
 
   const visible = useMemo(() => {
     const allowed = ALL_COMMANDS.filter((cmd) => {
+      if (cmd.needsSentry && !isSentryConfigured()) {
+        return false;
+      }
       if (cmd.navKey) {
         return hasNavAccess(
           cmd.navKey,

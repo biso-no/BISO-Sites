@@ -16,6 +16,7 @@ import {
   type NavGroup as NavGroupNode,
 } from "@/lib/nav-tree";
 import { hasNavAccess, type NavKey } from "@/lib/roles";
+import { isSentryConfigured } from "@/lib/sentry-configured";
 import { OPEN_ASSISTANT_EVENT } from "./_components/assistant/assistant-widget";
 import { CampusSwitcher } from "./_components/campus-switcher";
 import { SERIF_STACK, STUDIO } from "./_components/studio";
@@ -234,22 +235,26 @@ export function Sidebar({ user, roles, inboxCount }: SidebarProps) {
             <LogOut size={15} />
           </button>
         </div>
-        <button
-          className="rounded-md px-1 py-1 text-left text-[11px] underline-offset-4 transition hover:underline"
-          onClick={openReplayConsentSettings}
-          style={{ color: STUDIO.ink3 }}
-          type="button"
-        >
-          {tConsent("settings")}
-        </button>
-        <button
-          className="rounded-md px-1 py-1 text-left text-[11px] underline-offset-4 transition hover:underline"
-          onClick={report.open}
-          style={{ color: STUDIO.ink3 }}
-          type="button"
-        >
-          {report.label}
-        </button>
+        {isSentryConfigured() && (
+          <>
+            <button
+              className="rounded-md px-1 py-1 text-left text-[11px] underline-offset-4 transition hover:underline"
+              onClick={openReplayConsentSettings}
+              style={{ color: STUDIO.ink3 }}
+              type="button"
+            >
+              {tConsent("settings")}
+            </button>
+            <button
+              className="rounded-md px-1 py-1 text-left text-[11px] underline-offset-4 transition hover:underline"
+              onClick={report.open}
+              style={{ color: STUDIO.ink3 }}
+              type="button"
+            >
+              {report.label}
+            </button>
+          </>
+        )}
       </div>
     </aside>
   );

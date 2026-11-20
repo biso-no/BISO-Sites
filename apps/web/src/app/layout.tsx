@@ -10,6 +10,7 @@ import { BiSignInNotice } from "@/components/bi-sign-in-notice";
 import { ReplayConsent } from "@/components/replay-consent";
 import { UmamiBeforeSend } from "@/components/umami-before-send";
 import { UMAMI_BEFORE_SEND } from "@/lib/analytics-privacy";
+import { isSentryConfigured } from "@/lib/sentry-configured";
 import { museoSans, museoSlab } from "./fonts";
 import Providers from "./providers";
 export const metadata: Metadata = {
@@ -72,7 +73,7 @@ export default async function RootLayout({
               <BiSignInNotice />
             </Suspense>
             {children}
-            <ReplayConsent />
+            {isSentryConfigured() && <ReplayConsent />}
             {/* Drops the query string from `/auth/` page URLs before Umami
                 records them: `/auth/verify` carries a live sign-in secret. */}
             <UmamiBeforeSend />

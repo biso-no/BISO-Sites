@@ -16,6 +16,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useTransition } from "react";
 import { useReportProblem } from "@/components/report-problem";
+import { isSentryConfigured } from "@/lib/sentry-configured";
 import { signOut } from "@/lib/server";
 import type { NavAccount } from "@/lib/types/nav";
 import { ACCOUNT_LINKS, FINANCIAL_SERVICES_LINK_ID } from "./nav-config";
@@ -113,13 +114,15 @@ export function AccountMenu({ account, className }: AccountMenuProps) {
         ))}
 
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="cursor-pointer gap-2"
-          onSelect={report.open}
-        >
-          <LifeBuoy aria-hidden className="size-4 text-ink-muted" />
-          {report.label}
-        </DropdownMenuItem>
+        {isSentryConfigured() && (
+          <DropdownMenuItem
+            className="cursor-pointer gap-2"
+            onSelect={report.open}
+          >
+            <LifeBuoy aria-hidden className="size-4 text-ink-muted" />
+            {report.label}
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem
           className="cursor-pointer gap-2"
           disabled={isSigningOut}
