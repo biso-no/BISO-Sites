@@ -118,7 +118,7 @@ describe("the privacy statement", () => {
 
   it("keeps every section reachable by its own anchor", () => {
     const ids = [...content.matchAll(SECTION_ID)].map((m) => m[1]);
-    expect(ids.length).toBe(20);
+    expect(ids.length).toBe(21);
     expect(new Set(ids).size).toBe(ids.length);
     // The contents list and the headings are generated from the same array,
     // so an anchor cannot drift from its target.
@@ -138,7 +138,7 @@ describe("the privacy statement", () => {
   });
 
   it("does not stamp a review date it cannot vouch for", () => {
-    expect(source).toContain("December 2024");
+    expect(source).toContain("20 November 2026");
     expect(source).not.toContain("new Date()");
   });
 });

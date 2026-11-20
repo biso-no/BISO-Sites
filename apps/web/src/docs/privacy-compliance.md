@@ -73,6 +73,11 @@ This document outlines the privacy and data protection measures implemented in t
 - [ ] User data access logs
 - [ ] Admin interface for privacy requests
 
+## Error monitoring and recordings (2026-11-20)
+- The public privacy page (`src/app/(public)/privacy/_content/privacy-sections.ts`) has an "Error Monitoring and Recordings" section for Sentry (EU region, Frankfurt): what is always collected, recordings only with consent, "Report a problem", 90-day retention and the legal bases.
+- The `cookies` section lists `biso_replay_consent` (12 months) and `data-storage` lists Sentry.
+- Keep these in step with the consent and replay settings in `packages/observability`.
+
 ## Contact
 For questions regarding privacy compliance, contact:
 - Data Protection Officer: privacy@biso.no 

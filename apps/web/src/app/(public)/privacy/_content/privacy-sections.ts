@@ -82,7 +82,9 @@ For students who choose to get involved in BISO, we offer a good working environ
 
 Storage of information and processing of this information is not permitted unless the user has both been informed about and has given consent to the collection. The information on how BISO collects the user's data must be easily accessible.
 
-We only use cookies to give you a better user experience on our services, so you don't have to fill in fields again every time you are on our pages and forms.`,
+We only use cookies to give you a better user experience on our services, so you don't have to fill in fields again every time you are on our pages and forms.
+
+**biso_replay_consent** - Stores your answer about session recordings (see "Error Monitoring and Recordings") for 12 months, so we don't ask again on every visit. It is strictly necessary to remember your choice and is set whether you say yes or no.`,
   },
   {
     id: "data-collection",
@@ -116,6 +118,29 @@ We only use cookies to give you a better user experience on our services, so you
 • Telephone number
 • Application
 • Resume`,
+  },
+  {
+    id: "error-monitoring",
+    title: "Error Monitoring and Recordings",
+    content: `BISO uses Sentry, a service from Functional Software, Inc., to find and fix errors on biso.no, in the admin and in the BISO app. The data is stored in Sentry's EU region (Frankfurt, Germany).
+
+**Always collected:**
+• Error reports
+• Technical and performance data: browser, device type, page addresses without query strings, and timings
+• Your BISO account id, if you are signed in
+
+We do not send names, email addresses or what you type into forms.
+
+**Only with your consent:**
+• Recordings of your visits, where all text and inputs are hidden and images are blocked. We record about 25% of visits, plus visits where an error happens.
+• You can withdraw your consent at any time under "Privacy settings" at the bottom of the page.
+
+**Report a problem:**
+On the website, "Report a problem" sends what you write, and a screenshot only if you add one.
+
+**How long and why:**
+• Data is kept for at most 90 days.
+• Legal basis: our legitimate interest in running a working and secure service (errors and performance), and your consent (recordings).`,
   },
   {
     id: "app-collection",
@@ -177,7 +202,8 @@ If there is an ongoing sale or customer dialogue between you, us and any of our 
 **Data storage locations:**
 • **biso.no**: Our database where we store user information from our websites
 • **Google Analytics**: Statistical data about the websites, application, and its users
-• **Google Firebase**: Our database for mobile applications, such as the BISO application`,
+• **Google Firebase**: Our database for mobile applications, such as the BISO application
+• **Sentry**: Error reports, performance data and, with your consent, recordings of visits (EU region, Frankfurt), kept for at most 90 days`,
   },
   {
     id: "your-rights",
