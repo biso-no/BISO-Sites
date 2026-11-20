@@ -69,6 +69,8 @@ If you may edit, choose **Rediger** (Edit) on a receipt. You can change the type
 
 Every change is saved in **Historikk** (History) with the old and new value.
 
+While the reimbursement shows **Sjekker** (Checking), its receipts can't be edited, because the AI check would overwrite your change. The receipts say **Dette utlegget blir sjekket. Du kan redigere det om et minutt.** (This reimbursement is being checked. You can edit it in a minute.) A change sent anyway, for example from a page opened earlier, is refused with **Dette utlegget blir fortsatt sjekket. Prøv igjen om et minutt.** (This reimbursement is still being checked. Try again in a minute.)
+
 A reimbursement that is approved but not yet booked can't be edited, because booking may start at any moment. One whose booking failed can be edited by global admins and the controller, so they can fix the cause before retrying.
 
 </Step>
@@ -132,8 +134,8 @@ The student gets their answer at once, and the reimbursement shows **Venter på 
 - When the check is done, the approvers are told. This is the first time anyone but the student hears about it.
 - The check is careful with projects. When the check is less than 80 percent sure of a type, account or project, it still fills in its best guess and tells the approvers it isn't sure. An approver should look at it and change it if it is wrong, because what is there when the reimbursement is approved is what gets booked. A project from last year is never used. If the project for this year's edition hasn't been created in Finago yet, the receipt gets a note that says so, and finance can create the project. Costs just after an event go to the edition that has just finished.
 - If the check fails or runs out of time, the approvers are still told. Their notice then says that the AI check did not finish, and the usual fixed steps have set what they could.
-- While **Direct ledger posting (24SO + Teams approval)** is off, the check ends with an email to accounting instead. The email and its PDF cover sheet list type, account and project for each receipt, then the occasion, the event and the notes from the check.
-- A reimbursement can stay on **Sjekker** if something went wrong. A job that runs every few minutes finishes checks that are more than 10 minutes old. If the badge is still there after about 20 minutes, tell IT.
+- While **Direct ledger posting (24SO + Teams approval)** is off, the check ends with an email to accounting instead. The email and its PDF cover sheet list type, account and project for each receipt, then the occasion, the event and the notes from the check. The student's copy has a plain cover sheet with only the description, date and amount of each receipt.
+- A reimbursement can stay on **Sjekker** if something went wrong. A job that runs every few minutes finishes checks that are more than 10 minutes old. After three failed tries it stops and records an approval issue for IT. If the badge is still there after about 20 minutes, tell IT.
 
 ## What the approver sees in Teams and email
 
@@ -152,7 +154,7 @@ The approval card in Teams, and the email, give the approver what they need to d
 
 The student sees the status and, after a rejection, your reason. They never see the history or who edited what.
 
-Their reimbursement is checked right after they submit, and the approvers normally get it a minute later. While direct posting is off, the email that says the reimbursement was received also comes after the check, normally within a few minutes, not at once. The student doesn't wait for the check, and they never see the AI check's notes, accounts or projects.
+Their reimbursement is checked right after they submit, and the approvers normally get it a minute later. While direct posting is off, the email that says the reimbursement was received also comes after the check, normally within a few minutes, not at once. The student doesn't wait for the check, and they never see the AI check's notes, accounts or projects. The PDF in their copy of that email lists only the description, date and amount of each receipt.
 
 ## Common mistakes
 
