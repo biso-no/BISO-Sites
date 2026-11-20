@@ -362,6 +362,9 @@
         "typescript": "catalog:",
         "vitest": "catalog:",
       },
+      "peerDependencies": {
+        "@sentry/nextjs": "catalog:",
+      },
     },
     "packages/payment": {
       "name": "@repo/payment",

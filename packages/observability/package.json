@@ -16,10 +16,14 @@
     "./relay": "./src/relay.ts",
     "./metrics": "./src/metrics.ts",
     "./ai": "./src/ai.ts",
-    "./consent": "./src/consent.ts"
+    "./consent": "./src/consent.ts",
+    "./browser/replay": "./src/browser/replay.ts"
   },
   "dependencies": {
     "@sentry/core": "catalog:"
+  },
+  "peerDependencies": {
+    "@sentry/nextjs": "catalog:"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

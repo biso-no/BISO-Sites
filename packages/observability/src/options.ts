@@ -14,12 +14,39 @@ import {
 
 export type SentryApp = "web" | "admin" | "api" | "docs";
 
-export const SAMPLE_RATES: Record<
-  SentryApp,
-  { serverTraces: number; browserTraces: number }
-> = {
-  web: { serverTraces: 1, browserTraces: 0.25 },
-  admin: { serverTraces: 1, browserTraces: 1 },
+/** Apps that record session replays, for visitors who said yes. */
+export type ReplayApp = "web" | "admin";
+
+interface TraceRates {
+  browserTraces: number;
+  serverTraces: number;
+}
+
+/**
+ * Replay rates for consenting visitors only: a full recording of
+ * `replaySessions` of visits, and the last minute before an error in
+ * `replayOnError` of the rest. Browser init keeps both at 0; the replay
+ * controller (`./browser/replay`) applies these once the visitor says yes.
+ */
+interface ReplayRates {
+  replayOnError: number;
+  replaySessions: number;
+}
+
+export const SAMPLE_RATES: Record<SentryApp, TraceRates> &
+  Record<ReplayApp, TraceRates & ReplayRates> = {
+  web: {
+    serverTraces: 1,
+    browserTraces: 0.25,
+    replaySessions: 0.25,
+    replayOnError: 1,
+  },
+  admin: {
+    serverTraces: 1,
+    browserTraces: 1,
+    replaySessions: 0.25,
+    replayOnError: 1,
+  },
   api: { serverTraces: 1, browserTraces: 0 },
   docs: { serverTraces: 1, browserTraces: 0.25 },
 };
@@ -163,6 +190,7 @@ export const buildBrowserOptions = (input: OptionInput) => ({
   ignoreErrors: IGNORE_ERRORS,
   denyUrls: DENY_URLS,
   ...(input.tunnel ? { tunnel: SENTRY_TUNNEL_PATH } : {}),
+  // No recording without consent; see `applyReplayConsent`.
   replaysSessionSampleRate: 0,
   replaysOnErrorSampleRate: 0,
 });

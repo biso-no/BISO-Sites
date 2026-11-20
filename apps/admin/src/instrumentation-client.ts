@@ -1,4 +1,8 @@
 import {
+  applyReplayConsent,
+  readConsentFromDocument,
+} from "@repo/observability/browser/replay";
+import {
   buildBrowserOptions,
   resolveEnvironment,
 } from "@repo/observability/options";
@@ -18,5 +22,9 @@ init(
     tunnel: true,
   })
 );
+
+// Replay loads and records only if this visitor said yes (consent cookie);
+// otherwise none of its code is fetched. Never rejects, so nothing awaits it.
+applyReplayConsent("admin", readConsentFromDocument());
 
 export const onRouterTransitionStart = captureRouterTransitionStart;

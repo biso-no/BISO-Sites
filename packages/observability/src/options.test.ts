@@ -107,6 +107,17 @@ describe("buildBrowserOptions", () => {
     expect(o.beforeSend).toBe(scrubEvent);
   });
 
+  // Applied by the replay controller once a visitor says yes, never at init.
+  it("records 25% of consenting visits and every one with an error", () => {
+    for (const app of ["web", "admin"] as const) {
+      expect(SAMPLE_RATES[app].replaySessions).toBe(0.25);
+      expect(SAMPLE_RATES[app].replayOnError).toBe(1);
+      const o = buildBrowserOptions({ app, dsn: "x", environment: "e" });
+      expect(o.replaysSessionSampleRate).toBe(0);
+      expect(o.replaysOnErrorSampleRate).toBe(0);
+    }
+  });
+
   it("ignores browser noise such as aborted requests", () => {
     const o = buildBrowserOptions({ app: "web", dsn: "x", environment: "e" });
     expect(o.ignoreErrors).toContain("AbortError");
