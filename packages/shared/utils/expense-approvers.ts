@@ -109,7 +109,7 @@ export function checkStuckIssueReason(input: {
     "fix the cause, then start the check again (developer docs: A reimbursement stays on Checking).";
   return input.told
     ? `${CHECK_STUCK_ISSUE_PREFIX} its repair after three tries${quoted}. Its approvers or accounting were told before; ${next}`
-    : `${CHECK_STUCK_ISSUE_PREFIX} or notify anyone after three tries${quoted}. The reimbursement is pending and nobody has been told; ${next}`;
+    : `${CHECK_STUCK_ISSUE_PREFIX} or notify anyone after three tries${quoted}. The reimbursement is pending and has probably not reached anyone; check its history for a notification first, then ${next}`;
 }
 
 /** True for the issue of a check the backstop gave up on. */

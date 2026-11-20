@@ -224,6 +224,29 @@ describe("POST /api/cron/expense-check-backstop", () => {
     expect(await response.json()).toMatchObject({ failed: 1, gaveUp: 0 });
   });
 
+  it("an unknown campus still gets its issue, for the controller", async () => {
+    stuck([{ $id: "expense-1", check_claim: 4 }]);
+    db.getRow.mockResolvedValue({
+      $id: "expense-1",
+      campus: "999",
+      check_finished_at: null,
+      department: "dept-1",
+      departmentRel: { Name: "Marketing" },
+      submitter_is_controller: false,
+      submitter_is_financial_manager: false,
+    });
+
+    const response = await POST(request());
+
+    expect(db.createRow).toHaveBeenCalledWith(
+      "app",
+      "expense_approval_issues",
+      expect.any(String),
+      expect.objectContaining({ campus_id: "999", role_sought: "controller" })
+    );
+    expect(await response.json()).toMatchObject({ gaveUp: 1 });
+  });
+
   it("an issue that can't be written leaves the row for the next tick", async () => {
     stuck([{ $id: "expense-1", check_claim: 4 }]);
     db.createRow.mockRejectedValue(new Error("db down"));

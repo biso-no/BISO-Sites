@@ -20,6 +20,31 @@ const ISSUES_TABLE = "expense_approval_issues";
 const OPEN_ISSUE_LIMIT = 25;
 
 /**
+ * The step that was to be told first. An unknown campus has no plan, and the
+ * issue must still be written, so it then asks for the controller.
+ */
+function firstRoleSought(
+  expense: Pick<
+    Expenses,
+    | "campus"
+    | "department"
+    | "submitter_is_controller"
+    | "submitter_is_financial_manager"
+  >
+): string | undefined {
+  try {
+    return getCampusApprovalPlan({
+      campusId: expense.campus,
+      departmentId: expense.department,
+      submitterIsController: expense.submitter_is_controller,
+      submitterIsFinancialManager: expense.submitter_is_financial_manager,
+    }).at(0)?.role;
+  } catch {
+    return;
+  }
+}
+
+/**
  * Records, once, that the backstop gave up on an expense's check after three
  * takeovers: an open issue that says so already is left as it is. The shape
  * follows the issue of a chain that failed after the check: the campus, the
@@ -55,17 +80,11 @@ export async function recordCheckStuckIssue(
       "departmentRel.*",
     ]),
   ]);
-  const firstPlanned = getCampusApprovalPlan({
-    campusId: expense.campus,
-    departmentId: expense.department,
-    submitterIsController: expense.submitter_is_controller,
-    submitterIsFinancialManager: expense.submitter_is_financial_manager,
-  }).at(0);
   await db.createRow("app", ISSUES_TABLE, ID.unique(), {
     expense_id: expenseId,
     campus_id: expense.campus,
     department: expense.departmentRel?.Name ?? "(none)",
-    role_sought: firstPlanned?.role ?? "controller",
+    role_sought: firstRoleSought(expense) ?? "controller",
     reason: checkStuckIssueReason({
       cause: cause instanceof Error ? cause.message : undefined,
       told: Boolean(expense.check_finished_at),

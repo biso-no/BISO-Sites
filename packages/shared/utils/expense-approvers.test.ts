@@ -268,7 +268,7 @@ describe("checkStuckIssueReason", () => {
   it("says the check gave up after three tries, with the last error", () => {
     const stuck = checkStuckIssueReason({ cause: "mail down", told: false });
     expect(stuck).toBe(
-      "The background check could not finish or notify anyone after three tries (mail down). The reimbursement is pending and nobody has been told; fix the cause, then start the check again (developer docs: A reimbursement stays on Checking)."
+      "The background check could not finish or notify anyone after three tries (mail down). The reimbursement is pending and has probably not reached anyone; check its history for a notification first, then fix the cause, then start the check again (developer docs: A reimbursement stays on Checking)."
     );
     expect(isCheckStuckIssue(stuck)).toBe(true);
     // Neither a resend nor a rebuild fits it.
@@ -285,7 +285,7 @@ describe("checkStuckIssueReason", () => {
     const told = checkStuckIssueReason({ cause: "db down", told: true });
     expect(isCheckStuckIssue(told)).toBe(true);
     expect(told).toContain("were told before");
-    expect(told).not.toContain("nobody has been told");
+    expect(told).not.toContain("probably not reached anyone");
   });
 
   it("stays within the issue's 500 characters", () => {
