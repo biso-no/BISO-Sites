@@ -246,6 +246,39 @@ describe("applyReplayConsent withdrawn and given again", () => {
   });
 });
 
+describe("chooseReplayConsent", () => {
+  it("stops recording on a no even when saving it fails", async () => {
+    const { applyReplayConsent, chooseReplayConsent } = await loadController();
+    await applyReplayConsent("web", "granted");
+    const save = vi.fn(() => Promise.reject(new Error("offline")));
+    await expect(chooseReplayConsent("web", "denied", save)).rejects.toThrow(
+      "offline"
+    );
+    expect(addedReplay().stop).toHaveBeenCalledWith({ flush: false });
+    expect(addedReplay().stop.mock.invocationCallOrder[0]).toBeLessThan(
+      save.mock.invocationCallOrder[0] ?? 0
+    );
+    expect(save).toHaveBeenCalledWith("denied");
+  });
+
+  it("starts nothing on a yes that could not be saved", async () => {
+    const { chooseReplayConsent } = await loadController();
+    const save = vi.fn(() => Promise.reject(new Error("offline")));
+    await expect(chooseReplayConsent("web", "granted", save)).rejects.toThrow(
+      "offline"
+    );
+    expect(sentry.imports).toBe(0);
+  });
+
+  it("starts recording once a yes is saved", async () => {
+    const { chooseReplayConsent } = await loadController();
+    const save = vi.fn(() => Promise.resolve());
+    await chooseReplayConsent("admin", "granted", save);
+    expect(save).toHaveBeenCalledWith("granted");
+    expect(sentry.client?.addIntegration).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("applyReplayConsent without a working Sentry", () => {
   it("does nothing without a client", async () => {
     sentry.client = undefined;

@@ -427,6 +427,26 @@ export async function applyReplayConsent(
 }
 
 /**
+ * The consent bar's answer: saved with `save` (the app's server action), then
+ * applied. A "no" stops recording before it is saved, so it holds even if
+ * saving fails; a "yes" starts recording only once it is saved. Rejects when
+ * saving fails, which keeps the bar open.
+ */
+export async function chooseReplayConsent(
+  app: ReplayApp,
+  choice: "granted" | "denied",
+  save: (choice: "granted" | "denied") => Promise<void>
+): Promise<void> {
+  if (choice === "denied") {
+    await applyReplayConsent(app, "denied");
+    await save("denied");
+    return;
+  }
+  await save("granted");
+  await applyReplayConsent(app, "granted");
+}
+
+/**
  * For `onRouterTransitionStart` in `instrumentation-client.ts`: stops before
  * the router fetches a denylisted page, whose address the recording would
  * otherwise list among its requests. Starting again waits for the address

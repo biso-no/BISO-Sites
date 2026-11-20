@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  applyReplayConsent,
+  chooseReplayConsent,
   readConsentFromDocument,
 } from "@repo/observability/browser/replay";
 import {
@@ -13,10 +13,9 @@ import { setReplayConsent } from "@/lib/actions/replay-consent";
 
 const PRIVACY_URL = "https://biso.no/privacy";
 
-async function choose(choice: ReplayConsentChoice) {
-  await setReplayConsent(choice);
-  await applyReplayConsent("admin", choice);
-}
+// A "no" stops recording before it is saved; see `chooseReplayConsent`.
+const choose = (choice: ReplayConsentChoice) =>
+  chooseReplayConsent("admin", choice, setReplayConsent);
 
 /** Asks before session recording starts; see `ReplayConsentBar`. */
 export function ReplayConsent() {
