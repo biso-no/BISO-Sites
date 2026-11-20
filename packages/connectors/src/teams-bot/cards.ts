@@ -11,6 +11,8 @@ export interface ApprovalCardReceipt {
   /** Account label such as "7140 Reise", or null when none is set. */
   account: string | null;
   amount: number;
+  /** The background check's one-line reason, when it changed or flagged this receipt. */
+  checkNote?: string | null;
   date: string;
   /** The Finago project the receipt is booked on, or null/absent when none. */
   projectName?: string | null;
@@ -253,6 +255,14 @@ function cardBody(data: ApprovalCardData, limits: CardLimits) {
           )
         );
       }
+      if (receipt.checkNote?.trim()) {
+        body.push(
+          cell(`AI check: ${truncate(receipt.checkNote.trim(), MAX_LINE)}`, {
+            isSubtle: true,
+            spacing: "None",
+          })
+        );
+      }
     }
     const hidden = data.receipts.length - limits.receipts;
     if (hidden > 0) {
@@ -426,7 +436,7 @@ export function buildApprovalEmailHtml(
     .slice(0, MAX_EMAIL_RECEIPTS)
     .map(
       (r) =>
-        `<tr><td style="${cellStyle}">${escapeHtml(r.date)}</td><td style="${cellStyle}">${escapeHtml(r.text)}</td><td style="${cellStyle}">${escapeHtml(r.type)}</td>${perReceipt ? `<td style="${cellStyle}">${escapeHtml(r.projectName?.trim() || "—")}</td>` : ""}<td style="${cellStyle}">${escapeHtml(r.account ?? "—")}</td><td style="${cellStyle};text-align:right">${escapeHtml(formatAmount(r.amount, data.currency))}</td></tr>`
+        `<tr><td style="${cellStyle}">${escapeHtml(r.date)}</td><td style="${cellStyle}">${escapeHtml(r.text)}</td><td style="${cellStyle}">${escapeHtml(r.type)}</td>${perReceipt ? `<td style="${cellStyle}">${escapeHtml(r.projectName?.trim() || "—")}</td>` : ""}<td style="${cellStyle}">${escapeHtml(r.account ?? "—")}</td><td style="${cellStyle};text-align:right">${escapeHtml(formatAmount(r.amount, data.currency))}</td></tr>${r.checkNote?.trim() ? `<tr><td></td><td colspan="${perReceipt ? 5 : 4}" style="${cellStyle};color:#555;font-size:12px">AI check: ${escapeHtml(r.checkNote.trim())}</td></tr>` : ""}`
     )
     .join("");
   const hiddenReceipts = data.receipts.length - MAX_EMAIL_RECEIPTS;

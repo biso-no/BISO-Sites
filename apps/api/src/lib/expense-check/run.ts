@@ -17,6 +17,11 @@ import {
 } from "@repo/shared/utils/feature-flags-server";
 import { reimbursementNumber } from "@repo/shared/utils/reimbursement-number";
 import {
+  type AccountingDetails,
+  buildAccountingDetails,
+  loadAccountingLookups,
+} from "../expense-accounting-details";
+import {
   ApprovalChainFailedError,
   ensureApprovalChain,
 } from "../expense-approval";
@@ -75,6 +80,9 @@ const SUBMISSION_COLUMNS = [
   "description",
   "total",
   "userId",
+  "occasion",
+  "eventName",
+  "approver_hints",
   "submitter_is_controller",
   "submitter_is_financial_manager",
   "user.*",
@@ -213,7 +221,8 @@ function formatDate(date: Date): string {
 async function storeEmailAttachments(
   storage: AdminClient["storage"],
   expense: Expenses,
-  refNumber: string
+  refNumber: string,
+  details: AccountingDetails
 ): Promise<string[]> {
   const profile = expense.user;
   const addressParts = [profile?.address, profile?.zip, profile?.city].filter(
@@ -230,11 +239,15 @@ async function storeEmailAttachments(
     invoiceDate: formatDate(new Date()),
     campusAndUnit: `${expense.departmentRel.Name} - ${expense.campusRel.name}`,
     purpose: expense.description ?? "",
-    attachments: expense.expenseAttachments.map((att) => ({
+    attachments: expense.expenseAttachments.map((att, index) => ({
       description: att.description ?? "",
       date: att.date ? formatDate(new Date(att.date)) : "",
       amount: att.amount ?? 0,
+      ...details.receipts[index],
     })),
+    event: details.event,
+    flags: details.flags,
+    occasion: details.occasion,
     subtotal: expense.total,
     total: expense.total,
   });
@@ -253,6 +266,64 @@ async function storeEmailAttachments(
   ];
 }
 
+const HTML_ESCAPES: Record<string, string> = {
+  '"': "&quot;",
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+};
+const HTML_SPECIAL = /[&<>"]/g;
+
+function escapeHtml(text: string): string {
+  return text.replace(HTML_SPECIAL, (char) => HTML_ESCAPES[char] ?? char);
+}
+
+/**
+ * The receipts and the check's findings for accounting's email body, which is
+ * English like the rest of that email. Empty values are left out or shown as a
+ * dash.
+ */
+function accountingSummaryHtml(
+  expense: Expenses,
+  details: AccountingDetails
+): string {
+  const cell = (text: string) => `<td>${escapeHtml(text || "-")}</td>`;
+  const rows = expense.expenseAttachments
+    .map((att, index) => {
+      const own = details.receipts[index];
+      return `<tr>${[
+        att.date ? formatDate(new Date(att.date)) : "",
+        att.description ?? "",
+        String(att.amount ?? 0),
+        own?.type ?? "",
+        own?.account ?? "",
+        own?.project ?? "",
+      ]
+        .map(cell)
+        .join("")}</tr>`;
+    })
+    .join("");
+  const facts = [
+    ["Occasion", details.occasion],
+    ["Event", details.event],
+  ]
+    .filter(([, value]) => value)
+    .map(([label, value]) => `<p>${label}: ${escapeHtml(value ?? "")}</p>`)
+    .join("");
+  const flags =
+    details.flags.length > 0
+      ? `<p>Flags from the AI check:</p><ul>${details.flags
+          .map((flag) => `<li>${escapeHtml(flag)}</li>`)
+          .join("")}</ul>`
+      : "";
+  return `${facts}
+    <table cellpadding="4" border="1" style="border-collapse:collapse">
+      <tr><th>Date</th><th>Description</th><th>Amount</th><th>Type</th><th>Account</th><th>Project</th></tr>
+      ${rows}
+    </table>
+    ${flags}`;
+}
+
 /**
  * Direct booking off: emails the cover sheet and receipts to accounting,
  * then a copy to the submitter. The expense is `pending` since the submit.
@@ -261,7 +332,7 @@ async function storeEmailAttachments(
  * the submitter's copy is best-effort.
  */
 async function submitByEmail(
-  { messaging, storage }: AdminClient,
+  { db, messaging, storage }: AdminClient,
   expense: Expenses
 ): Promise<void> {
   // Appwrite Messaging only delivers to registered users, so accounting's inbox
@@ -274,7 +345,17 @@ async function submitByEmail(
 
   const refNumber = reimbursementNumber(expense.$sequence);
   const submitterName = expense.user?.name ?? "";
-  const attachments = await storeEmailAttachments(storage, expense, refNumber);
+  const lookups = await loadAccountingLookups(db, expense);
+  const attachments = await storeEmailAttachments(
+    storage,
+    expense,
+    refNumber,
+    buildAccountingDetails(expense, lookups, "nb")
+  );
+  const summary = accountingSummaryHtml(
+    expense,
+    buildAccountingDetails(expense, lookups, "en")
+  );
 
   await messaging.createEmail({
     messageId: ID.unique(),
@@ -284,6 +365,7 @@ async function submitByEmail(
 
     <p>${submitterName} has submitted a new reimbursement for ${expense.departmentRel.Name} campus ${expense.campusRel.name}</p>
     <p>Reimbursement number: ${refNumber}</p>
+    ${summary}
     <p>Best regards,</p>
     <p>BISO Invoice</p>
 `,

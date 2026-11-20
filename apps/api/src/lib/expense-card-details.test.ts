@@ -474,6 +474,75 @@ describe("loadApprovalCardDetails", () => {
     );
   });
 
+  it("gives each receipt the check's reason when it changed or flagged it", async () => {
+    seed(
+      {
+        attachments: [
+          TAXI,
+          { ...TAXI, $id: "a2", sort_order: 1 },
+          { ...TAXI, $id: "a3", sort_order: 2 },
+        ],
+        costTypes: COST_TYPES,
+        events: [
+          {
+            $createdAt: "2026-11-12T10:00:00.000Z",
+            action: "ai_classified",
+            actor_kind: "ai",
+            attachment_id: "a1",
+            note: "Confidence 0.9: A Ruter ticket.",
+          },
+          {
+            $createdAt: "2026-11-12T10:00:01.000Z",
+            action: "ai_flagged",
+            actor_kind: "ai",
+            attachment_id: "a2",
+            note: "Looks like food, not transport.",
+          },
+          {
+            $createdAt: "2026-11-12T10:00:02.000Z",
+            action: "ai_flagged",
+            actor_kind: "ai",
+            attachment_id: "a3",
+            note: "Already shown as a hint.",
+          },
+        ],
+      },
+      {
+        ...EXPENSE,
+        approver_hints: JSON.stringify([
+          { attachmentId: "a3", code: "type_unsure" },
+        ]),
+      }
+    );
+
+    const { receipts } = await loadApprovalCardDetails(asDb(), "e1");
+
+    expect(receipts.map((r) => r.checkNote)).toEqual([
+      "A Ruter ticket.",
+      "Looks like food, not transport.",
+      undefined,
+    ]);
+  });
+
+  it("words the check's flags and keeps bank accounts out of the history", async () => {
+    seed({
+      attachments: [TAXI],
+      costTypes: COST_TYPES,
+      events: [
+        {
+          $createdAt: "2026-11-12T10:00:00.000Z",
+          action: "ai_flagged",
+          actor_kind: "ai",
+          attachment_id: "a1",
+          field: "project_unsure",
+          note: "Could be two events.",
+        },
+      ],
+    });
+    const { history } = await loadApprovalCardDetails(asDb(), "e1");
+    expect(history[0]?.text).toBe("AI flagged Taxi: Could be two events.");
+  });
+
   it("a failed lookup still returns a sendable card", async () => {
     db.getRow.mockRejectedValue(new Error("boom"));
     db.listRows.mockRejectedValue(new Error("boom"));

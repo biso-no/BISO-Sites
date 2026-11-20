@@ -14,12 +14,13 @@ import type {
 } from "@repo/api/types/appwrite";
 import type { ApprovalCardData } from "@repo/connectors/teams-bot";
 import { getCampusApprovalPlan } from "@repo/shared/utils/expense-approvers";
+import { pickCheckNotes } from "@repo/shared/utils/expense-check-notes";
 import type { CostTypeOption } from "@repo/shared/utils/expense-cost-types";
 import {
   type ApproverHint,
-  hintTextKey,
   parseApproverHints,
 } from "@repo/shared/utils/expense-hints";
+import { hintSentence } from "./expense-hint-text";
 import { loadAllCostTypes } from "./expense-types";
 
 type Db = Awaited<ReturnType<typeof createAdminClient>>["db"];
@@ -35,6 +36,8 @@ export type ApprovalCardDetails = Pick<
 >;
 
 const HISTORY_LIMIT = 6;
+/** The check writes a handful of events per receipt; read them all. */
+const CHECK_EVENT_LIMIT = 200;
 const APPROVAL_LIMIT = 20;
 const NATIONAL_CAMPUS_ID = "5";
 const MAX_REASON_CHARS = 120;
@@ -49,46 +52,6 @@ const NATIONAL_FALLBACK_NOTE =
   "The general manager decides in place of the usual approver.";
 const NATIONAL_CONTROLLER_FALLBACK_NOTE =
   "The controller could not be found or is the submitter; the general manager decides instead.";
-
-// English copies of the admin's `adminPortal.expenses.hintsText.*` strings
-// (packages/i18n/messages/en/adminPortal.json). The api has no i18n, so keep
-// the two in step by hand.
-const HINT_TEXT: Record<string, string> = {
-  account_missing: "No account is set for this receipt type.",
-  ai_check_disagrees:
-    'The student chose a type the AI would not have picked. The AI suggests "{aiType}".',
-  ai_check_incomplete:
-    "The AI check did not finish, so the AI has not looked at everything on this expense.",
-  ai_account_unsure: "The AI was not sure which account to use.",
-  amount_differs: "Entered amount is {entered}, but the receipt reads {read}.",
-  app_type_replaced: 'The app said "{appType}"; the AI chose "{aiType}".',
-  occasion_missing: "The occasion is missing.",
-  old_receipt: "The receipt is {days} days old.",
-  possible_duplicate: "Possible duplicate of another receipt.",
-  possible_duplicate_number:
-    "Possible duplicate of expense {reimbursementNumber}.",
-  project_missing: "No project was found for this expense.",
-  project_not_created:
-    "The project for {series} {year} has not been created yet.",
-  project_unsure: "The AI was not sure which project this belongs to.",
-  project_unsure_reason:
-    "The AI was not sure which project this belongs to: {reason}",
-  receipt_issue: "Receipt problem: {issue}.",
-  type_defaulted: "No type was chosen, so Other was used.",
-  type_unsure: "The AI was not sure which type this receipt is.",
-  type_unsure_reason:
-    "The AI was not sure which type this receipt is: {reason}",
-};
-
-// English copies of `adminPortal.expenses.issues.*` for `receipt_issue` hints.
-const RECEIPT_ISSUE_TEXT: Record<string, string> = {
-  missing_date: "Date missing",
-  missing_seller: "Seller missing",
-  missing_total: "Total missing",
-  no_items: "No items listed",
-  not_a_receipt: "Does not look like a receipt",
-  unreadable: "Hard to read",
-};
 
 const FIELD_WORDS: Record<string, string> = {
   account_number: "the account",
@@ -115,7 +78,6 @@ const ON_BEHALF_NOTE = /^On behalf of (.+?)(?: · Reason: ([\s\S]*))?$/;
 const REASON_NOTE = /^Reason: ([\s\S]*)$/;
 const TRANSACTION_ID = /^\S+/;
 const BOOKED_CUSTOMER = /\bcustomer (\d+)\b/;
-const PLACEHOLDER = /\{(\w+)\}/g;
 
 async function bestEffort<T>(
   what: string,
@@ -128,31 +90,6 @@ async function bestEffort<T>(
     console.error(`[expense-card-details] ${what} failed:`, error);
     return fallback;
   }
-}
-
-function fill(template: string, data: Record<string, string | number>) {
-  return template.replace(PLACEHOLDER, (_, key: string) =>
-    String(data[key] ?? "")
-  );
-}
-
-function hintSentence(
-  hint: ApproverHint,
-  typeLabels: Map<string, string>
-): string | null {
-  const data = { ...hint.data };
-  if (typeof data.aiType === "string") {
-    data.aiType = typeLabels.get(data.aiType) ?? data.aiType;
-  }
-  if (hint.code === "receipt_issue") {
-    const issue = String(data.issue ?? "");
-    return fill(HINT_TEXT.receipt_issue ?? "", {
-      issue: RECEIPT_ISSUE_TEXT[issue] ?? issue,
-    });
-  }
-  const key = hintTextKey(hint.code, data);
-  const template = HINT_TEXT[key];
-  return template ? fill(template, data) : null;
 }
 
 /** The hint's sentence, led by the receipt it is about when it names one. */
@@ -280,7 +217,7 @@ async function loadExpenseParts(
   };
 }
 
-function accountLabel(
+export function accountLabel(
   number: number | null,
   names: Map<number, string>
 ): string | null {
@@ -291,7 +228,7 @@ function accountLabel(
   return name ? `${number} ${name}` : String(number);
 }
 
-function typeLabel(
+export function typeLabel(
   row: ExpenseAttachments,
   labels: Map<string, string>
 ): string {
@@ -302,7 +239,7 @@ function typeLabel(
   return own ? `"${own}"` : row.type;
 }
 
-async function loadAccountNames(
+export async function loadAccountNames(
   db: Db,
   numbers: number[]
 ): Promise<Map<number, string>> {
@@ -325,7 +262,7 @@ async function loadAccountNames(
   return names;
 }
 
-async function loadTypeLabels(db: Db): Promise<Map<string, string>> {
+export async function loadTypeLabels(db: Db): Promise<Map<string, string>> {
   const types: CostTypeOption[] = await bestEffort(
     "cost types lookup",
     [],
@@ -340,6 +277,8 @@ interface ReceiptParts {
   missingAccount: boolean;
   /** Every attachment's short name for hint lines: its text, else its type. */
   nameById: Map<string, string>;
+  /** Receipt ids in `receipts` order, so notes can be matched by id. */
+  receiptIds: string[];
   receipts: ApprovalCardDetails["receipts"];
   /** Active and retired type labels by slug. */
   typeLabels: Map<string, string>;
@@ -350,6 +289,7 @@ interface ReceiptParts {
  * the card offers "Set the account in admin" instead of Approve.
  */
 const UNREAD_RECEIPTS: ReceiptParts = {
+  receiptIds: [],
   labelById: new Map(),
   missingAccount: true,
   nameById: new Map(),
@@ -422,6 +362,7 @@ async function loadReceiptParts(
   );
   return {
     labelById,
+    receiptIds: priced.map((row) => row.$id),
     missingAccount: hasReceiptWithoutAccount(rows),
     nameById: new Map(
       rows.map((row) => [
@@ -523,12 +464,26 @@ function describeHistoryEvent(
       const label = event.attachment_id
         ? labelById.get(event.attachment_id)
         : undefined;
-      const note = (event.note ?? "").slice(0, MAX_REASON_CHARS);
+      const note = shorten(event.note ?? "", MAX_REASON_CHARS);
       return `${actor} flagged${label ? ` ${label}` : ""}: ${note}`;
     }
     default:
       return `Unknown event (${String(event.action)})`;
   }
+}
+
+/** Everything the background check wrote on the expense, for its notes. */
+async function loadCheckEvents(
+  db: Db,
+  expenseId: string
+): Promise<ExpenseEvents[]> {
+  const { rows } = await db.listRows<ExpenseEvents>("app", "expense_events", [
+    Query.equal("expense_id", expenseId),
+    Query.equal("actor_kind", "ai"),
+    Query.orderDesc("$createdAt"),
+    Query.limit(CHECK_EVENT_LIMIT),
+  ]);
+  return rows;
 }
 
 async function loadHistoryEvents(
@@ -552,7 +507,7 @@ export async function loadApprovalCardDetails(
   db: Db,
   expenseId: string
 ): Promise<ApprovalCardDetails> {
-  const [expenseParts, receiptParts, events] = await Promise.all([
+  const [expenseParts, receiptParts, events, checkEvents] = await Promise.all([
     bestEffort("expense lookup", EMPTY_EXPENSE_PARTS, () =>
       loadExpenseParts(db, expenseId)
     ),
@@ -562,7 +517,14 @@ export async function loadApprovalCardDetails(
     bestEffort("history lookup", [] as ExpenseEvents[], () =>
       loadHistoryEvents(db, expenseId)
     ),
+    bestEffort("check events lookup", [] as ExpenseEvents[], () =>
+      loadCheckEvents(db, expenseId)
+    ),
   ]);
+  const notes = pickCheckNotes({
+    events: checkEvents,
+    hints: expenseParts.hints,
+  });
   return {
     declaration: expenseParts.declaration,
     fallbackNote: expenseParts.fallbackNote,
@@ -576,6 +538,9 @@ export async function loadApprovalCardDetails(
       text: describeHistoryEvent(event, receiptParts.labelById),
     })),
     missingAccount: receiptParts.missingAccount,
-    receipts: receiptParts.receipts,
+    receipts: receiptParts.receipts.map((receipt, index) => ({
+      ...receipt,
+      checkNote: notes.get(receiptParts.receiptIds[index] ?? ""),
+    })),
   };
 }

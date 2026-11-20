@@ -351,3 +351,37 @@ describe("project on the approval card and email", () => {
     expect(email([receipt(1)])).not.toContain("Project");
   });
 });
+
+describe("the check's reason per receipt", () => {
+  const noted = baseData({
+    receipts: [{ ...receipt(1), checkNote: "A Ruter ticket." }, receipt(2)],
+  });
+
+  test("the card shows it under the receipt, and only where there is one", () => {
+    const lines = texts(buildApprovalCard(noted) as Record<string, unknown>);
+    expect(lines.filter((line) => line.startsWith("AI check:"))).toEqual([
+      "AI check: A Ruter ticket.",
+    ]);
+  });
+
+  test("the email shows it and escapes it", () => {
+    const html = buildApprovalEmailHtml({
+      ...baseData({
+        receipts: [{ ...receipt(1), checkNote: "<b>Taxi</b> & bus" }],
+      }),
+      approveUrl: "https://a",
+      rejectUrl: "https://r",
+    });
+    expect(html).toContain("AI check: &lt;b&gt;Taxi&lt;/b&gt; &amp; bus");
+    expect(html).not.toContain("<b>Taxi</b>");
+  });
+
+  test("a receipt without one adds no line", () => {
+    const html = buildApprovalEmailHtml({
+      ...baseData(),
+      approveUrl: "https://a",
+      rejectUrl: "https://r",
+    });
+    expect(html).not.toContain("AI check:");
+  });
+});

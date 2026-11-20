@@ -50,6 +50,7 @@ vi.mock("@repo/api/file", () => ({
   InputFile: { fromBuffer: vi.fn(() => ({ file: "pdf" })) },
 }));
 
+import { generateExpensePdf } from "../pdf/expense-pdf";
 import { runExpenseCheck } from "./run";
 
 const NOW = Date.parse("2026-11-19T12:00:00.000Z");
@@ -481,6 +482,54 @@ describe("runExpenseCheck", () => {
     expect(callOrder(examples.syncExamplesForExpense)).toBeGreaterThan(
       callOrder(messaging.createEmail)
     );
+  });
+
+  it("the cover sheet and the email carry what the check found", async () => {
+    flags.states.expenses_ledger_posting = false;
+    stored({
+      approver_hints: JSON.stringify([{ code: "ai_check_incomplete" }]),
+      eventName: "Kickoff night",
+      expenseAttachments: [
+        {
+          $id: "att-1",
+          account_number: 7140,
+          amount: 100,
+          cost_type: null,
+          cost_type_text: "Pizza",
+          date: "2026-11-01",
+          description: "Dominos",
+          project_name: "Fadderuke 2026",
+          url: "file-1",
+        },
+      ],
+      occasion: "Kickoff",
+    } as never);
+
+    await runExpenseCheck("expense-1", { agent: async () => true });
+
+    expect(generateExpensePdf).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attachments: [
+          expect.objectContaining({
+            account: "7140",
+            project: "Fadderuke 2026",
+            type: "Pizza",
+          }),
+        ],
+        event: "Kickoff night",
+        flags: [
+          "AI-sjekken ble ikke ferdig, så AI har ikke sett på alt i dette utlegget.",
+        ],
+        occasion: "Kickoff",
+      })
+    );
+    const [toAccounting] = messaging.createEmail.mock.calls.map(
+      ([email]) => email
+    );
+    expect(toAccounting.content).toContain("Kickoff night");
+    expect(toAccounting.content).toContain("Dominos");
+    expect(toAccounting.content).toContain("Fadderuke 2026");
+    expect(toAccounting.content).toContain("The AI check did not finish");
   });
 
   it("a failed student copy fails nothing, and a re-run sends nothing again", async () => {
