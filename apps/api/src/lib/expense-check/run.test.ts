@@ -226,6 +226,35 @@ describe("runExpenseCheck", () => {
     expect(emailsTo("invoice-user")).toHaveLength(1);
   });
 
+  it("checks a draft saved before the claim column existed", async () => {
+    // Appwrite left the column null, and the increment refuses it.
+    let claim: number | null = null;
+    db.incrementRowColumn.mockImplementation(() => {
+      if (claim === null) {
+        return Promise.reject(new Error("check_claim is null"));
+      }
+      claim += 1;
+      return Promise.resolve({ $id: "expense-1", check_claim: claim });
+    });
+    db.getRow.mockImplementation(async () => ({
+      ...EXPENSE,
+      check_claim: claim,
+    }));
+    db.updateRow.mockImplementation(
+      (_db: string, _table: string, _id: string, data: object) => {
+        if ("check_claim" in data) {
+          claim = (data as { check_claim: number }).check_claim;
+        }
+        return Promise.resolve({});
+      }
+    );
+
+    expect(
+      await runExpenseCheck("expense-1", { agent: async () => true })
+    ).toBe("done");
+    expect(approval.ensureApprovalChain).toHaveBeenCalledTimes(1);
+  });
+
   it("a lost claim does nothing else", async () => {
     claims = 1;
 

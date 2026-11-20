@@ -28,6 +28,7 @@ import {
 import { enrichUnsettled, flagCheckIncomplete } from "../expense-submission";
 import { generateExpensePdf } from "../pdf/expense-pdf";
 import { type AgentAnswer, runCheckAgent } from "./agent";
+import { incrementCheckClaim } from "./claim";
 
 type AdminClient = Awaited<ReturnType<typeof createAdminClient>>;
 
@@ -481,19 +482,11 @@ async function claimCheck(
   expenseId: string,
   claim: number | undefined
 ): Promise<Expenses | null> {
-  if (claim === undefined) {
-    // No `max` bound: a lost race is the `!== 1` answer, and a thrown error
-    // (the column not deployed, an outage) is a real failure.
-    const claimed = await db.incrementRowColumn<Expenses>({
-      databaseId: "app",
-      tableId: "expense",
-      rowId: expenseId,
-      column: "check_claim",
-      value: 1,
-    });
-    if ((claimed.check_claim ?? 0) !== 1) {
-      return null;
-    }
+  // A lost race is the `!== 1` answer; a thrown error (the column not
+  // deployed, an outage) is a real failure. A null claim on an old draft is
+  // set to 0 first (`incrementCheckClaim`).
+  if (claim === undefined && (await incrementCheckClaim(db, expenseId)) !== 1) {
+    return null;
   }
   const row = await db.getRow<Expenses>("app", "expense", expenseId, [
     Query.select(STATE_COLUMNS),

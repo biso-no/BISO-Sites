@@ -3,9 +3,11 @@ import {
   approvalSwitchFor,
   CAMPUS_MAILBOX_SLUGS,
   chainFailedIssueReason,
+  checkStuckIssueReason,
   DEFAULT_DIRECTORY_EMAILS,
   directoryKey,
   getCampusApprovalPlan,
+  isCheckStuckIssue,
   isNoApproverIssue,
   isRebuildIssue,
   NATIONAL_APPROVER_EMAIL,
@@ -259,5 +261,36 @@ describe("isRebuildIssue", () => {
     expect(failed.startsWith("Could not notify")).toBe(false);
     expect(isRebuildIssue("Could not notify a@biso.no for step 1")).toBe(false);
     expect(isRebuildIssue(undefined)).toBe(false);
+  });
+});
+
+describe("checkStuckIssueReason", () => {
+  it("says the check gave up after three tries, with the last error", () => {
+    const stuck = checkStuckIssueReason({ cause: "mail down", told: false });
+    expect(stuck).toBe(
+      "The background check could not finish or notify anyone after three tries (mail down). The reimbursement is pending and nobody has been told; fix the cause, then start the check again (developer docs: A reimbursement stays on Checking)."
+    );
+    expect(isCheckStuckIssue(stuck)).toBe(true);
+    // Neither a resend nor a rebuild fits it.
+    expect(stuck.startsWith("Could not notify")).toBe(false);
+    expect(isRebuildIssue(stuck)).toBe(false);
+    expect(isCheckStuckIssue(chainFailedIssueReason("x"))).toBe(false);
+    expect(isCheckStuckIssue(null)).toBe(false);
+  });
+
+  it("leaves an unknown error out, and says when the approvers were told", () => {
+    expect(checkStuckIssueReason({ told: false })).toContain(
+      "after three tries. The reimbursement"
+    );
+    const told = checkStuckIssueReason({ cause: "db down", told: true });
+    expect(isCheckStuckIssue(told)).toBe(true);
+    expect(told).toContain("were told before");
+    expect(told).not.toContain("nobody has been told");
+  });
+
+  it("stays within the issue's 500 characters", () => {
+    expect(
+      checkStuckIssueReason({ cause: "x".repeat(2000), told: false }).length
+    ).toBeLessThanOrEqual(500);
   });
 });

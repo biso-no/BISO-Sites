@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = vi.hoisted(() => ({
+  createRow: vi.fn(),
   decrementRowColumn: vi.fn(),
+  getRow: vi.fn(),
   incrementRowColumn: vi.fn(),
   listRows: vi.fn(),
 }));
@@ -16,6 +18,10 @@ vi.mock("@repo/api/server", () => ({
 }));
 vi.mock("@/lib/expense-check/run", () => run);
 
+import {
+  checkStuckIssueReason,
+  isCheckStuckIssue,
+} from "@repo/shared/utils/expense-approvers";
 import { POST } from "./route";
 
 const SECRET = "cron-secret-value";
@@ -26,6 +32,9 @@ const request = (headers: Record<string, string> = auth) =>
     method: "POST",
   });
 
+/** Open approval issues, as the list of `expense_approval_issues` returns them. */
+let openIssues: { reason: string }[] = [];
+
 /** Rows the list returns, with the claim each one's increment yields. */
 function stuck(
   rows: { $id: string; check_claim: number; check_state?: string }[]
@@ -34,7 +43,13 @@ function stuck(
     check_state: "running",
     ...row,
   }));
-  db.listRows.mockResolvedValue({ rows: withState, total: rows.length });
+  db.listRows.mockImplementation((_database: string, table: string) =>
+    Promise.resolve(
+      table === "expense_approval_issues"
+        ? { rows: openIssues, total: openIssues.length }
+        : { rows: withState, total: rows.length }
+    )
+  );
   db.incrementRowColumn.mockImplementation(({ rowId }: { rowId: string }) =>
     Promise.resolve({
       check_claim:
@@ -50,6 +65,17 @@ describe("POST /api/cron/expense-check-backstop", () => {
     vi.stubEnv("CRON_SECRET", SECRET);
     run.runExpenseCheck.mockResolvedValue("done");
     db.decrementRowColumn.mockResolvedValue({});
+    db.createRow.mockResolvedValue({});
+    db.getRow.mockResolvedValue({
+      $id: "expense-1",
+      campus: "1",
+      check_finished_at: null,
+      department: "dept-1",
+      departmentRel: { Name: "Marketing" },
+      submitter_is_controller: false,
+      submitter_is_financial_manager: false,
+    });
+    openIssues = [];
     vi.spyOn(console, "error").mockImplementation(() => undefined);
   });
 
@@ -67,6 +93,7 @@ describe("POST /api/cron/expense-check-backstop", () => {
       failed: 0,
       fallbackOnly: 0,
       found: 1,
+      gaveUp: 0,
       ran: 1,
       skipped: 0,
     });
@@ -98,6 +125,12 @@ describe("POST /api/cron/expense-check-backstop", () => {
     expect(text).toContain("orderAsc");
     expect(text).toContain("limit");
     expect(text).toContain("5");
+    // Not one it gave up on after three takeovers; a null claim (an old
+    // draft) still counts.
+    const claimQuery = queries.find((query) => query.includes("check_claim"));
+    expect(claimQuery).toContain("lessThanEqual");
+    expect(claimQuery).toContain("4");
+    expect(claimQuery).toContain("isNull");
   });
 
   it("asks only for checks stale for ten minutes, so a fresh one is left alone", async () => {
@@ -142,6 +175,65 @@ describe("POST /api/cron/expense-check-backstop", () => {
       claim: 3,
     });
     expect(await response.json()).toMatchObject({ fallbackOnly: 1, ran: 2 });
+  });
+
+  it("after three takeovers it stops and tells IT once", async () => {
+    stuck([{ $id: "expense-1", check_claim: 4 }]);
+
+    const response = await POST(request());
+
+    expect(run.runExpenseCheck).not.toHaveBeenCalled();
+    // Claimed, so it is listed no more.
+    expect(db.incrementRowColumn).toHaveBeenCalledWith(
+      expect.objectContaining({ column: "check_claim", rowId: "expense-1" })
+    );
+    expect(db.createRow).toHaveBeenCalledTimes(1);
+    expect(db.createRow).toHaveBeenCalledWith(
+      "app",
+      "expense_approval_issues",
+      expect.any(String),
+      {
+        campus_id: "1",
+        department: "Marketing",
+        expense_id: "expense-1",
+        reason: checkStuckIssueReason({ told: false }),
+        role_sought: expect.any(String),
+        status: "open",
+      }
+    );
+    expect(await response.json()).toMatchObject({ gaveUp: 1, ran: 0 });
+
+    // An open issue says it already.
+    vi.clearAllMocks();
+    openIssues = [{ reason: checkStuckIssueReason({ told: false }) }];
+    stuck([{ $id: "expense-1", check_claim: 4 }]);
+    await POST(request());
+    expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  it("tells IT with the error when the third takeover fails too", async () => {
+    stuck([{ $id: "expense-1", check_claim: 3 }]);
+    run.runExpenseCheck.mockRejectedValue(new Error("mail down"));
+
+    const response = await POST(request());
+
+    expect(run.runExpenseCheck).toHaveBeenCalledTimes(1);
+    const issue = db.createRow.mock.calls[0]?.[3] as { reason: string };
+    expect(isCheckStuckIssue(issue.reason)).toBe(true);
+    expect(issue.reason).toContain("(mail down)");
+    expect(await response.json()).toMatchObject({ failed: 1, gaveUp: 0 });
+  });
+
+  it("an issue that can't be written leaves the row for the next tick", async () => {
+    stuck([{ $id: "expense-1", check_claim: 4 }]);
+    db.createRow.mockRejectedValue(new Error("db down"));
+
+    const response = await POST(request());
+
+    expect(db.decrementRowColumn).toHaveBeenCalledWith(
+      expect.objectContaining({ column: "check_claim", rowId: "expense-1" })
+    );
+    expect(await response.json()).toMatchObject({ failed: 1, gaveUp: 0 });
   });
 
   it("steps aside when an overlapping tick took the row first", async () => {

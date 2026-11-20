@@ -81,6 +81,42 @@ export function chainFailedIssueReason(cause: string): string {
   return `${CHAIN_FAILED_ISSUE_PREFIX} after the check (${cause}). The reimbursement is pending with no approval step; rebuild the chain once the cause is fixed.`;
 }
 
+// Neither "Could not notify" (a resend) nor a rebuild prefix: the check
+// itself never finished, so neither action would finish it.
+const CHECK_STUCK_ISSUE_PREFIX = "The background check could not finish";
+/** How much of the last error the issue quotes; the reason holds 500. */
+const MAX_STUCK_CAUSE_CHARS = 200;
+const WHITESPACE_RUN = /\s+/g;
+
+/**
+ * The approval issue the backstop records when it gives up on a check after
+ * three takeovers. `told`: the approvers (or accounting) were told before,
+ * and only the run that repairs a racing submit's writes keeps failing.
+ */
+export function checkStuckIssueReason(input: {
+  cause?: string;
+  told: boolean;
+}): string {
+  const cause = (input.cause ?? "").replace(WHITESPACE_RUN, " ").trim();
+  const quoted = cause
+    ? ` (${
+        cause.length > MAX_STUCK_CAUSE_CHARS
+          ? `${cause.slice(0, MAX_STUCK_CAUSE_CHARS - 3)}...`
+          : cause
+      })`
+    : "";
+  const next =
+    "fix the cause, then start the check again (developer docs: A reimbursement stays on Checking).";
+  return input.told
+    ? `${CHECK_STUCK_ISSUE_PREFIX} its repair after three tries${quoted}. Its approvers or accounting were told before; ${next}`
+    : `${CHECK_STUCK_ISSUE_PREFIX} or notify anyone after three tries${quoted}. The reimbursement is pending and nobody has been told; ${next}`;
+}
+
+/** True for the issue of a check the backstop gave up on. */
+export function isCheckStuckIssue(reason: string | null | undefined): boolean {
+  return reason?.startsWith(CHECK_STUCK_ISSUE_PREFIX) ?? false;
+}
+
 /**
  * True for an issue that lets a global admin rebuild the approval chain: no
  * approver was found, or the chain failed after the check.

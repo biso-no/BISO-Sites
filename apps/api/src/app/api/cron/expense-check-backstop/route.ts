@@ -3,7 +3,9 @@ import { createAdminClient } from "@repo/api/server";
 import { type Expenses, ExpensesCheckState } from "@repo/api/types/appwrite";
 import { safeSecretCompare } from "@repo/shared/utils/secrets";
 import { NextResponse } from "next/server";
+import { incrementCheckClaim } from "@/lib/expense-check/claim";
 import { noAgent, runExpenseCheck } from "@/lib/expense-check/run";
+import { recordCheckStuckIssue } from "@/lib/expense-check/stuck-issue";
 
 /**
  * Backstop for the reimbursement background check. If the instance dies after
@@ -20,7 +22,12 @@ import { noAgent, runExpenseCheck } from "@/lib/expense-check/run";
  * Taking over is one atomic increment of `check_claim`, passed to
  * `runExpenseCheck` as the claim, so a concurrent run or tick loses. A stale
  * `running` row whose claim is already 2 or more was taken over once before:
- * it runs fallback-only, without the AI agent. Sends `x-cron-secret` from the
+ * it runs fallback-only, without the AI agent.
+ *
+ * After three takeovers (a listed claim of 4) the backstop gives up: it
+ * claims the row once more, which keeps it out of every later list, and
+ * records one approval issue for IT. The third takeover's own failure
+ * records that issue at once, with its error. Sends `x-cron-secret` from the
  * dispatcher, or `Authorization: Bearer ${CRON_SECRET}` by hand.
  */
 
@@ -32,6 +39,8 @@ const STALE_AFTER_MS = 10 * 60_000;
 const BATCH_SIZE = 5;
 /** A claim at or above this on a stale `running` row means a takeover died. */
 const TAKEN_OVER_CLAIM = 2;
+/** A listed claim at or above this: three takeovers died, so it gives up. */
+const GIVE_UP_CLAIM = 4;
 
 function readBearerToken(request: Request): string | null {
   const header = request.headers.get("authorization");
@@ -48,46 +57,65 @@ interface Counts {
   failed: number;
   fallbackOnly: number;
   found: number;
+  /** Rows given up on after three takeovers, with an approval issue for IT. */
+  gaveUp: number;
   ran: number;
   skipped: number;
 }
 
+type Db = Awaited<ReturnType<typeof createAdminClient>>["db"];
+
+/**
+ * Gives this tick's claim back. Best-effort: if it fails, the check waits
+ * for a later tick.
+ */
+async function undoClaim(db: Db, expenseId: string): Promise<void> {
+  await db
+    .decrementRowColumn({
+      databaseId: "app",
+      tableId: "expense",
+      rowId: expenseId,
+      column: "check_claim",
+      value: 1,
+      min: 0,
+    })
+    .catch((error: unknown) => {
+      console.error(`${LOG_TAG} could not undo ${expenseId}'s claim:`, error);
+    });
+}
+
+/**
+ * The approval issue of a check given up on. When it can't be written, the
+ * claim is given back, so the next tick lists the row and tries again.
+ */
+async function giveUp(db: Db, expenseId: string): Promise<void> {
+  try {
+    await recordCheckStuckIssue(db, expenseId);
+  } catch (error) {
+    await undoClaim(db, expenseId);
+    throw error;
+  }
+}
+
 async function takeOver(
-  db: Awaited<ReturnType<typeof createAdminClient>>["db"],
+  db: Db,
   expense: Expenses,
   counts: Counts
 ): Promise<void> {
-  const claimed = await db.incrementRowColumn<Expenses>({
-    databaseId: "app",
-    tableId: "expense",
-    rowId: expense.$id,
-    column: "check_claim",
-    value: 1,
-  });
-  const claim = claimed.check_claim;
+  const claim = await incrementCheckClaim(db, expense.$id);
   // Exclusive takeover: only the tick whose increment came straight after the
   // value it listed owns the row. An overlapping tick (or a run that claimed
-  // since) pushed the counter further, so this one steps aside.
+  // since) pushed the counter further, so this one steps aside and undoes its
+  // increment, so the owner's run still sees its own claim.
   const listedClaim = expense.check_claim ?? 0;
   if (claim !== listedClaim + 1) {
-    // Undo this tick's increment so the owner's run still sees its own
-    // claim. Best-effort: if it fails, the check waits for a later tick.
-    await db
-      .decrementRowColumn({
-        databaseId: "app",
-        tableId: "expense",
-        rowId: expense.$id,
-        column: "check_claim",
-        value: 1,
-        min: 0,
-      })
-      .catch((error: unknown) => {
-        console.error(
-          `${LOG_TAG} could not undo ${expense.$id}'s claim:`,
-          error
-        );
-      });
+    await undoClaim(db, expense.$id);
     counts.skipped += 1;
+    return;
+  }
+  if (listedClaim >= GIVE_UP_CLAIM) {
+    await giveUp(db, expense.$id);
+    counts.gaveUp += 1;
     return;
   }
   const secondTime =
@@ -96,10 +124,27 @@ async function takeOver(
   if (secondTime) {
     counts.fallbackOnly += 1;
   }
-  const outcome = await runExpenseCheck(
-    expense.$id,
-    secondTime ? { agent: noAgent, claim } : { claim }
-  );
+  let outcome: Awaited<ReturnType<typeof runExpenseCheck>>;
+  try {
+    outcome = await runExpenseCheck(
+      expense.$id,
+      secondTime ? { agent: noAgent, claim } : { claim }
+    );
+  } catch (error) {
+    if (claim >= GIVE_UP_CLAIM) {
+      // The third takeover failed as well: IT hears of it now, with the
+      // error, and the next tick only claims the row out of the list.
+      await recordCheckStuckIssue(db, expense.$id, error).catch(
+        (cause: unknown) => {
+          console.error(
+            `${LOG_TAG} could not record ${expense.$id}'s issue:`,
+            cause
+          );
+        }
+      );
+    }
+    throw error;
+  }
   if (outcome === "skipped") {
     counts.skipped += 1;
   } else {
@@ -131,6 +176,12 @@ export async function POST(request: Request) {
           Query.lessThan("check_started_at", cutoff),
         ]),
       ]),
+      // Not a row it gave up on (claimed past 4). A null claim is an old
+      // draft's, still to be checked.
+      Query.or([
+        Query.lessThanEqual("check_claim", GIVE_UP_CLAIM),
+        Query.isNull("check_claim"),
+      ]),
       // A running row's `$updatedAt` is its start write (the run's next
       // write is the last one), so it orders the same as the start time; a
       // queued row has only `$updatedAt`. One order covers both.
@@ -142,6 +193,7 @@ export async function POST(request: Request) {
       failed: 0,
       fallbackOnly: 0,
       found: rows.length,
+      gaveUp: 0,
       ran: 0,
       skipped: 0,
     };
