@@ -17,7 +17,8 @@
     "./metrics": "./src/metrics.ts",
     "./ai": "./src/ai.ts",
     "./consent": "./src/consent.ts",
-    "./browser/replay": "./src/browser/replay.ts"
+    "./browser/replay": "./src/browser/replay.ts",
+    "./browser/feedback": "./src/browser/feedback.ts"
   },
   "dependencies": {
     "@sentry/core": "catalog:"
