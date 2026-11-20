@@ -544,6 +544,9 @@ confident wrong answer. To move both tiers to newer models, change
 ### Nothing is stored
 
 - The route logs nothing: not the question, not the answer and not errors.
+  With a Sentry DSN set, the call sends one span (`docs.ask`) with the model,
+  the token counts and the error type, never the question or the answer
+  (`packages/observability/src/ai.ts`).
   Its `onError` handler does nothing, because the default one logs the error,
   which can carry the request.
 - Every response from `/api/ask` is `Cache-Control: no-store`.

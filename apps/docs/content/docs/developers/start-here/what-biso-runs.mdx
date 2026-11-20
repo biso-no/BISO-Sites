@@ -33,6 +33,7 @@ This page is the map of the platform. Read it before you change anything, and co
   end
   outside["Outside services<br/>Microsoft, BI sign-in,<br/>Vipps, Stripe, 24SevenOffice,<br/>Anthropic, Firebase, wallets,<br/>SMTP, Tickster, Entur"]
   betterstack["Better Stack<br/>uptime alerts"]
+  sentry["Sentry<br/>errors, crons, uptime"]
   umami["Umami<br/>analytics"]
   browser --> web
   browser --> admin
@@ -49,6 +50,9 @@ This page is the map of the platform. Read it before you change anything, and co
   api --> outside
   fns --> outside
   betterstack -.->|"uptime checks"| web
+  sentry -.->|"uptime checks"| web
+  web -.->|"errors"| sentry
+  fns -.->|"check-ins"| sentry
   browser -.-> umami`}
 />
 
@@ -76,6 +80,7 @@ To keep it readable, the diagram leaves out these calls:
 | member-roster-sync | Every night, rebuilds the member list on the admin's members page from 24SevenOffice. | Appwrite Function | `functions/member-roster-sync` |
 | Shared packages | Code the apps share, such as Appwrite access, the page editor, UI, outside services, payments, AI and translations. | Built into each app | `packages/*` |
 | BISO app | The iOS and Android app. It talks to Appwrite directly and to `api.biso.no`. | App Store and Google Play | The BISO-Flutter repo |
+| Sentry | Collects errors, slow requests, scheduled-job check-ins and uptime checks from the four apps and the three functions, and emails the owner. Non-profit plan, EU region. | Sentry's own service | `packages/observability`, and each app's Sentry files. See [Monitoring and health](/developers/keep-it-running/monitoring-and-health#sentry). |
 | Better Stack | Sends an alert when the site can't be reached. Free plan. | Better Stack's own service | Not in the repo |
 | Umami | Visitor analytics for the website and the admin. The admin's analytics page reads it. | Self-hosted | Umami itself isn't in the repo. The admin's client is in `apps/admin/src/lib/umami`. |
 

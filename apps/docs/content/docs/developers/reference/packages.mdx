@@ -1,6 +1,6 @@
 ---
 title: Packages
-description: The eleven shared packages under packages/, with what each one holds, the entry points it exports, which apps use it, and the sharp edges to know before you change it.
+description: The twelve shared packages under packages/, with what each one holds, the entry points it exports, which apps use it, and the sharp edges to know before you change it.
 covers:
   - packages/*/package.json
   - packages/*/README.md
@@ -18,7 +18,7 @@ covers:
   - apps/web/tsconfig.json
 ---
 
-Read this before you change a shared package, or before you import something new from one. The repo has eleven packages under `packages/`. Each section below says what the package holds, the entry points its `package.json` exports, which apps and packages import it, and what catches people out. [Code layout](/developers/change-it/code-layout#how-the-apps-use-the-packages) explains how the apps compile the packages, and [Data model](/developers/change-it/data-model) covers the schema that lives in `@repo/api`.
+Read this before you change a shared package, or before you import something new from one. The repo has twelve packages under `packages/`. Each section below says what the package holds, the entry points its `package.json` exports, which apps and packages import it, and what catches people out. [Code layout](/developers/change-it/code-layout#how-the-apps-use-the-packages) explains how the apps compile the packages, and [Data model](/developers/change-it/data-model) covers the schema that lives in `@repo/api`.
 
 ## At a glance
 
@@ -31,6 +31,7 @@ Read this before you change a shared package, or before you import something new
 | [`@repo/connectors`](#repoconnectors) | Clients for Microsoft, 24SevenOffice, SharePoint, the Teams bot, Tickster and SMTP | admin, api, web, member-roster-sync, `@repo/shared` |
 | [`@repo/payment`](#repopayment) | Vipps MobilePay and Stripe | api, admin, and one deprecated web route |
 | [`@repo/ai`](#repoai) | The Anthropic models, the admin assistant and the AI helpers | admin, api, web, docs, `@repo/i18n`'s translation script |
+| [`@repo/observability`](#repoobservability) | Sentry options, the privacy scrubber, business counts, AI spans, replay consent and the functions' reporter | web, admin, api, docs, the three functions |
 | [`@repo/i18n`](#repoi18n) | Locales and the Norwegian and English message files | web, admin, api |
 | [`@repo/tours`](#repotours) | The engine for the admin's guided tours | admin |
 | [`@repo/wp-import`](#repowp-import) | The one-off import from the old WordPress site | Nobody. You run it by hand. |
@@ -217,6 +218,26 @@ AI on the Vercel AI SDK: the two Anthropic models, the admin assistant and its t
 - **The package never reads `ANTHROPIC_API_KEY`.** The AI library reads it by itself. Only docs names it, to switch its assistant on, and only `apps/docs/.env.example` lists it. See [AI](/developers/reference/ai).
 - **Don't trust `README.md`.** No app imports `@repo/ai/config`, `@repo/ai/prompts` or `@repo/ai/utils`, though the README shows them. It also shows entry points that don't exist, such as `@repo/ai/provider`, `@repo/ai/hooks/use-assistant` and `@repo/ai/tools/navigation`. The `exports` in `package.json` are the real list.
 - **`@ai-sdk/openai` is still a dependency.** The models moved from OpenAI to Anthropic on 22 October 2026. In the apps, only test mocks in the admin still refer to OpenAI's package. See [Leftovers](/developers/reference/ai#leftovers).
+
+## `@repo/observability`
+
+Everything the apps share for Sentry: sample rates, the rules that remove personal data from events, and small helpers. Each app keeps only the files Next.js requires (`instrumentation.ts`, `instrumentation-client.ts`, `sentry.server.config.ts`) and calls into this package. [Monitoring and health](/developers/keep-it-running/monitoring-and-health#sentry) says what Sentry receives.
+
+| Import | What it gives you |
+|---|---|
+| `@repo/observability/options` | Browser and server options, `SAMPLE_RATES`, the data-collection switches, the tunnel path |
+| `@repo/observability/scrub` | The scrubber for events, logs, spans, metrics and breadcrumbs |
+| `@repo/observability/metrics` | `countMetric` and `gaugeMetric`, which accept only the listed metric names and the labels `provider`, `kind`, `app`, `client` and `outcome` |
+| `@repo/observability/ai` | Spans for AI calls, with the feature, model and token counts and never the content |
+| `@repo/observability/consent`, `/browser/replay`, `/browser/feedback` | The recordings choice, the replay controller and the "Report a problem" form |
+| `@repo/observability/relay` | The size check for the browser tunnel |
+| `@repo/observability/build`, `/user` | Release naming, `SENTRY_TRANSPILE_PACKAGES`, and setting the signed-in user id |
+| `@repo/observability/functions` | The reporter the three Appwrite functions use. It has no imports, because the functions load it by path. |
+
+- **A change to a privacy rule goes in two places.** The scrubber in `scrub.ts` has a private copy in `functions/reporter.ts`, and a test fails when the two disagree.
+- **Add a metric name in `metrics.ts`, never inline.** Names and labels are a fixed list so that nothing personal can be attached.
+- **Never import `@sentry/*` straight into app code.** Go through this package, so the privacy rules apply.
+- **Upgrading `@sentry/*` needs a build check.** See [After upgrading @sentry/*](/developers/keep-it-running/deploying#after-upgrading-sentry).
 
 ## `@repo/i18n`
 

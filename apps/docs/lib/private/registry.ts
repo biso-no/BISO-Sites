@@ -88,6 +88,10 @@ export const PRIVATE_VALUES = {
     description:
       "Who owns the Better Stack account, which email it is registered under, and who receives its alerts.",
   },
+  "sentry-account": {
+    description:
+      "Who owns BISO's Sentry organisation, which email it is registered under, who receives its alerts, and where the organisation auth token for source maps is kept.",
+  },
   "security-issues-tracker": {
     description:
       "Where the owner keeps the list of open security issues, such as a private GitHub security advisory list or an Infisical note, and who to ask for access. Never the issues themselves.",

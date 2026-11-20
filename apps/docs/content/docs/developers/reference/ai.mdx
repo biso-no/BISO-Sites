@@ -3,6 +3,7 @@ title: AI
 description: Which features use Anthropic's models and where, how the admin assistant's writes are confirmed, the docs assistant and what it costs, the kill switches, the OpenAI key that only switches job screening on, the code and settings left over from earlier AI work, and how to test without spending BISO's credit.
 covers:
   - packages/ai/**
+  - packages/observability/src/ai.ts
   - apps/docs/app/api/ask/**
   - apps/docs/lib/assistant/**
   - apps/docs/components/assistant/**
@@ -108,17 +109,18 @@ The docs assistant has no flag. Unset `ANTHROPIC_API_KEY` on docs and redeploy t
 
 ## What users see when it fails
 
+- With a Sentry DSN set, each AI call also sends a span to Sentry: the feature name (such as `api.receipt-extract` or `admin.assistant`), the model, the token counts and, on failure, the type of error. Prompts, answers, files and tool inputs are never sent. See [Monitoring and health](/developers/keep-it-running/monitoring-and-health#what-is-sent).
 - An AI feature in the admin shows an error, and the Site's log shows Anthropic's error, such as `authentication_error` or `rate_limit_error`. The assistant and the page editor's chat log only the error's class and HTTP status, such as `[ai] admin.assistant stream failed: AI_APICallError (HTTP 429)`, because the whole error can quote the conversation. The runbook has a table of the errors with their status codes.
 - Receipt reading fails, and the student fills in the form by hand.
 - A job application is saved without an AI score. The log says `AI screening failed for application <id>:`. If `OPENAI_API_KEY` is unset, screening is skipped without a log line.
-- The docs assistant says "The assistant couldn't answer right now. Try the search instead." It logs nothing, not even Anthropic's error, so check the key and the account in Anthropic's console.
+- The docs assistant says "The assistant couldn't answer right now. Try the search instead." It logs nothing, not even Anthropic's error, though a Sentry span shows the error type. Check the key and the account in Anthropic's console.
 
 ## The docs assistant
 
 Readers of these docs can ask a question on the landing page, or with **Ask about this page** at the foot of a page's contents. The assistant searches the docs, sends up to six whole pages and the question to Anthropic in one call, and streams back a short answer that cites the pages it used. When the pages don't cover the question, its instructions tell it to say so in one sentence and point to the search. `apps/docs/CLAUDE.md` is the runbook: how it works step by step, the owner's steps before it goes live, and what to check when it fails.
 
 - **What it sends.** Public page text only. Every private detail is replaced with `[private detail, shown only to signed-in staff]` first, whether or not the reader is signed in, and the assistant code never reads the private source.
-- **What it keeps.** Nothing. The question, the answer and any error are never logged or stored.
+- **What it keeps.** Nothing. The question, the answer and any error are never logged or stored. With a Sentry DSN set, the call sends a span (`docs.ask`) with the model, the token counts and the type of error, never the question or the answer.
 - **What it lists.** Under **Pages used**, the pages the answer cites. An answer that cites none, such as one saying the docs don't cover the question, lists none.
 - **Model.** `DOCS_ASSISTANT_MODEL` picks the tier: `balanced` (Sonnet 5.5) when unset or empty, or `fast` (Haiku 5.5). Balanced was chosen over fast because the worst failure is a confident wrong answer.
 - **Limits.** 8 questions per visitor per 10 minutes, and `DOCS_ASSISTANT_DAILY_LIMIT` questions a day (default 50). Both counts live in memory in each server process and start again when it restarts or redeploys, so the daily total isn't a spend cap. The hard cap is the monthly spend limit on the docs key's own workspace in the Anthropic Console, which the owner sets before go-live. Visitors are told apart by the first address in `x-forwarded-for`, so the owner must confirm that the proxy in front of docs sets it. Otherwise every visitor shares one count. If the proxy appends to an `x-forwarded-for` the client sent instead of replacing it, a visitor can choose their own key and get round the per-visitor limit. Then only the daily total and the spend limit hold. Questions are capped at 500 characters and request bodies at 4 KB.
