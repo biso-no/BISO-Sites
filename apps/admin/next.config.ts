@@ -122,6 +122,8 @@ const baseConfig: NextConfig = {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=()",
           },
+          // Lets the browser profile this page for Sentry (Chromium only).
+          { key: "Document-Policy", value: "js-profiling" },
         ],
       },
       // The member pass scanners need the camera. When two rules set the

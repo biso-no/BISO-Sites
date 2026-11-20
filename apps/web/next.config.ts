@@ -124,6 +124,11 @@ const baseConfig: NextConfig = {
   async headers() {
     return [
       {
+        // Lets the browser profile pages for Sentry (Chromium only).
+        source: "/:path*",
+        headers: [{ key: "Document-Policy", value: "js-profiling" }],
+      },
+      {
         source: "/.well-known/apple-app-site-association",
         headers: [
           {

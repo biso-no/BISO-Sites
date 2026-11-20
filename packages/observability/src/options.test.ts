@@ -99,6 +99,21 @@ describe("buildBrowserOptions", () => {
     expect(o).not.toHaveProperty("tracesSampleRate");
   });
 
+  it("profiles 10% of web and admin sessions, per trace, and docs none", () => {
+    for (const app of ["web", "admin"] as const) {
+      const o = buildBrowserOptions({ app, dsn: "x", environment: "e" });
+      expect(o.profileSessionSampleRate).toBe(0.1);
+      expect(o.profileLifecycle).toBe("trace");
+    }
+    const docs = buildBrowserOptions({
+      app: "docs",
+      dsn: "x",
+      environment: "e",
+    });
+    expect(docs.profileSessionSampleRate).toBe(0);
+    expect(docs).not.toHaveProperty("profileLifecycle");
+  });
+
   it("keeps replay off and privacy settings strict", () => {
     const o = buildBrowserOptions({ app: "web", dsn: "x", environment: "e" });
     expect(o.replaysSessionSampleRate).toBe(0);

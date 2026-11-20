@@ -51,6 +51,14 @@ export const SAMPLE_RATES: Record<SentryApp, TraceRates> &
   docs: { serverTraces: 1, browserTraces: 0.25 },
 };
 
+/**
+ * Share of browser sessions profiled, tied to sampled traces
+ * (`profileLifecycle: "trace"`). Web and admin only; needs the
+ * `browserProfilingIntegration` in the app's init and the
+ * `Document-Policy: js-profiling` response header.
+ */
+export const BROWSER_PROFILE_SESSION_SAMPLE_RATE = 0.1;
+
 export const DATA_COLLECTION: DataCollection = {
   userInfo: false,
   cookies: false,
@@ -176,6 +184,19 @@ export const buildServerOptions = (input: OptionInput) => ({
   ...(input.tunnel ? { ignoreSpans: TUNNEL_IGNORE_SPANS } : {}),
 });
 
+interface ProfilingOptions {
+  profileLifecycle?: "trace";
+  profileSessionSampleRate: number;
+}
+
+const profilingOptions = (app: SentryApp): ProfilingOptions =>
+  app === "web" || app === "admin"
+    ? {
+        profileSessionSampleRate: BROWSER_PROFILE_SESSION_SAMPLE_RATE,
+        profileLifecycle: "trace",
+      }
+    : { profileSessionSampleRate: 0 };
+
 // No `tracePropagationTargets` in the browser: unset, the SDK adds trace
 // headers to same-origin requests only (`shouldAttachHeaders` in
 // @sentry/browser `tracing/request.js`). A cross-origin match, such as
@@ -193,4 +214,5 @@ export const buildBrowserOptions = (input: OptionInput) => ({
   // No recording without consent; see `applyReplayConsent`.
   replaysSessionSampleRate: 0,
   replaysOnErrorSampleRate: 0,
+  ...profilingOptions(input.app),
 });
