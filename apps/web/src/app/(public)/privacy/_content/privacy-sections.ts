@@ -122,7 +122,7 @@ We only use cookies to give you a better user experience on our services, so you
   {
     id: "error-monitoring",
     title: "Error Monitoring and Recordings",
-    content: `BISO uses Sentry, a service from Functional Software, Inc., to find and fix errors on biso.no, in the admin and in the BISO app. The data is stored in Sentry's EU region (Frankfurt, Germany).
+    content: `BISO uses Sentry, a service from Functional Software, Inc., to find and fix errors on biso.no and in the admin. The data is stored in Sentry's EU region (Frankfurt, Germany).
 
 **Always collected:**
 • Error reports
