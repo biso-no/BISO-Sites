@@ -51,11 +51,39 @@
  */
 
 import { timingSafeEqual } from "node:crypto";
+// Relative on purpose: this function deploys from the repo root with only
+// `bun install` run in its own folder, so workspace packages (@repo/*) are not
+// available. The reporter file has no imports by design, so it loads as is.
+import {
+  type MonitorConfig,
+  reporterFromEnv,
+} from "../../../packages/observability/src/functions/reporter.ts";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_BODY_CHARS = 500;
 const BEARER_PREFIX = "Bearer ";
 const LOG_TAG = "[scheduled-dispatch]";
+const MS_PER_SECOND = 1000;
+const DISPATCHER_SLUG = "scheduled-dispatch";
+const URL_ENV_SUFFIX = /_URL$/;
+
+/** Cron monitor settings for the dispatcher and each target it pings. */
+const MONITOR_CONFIG: MonitorConfig = {
+  schedule: "*/5 * * * *",
+  checkinMargin: 2,
+  maxRuntime: 6,
+  failureIssueThreshold: 2,
+  recoveryThreshold: 1,
+  timezone: "UTC",
+};
+
+/** `ORDERS_RECONCILE_URL` -> `dispatch-orders-reconcile`. */
+export function monitorSlugFor(envVar: string): string {
+  return `dispatch-${envVar
+    .replace(URL_ENV_SUFFIX, "")
+    .toLowerCase()
+    .replaceAll("_", "-")}`;
+}
 
 /** Env vars that hold a target endpoint URL, in dispatch order. */
 const TARGET_ENV_VARS = [
@@ -286,8 +314,41 @@ function logResults(results: PingResult[], log: LogFn, error: LogFn): void {
   }
 }
 
-export default async ({ req, res, log, error }: AppwriteContext) => {
+/** One closing cron check-in per target, plus an error event for failures. */
+function reportResults(
+  reporter: ReturnType<typeof reporterFromEnv>,
+  results: PingResult[]
+): void {
+  for (const result of results) {
+    reporter.checkIn(monitorSlugFor(result.name), result.ok ? "ok" : "error", {
+      durationSeconds: result.durationMs / MS_PER_SECOND,
+      monitorConfig: MONITOR_CONFIG,
+    });
+    if (!result.ok) {
+      reporter.captureError(
+        new Error(`${result.name} failed: ${result.status ?? "no response"}`),
+        { target: result.name }
+      );
+    }
+  }
+}
+
+export default async (context: AppwriteContext) => {
+  const reporter = reporterFromEnv(process.env, DISPATCHER_SLUG);
+  try {
+    return await dispatch(context, reporter);
+  } finally {
+    await reporter.flush();
+  }
+};
+
+async function dispatch(
+  { req, res, log, error }: AppwriteContext,
+  reporter: ReturnType<typeof reporterFromEnv>
+) {
   const startedAt = Date.now();
+  let checkInId: string | undefined;
+  const elapsedSeconds = () => (Date.now() - startedAt) / MS_PER_SECOND;
 
   try {
     const headers = req?.headers ?? {};
@@ -316,6 +377,10 @@ export default async ({ req, res, log, error }: AppwriteContext) => {
       return res.json({ ok: false, error: "Unauthorized" }, 401);
     }
 
+    checkInId = reporter.checkIn(DISPATCHER_SLUG, "in_progress", {
+      monitorConfig: MONITOR_CONFIG,
+    });
+
     const fallbackTimeoutMs = resolveTimeoutMs();
     const { targets, skipped } = collectTargets(fallbackTimeoutMs);
     log(
@@ -324,6 +389,10 @@ export default async ({ req, res, log, error }: AppwriteContext) => {
 
     if (targets.length === 0) {
       log(`${LOG_TAG} no cron endpoints configured; nothing to do`);
+      reporter.checkIn(DISPATCHER_SLUG, "ok", {
+        checkInId,
+        durationSeconds: elapsedSeconds(),
+      });
       return res.json({ ok: true, results: [] });
     }
 
@@ -337,6 +406,7 @@ export default async ({ req, res, log, error }: AppwriteContext) => {
       targets.map((target) => ping(target, secret))
     );
     logResults(results, log, error);
+    reportResults(reporter, results);
 
     const succeeded = results.filter((r) => r.ok).length;
     const failed = results.length - succeeded;
@@ -354,8 +424,20 @@ export default async ({ req, res, log, error }: AppwriteContext) => {
       error(`${LOG_TAG} completed with failures ${summary}`);
     }
 
+    reporter.checkIn(DISPATCHER_SLUG, ok ? "ok" : "error", {
+      checkInId,
+      durationSeconds: elapsedSeconds(),
+    });
+
     return res.json({ ok, results }, ok ? 200 : 502);
   } catch (err) {
+    reporter.captureError(err);
+    if (checkInId) {
+      reporter.checkIn(DISPATCHER_SLUG, "error", {
+        checkInId,
+        durationSeconds: elapsedSeconds(),
+      });
+    }
     // Catch-all so an unexpected throw surfaces in the Errors tab (with a stack)
     // and the execution still terminates cleanly instead of an opaque crash.
     const message = err instanceof Error ? err.message : String(err);
@@ -367,4 +449,4 @@ export default async ({ req, res, log, error }: AppwriteContext) => {
     }
     return res.json({ ok: false, error: message }, 500);
   }
-};
+}
