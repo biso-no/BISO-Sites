@@ -18,7 +18,8 @@
     "./ai": "./src/ai.ts",
     "./consent": "./src/consent.ts",
     "./browser/replay": "./src/browser/replay.ts",
-    "./browser/feedback": "./src/browser/feedback.ts"
+    "./browser/feedback": "./src/browser/feedback.ts",
+    "./functions": "./src/functions/reporter.ts"
   },
   "dependencies": {
     "@sentry/browser-utils": "catalog:",
