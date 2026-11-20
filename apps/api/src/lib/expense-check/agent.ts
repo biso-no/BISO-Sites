@@ -511,9 +511,21 @@ export async function checkWithAgent(
 export type AgentAnswer = boolean | { extraHints: ApproverHint[] };
 
 /**
+ * The check's hints the fixed steps would otherwise work out again and lose:
+ * its incomplete flag, and its doubts of an account. The fixed steps may
+ * still choose an own-text receipt's account, as their best guess; the
+ * check's doubt of it stays for the approver.
+ */
+const HANDED_ON = new Set<ApproverHint["code"]>([
+  "ai_check_incomplete",
+  "ai_account_unsure",
+]);
+
+/**
  * The AI check of one expense: reads it, lets the agent propose, and applies
  * what code accepts (`applyCheck`). False leaves the work to the fixed steps;
- * an answer that left receipts out still counts, with its flag handed on.
+ * an answer that left receipts out still counts, with its flag handed on, as
+ * are its doubts of an account (`HANDED_ON`).
  */
 export async function runCheckAgent(
   expenseId: string,
@@ -547,10 +559,6 @@ export async function runCheckAgent(
   console.info(
     `[expense-check] ${expenseId}: applied ${changes.length} changes and ${hints.length} flags; ${unchecked} receipts left out`
   );
-  if (unchecked > 0) {
-    return {
-      extraHints: hints.filter((hint) => hint.code === "ai_check_incomplete"),
-    };
-  }
-  return true;
+  const extraHints = hints.filter((hint) => HANDED_ON.has(hint.code));
+  return extraHints.length > 0 ? { extraHints } : true;
 }

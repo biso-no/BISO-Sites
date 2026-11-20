@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  codeOnlyHint,
   hintTextKey,
-  MAX_HINT_TEXT_CHARS,
+  MAX_HINT_REASON_CHARS,
   parseApproverHints,
   parseReceiptIssues,
+  storedHint,
 } from "./expense-hints";
 
 const LINE_BREAK_OR_DOUBLE_SPACE = /\s{2}|[\n\t]/;
@@ -90,7 +92,7 @@ describe("hint text data", () => {
     const text = String(hint?.data?.reason);
     expect(text.startsWith("first line second line xxx")).toBe(true);
     expect(text).not.toMatch(LINE_BREAK_OR_DOUBLE_SPACE);
-    expect(Array.from(text)).toHaveLength(MAX_HINT_TEXT_CHARS);
+    expect(Array.from(text)).toHaveLength(MAX_HINT_REASON_CHARS);
     expect(text.endsWith("…")).toBe(true);
   });
 
@@ -101,6 +103,76 @@ describe("hint text data", () => {
       ])
     );
     expect(hint?.data).toEqual({ reason: "two fit", year: 2026 });
+  });
+});
+
+describe("storedHint", () => {
+  it("keeps a reason only where the text shows one, cut to 120 characters", () => {
+    const reason = `Two types fit. ${"x".repeat(300)}`;
+    expect(MAX_HINT_REASON_CHARS).toBe(120);
+    const unsure = storedHint({
+      attachmentId: "a1",
+      code: "type_unsure",
+      data: { reason },
+    });
+    expect(Array.from(String(unsure.data?.reason))).toHaveLength(120);
+    expect(String(unsure.data?.reason).endsWith("…")).toBe(true);
+    // These texts never show a reason, so none is stored.
+    expect(
+      storedHint({
+        attachmentId: "a1",
+        code: "ai_check_disagrees",
+        data: { aiType: "food", reason },
+      })
+    ).toEqual({
+      attachmentId: "a1",
+      code: "ai_check_disagrees",
+      data: { aiType: "food" },
+    });
+    for (const code of ["ai_account_unsure", "project_missing"] as const) {
+      expect(
+        storedHint({ attachmentId: "a1", code, data: { reason } })
+      ).toEqual({ attachmentId: "a1", code });
+    }
+  });
+});
+
+describe("codeOnlyHint", () => {
+  it("keeps only the data its text needs", () => {
+    expect(
+      codeOnlyHint({
+        attachmentId: "a1",
+        code: "type_unsure",
+        data: { reason: "Two types fit" },
+      })
+    ).toEqual({ attachmentId: "a1", code: "type_unsure" });
+    expect(
+      codeOnlyHint({
+        attachmentId: "a1",
+        code: "possible_duplicate",
+        data: { match: "file", reimbursementNumber: "10042" },
+      })
+    ).toEqual({ attachmentId: "a1", code: "possible_duplicate" });
+    for (const hint of [
+      {
+        attachmentId: "a1",
+        code: "project_not_created" as const,
+        data: { series: "BBL", year: 2027 },
+      },
+      {
+        attachmentId: "a1",
+        code: "amount_differs" as const,
+        data: { entered: 10, read: 12 },
+      },
+      {
+        attachmentId: "a1",
+        code: "app_type_replaced" as const,
+        data: { aiType: "food", appType: "taxi" },
+      },
+      { code: "receipt_issue" as const, data: { issue: "unreadable" } },
+    ]) {
+      expect(codeOnlyHint(hint)).toEqual(hint);
+    }
   });
 });
 

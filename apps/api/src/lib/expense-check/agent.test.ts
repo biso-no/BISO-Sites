@@ -247,8 +247,13 @@ describe("checkWithAgent", () => {
   });
 });
 
-/** A stored expense; `euroReceipt` adds a second receipt paid in euros. */
-function expenseStore(options: { euroReceipt?: boolean } = {}) {
+/**
+ * A stored expense; `euroReceipt` adds a second receipt paid in euros, and
+ * `ownText` gives the first one the student's own words for its type.
+ */
+function expenseStore(
+  options: { euroReceipt?: boolean; ownText?: boolean } = {}
+) {
   const euro = {
     $id: "r2",
     account_number: null,
@@ -323,7 +328,7 @@ function expenseStore(options: { euroReceipt?: boolean } = {}) {
             ai_cost_type: "food",
             amount: 250,
             cost_type: null,
-            cost_type_text: null,
+            cost_type_text: options.ownText ? "Flowers for the speaker" : null,
             date: "2026-11-01T11:00:00.000+00:00",
             description: "Pizza for the board",
             file_hash: "hash-1",
@@ -496,6 +501,42 @@ describe("runCheckAgent", () => {
       extraHints: [{ code: "ai_check_incomplete", data: { unchecked: 1 } }],
     });
     expect(store.patchOf("r1")).toMatchObject({ cost_type: "food" });
+  });
+
+  it("hands the check's account doubts on to the fixed steps", async () => {
+    const store = expenseStore({ ownText: true });
+    admin.current = { db: store.db, storage: {} };
+    const model = scriptedModel([
+      {
+        calls: [
+          {
+            input: {
+              flags: [
+                {
+                  code: "account_unsure",
+                  note: "7420 gifts or 6800 office supplies?",
+                  receiptId: "r1",
+                },
+              ],
+              receipts: [
+                {
+                  confidence: { project: 0.9 },
+                  projectId: "none",
+                  reason: "Flowers for a speaker",
+                  receiptId: "r1",
+                },
+              ],
+            },
+            name: "finish_check",
+          },
+        ],
+      },
+    ]);
+
+    // The fixed steps may still choose an account; the doubt must stay.
+    expect(await runCheckAgent("expense-1", { model, today: TODAY })).toEqual({
+      extraHints: [{ attachmentId: "r1", code: "ai_account_unsure" }],
+    });
   });
 
   it("applies nothing without an answer", async () => {

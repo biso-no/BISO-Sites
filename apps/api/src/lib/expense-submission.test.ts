@@ -1,4 +1,5 @@
 import type { CostTypeOption } from "@repo/shared/utils/expense-cost-types";
+import type { ApproverHint } from "@repo/shared/utils/expense-hints";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const generateObject = vi.hoisted(() => vi.fn());
@@ -1938,6 +1939,27 @@ describe("prepareSubmission and the check's fixed steps", () => {
     ]);
   });
 
+  it("keeps the check's account doubt once when the fixed steps doubt it too", async () => {
+    generateObject.mockResolvedValue({
+      object: { accountNumber: 7420, confidence: 0.5, reason: "Gift?" },
+    });
+    const { expense, payload } = submission([
+      { cost_type_chosen: true, cost_type_text: "Flowers", url: "file-1" },
+    ]);
+    storeOf(expense, payload);
+    await prepareSubmission(admin, expense, payload, "Ada Lovelace");
+    // The check doubted the account and handed its doubt on.
+    const doubt = { attachmentId: "att-1", code: "ai_account_unsure" as const };
+    await db.updateRow("app", "expense", "expense-1", {
+      approver_hints: JSON.stringify([doubt]),
+    });
+
+    await enrichUnsettled(admin, "expense-1", { extraHints: [doubt] });
+
+    expect(attachmentWrite("att-1")).toMatchObject({ account_number: 7420 });
+    expect(JSON.parse(String(expenseWrite()?.approver_hints))).toEqual([doubt]);
+  });
+
   it("a second run reads what the first could not, without choosing again", async () => {
     const error = vi
       .spyOn(console, "error")
@@ -2050,5 +2072,71 @@ describe("hintsJson", () => {
     expect(kept.length).toBeLessThan(many.length + essential.length);
     // What is kept after the essential ones is the start of the rest, in order.
     expect(kept.slice(2)).toEqual(many.slice(0, kept.length - 2));
+  });
+
+  it("twelve flagged receipts keep every project_not_created flag", () => {
+    const reason = `Two types fit this receipt. ${"x".repeat(200)}`;
+    const receipts = Array.from({ length: 12 }, (_, index) => `r${index + 1}`);
+    // In the order the check writes them: the receipt hints first, the
+    // agent's flags after.
+    const hints: ApproverHint[] = [
+      ...receipts.map((attachmentId) => ({
+        attachmentId,
+        code: "possible_duplicate" as const,
+        data: { match: "date_amount", reimbursementNumber: "10042" },
+      })),
+      ...receipts.flatMap((attachmentId): ApproverHint[] => [
+        { attachmentId, code: "type_unsure" as const, data: { reason } },
+        { attachmentId, code: "project_unsure" as const, data: { reason } },
+        {
+          attachmentId,
+          code: "project_not_created" as const,
+          data: { series: "Fadderullan", year: 2027 },
+        },
+      ]),
+    ];
+
+    const json = hintsJson(hints);
+    const kept = JSON.parse(json) as { attachmentId: string; code: string }[];
+
+    expect(json.length).toBeLessThanOrEqual(4000);
+    const ofCode = (code: string) =>
+      kept.filter((hint) => hint.code === code).map((h) => h.attachmentId);
+    expect(ofCode("project_not_created")).toEqual(receipts);
+    // Every flag stays, in its short form where the reasons don't fit.
+    expect(ofCode("type_unsure")).toEqual(receipts);
+    expect(ofCode("project_unsure")).toEqual(receipts);
+    expect(ofCode("possible_duplicate")).toEqual(receipts);
+  });
+
+  it("shrinks a hint that does not fit before dropping it, and goes on to the next", () => {
+    const filler: ApproverHint[] = [];
+    // Fill the column to within 60 characters of its size.
+    for (let index = 0; ; index += 1) {
+      const next = [...filler, issue(index)];
+      if (JSON.stringify(next).length > 4000 - 60) {
+        break;
+      }
+      filler.push(issue(index));
+    }
+    const tooBig = {
+      attachmentId: "big",
+      code: "receipt_issue" as const,
+      data: { issue: "y".repeat(150) },
+    };
+    const small = {
+      attachmentId: "small",
+      code: "type_unsure" as const,
+      data: { reason: "x".repeat(100) },
+    };
+
+    const kept = JSON.parse(hintsJson([...filler, tooBig, small]));
+
+    // The big one can't fit even shrunk, so it goes; the next one still
+    // fits, without its reason.
+    expect(kept).toEqual([
+      ...filler,
+      { attachmentId: "small", code: "type_unsure" },
+    ]);
   });
 });

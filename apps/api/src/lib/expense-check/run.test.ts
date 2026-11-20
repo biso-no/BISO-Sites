@@ -1,3 +1,4 @@
+import type { ApproverHint } from "@repo/shared/utils/expense-hints";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = vi.hoisted(() => ({
@@ -306,6 +307,33 @@ describe("runExpenseCheck", () => {
       fixedSteps.enrichUnsettled.mock.invocationCallOrder[1] ?? 0
     );
     expect(finalState()).toMatchObject({ check_state: "fallback" });
+  });
+
+  it("keeps the check's account doubts when the fixed steps fall back", async () => {
+    const doubt: ApproverHint = {
+      attachmentId: "att-1",
+      code: "ai_account_unsure",
+    };
+    const unchecked: ApproverHint = {
+      code: "ai_check_incomplete",
+      data: { unchecked: 1 },
+    };
+    fixedSteps.enrichUnsettled.mockRejectedValueOnce(new Error("model down"));
+    silenceErrors();
+
+    await runExpenseCheck("expense-1", {
+      agent: async () => ({ extraHints: [doubt, unchecked] }),
+    });
+
+    // One incomplete flag, and the doubt the agent handed on.
+    expect(fixedSteps.enrichUnsettled).toHaveBeenLastCalledWith(
+      expect.anything(),
+      "expense-1",
+      expect.objectContaining({
+        aiEnabled: false,
+        extraHints: [doubt, INCOMPLETE],
+      })
+    );
   });
 
   it("only flags the check when deciding without the AI fails too", async () => {

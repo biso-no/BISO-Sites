@@ -296,13 +296,13 @@ describe("applyCheck", () => {
         data: { reason: expect.stringContaining("retired") },
       },
     ]);
+    // The account doubt's text never shows a reason: the history keeps it.
     expect(hintsFor(store, "r2")).toEqual([
-      {
-        attachmentId: "r2",
-        code: "ai_account_unsure",
-        data: { reason: expect.stringContaining("9100") },
-      },
+      { attachmentId: "r2", code: "ai_account_unsure" },
     ]);
+    expect(
+      flagEvents(store).find((event) => event.attachment_id === "r2")
+    ).toMatchObject({ note: expect.stringContaining("9100") });
     expect(hintsFor(store, "r3")).toEqual([
       {
         attachmentId: "r3",
@@ -390,7 +390,7 @@ describe("applyCheck", () => {
       {
         attachmentId: "r1",
         code: "ai_check_disagrees",
-        data: { aiType: "food", reason: "Pizza for the board meeting" },
+        data: { aiType: "food" },
       },
     ]);
     expect(flagEvents(store)).toEqual([
@@ -399,6 +399,7 @@ describe("applyCheck", () => {
         after: "food",
         attachment_id: "r1",
         field: "ai_check_disagrees",
+        note: "Thinks the type is food: Pizza for the board meeting",
       }),
     ]);
   });
@@ -557,12 +558,11 @@ describe("applyCheck", () => {
       account_source: "ai_freeform",
     });
     expect(hintsFor(store, "r2")).toEqual([
-      {
-        attachmentId: "r2",
-        code: "ai_account_unsure",
-        data: { reason: "Gifts or travel?" },
-      },
+      { attachmentId: "r2", code: "ai_account_unsure" },
     ]);
+    expect(
+      flagEvents(store).find((event) => event.attachment_id === "r2")
+    ).toMatchObject({ note: "Not sure of the account: Gifts or travel?" });
   });
 
   it("a project the department expects but none fits is flagged", async () => {
@@ -592,12 +592,14 @@ describe("applyCheck", () => {
 
     expect(store.patchOf("r1")).toEqual({});
     expect(hintsFor(store, "r1")).toEqual([
-      {
-        attachmentId: "r1",
-        code: "project_missing",
-        data: { reason: "Office supplies, no event" },
-      },
+      { attachmentId: "r1", code: "project_missing" },
     ]);
+    expect(
+      flagEvents(store).find((event) => event.attachment_id === "r1")
+    ).toMatchObject({
+      field: "project_missing",
+      note: "Office supplies, no event",
+    });
     expect(store.patchOf("r2")).toEqual({
       project_confidence: 0.9,
       project_id: "p-kd26",
@@ -760,6 +762,23 @@ describe("applyCheck", () => {
       },
     ]);
   });
+  it("a flag stores a short reason, and the history keeps it whole", async () => {
+    const store = setup([receipt("r1")], { projectShare: 0.1 });
+    const reason = `Pizza or a gift: ${"the receipt is hard to read ".repeat(10)}`;
+
+    await checkAndApply(store, {
+      flags: [{ code: "type_unsure", note: reason, receiptId: "r1" }],
+      receipts: [{ confidence: {}, reason: "Unclear", receiptId: "r1" }],
+    });
+
+    const [hint] = hintsFor(store, "r1");
+    expect(hint?.code).toBe("type_unsure");
+    expect(Array.from(String(hint?.data?.reason)).length).toBeLessThanOrEqual(
+      120
+    );
+    expect(flagEvents(store)[0]?.note).toBe(reason.trim());
+  });
+
   it("a kept AI type the check doubts is flagged unsure", async () => {
     const store = setup(
       [

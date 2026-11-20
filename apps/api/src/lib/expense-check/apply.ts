@@ -29,8 +29,9 @@ import {
 import {
   type ApproverHint,
   type ApproverHintCode,
-  MAX_HINT_TEXT_CHARS,
+  MAX_HINT_REASON_CHARS,
   parseApproverHints,
+  showsReason,
 } from "@repo/shared/utils/expense-hints";
 import {
   departmentCandidates,
@@ -150,7 +151,7 @@ interface Work {
   stale: Map<string, Set<ApproverHintCode>>;
 }
 
-const hintText = (value: string) => oneLine(value, MAX_HINT_TEXT_CHARS);
+const hintText = (value: string) => oneLine(value, MAX_HINT_REASON_CHARS);
 const quoted = (value: string) => oneLine(value, MAX_QUOTED_CHARS);
 
 function confidenceOf(value: number | undefined): number {
@@ -205,7 +206,7 @@ function flagValue(hint: ApproverHint): string | null {
 }
 
 /** A hint for the approver and the same flag in the history. */
-function flag(work: Work, hint: ApproverHint, note?: string): void {
+function flag(work: Work, hint: ApproverHint, note: string): void {
   if (!addHint(work, hint)) {
     return;
   }
@@ -217,8 +218,29 @@ function flag(work: Work, hint: ApproverHint, note?: string): void {
     attachmentId: hint.attachmentId ?? null,
     expenseId: work.expenseId,
     field: hint.code,
-    note: oneLine(note ?? String(hint.data?.reason ?? ""), MAX_NOTE_CHARS),
+    note: oneLine(note, MAX_NOTE_CHARS),
   });
+}
+
+/**
+ * A flag with a reason: the history keeps it whole, and the hint carries it,
+ * short, only when its code's text shows a reason (`showsReason`). The hints
+ * of every receipt share one column, so a reason no text shows only takes
+ * the room of another flag.
+ */
+function flagWithReason(
+  work: Work,
+  hint: ApproverHint,
+  reason: string,
+  lead?: string
+): void {
+  flag(
+    work,
+    showsReason(hint.code)
+      ? { ...hint, data: { ...hint.data, reason: hintText(reason) } }
+      : hint,
+    lead ? `${lead}: ${reason}` : reason
+  );
 }
 
 type DoubtCode = "ai_account_unsure" | "project_unsure" | "type_unsure";
@@ -243,10 +265,11 @@ function doubt(
   if (confidenceOf(confidence) >= AI_TYPE_CONFIDENCE_THRESHOLD) {
     return;
   }
-  flag(
+  flagWithReason(
     work,
-    { attachmentId: row.$id, code, data: { reason: hintText(reason) } },
-    `${DOUBT_LEAD[code]}: ${reason}`
+    { attachmentId: row.$id, code },
+    reason,
+    DOUBT_LEAD[code]
   );
 }
 
@@ -363,7 +386,7 @@ function disagree(work: Work, row: Row, slug: string, reason: string): void {
     {
       attachmentId: row.$id,
       code: "ai_check_disagrees",
-      data: { aiType: slug, reason: hintText(reason) },
+      data: { aiType: slug },
     },
     `Thinks the type is ${slug}: ${reason}`
   );
@@ -447,15 +470,11 @@ function applyType(
     return;
   }
   if (!type) {
-    flag(work, {
-      attachmentId: row.$id,
-      code: "type_unsure",
-      data: {
-        reason: hintText(
-          `The check suggested the type "${quoted(slug)}", which is not an active type, so it was not used.`
-        ),
-      },
-    });
+    flagWithReason(
+      work,
+      { attachmentId: row.$id, code: "type_unsure" },
+      `The check suggested the type "${quoted(slug)}", which is not an active type, so it was not used.`
+    );
     return;
   }
   if (slug !== row.cost_type) {
@@ -482,15 +501,11 @@ function applyAccount(
   }
   const account = lists.accounts.get(number);
   if (!account) {
-    flag(work, {
-      attachmentId: row.$id,
-      code: "ai_account_unsure",
-      data: {
-        reason: hintText(
-          `The check suggested account ${number}, which is not an active cost account (4000-7999), so it was not used.`
-        ),
-      },
-    });
+    flagWithReason(
+      work,
+      { attachmentId: row.$id, code: "ai_account_unsure" },
+      `The check suggested account ${number}, which is not an active cost account (4000-7999), so it was not used.`
+    );
     return;
   }
   if (row.account_number === number) {
@@ -633,15 +648,11 @@ function refuseHeldEdition(
   const next = timing.suggested
     ? lists.projects.find((p) => p.project_id === timing.suggested)?.name
     : null;
-  flag(work, {
-    attachmentId: row.$id,
-    code: "project_unsure",
-    data: {
-      reason: hintText(
-        `${project.name} was already held before this receipt${next ? `; the next edition is ${next}` : ""}. ${work.reasons.get(row.$id) ?? ""}`
-      ),
-    },
-  });
+  flagWithReason(
+    work,
+    { attachmentId: row.$id, code: "project_unsure" },
+    `${project.name} was already held before this receipt${next ? `; the next edition is ${next}` : ""}. ${work.reasons.get(row.$id) ?? ""}`
+  );
 }
 
 /**
@@ -671,15 +682,11 @@ function applyProject(
   }
   const project = lists.candidates.get(projectId);
   if (!project) {
-    flag(work, {
-      attachmentId: row.$id,
-      code: "project_unsure",
-      data: {
-        reason: hintText(
-          `The check suggested project "${quoted(projectId)}", which is not one of the department's active projects, so it was not used.`
-        ),
-      },
-    });
+    flagWithReason(
+      work,
+      { attachmentId: row.$id, code: "project_unsure" },
+      `The check suggested project "${quoted(projectId)}", which is not one of the department's active projects, so it was not used.`
+    );
     return;
   }
   const verdict = editionVerdict(project, dayOf(row, lists), lists);
@@ -688,17 +695,13 @@ function applyProject(
     return;
   }
   if (verdict.kind === "undated") {
-    flag(work, {
-      attachmentId: row.$id,
-      code: "project_unsure",
-      data: {
-        reason: hintText(
-          verdict.newer
-            ? `${project.name} has no event date to check the year by, and ${verdict.newer.name} is newer, so it was not used.`
-            : `${project.name} has no event date, so its year could not be checked. ${proposal.reason}`
-        ),
-      },
-    });
+    flagWithReason(
+      work,
+      { attachmentId: row.$id, code: "project_unsure" },
+      verdict.newer
+        ? `${project.name} has no event date to check the year by, and ${verdict.newer.name} is newer, so it was not used.`
+        : `${project.name} has no event date, so its year could not be checked. ${proposal.reason}`
+    );
     if (verdict.newer) {
       return;
     }
@@ -789,15 +792,11 @@ function applyNotCreated(
     );
     return;
   }
-  flag(work, {
-    attachmentId,
-    code: "project_unsure",
-    data: {
-      reason: hintText(
-        `The check said the project ${quoted(`${flagged.series ?? ""} ${flagged.year ?? ""}`.trim())} is not in Finago yet, which the project list does not confirm. ${flagged.note}`
-      ),
-    },
-  });
+  flagWithReason(
+    work,
+    { attachmentId, code: "project_unsure" },
+    `The check said the project ${quoted(`${flagged.series ?? ""} ${flagged.year ?? ""}`.trim())} is not in Finago yet, which the project list does not confirm. ${flagged.note}`
+  );
 }
 
 /** The agent's own flags, for receipts of this expense or the whole expense. */
@@ -813,22 +812,26 @@ function applyFlags(
       continue;
     }
     const attachmentId = row?.$id;
-    const data = { reason: hintText(flagged.note) };
+    const { note } = flagged;
     switch (flagged.code) {
       case "type_unsure":
-        flag(work, { attachmentId, code: "type_unsure", data });
+        flagWithReason(work, { attachmentId, code: "type_unsure" }, note);
         break;
       case "account_unsure":
         if (row && isOwnText(row)) {
-          flag(work, { attachmentId, code: "ai_account_unsure", data });
+          flagWithReason(
+            work,
+            { attachmentId, code: "ai_account_unsure" },
+            note
+          );
         }
         break;
       case "project_unsure":
-        flag(work, { attachmentId, code: "project_unsure", data });
+        flagWithReason(work, { attachmentId, code: "project_unsure" }, note);
         break;
       case "project_missing":
         if (!hasProject(work, row)) {
-          flag(work, { attachmentId, code: "project_missing", data });
+          flagWithReason(work, { attachmentId, code: "project_missing" }, note);
         }
         break;
       case "project_not_created":
@@ -865,11 +868,11 @@ function flagMissingProjects(
     const reason =
       answered.get(row.$id)?.reason ??
       "The department books almost every cost on a project, and the check found none for this receipt.";
-    flag(work, {
-      attachmentId: row.$id,
-      code: "project_missing",
-      data: { reason: hintText(reason) },
-    });
+    flagWithReason(
+      work,
+      { attachmentId: row.$id, code: "project_missing" },
+      reason
+    );
   }
 }
 

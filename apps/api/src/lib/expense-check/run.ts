@@ -150,10 +150,15 @@ async function runFixedSteps(
       error
     );
   }
+  // The agent's own findings, such as its doubts of an account, still stand;
+  // one incomplete flag replaces its own.
+  const kept = check.answered
+    ? check.agentHints.filter((hint) => hint.code !== INCOMPLETE.code)
+    : [];
   try {
     await enrichUnsettled(admin, expenseId, {
       aiEnabled: false,
-      extraHints: [INCOMPLETE],
+      extraHints: [...kept, INCOMPLETE],
       now: check.now,
     });
   } catch (error) {

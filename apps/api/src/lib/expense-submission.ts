@@ -20,7 +20,9 @@ import {
 import {
   type ApproverHint,
   type ApproverHintCode,
+  codeOnlyHint,
   parseApproverHints,
+  storedHint,
 } from "@repo/shared/utils/expense-hints";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
 import { receiptFileId } from "@repo/shared/utils/receipt-file-id";
@@ -494,13 +496,19 @@ const SCANNABLE_TYPES = new Set([
 const MAX_PARALLEL_FILES = 4;
 /** The `expense.approver_hints` column's size. */
 const MAX_HINTS_CHARS = 4000;
-/** Kept first when the hints don't fit: these block or change the booking. */
+/**
+ * Kept first when the hints don't fit: these block or change the booking, or
+ * are the check's findings that accounting books by.
+ */
 const ESSENTIAL_HINTS = new Set<ApproverHint["code"]>([
   "account_missing",
   "ai_account_unsure",
   "occasion_missing",
   "app_type_replaced",
   "ai_check_incomplete",
+  "project_not_created",
+  "project_missing",
+  "ai_check_disagrees",
 ]);
 /** Read from the receipt itself; the check works them out for every receipt. */
 const RECEIPT_HINTS = new Set<ApproverHintCode>([
@@ -951,24 +959,56 @@ function attachmentColumns(expenseId: string, receipt: EnrichedReceipt) {
   };
 }
 
-/** The hints as JSON within the column's size, essential ones kept first. */
+const jsonLength = (hint: ApproverHint) => JSON.stringify(hint).length;
+
+/**
+ * Fits ranked hints in the column. Each takes its code-only form first
+ * (`codeOnlyHint`), in rank order; one that doesn't fit even so is dropped,
+ * and the next one is still tried. Then each kept hint gets its full form
+ * back, in the same order, while that still fits. So no flag is dropped to
+ * keep another flag's reason.
+ */
+function fitHints(ranked: ApproverHint[]): ApproverHint[] {
+  const kept: { full: ApproverHint; stored: ApproverHint }[] = [];
+  // The brackets, then each hint and the comma before all but the first.
+  let used = 2;
+  for (const full of ranked) {
+    const short = codeOnlyHint(full);
+    const cost = jsonLength(short) + (kept.length > 0 ? 1 : 0);
+    if (used + cost > MAX_HINTS_CHARS) {
+      continue;
+    }
+    kept.push({ full, stored: short });
+    used += cost;
+  }
+  for (const entry of kept) {
+    const extra = jsonLength(entry.full) - jsonLength(entry.stored);
+    if (extra > 0 && used + extra <= MAX_HINTS_CHARS) {
+      entry.stored = entry.full;
+      used += extra;
+    }
+  }
+  return kept.map((entry) => entry.stored);
+}
+
+/**
+ * The hints as JSON within the column's size: each as stored (`storedHint`:
+ * one-line texts, short reasons, a reason only where its text shows it).
+ * When they don't fit, the essential ones come first, every hint is shrunk
+ * before any is dropped, and a hint that can't fit doesn't stop the next.
+ */
 export function hintsJson(hints: ApproverHint[]): string {
-  const json = JSON.stringify(hints);
+  const stored = hints.map(storedHint);
+  const json = JSON.stringify(stored);
   if (json.length <= MAX_HINTS_CHARS) {
     return json;
   }
-  const ranked = [
-    ...hints.filter((hint) => ESSENTIAL_HINTS.has(hint.code)),
-    ...hints.filter((hint) => !ESSENTIAL_HINTS.has(hint.code)),
-  ];
-  const kept: ApproverHint[] = [];
-  for (const hint of ranked) {
-    if (JSON.stringify([...kept, hint]).length > MAX_HINTS_CHARS) {
-      break;
-    }
-    kept.push(hint);
-  }
-  return JSON.stringify(kept);
+  return JSON.stringify(
+    fitHints([
+      ...stored.filter((hint) => ESSENTIAL_HINTS.has(hint.code)),
+      ...stored.filter((hint) => !ESSENTIAL_HINTS.has(hint.code)),
+    ])
+  );
 }
 
 function replacedAppType(decision: AttachmentDecision): boolean {
@@ -1300,7 +1340,8 @@ async function storedReads(
  * The approver hints after the fixed steps: the receipt hints worked out
  * again for every receipt, the decision hints of the receipts decided again
  * (the others keep theirs), the occasion, every other hint as it was (such
- * as the agent's), then `extraHints`.
+ * as the agent's), then `extraHints` (such as the agent's account doubts,
+ * which a receipt decided again would otherwise lose).
  */
 function checkedHints(input: {
   decided: Map<string, AttachmentDecision>;
@@ -1328,13 +1369,34 @@ function checkedHints(input: {
     asksOccasion(finalTypes, input.types) && !expense.occasion?.trim()
       ? [{ code: "occasion_missing" }]
       : [];
-  return hintsJson([
-    ...input.receiptHints,
-    ...decisionHints,
-    ...occasionHints,
-    ...stored.filter((hint) => !FIXED_STEP_HINTS.has(hint.code)),
-    ...input.extraHints,
-  ]);
+  // The check's own doubt of an account comes back in `extraHints`, and the
+  // fixed steps may doubt the same account: one hint says it.
+  return hintsJson(
+    withoutRepeats([
+      ...input.receiptHints,
+      ...decisionHints,
+      ...occasionHints,
+      ...stored.filter((hint) => !FIXED_STEP_HINTS.has(hint.code)),
+      ...input.extraHints,
+    ])
+  );
+}
+
+/** The hints without exact repeats (same code, receipt and data); first kept. */
+function withoutRepeats(hints: ApproverHint[]): ApproverHint[] {
+  const seen = new Set<string>();
+  return hints.filter((hint) => {
+    const key = JSON.stringify([
+      hint.code,
+      hint.attachmentId ?? null,
+      Object.entries(hint.data ?? {}).sort(([a], [b]) => a.localeCompare(b)),
+    ]);
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
 }
 
 /**
