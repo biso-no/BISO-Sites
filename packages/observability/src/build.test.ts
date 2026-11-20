@@ -1,5 +1,13 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { resolveRelease, sentryBuildOptions } from "./build";
+import {
+  resolveRelease,
+  SENTRY_TRANSPILE_PACKAGES,
+  sentryBuildOptions,
+} from "./build";
+
+const SENTRY_INCLUDE_GLOB = /node_modules\/@sentry\//;
 
 describe("resolveRelease", () => {
   it("prefers SENTRY_RELEASE", () => {
@@ -40,5 +48,34 @@ describe("sentryBuildOptions", () => {
     expect(sentryBuildOptions("web").bundleSizeOptimizations).toEqual({
       excludeDebugStatements: true,
     });
+  });
+});
+
+describe("SENTRY_TRANSPILE_PACKAGES", () => {
+  // Transpiled, `@sentry/nextjs` stays bundled on Bun builds, so no app needs
+  // the `outputFileTracingIncludes` globs that slowed builds on Next 16.3.
+  it("bundles the server SDK", () => {
+    expect(SENTRY_TRANSPILE_PACKAGES).toEqual(["@sentry/nextjs"]);
+  });
+});
+
+describe("next.config files", () => {
+  const apps = ["web", "admin", "api", "docs"] as const;
+  const configs = apps.map((app) => ({
+    app,
+    source: readFileSync(
+      fileURLToPath(
+        new URL(`../../../apps/${app}/next.config.ts`, import.meta.url)
+      ),
+      "utf8"
+    ),
+  }));
+
+  it.each(configs)("$app transpiles the Sentry SDK", ({ source }) => {
+    expect(source).toContain("...SENTRY_TRANSPILE_PACKAGES");
+  });
+
+  it.each(configs)("$app adds no Sentry trace includes", ({ source }) => {
+    expect(source).not.toMatch(SENTRY_INCLUDE_GLOB);
   });
 });

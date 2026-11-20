@@ -5,7 +5,10 @@ import createNextIntlPlugin from "next-intl/plugin";
 // Relative, not `@repo/observability/build`: Next transpiles this file with
 // tsconfig `paths`, which maps `@repo/*` to `../../packages/*` and misses the
 // package `exports` (the source lives under `src/`).
-import { sentryBuildOptions } from "../../packages/observability/src/build";
+import {
+  SENTRY_TRANSPILE_PACKAGES,
+  sentryBuildOptions,
+} from "../../packages/observability/src/build";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
@@ -21,23 +24,14 @@ const baseConfig: NextConfig = {
     "@repo/observability",
     "@repo/payment",
     "@repo/typescript-config",
+    // Bundles the server SDK on Bun builds too (see the constant).
+    ...SENTRY_TRANSPILE_PACKAGES,
   ],
   // pdfjs (CV text extraction for AI screening) loads its worker via a
   // relative `./pdf.worker.mjs` import that breaks once bundled.
   serverExternalPackages: ["pdfjs-dist"],
   reactStrictMode: true,
   outputFileTracingRoot: path.join(import.meta.dirname, "../../"),
-  // The Site runs on Bun, which resolves `@sentry/nextjs` through its `bun`
-  // export condition. Tracing follows only the `node` condition, so the Bun
-  // entry and what it loads would be missing from the standalone output.
-  outputFileTracingIncludes: {
-    "/*": [
-      "../../node_modules/@sentry/nextjs/build/cjs/**/*.js",
-      "../../node_modules/@sentry/bun/package.json",
-      "../../node_modules/@sentry/bun/build/cjs/**/*.js",
-      "../../node_modules/@sentry/server-utils/build/cjs/**/*.js",
-    ],
-  },
   output: "standalone",
   cacheComponents: true,
   partialPrefetching: true,
