@@ -5,8 +5,13 @@ in the `bi-student-organisation` Sentry org (EU region). `apply-dashboard.ts`
 creates it, or updates it in place if a dashboard with that title exists.
 
 ```bash
-SENTRY_DASHBOARD_TOKEN=... bun scripts/sentry/apply-dashboard.ts
+read -rs SENTRY_DASHBOARD_TOKEN && export SENTRY_DASHBOARD_TOKEN
+bun scripts/sentry/apply-dashboard.ts
 ```
+
+Don't put the token on the command line: it would stay in your shell history.
+`read -rs` takes it without echoing it. `bun --env-file=<file>` also works if
+the token is in a file that git ignores.
 
 The token is a personal auth token with the `org:write` scope. The script
 prints the dashboard URL and exits non-zero on API errors.
