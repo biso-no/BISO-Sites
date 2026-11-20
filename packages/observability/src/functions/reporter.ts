@@ -125,7 +125,7 @@ const toFrame = (
   line: string | undefined,
   col: string | undefined
 ): Frame => ({
-  ...(fn ? { function: fn } : {}),
+  ...(fn ? { function: scrubText(fn) } : {}),
   filename: scrubUrl(file),
   ...(line ? { lineno: Number(line) } : {}),
   ...(col ? { colno: Number(col) } : {}),
@@ -170,7 +170,7 @@ const describe = (
 ): { stack?: string; type: string; value: string } => {
   if (error instanceof Error) {
     return {
-      type: error.name || "Error",
+      type: scrubText(error.name || "Error"),
       value: scrubText(error.message),
       stack: error.stack,
     };

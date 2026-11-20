@@ -151,6 +151,22 @@ describe("checkIn", () => {
   });
 });
 
+describe("scrubbing of type and frame names", () => {
+  it("scrubs the exception type and frame function names", async () => {
+    const reporter = createReporter({ dsn: DSN });
+    const error = new Error("boom");
+    error.name = "Failed for kari@example.com";
+    error.stack =
+      "Failed for kari@example.com: boom\n    at handle for kari@example.com (/app/main.ts:1:2)";
+    reporter.captureError(error);
+    await reporter.flush();
+    const body = fetchMock.mock.calls[0][1].body as string;
+    expect(body).not.toContain("kari@example.com");
+    const event = JSON.parse(body.split("\n")[2]);
+    expect(event.exception.values[0].type).toContain("[redacted]");
+  });
+});
+
 describe("flush", () => {
   it("resolves within the cap when fetch hangs", async () => {
     vi.useFakeTimers();
@@ -239,8 +255,16 @@ describe("reporterFromEnv", () => {
     expect(event.tags).not.toHaveProperty("function");
   });
 
-  it("is inert without SENTRY_DSN and defaults the environment", () => {
+  it("is inert without SENTRY_DSN", () => {
     expect(reporterFromEnv({}, "x").enabled).toBe(false);
+  });
+
+  it("defaults the environment to production when SENTRY_ENVIRONMENT is unset", async () => {
+    const reporter = reporterFromEnv({ SENTRY_DSN: DSN }, "x");
+    reporter.captureError(new Error("x"));
+    await reporter.flush();
+    const event = JSON.parse(fetchMock.mock.calls[0][1].body.split("\n")[2]);
+    expect(event.environment).toBe("production");
   });
 });
 

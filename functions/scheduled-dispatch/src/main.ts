@@ -64,6 +64,9 @@ const MAX_BODY_CHARS = 500;
 const BEARER_PREFIX = "Bearer ";
 const LOG_TAG = "[scheduled-dispatch]";
 const MS_PER_SECOND = 1000;
+const MS_PER_MINUTE = 60_000;
+const HTTP_OK_MIN = 200;
+const HTTP_OK_MAX = 299;
 const DISPATCHER_SLUG = "scheduled-dispatch";
 const URL_ENV_SUFFIX = /_URL$/;
 
@@ -76,6 +79,17 @@ const MONITOR_CONFIG: MonitorConfig = {
   recoveryThreshold: 1,
   timezone: "UTC",
 };
+
+/**
+ * A target's monitor may run as long as its ping can: the timeout in whole
+ * minutes plus one, never below 2.
+ */
+function targetMonitorConfig(timeoutMs: number): MonitorConfig {
+  return {
+    ...MONITOR_CONFIG,
+    maxRuntime: Math.max(2, Math.ceil(timeoutMs / MS_PER_MINUTE) + 1),
+  };
+}
 
 /** `ORDERS_RECONCILE_URL` -> `dispatch-orders-reconcile`. */
 export function monitorSlugFor(envVar: string): string {
@@ -314,23 +328,41 @@ function logResults(results: PingResult[], log: LogFn, error: LogFn): void {
   }
 }
 
-/** One closing cron check-in per target, plus an error event for failures. */
-function reportResults(
-  reporter: ReturnType<typeof reporterFromEnv>,
-  results: PingResult[]
-): void {
-  for (const result of results) {
-    reporter.checkIn(monitorSlugFor(result.name), result.ok ? "ok" : "error", {
-      durationSeconds: result.durationMs / MS_PER_SECOND,
-      monitorConfig: MONITOR_CONFIG,
-    });
-    if (!result.ok) {
-      reporter.captureError(
-        new Error(`${result.name} failed: ${result.status ?? "no response"}`),
-        { target: result.name }
-      );
-    }
+/** Error text for a failed ping; says when a 2xx body reported the failure. */
+function failureMessage(result: PingResult): string {
+  const { status } = result;
+  if (status === undefined) {
+    return `${result.name} failed: no response`;
   }
+  const bodyFailure = status >= HTTP_OK_MIN && status <= HTTP_OK_MAX;
+  return `${result.name} failed: ${status}${bodyFailure ? " (body reported failure)" : ""}`;
+}
+
+/**
+ * Ping one target under its own cron monitor: an in_progress check-in goes out
+ * just before the ping and is closed (same id) as soon as THIS ping settles, so
+ * a slow sibling never leaves a fast target's monitor waiting for a check-in.
+ */
+async function pingWithCheckIn(
+  reporter: ReturnType<typeof reporterFromEnv>,
+  target: Target,
+  secret: string
+): Promise<PingResult> {
+  const slug = monitorSlugFor(target.name);
+  const monitorConfig = targetMonitorConfig(target.timeoutMs);
+  const checkInId = reporter.checkIn(slug, "in_progress", { monitorConfig });
+  const result = await ping(target, secret);
+  reporter.checkIn(slug, result.ok ? "ok" : "error", {
+    checkInId,
+    durationSeconds: result.durationMs / MS_PER_SECOND,
+    monitorConfig,
+  });
+  if (!result.ok) {
+    reporter.captureError(new Error(failureMessage(result)), {
+      target: result.name,
+    });
+  }
+  return result;
 }
 
 export default async (context: AppwriteContext) => {
@@ -403,10 +435,9 @@ async function dispatch(
     // Independent, idempotent endpoints — fire them concurrently so the run's
     // wall-clock is the slowest single request, not the sum of all of them.
     const results = await Promise.all(
-      targets.map((target) => ping(target, secret))
+      targets.map((target) => pingWithCheckIn(reporter, target, secret))
     );
     logResults(results, log, error);
-    reportResults(reporter, results);
 
     const succeeded = results.filter((r) => r.ok).length;
     const failed = results.length - succeeded;

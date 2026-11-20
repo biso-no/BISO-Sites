@@ -16,6 +16,8 @@ let sentry: Call[];
 let pings: string[];
 let sentryHangs = false;
 const targetStatuses: Record<string, number> = {};
+const targetGates: Record<string, Promise<void>> = {};
+const targetBodies: Record<string, string> = {};
 
 function installFetch() {
   globalThis.fetch = ((input: unknown, init?: RequestInit) => {
@@ -32,9 +34,12 @@ function installFetch() {
       return Promise.resolve(new Response("{}", { status: 200 }));
     }
     pings.push(url);
-    return Promise.resolve(
-      new Response("{}", { status: targetStatuses[url] ?? 200 })
-    );
+    const respond = () =>
+      new Response(targetBodies[url] ?? "{}", {
+        status: targetStatuses[url] ?? 200,
+      });
+    const gate = targetGates[url];
+    return gate ? gate.then(respond) : Promise.resolve(respond());
   }) as typeof fetch;
 }
 
@@ -67,6 +72,21 @@ function checkIns(): { slug: string; status: string }[] {
     });
 }
 
+function checkInDetails(slug: string) {
+  return sentry
+    .filter((c) => c.url.includes(`/cron/${slug}/`))
+    .map((c) => {
+      const body = JSON.parse(c.body);
+      return {
+        id: body.check_in_id as string,
+        maxRuntime: body.monitor_config?.max_runtime as number | undefined,
+        status: body.status as string,
+      };
+    });
+}
+
+const tick = () => new Promise((resolve) => setTimeout(resolve, 20));
+
 const statusesFor = (slug: string) =>
   checkIns()
     .filter((c) => c.slug === slug)
@@ -78,6 +98,13 @@ beforeEach(() => {
   sentryHangs = false;
   for (const key of Object.keys(targetStatuses)) {
     delete targetStatuses[key];
+  }
+  for (const key of [
+    ...Object.keys(targetGates),
+    ...Object.keys(targetBodies),
+  ]) {
+    delete targetGates[key];
+    delete targetBodies[key];
   }
   for (const key of Object.keys(process.env)) {
     if (key.endsWith("_URL") || key === "SENTRY_DSN") {
@@ -112,14 +139,64 @@ describe("scheduled-dispatch reporting", () => {
     process.env.SENTRY_DSN = DSN;
     const result = await run();
     expect(result.status).toBe(502);
-    expect(checkIns()).toHaveLength(4);
+    expect(checkIns()).toHaveLength(6);
     expect(statusesFor("scheduled-dispatch")).toEqual(["in_progress", "error"]);
-    expect(statusesFor("dispatch-orders-reconcile")).toEqual(["error"]);
-    expect(statusesFor("dispatch-departures-sync")).toEqual(["ok"]);
+    expect(statusesFor("dispatch-orders-reconcile")).toEqual([
+      "in_progress",
+      "error",
+    ]);
+    expect(statusesFor("dispatch-departures-sync")).toEqual([
+      "in_progress",
+      "ok",
+    ]);
     const errors = sentry.filter((c) =>
       c.body.includes("ORDERS_RECONCILE_URL failed: 500")
     );
     expect(errors).toHaveLength(1);
+  });
+
+  test("names a failure reported in a 2xx body", async () => {
+    process.env.SENTRY_DSN = DSN;
+    targetStatuses[ORDERS_URL] = 200;
+    targetBodies[ORDERS_URL] = JSON.stringify({ ok: false });
+    await run();
+    expect(
+      sentry.some((c) =>
+        c.body.includes(
+          "ORDERS_RECONCILE_URL failed: 200 (body reported failure)"
+        )
+      )
+    ).toBe(true);
+  });
+
+  test("closes a fast target before a slow one finishes, with matching ids and per-target max runtime", async () => {
+    process.env.SENTRY_DSN = DSN;
+    targetStatuses[ORDERS_URL] = 200;
+    let release: () => void = () => undefined;
+    targetGates[ORDERS_URL] = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const running = run();
+    await tick();
+    expect(statusesFor("dispatch-departures-sync")).toEqual([
+      "in_progress",
+      "ok",
+    ]);
+    expect(statusesFor("dispatch-orders-reconcile")).toEqual(["in_progress"]);
+    release();
+    await running;
+    for (const slug of [
+      "dispatch-departures-sync",
+      "dispatch-orders-reconcile",
+    ]) {
+      const [open, close] = checkInDetails(slug);
+      expect(open?.status).toBe("in_progress");
+      expect(close?.status).toBe("ok");
+      expect(close?.id).toBe(open?.id);
+    }
+    expect(checkInDetails("dispatch-departures-sync")[0]?.maxRuntime).toBe(2);
+    expect(checkInDetails("dispatch-orders-reconcile")[0]?.maxRuntime).toBe(6);
+    expect(checkInDetails("scheduled-dispatch")[0]?.maxRuntime).toBe(6);
   });
 
   test("makes no Sentry calls without a DSN and responds the same", async () => {

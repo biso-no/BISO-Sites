@@ -36,6 +36,18 @@ describe("reportResponse", () => {
     expect(calls).toHaveLength(0);
   });
 
+  it("does not report 401 or 403, but reports other 4xx and 5xx", async () => {
+    const reporter = reporterFromEnv({ SENTRY_DSN: DSN }, "content-notifier");
+    reportResponse(reporter, 401);
+    reportResponse(reporter, 403);
+    await reporter.flush();
+    expect(calls).toHaveLength(0);
+    reportResponse(reporter, 404);
+    reportResponse(reporter, 502);
+    await reporter.flush();
+    expect(calls).toHaveLength(2);
+  });
+
   it("makes no network call without a DSN", async () => {
     const reporter = reporterFromEnv({}, "content-notifier");
     reportResponse(reporter, 502);
