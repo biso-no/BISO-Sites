@@ -23,3 +23,8 @@ import { Query } from "@repo/api";
 export function listedProductsOnly(): string {
   return Query.or([Query.equal("unlisted", false), Query.isNull("unlisted")]);
 }
+
+/** Predicate twin of {@link listedProductsOnly}: null/missing counts as listed. */
+export function isListedProduct(row: { unlisted?: boolean | null }): boolean {
+  return row.unlisted !== true;
+}
