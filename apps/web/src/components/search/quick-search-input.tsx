@@ -4,7 +4,7 @@ import { SEARCH_QUERY_MAX } from "@repo/shared/search/params";
 import { cn } from "@repo/ui/lib/utils";
 import { useTranslations } from "next-intl";
 import type { KeyboardEvent, Ref } from "react";
-import { optionDomId } from "./quick-search-results";
+import { optionDomId } from "./quick-options";
 
 export interface QuickSearchInputProps {
   activeId: string | null;
@@ -38,7 +38,9 @@ export function QuickSearchInput({
   const t = useTranslations("search");
   return (
     <input
-      aria-activedescendant={activeId ? optionDomId(activeId) : undefined}
+      aria-activedescendant={
+        activeId ? optionDomId(listboxId, activeId) : undefined
+      }
       aria-autocomplete="list"
       aria-controls={listboxId}
       aria-expanded={expanded}

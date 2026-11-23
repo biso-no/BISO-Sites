@@ -6,7 +6,7 @@
   "open": "Søk",
   "close": "Lukk søk",
   "submit": "Søk",
-  "showAll": "Vis alle {count} treff for «{query}»",
+  "showAll": "{count, plural, one {Vis # treff for «{query}»} other {Vis alle # treff for «{query}»}}",
   "groups": {
     "event": "Arrangementer",
     "news": "Nyheter",

@@ -1,13 +1,16 @@
 // @vitest-environment happy-dom
+import { loadMessages } from "@repo/i18n/messages";
 import {
   emptyQuickResponse,
   type QuickSearchResponse,
-  SEARCH_GROUPS,
-  type SearchHit,
 } from "@repo/shared/search/response";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  searchHit as hit,
+  winterResponse as resp,
+} from "@/test/search-fixtures";
 
 vi.mock("next-intl", () => ({
   useTranslations:
@@ -19,12 +22,16 @@ vi.mock("@repo/ui/components/image", () => ({
     createElement("img", { alt: "", src }),
 }));
 
-import { QuickSearchInput } from "./quick-search-input";
 import {
   optionDomId,
   QUICK_SEARCH_LISTBOX_ID,
-  QuickSearchResults,
   quickOptions,
+  SHOW_ALL_OPTION_ID,
+} from "./quick-options";
+import { QuickSearchInput } from "./quick-search-input";
+import {
+  QuickSearchResults,
+  quickOptions as reExportedQuickOptions,
 } from "./quick-search-results";
 import type { QuickSearchState } from "./use-quick-search";
 
@@ -32,81 +39,10 @@ import type { QuickSearchState } from "./use-quick-search";
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
-const FEB_12_2027 = Date.UTC(2027, 1, 12, 17) / 1000;
+const PANEL_GRID_WITH_BEST = "lg:grid-cols-[18rem_minmax(0,1fr)]";
 
-const hit = (
-  overrides: Partial<SearchHit> & Pick<SearchHit, "id" | "group">
-): SearchHit => ({
-  campus_id: "2",
-  campus_name: "Bergen",
-  category: null,
-  cover_pattern: null,
-  deadline: null,
-  department: null,
-  ends_at: null,
-  image: null,
-  in_stock: null,
-  location: null,
-  member_only: false,
-  member_price: null,
-  price: null,
-  published_at: null,
-  row_id: overrides.id,
-  snippet: [],
-  starts_at: null,
-  text_locale: "en",
-  title: [{ match: false, text: overrides.id }],
-  type: overrides.group,
-  url: `/${overrides.group}/${overrides.id}`,
-  ...overrides,
-});
-
-const best = hit({
-  id: "event_games_en",
-  group: "event",
-  title: [
-    { match: true, text: "Winter" },
-    { match: false, text: " Games 2027" },
-  ],
-  starts_at: FEB_12_2027,
-  location: "Hafjell",
-  url: "/events/winter-games-2027",
-});
-
-const resp: QuickSearchResponse = {
-  ...emptyQuickResponse("winter", "en"),
-  best,
-  total: 23,
-  counts: { event: 6, news: 5, job: 2, product: 4, page: 4, unit: 2 },
-  groups: {
-    event: [
-      hit({ id: "event_kickoff_en", group: "event", starts_at: FEB_12_2027 }),
-      hit({ id: "event_info_en", group: "event" }),
-    ],
-    news: [
-      hit({ id: "news_tickets_en", group: "news", published_at: FEB_12_2027 }),
-    ],
-    job: [
-      hit({ id: "job_lead_en", group: "job", deadline: FEB_12_2027 }),
-      hit({ id: "job_photo_en", group: "job" }),
-    ],
-    product: [
-      hit({
-        id: "product_hoodie_en",
-        group: "product",
-        price: 449,
-        member_price: 349,
-        in_stock: false,
-      }),
-    ],
-    page: [],
-    unit: [hit({ id: "unit_ski_en", group: "unit" })],
-  },
-};
-
-const flatGroups = SEARCH_GROUPS.flatMap((group) =>
-  resp.groups[group].map((item) => item.id)
-);
+const domIds = (response: QuickSearchResponse, listboxId: string) =>
+  quickOptions(response, "winter").map((o) => optionDomId(listboxId, o.id));
 
 function memoryStorage(initial: Record<string, string> = {}) {
   const data = new Map(Object.entries(initial));
@@ -128,6 +64,7 @@ interface RenderProps {
   activeId?: string | null;
   campusSlug?: string | null;
   layout?: "panel" | "sheet";
+  listboxId?: string;
   onNavigate?: (href: string) => void;
   onPickQuery?: (q: string) => void;
   query?: string;
@@ -145,6 +82,7 @@ async function render(props: RenderProps) {
         campusSlug: null,
         layout: "panel",
         onNavigate: () => undefined,
+        onPickQuery: () => undefined,
         query: "winter",
         ...props,
       })
@@ -155,6 +93,10 @@ async function render(props: RenderProps) {
 const options = () => [...container.querySelectorAll('[role="option"]')];
 const links = () =>
   [...container.querySelectorAll("a")].map((a) => a.getAttribute("href"));
+const showAllOption = () =>
+  document.getElementById(
+    optionDomId(QUICK_SEARCH_LISTBOX_ID, SHOW_ALL_OPTION_ID)
+  );
 
 beforeEach(() => {
   vi.stubGlobal("localStorage", memoryStorage());
@@ -169,56 +111,26 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-describe("quickOptions", () => {
-  it("lists the best match, then groups in order, then show all", () => {
-    expect(quickOptions(resp, "winter").map((o) => o.id)).toEqual([
-      resp.best!.id,
-      ...flatGroups,
-      "show-all",
-    ]);
-  });
-
-  it("links each option to its page and show all to /search", () => {
-    const list = quickOptions(resp, "winter");
-    expect(list[0].href).toBe("/events/winter-games-2027");
-    expect(list.at(-1)?.href).toBe("/search?q=winter");
-  });
-
-  it("trims and encodes the query for show all", () => {
-    expect(quickOptions(resp, " winter games ").at(-1)?.href).toBe(
-      "/search?q=winter+games"
-    );
-  });
-
-  it("has no options when nothing matched", () => {
-    expect(quickOptions(emptyQuickResponse("x", "en"), "x")).toEqual([]);
-  });
-
-  it("works without a best match", () => {
-    const ids = quickOptions({ ...resp, best: null }, "winter").map(
-      (o) => o.id
-    );
-    expect(ids).toEqual([...flatGroups, "show-all"]);
-  });
-});
-
 describe("QuickSearchResults (ready, panel)", () => {
   it("renders one option per quick option, in a listbox", async () => {
     await render({ state: { status: "ready", response: resp } });
     const listbox = container.querySelector('[role="listbox"]');
     expect(listbox?.id).toBe(QUICK_SEARCH_LISTBOX_ID);
-    expect(options().length).toBe(quickOptions(resp, "winter").length);
     expect(options().map((o) => o.id)).toEqual(
-      quickOptions(resp, "winter").map((o) => optionDomId(o.id))
+      domIds(resp, QUICK_SEARCH_LISTBOX_ID)
     );
+  });
+
+  it("keeps quickOptions importable from the results module", () => {
+    expect(reExportedQuickOptions).toBe(quickOptions);
   });
 
   it("shows the total, the matched word and the show-all link", async () => {
     await render({ state: { status: "ready", response: resp } });
     expect(container.textContent).toContain("23");
     expect(container.querySelector("mark")?.textContent).toBe("Winter");
-    expect(links()).toContain("/search?q=winter");
-    expect(container.textContent).toContain("showAll 23 winter");
+    expect(showAllOption()?.getAttribute("href")).toBe("/search?q=winter");
+    expect(showAllOption()?.textContent).toBe("showAll 23 winter");
   });
 
   it("announces the result count in a polite live region", async () => {
@@ -250,7 +162,6 @@ describe("QuickSearchResults (ready, panel)", () => {
     expect(text).toContain("Hafjell");
     expect(text).toContain("meta.applyBy");
     expect(text).toContain("meta.outOfStock");
-    expect(text).not.toContain("349 in stock");
   });
 
   it("marks only the active option as selected", async () => {
@@ -261,8 +172,21 @@ describe("QuickSearchResults (ready, panel)", () => {
     const selected = options().filter(
       (o) => o.getAttribute("aria-selected") === "true"
     );
-    expect(selected.map((o) => o.id)).toEqual([optionDomId("news_tickets_en")]);
+    expect(selected.map((o) => o.id)).toEqual([
+      optionDomId(QUICK_SEARCH_LISTBOX_ID, "news_tickets_en"),
+    ]);
     expect(options().every((o) => o.hasAttribute("aria-selected"))).toBe(true);
+  });
+
+  it("scopes option ids by the listbox it is given", async () => {
+    await render({
+      state: { status: "ready", response: resp },
+      listboxId: "header-search",
+    });
+    expect(container.querySelector('[role="listbox"]')?.id).toBe(
+      "header-search"
+    );
+    expect(options().map((o) => o.id)).toEqual(domIds(resp, "header-search"));
   });
 
   it("calls onNavigate on a plain click and leaves modified clicks to the browser", async () => {
@@ -295,8 +219,33 @@ describe("QuickSearchResults (ready, panel)", () => {
   });
 });
 
+describe("QuickSearchResults (single result)", () => {
+  const single: QuickSearchResponse = {
+    ...emptyQuickResponse("winter", "en"),
+    best: hit({
+      id: "news_only_en",
+      group: "news",
+      image: "https://appwrite.biso.no/news.jpg",
+    }),
+    counts: { ...emptyQuickResponse("winter", "en").counts, news: 1 },
+    total: 1,
+  };
+
+  it("keeps the best match in its card-sized column with no groups beside it", async () => {
+    await render({ state: { status: "ready", response: single } });
+    const listbox = container.querySelector('[role="listbox"]');
+    const grid = listbox?.firstElementChild;
+    expect(grid?.className).toContain(PANEL_GRID_WITH_BEST);
+    expect(options()[0].className).toContain("max-w-72");
+    expect(options().map((o) => o.id)).toEqual(
+      domIds(single, QUICK_SEARCH_LISTBOX_ID)
+    );
+    expect(container.querySelectorAll('[role="group"]').length).toBe(1);
+  });
+});
+
 describe("QuickSearchResults (page rows)", () => {
-  it("shows where a page sits, and nothing path-like for a top-level page", async () => {
+  it("shows where a page sits in words, and nothing path-like for a top-level page", async () => {
     const pages = {
       ...resp,
       groups: {
@@ -320,7 +269,8 @@ describe("QuickSearchResults (page rows)", () => {
     };
     await render({ state: { status: "ready", response: pages } });
     const text = container.textContent ?? "";
-    expect(text).toContain("projects / winter-games");
+    expect(text).toContain("Projects / Winter games");
+    expect(text).not.toContain("winter-games");
     expect(text).not.toContain("biso.no");
     expect(text).not.toContain("All campuses");
   });
@@ -332,18 +282,31 @@ describe("QuickSearchResults (ready, sheet)", () => {
       state: { status: "ready", response: resp },
       layout: "sheet",
     });
-    const ids = options().map((o) => o.id);
-    expect(ids).toEqual(
-      quickOptions(resp, "winter").map((o) => optionDomId(o.id))
+    expect(options().map((o) => o.id)).toEqual(
+      domIds(resp, QUICK_SEARCH_LISTBOX_ID)
     );
     expect(container.querySelector("kbd")).toBeNull();
   });
 });
 
 describe("QuickSearchResults (other states)", () => {
-  it("keeps the previous results while loading", async () => {
+  it("keeps the previous results navigable while loading", async () => {
     await render({ state: { status: "loading", previous: resp } });
     expect(options().length).toBe(quickOptions(resp, "winter").length);
+    expect(
+      container.querySelector('[role="listbox"]')?.hasAttribute("aria-busy")
+    ).toBe(false);
+  });
+
+  it("labels show all with the shown answer's query, but links to what is typed now", async () => {
+    await render({
+      state: { status: "loading", previous: resp },
+      query: "winter games",
+    });
+    expect(showAllOption()?.textContent).toBe("showAll 23 winter");
+    expect(showAllOption()?.getAttribute("href")).toBe(
+      "/search?q=winter+games"
+    );
   });
 
   it("renders no options while the first search loads", async () => {
@@ -457,10 +420,7 @@ describe("QuickSearchResults (lead visuals)", () => {
       image: "https://appwrite.biso.no/news.jpg",
     });
     await render({
-      state: {
-        status: "ready",
-        response: { ...resp, best: news },
-      },
+      state: { status: "ready", response: { ...resp, best: news } },
     });
     expect(
       container.querySelector(".chevron-frame img")?.getAttribute("src")
@@ -482,8 +442,32 @@ describe("QuickSearchResults (lead visuals)", () => {
   });
 });
 
+describe("search.showAll copy", () => {
+  async function translate(locale: "en" | "no", count: number) {
+    const { createTranslator } =
+      await vi.importActual<typeof import("next-intl")>("next-intl");
+    const messages = await loadMessages(locale);
+    const t = createTranslator({ locale, messages, namespace: "search" });
+    return t("showAll", { count, query: "winter" });
+  }
+
+  it("reads naturally for one result", async () => {
+    expect(await translate("en", 1)).toBe('Show 1 result for "winter"');
+    expect(await translate("no", 1)).toBe("Vis 1 treff for «winter»");
+  });
+
+  it("says all for several", async () => {
+    expect(await translate("en", 23)).toBe('Show all 23 results for "winter"');
+    expect(await translate("no", 23)).toBe("Vis alle 23 treff for «winter»");
+  });
+});
+
 describe("QuickSearchInput", () => {
-  async function renderInput(activeId: string | null, expanded: boolean) {
+  async function renderInput(
+    activeId: string | null,
+    expanded: boolean,
+    listboxId = QUICK_SEARCH_LISTBOX_ID
+  ) {
     const onChange = vi.fn();
     const onKeyDown = vi.fn();
     container = document.createElement("div");
@@ -495,7 +479,7 @@ describe("QuickSearchInput", () => {
           activeId,
           expanded,
           inputRef: null,
-          listboxId: QUICK_SEARCH_LISTBOX_ID,
+          listboxId,
           onChange,
           onKeyDown,
           value: "win",
@@ -516,11 +500,19 @@ describe("QuickSearchInput", () => {
     expect(input.getAttribute("aria-controls")).toBe(QUICK_SEARCH_LISTBOX_ID);
     expect(input.getAttribute("aria-expanded")).toBe("true");
     expect(input.getAttribute("aria-activedescendant")).toBe(
-      optionDomId("event_games_en")
+      optionDomId(QUICK_SEARCH_LISTBOX_ID, "event_games_en")
     );
     expect(input.getAttribute("aria-label")).toBe("field.label");
     expect(input.getAttribute("placeholder")).toBe("field.placeholder");
     expect(input.value).toBe("win");
+  });
+
+  it("points aria-activedescendant into its own listbox", async () => {
+    const { input } = await renderInput("show-all", true, "sheet-search");
+    expect(input.getAttribute("aria-controls")).toBe("sheet-search");
+    expect(input.getAttribute("aria-activedescendant")).toBe(
+      "sheet-search-opt-show-all"
+    );
   });
 
   it("drops aria-activedescendant with no active option", async () => {

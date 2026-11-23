@@ -1,14 +1,9 @@
 "use client";
 
-import {
-  type QuickSearchResponse,
-  SEARCH_GROUPS,
-  type SearchGroup,
-  type SearchHit,
+import type {
+  QuickSearchResponse,
+  SearchHit,
 } from "@repo/shared/search/response";
-import { ALL_CAMPUSES } from "@repo/shared/search/types";
-import { formatOsloDate } from "@repo/shared/utils/oslo-time";
-import { ImageWithFallback } from "@repo/ui/components/image";
 import { cn } from "@repo/ui/lib/utils";
 import { ArrowRight, History } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -19,227 +14,35 @@ import {
   useId,
   useState,
 } from "react";
-import { ChevronFrame } from "@/components/ui/chevron-frame";
-import { DateBlock } from "@/components/ui/date-block";
 import { clearRecentSearches, readRecentSearches } from "@/lib/search/recent";
 import { Highlighted } from "./highlighted";
+import { HitLead } from "./hit-lead";
+import { hitMeta, intlLocaleOf, type SearchTranslate } from "./hit-meta";
+import {
+  optionDomId,
+  QUICK_SEARCH_LISTBOX_ID,
+  type QuickSection,
+  SHOW_ALL_OPTION_ID,
+  searchHref,
+  sectionsOf,
+} from "./quick-options";
 import { type QuickSearchState, shownResponse } from "./use-quick-search";
 
-export const QUICK_SEARCH_LISTBOX_ID = "quick-search-listbox";
-/** The option id of the "Show all N results" row. */
-export const SHOW_ALL_OPTION_ID = "show-all";
+// Named beside the results in the brief. The input imports quick-options
+// directly, so it never pulls these views in.
+export {
+  QUICK_SEARCH_LISTBOX_ID,
+  type QuickOption,
+  quickOptions,
+} from "./quick-options";
 
-/** The DOM id of an option, for `aria-activedescendant`. */
-export function optionDomId(id: string): string {
-  return `quick-search-option-${id}`;
-}
-
-export interface QuickOption {
-  href: string;
-  id: string;
-}
-
-interface QuickSection {
-  count: number;
-  group: SearchGroup;
-  hits: SearchHit[];
-}
-
-type Translate = ReturnType<typeof useTranslations>;
 type Layout = "panel" | "sheet";
 
-const PATH_END = /[?#]/;
-const META_SEPARATOR = " · ";
-const MS_PER_SECOND = 1000;
-
-/** `/search?q=…` for the trimmed query. */
-function searchHref(query: string): string {
-  return `/search?${new URLSearchParams({ q: query.trim() }).toString()}`;
-}
-
-/** The groups that have rows to show, in SEARCH_GROUPS order. */
-function sectionsOf(response: QuickSearchResponse): QuickSection[] {
-  const bestId = response.best?.id;
-  return SEARCH_GROUPS.flatMap((group) => {
-    const hits = response.groups[group].filter((hit) => hit.id !== bestId);
-    return hits.length > 0
-      ? [{ count: response.counts[group], group, hits }]
-      : [];
-  });
-}
-
-/**
- * Every selectable row in display order: the best match, the groups in
- * SEARCH_GROUPS order, then "Show all". Arrow keys walk this list; nothing is
- * selectable when nothing matched.
- */
-export function quickOptions(
-  response: QuickSearchResponse,
-  query: string
-): QuickOption[] {
-  if (response.total === 0) {
-    return [];
-  }
-  const options: QuickOption[] = [];
-  if (response.best) {
-    options.push({ href: response.best.url, id: response.best.id });
-  }
-  for (const section of sectionsOf(response)) {
-    for (const hit of section.hits) {
-      options.push({ href: hit.url, id: hit.id });
-    }
-  }
-  options.push({ href: searchHref(query), id: SHOW_ALL_OPTION_ID });
-  return options;
-}
-
-function dateLocaleOf(response: QuickSearchResponse): string {
-  return response.locale === "no" ? "nb-NO" : "en-GB";
-}
-
-function joinMeta(parts: (string | null | undefined)[]): string {
-  return parts.filter(Boolean).join(META_SEPARATOR);
-}
-
-function formatSeconds(
-  seconds: number | null,
-  options: Intl.DateTimeFormatOptions,
-  locale: string
-): string | null {
-  return seconds === null
-    ? null
-    : formatOsloDate(new Date(seconds * MS_PER_SECOND), options, locale);
-}
-
-function productMeta(hit: SearchHit, locale: string, t: Translate): string {
-  const money = new Intl.NumberFormat(locale, {
-    currency: "NOK",
-    maximumFractionDigits: 0,
-    style: "currency",
-  });
-  let member: string | null = null;
-  if (hit.member_price === 0) {
-    member = t("meta.freeForMembers");
-  } else if (
-    hit.member_price !== null &&
-    hit.price !== null &&
-    hit.member_price < hit.price
-  ) {
-    member = t("meta.membersFrom", { price: money.format(hit.member_price) });
-  }
-  // Buyers see in stock / out of stock only, never a count.
-  return joinMeta([
-    hit.price === null ? null : money.format(hit.price),
-    member,
-    hit.in_stock === false ? t("meta.outOfStock") : null,
-  ]);
-}
-
-/** One short line under a result title: when, where, price or path. */
-function hitMeta(hit: SearchHit, locale: string, t: Translate): string {
-  const campus = hit.campus_id === ALL_CAMPUSES ? null : hit.campus_name;
-  switch (hit.group) {
-    case "event":
-      return joinMeta([
-        formatSeconds(
-          hit.starts_at,
-          { day: "numeric", month: "short", weekday: "short" },
-          locale
-        ),
-        hit.location ?? campus,
-      ]);
-    case "news":
-      return joinMeta([
-        formatSeconds(
-          hit.published_at,
-          { day: "numeric", month: "short", year: "numeric" },
-          locale
-        ),
-        campus,
-      ]);
-    case "job": {
-      const deadline = formatSeconds(
-        hit.deadline,
-        { day: "numeric", month: "short" },
-        locale
-      );
-      return joinMeta([
-        deadline ? t("meta.applyBy", { date: deadline }) : null,
-        hit.department ?? campus,
-      ]);
-    }
-    case "product":
-      return productMeta(hit, locale, t);
-    case "page": {
-      // A document's URL is its download route, which says nothing useful.
-      if (hit.type === "document") {
-        return joinMeta([hit.department, campus]);
-      }
-      // Where the page sits: its parent path ("projects / winter-games").
-      const parents = hit.url
-        .split(PATH_END)[0]
-        .split("/")
-        .filter(Boolean)
-        .slice(0, -1);
-      return parents.length > 0 ? parents.join(" / ") : (campus ?? "");
-    }
-    default:
-      return hit.campus_name;
-  }
-}
-
-type LeadKind = "date" | "image" | null;
-
-/** Events lead with their date, news and products with their picture; nothing else gets a lead visual. */
-function leadOf(hit: SearchHit): LeadKind {
-  if (hit.group === "event" && hit.starts_at !== null) {
-    return "date";
-  }
-  const pictured =
-    hit.group === "event" || hit.group === "news" || hit.group === "product";
-  return pictured && hit.image ? "image" : null;
-}
-
-function Lead({
-  hit,
-  locale,
-  size,
-}: {
-  hit: SearchHit;
-  locale: string;
-  size: "large" | "small";
-}) {
-  const kind = leadOf(hit);
-  if (kind === "date" && hit.starts_at !== null) {
-    return (
-      <DateBlock
-        date={new Date(hit.starts_at * MS_PER_SECOND)}
-        locale={locale}
-      />
-    );
-  }
-  if (kind === "image" && hit.image) {
-    const large = size === "large";
-    return (
-      <ChevronFrame
-        className={cn(
-          "shrink-0 bg-surface-sunken",
-          large ? "mb-1 w-full" : "w-16"
-        )}
-        ratio={large ? "16/9" : "4/3"}
-      >
-        {/* `alt=""`: the title next to it is the option's name. */}
-        <ImageWithFallback
-          alt=""
-          height={large ? 324 : 96}
-          sizes={large ? "288px" : "64px"}
-          src={hit.image}
-          width={large ? 576 : 128}
-        />
-      </ChevronFrame>
-    );
-  }
-  return null;
+/** What every option needs: which one is active, its listbox, and where clicks go. */
+interface OptionScope {
+  activeId: string | null;
+  listboxId: string;
+  onNavigate: (href: string) => void;
 }
 
 /** Let the browser handle new-tab clicks; a plain click goes through `onNavigate`. */
@@ -268,29 +71,29 @@ const ACTIVE_CLASS =
   "aria-selected:bg-surface-raised aria-selected:ring-2 aria-selected:ring-focus-ring";
 const LINK_CLASS =
   "inline-flex items-center gap-2 rounded-biso-sm type-body-sm font-bold text-ink-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring";
+/** The best match keeps its column even alone, so its picture stays card-sized. */
+const PANEL_GRID_WITH_BEST = "lg:grid-cols-[18rem_minmax(0,1fr)]";
 
 function OptionLink({
-  activeId,
   children,
   className,
   href,
   id,
-  onNavigate,
+  scope,
 }: {
-  activeId: string | null;
   children: ReactNode;
   className?: string;
   href: string;
   id: string;
-  onNavigate: (href: string) => void;
+  scope: OptionScope;
 }) {
   return (
     <a
-      aria-selected={activeId === id}
+      aria-selected={scope.activeId === id}
       className={cn("transition-colors", ACTIVE_CLASS, className)}
       href={href}
-      id={optionDomId(id)}
-      onClick={plainClick(onNavigate, href)}
+      id={optionDomId(scope.listboxId, id)}
+      onClick={plainClick(scope.onNavigate, href)}
       role="option"
       tabIndex={-1}
     >
@@ -339,7 +142,7 @@ function Kbd({ children }: { children: ReactNode }) {
   );
 }
 
-function KeyHints({ t }: { t: Translate }) {
+function KeyHints({ t }: { t: SearchTranslate }) {
   return (
     <div
       aria-hidden="true"
@@ -362,30 +165,18 @@ function KeyHints({ t }: { t: Translate }) {
   );
 }
 
-interface ResultsProps {
-  activeId: string | null;
-  busy: boolean;
-  layout: Layout;
-  listboxId: string;
-  onNavigate: (href: string) => void;
-  query: string;
-  response: QuickSearchResponse;
-}
-
 function BestMatch({
-  activeId,
   best,
   layout,
   locale,
-  onNavigate,
+  scope,
   t,
 }: {
-  activeId: string | null;
   best: SearchHit;
   layout: Layout;
   locale: string;
-  onNavigate: (href: string) => void;
-  t: Translate;
+  scope: OptionScope;
+  t: SearchTranslate;
 }) {
   const meta = hitMeta(best, locale, t);
   const hasSnippet = best.snippet.some((segment) => segment.text.trim());
@@ -394,13 +185,12 @@ function BestMatch({
     return (
       <OptionGroup label={t("best")}>
         <OptionLink
-          activeId={activeId}
           className="mt-2 flex items-center gap-3 rounded-biso-md bg-surface-raised p-3 focus-visible:outline-none"
           href={best.url}
           id={best.id}
-          onNavigate={onNavigate}
+          scope={scope}
         >
-          <Lead hit={best} locale={locale} size="small" />
+          <HitLead hit={best} locale={locale} size="small" />
           <span className="min-w-0 flex-1">
             <Highlighted
               className="line-clamp-2 font-bold font-display text-base text-ink leading-snug"
@@ -420,13 +210,12 @@ function BestMatch({
   return (
     <OptionGroup label={t("best")}>
       <OptionLink
-        activeId={activeId}
-        className="mt-2 flex flex-col items-start gap-3 rounded-biso-md bg-surface-raised p-4 focus-visible:outline-none"
+        className="mt-2 flex w-full max-w-72 flex-col items-start gap-3 rounded-biso-md bg-surface-raised p-4 focus-visible:outline-none"
         href={best.url}
         id={best.id}
-        onNavigate={onNavigate}
+        scope={scope}
       >
-        <Lead hit={best} locale={locale} size="large" />
+        <HitLead hit={best} locale={locale} size="large" />
         <Highlighted
           className="line-clamp-3 font-black font-display text-ink text-xl leading-tight"
           segments={best.title}
@@ -448,17 +237,15 @@ function BestMatch({
 }
 
 function GroupList({
-  activeId,
   locale,
-  onNavigate,
+  scope,
   section,
   t,
 }: {
-  activeId: string | null;
   locale: string;
-  onNavigate: (href: string) => void;
+  scope: OptionScope;
   section: QuickSection;
-  t: Translate;
+  t: SearchTranslate;
 }) {
   return (
     <OptionGroup count={section.count} label={t(`groups.${section.group}`)}>
@@ -466,12 +253,11 @@ function GroupList({
         const meta = hitMeta(hit, locale, t);
         return (
           <OptionLink
-            activeId={activeId}
             className="-mx-2 block rounded-biso-sm px-2 py-2 hover:bg-surface-raised focus-visible:outline-none"
             href={hit.url}
             id={hit.id}
             key={hit.id}
-            onNavigate={onNavigate}
+            scope={scope}
           >
             <Highlighted
               className="type-body-sm line-clamp-2 font-bold text-ink"
@@ -490,72 +276,46 @@ function GroupList({
 }
 
 function ResultsList({
-  activeId,
-  busy,
   layout,
-  listboxId,
-  onNavigate,
   query,
   response,
-}: ResultsProps) {
+  scope,
+}: {
+  layout: Layout;
+  query: string;
+  response: QuickSearchResponse;
+  scope: OptionScope;
+}) {
   const t = useTranslations("search");
-  const locale = dateLocaleOf(response);
+  const locale = intlLocaleOf(response.locale);
   const sections = sectionsOf(response);
   const best = response.best;
   const isPanel = layout === "panel";
 
+  const bestMatch = best ? (
+    <BestMatch
+      best={best}
+      layout={layout}
+      locale={locale}
+      scope={scope}
+      t={t}
+    />
+  ) : null;
   const groups = sections.map((section) => (
     <GroupList
-      activeId={activeId}
       key={section.group}
       locale={locale}
-      onNavigate={onNavigate}
+      scope={scope}
       section={section}
       t={t}
     />
   ));
 
-  const showAll = (
-    <OptionLink
-      activeId={activeId}
-      className={cn(
-        LINK_CLASS,
-        "px-2 py-1.5",
-        isPanel ? "-mx-2" : "w-full justify-center py-3"
-      )}
-      href={searchHref(query)}
-      id={SHOW_ALL_OPTION_ID}
-      onNavigate={onNavigate}
-    >
-      {t("showAll", { count: response.total, query: query.trim() })}
-      <ArrowRight aria-hidden="true" className="size-4 shrink-0" />
-    </OptionLink>
-  );
-
   return (
-    <div
-      aria-busy={busy}
-      aria-label={t("field.label")}
-      id={listboxId}
-      role="listbox"
-    >
+    <div aria-label={t("field.label")} id={scope.listboxId} role="listbox">
       {isPanel ? (
-        <div
-          className={cn(
-            "grid gap-8",
-            best && sections.length > 0 && "lg:grid-cols-[18rem_minmax(0,1fr)]"
-          )}
-        >
-          {best ? (
-            <BestMatch
-              activeId={activeId}
-              best={best}
-              layout={layout}
-              locale={locale}
-              onNavigate={onNavigate}
-              t={t}
-            />
-          ) : null}
+        <div className={cn("grid gap-8", best && PANEL_GRID_WITH_BEST)}>
+          {bestMatch}
           {groups.length > 0 ? (
             <div className="grid content-start gap-x-7 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
               {groups}
@@ -564,16 +324,7 @@ function ResultsList({
         </div>
       ) : (
         <div className="space-y-6">
-          {best ? (
-            <BestMatch
-              activeId={activeId}
-              best={best}
-              layout={layout}
-              locale={locale}
-              onNavigate={onNavigate}
-              t={t}
-            />
-          ) : null}
+          {bestMatch}
           {groups}
         </div>
       )}
@@ -583,7 +334,21 @@ function ResultsList({
           isPanel && "flex flex-wrap items-center justify-between gap-4"
         )}
       >
-        {showAll}
+        <OptionLink
+          className={cn(
+            LINK_CLASS,
+            "px-2 py-1.5",
+            isPanel ? "-mx-2" : "w-full justify-center py-3"
+          )}
+          href={searchHref(query)}
+          id={SHOW_ALL_OPTION_ID}
+          scope={scope}
+        >
+          {/* The count belongs to the answer on screen, so it names that
+              answer's query; the link follows what is typed now. */}
+          {t("showAll", { count: response.total, query: response.query })}
+          <ArrowRight aria-hidden="true" className="size-4 shrink-0" />
+        </OptionLink>
         {isPanel ? <KeyHints t={t} /> : null}
       </div>
     </div>
@@ -599,7 +364,7 @@ function IdleContent({
   campusSlug: string | null;
   layout: Layout;
   onNavigate: (href: string) => void;
-  onPickQuery?: (q: string) => void;
+  onPickQuery: (q: string) => void;
 }) {
   const t = useTranslations("search");
   const baseId = useId();
@@ -639,7 +404,7 @@ function IdleContent({
               <li key={item}>
                 <button
                   className={cn(ROW_CLASS, "w-[calc(100%+1rem)] text-left")}
-                  onClick={() => onPickQuery?.(item)}
+                  onClick={() => onPickQuery(item)}
                   type="button"
                 >
                   <History
@@ -752,11 +517,11 @@ export interface QuickSearchResultsProps {
   activeId: string | null;
   campusSlug: string | null;
   layout: Layout;
-  /** Must match the input's `aria-controls`. */
+  /** Must match the input's `listboxId`; option DOM ids are scoped by it. */
   listboxId?: string;
   onNavigate: (href: string) => void;
   /** A recent search was picked: put it in the field. */
-  onPickQuery?: (q: string) => void;
+  onPickQuery: (q: string) => void;
   query: string;
   state: QuickSearchState;
 }
@@ -783,10 +548,10 @@ export function QuickSearchResults({
   useEffect(() => {
     if (activeId) {
       document
-        .getElementById(optionDomId(activeId))
+        .getElementById(optionDomId(listboxId, activeId))
         ?.scrollIntoView?.({ block: "nearest" });
     }
-  }, [activeId]);
+  }, [activeId, listboxId]);
 
   let announcement = "";
   if (response) {
@@ -812,13 +577,10 @@ export function QuickSearchResults({
   } else if (response) {
     body = (
       <ResultsList
-        activeId={activeId}
-        busy={state.status === "loading"}
         layout={layout}
-        listboxId={listboxId}
-        onNavigate={onNavigate}
         query={query}
         response={response}
+        scope={{ activeId, listboxId, onNavigate }}
       />
     );
   } else {

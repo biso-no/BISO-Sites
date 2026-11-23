@@ -84,6 +84,33 @@ function hangingFetch() {
   );
 }
 
+/** A 200 whose body never finishes on its own and fails when the signal aborts. */
+function hangingBodyFetch() {
+  let markStarted: () => void = () => undefined;
+  const bodyStarted = new Promise<void>((resolve) => {
+    markStarted = resolve;
+  });
+  const stub = vi.fn((_url: string, init?: RequestInit) => {
+    const signal = init?.signal;
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      json: () =>
+        new Promise((_resolve, reject) => {
+          markStarted();
+          if (signal?.aborted) {
+            reject(signal.reason);
+            return;
+          }
+          signal?.addEventListener("abort", () => reject(signal.reason), {
+            once: true,
+          });
+        }),
+    } as unknown as Response);
+  });
+  return { bodyStarted, stub };
+}
+
 const nativeAny = AbortSignal.any;
 
 describe.each([
@@ -126,6 +153,34 @@ describe.each([
       )
     ).rejects.toBeInstanceOf(SearchUnavailableError);
     expect(controller.signal.aborted).toBe(false);
+  });
+
+  it("rethrows a caller abort that lands while the body is read", async () => {
+    setup();
+    const { bodyStarted, stub } = hangingBodyFetch();
+    vi.stubGlobal("fetch", stub);
+    const controller = new AbortController();
+    const pending = fetchSearch(
+      { q: "x", locale: "no", mode: "quick" },
+      { signal: controller.signal, timeoutMs: 10_000 }
+    );
+    await bodyStarted;
+    controller.abort();
+    const error = await pending.catch((caught: unknown) => caught);
+    expect(error).not.toBeInstanceOf(SearchUnavailableError);
+    expect((error as Error).name).toBe("AbortError");
+  });
+
+  it("treats a timeout while the body is read as unavailable", async () => {
+    setup();
+    const { stub } = hangingBodyFetch();
+    vi.stubGlobal("fetch", stub);
+    const error = await fetchSearch(
+      { q: "x", locale: "no", mode: "quick" },
+      { signal: new AbortController().signal, timeoutMs: 20 }
+    ).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(SearchUnavailableError);
+    expect((error as Error).message).toBe("Search timed out");
   });
 
   it("still answers when the caller passes no signal", async () => {

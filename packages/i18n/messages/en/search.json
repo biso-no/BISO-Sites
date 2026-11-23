@@ -6,7 +6,7 @@
   "open": "Search",
   "close": "Close search",
   "submit": "Search",
-  "showAll": "Show all {count} results for \"{query}\"",
+  "showAll": "{count, plural, one {Show # result for \"{query}\"} other {Show all # results for \"{query}\"}}",
   "groups": {
     "event": "Events",
     "news": "News",

@@ -121,8 +121,14 @@ export async function fetchSearch<M extends "quick" | "page">(
       return (await response.json()) as M extends "quick"
         ? QuickSearchResponse
         : PageSearchResponse;
-    } catch {
-      throw new SearchUnavailableError("Search returned invalid data");
+    } catch (error) {
+      // The body is read under the same signal, so the caller can abort here too.
+      if (init.signal?.aborted) {
+        throw error;
+      }
+      throw new SearchUnavailableError(
+        signal.aborted ? "Search timed out" : "Search returned invalid data"
+      );
     }
   } finally {
     release();
