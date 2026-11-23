@@ -31,6 +31,7 @@ export type AiFunctionId =
   | "api.expense-approver"
   | "api.receipt-extract"
   | "api.receipt-classify"
+  | "api.expense-check"
   | "ai.assistant-content-tool"
   | "ai.recruitment-email"
   | "ai.recruitment-screening"
@@ -44,8 +45,11 @@ export type AiModel =
 export interface AiCallMeta {
   functionId: AiFunctionId;
   model: AiModel;
-  /** `generate_object` for `generateObject`, `chat` for `streamText`. */
-  operation: "generate_object" | "chat";
+  /**
+   * `generate_object` for `generateObject`, `generate_text` for
+   * `generateText`, `chat` for `streamText`.
+   */
+  operation: "generate_object" | "generate_text" | "chat";
 }
 
 /** The AI SDK's token usage, as far as the span reads it. */
@@ -62,6 +66,7 @@ export interface AiUsage {
 const OPERATION_NAMES = {
   chat: "chat",
   generate_object: "generate_content",
+  generate_text: "generate_content",
 } as const;
 
 const FAILED: SpanStatus = {
@@ -110,13 +115,22 @@ const tokenCount = (value: unknown): number | undefined =>
     ? value
     : undefined;
 
-/** Token counts and the responding model id. Reads nothing else. */
+/**
+ * Token counts and the responding model id. Reads nothing else. A multi-step
+ * `generateText` reports its last step in `usage` and the whole run in
+ * `totalUsage`, so `totalUsage` wins when it is there.
+ */
 const recordResult = (span: Span, result: unknown): void => {
   try {
     if (!isRecord(result)) {
       return;
     }
-    const usage = isRecord(result.usage) ? result.usage : {};
+    let usage: Record<string, unknown> = {};
+    if (isRecord(result.totalUsage)) {
+      usage = result.totalUsage;
+    } else if (isRecord(result.usage)) {
+      usage = result.usage;
+    }
     const input = tokenCount(usage.inputTokens);
     const output = tokenCount(usage.outputTokens);
     const attributes: SpanAttributes = {};
@@ -194,10 +208,12 @@ const logStreamError = (functionId: AiFunctionId, error: unknown): void => {
 };
 
 /**
- * Wraps one `generateObject` call in an AI request span. Returns the call's
+ * Wraps one `generateObject` or `generateText` call in an AI request span. Returns the call's
  * result and rethrows its error unchanged.
  */
-export const traceAiCall = <T extends { usage?: AiUsage }>(
+export const traceAiCall = <
+  T extends { usage?: AiUsage; totalUsage?: AiUsage },
+>(
   meta: AiCallMeta,
   run: () => Promise<T>
 ): Promise<T> =>

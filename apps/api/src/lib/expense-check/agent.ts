@@ -11,6 +11,7 @@ import type {
   ExpenseAttachments,
   Expenses,
 } from "@repo/api/types/appwrite";
+import { traceAiCall } from "@repo/observability/ai";
 import {
   type ApproverHint,
   parseApproverHints,
@@ -494,20 +495,28 @@ export async function checkWithAgent(
   try {
     // A slow tool can't hold the run past the deadline: the race ends it.
     const outcome = await Promise.race([
-      generateText({
-        abortSignal: controller.signal,
-        instructions,
-        model: deps.model,
-        onStepEnd: (step) => log.step(step as StepResult<ToolSet>),
-        prepareStep: ({ stepNumber }) =>
-          stepNumber >= CHECK_MAX_STEPS - 1
-            ? { activeTools: [FINISH] }
-            : undefined,
-        prompt,
-        reasoning: "medium",
-        stopWhen: isStepCount(CHECK_MAX_STEPS),
-        tools: { ...deps.tools, [FINISH]: finishCheck },
-      }),
+      traceAiCall(
+        {
+          functionId: "api.expense-check",
+          model: deps.model,
+          operation: "generate_text",
+        },
+        () =>
+          generateText({
+            abortSignal: controller.signal,
+            instructions,
+            model: deps.model,
+            onStepEnd: (step) => log.step(step as StepResult<ToolSet>),
+            prepareStep: ({ stepNumber }) =>
+              stepNumber >= CHECK_MAX_STEPS - 1
+                ? { activeTools: [FINISH] }
+                : undefined,
+            prompt,
+            reasoning: "medium",
+            stopWhen: isStepCount(CHECK_MAX_STEPS),
+            tools: { ...deps.tools, [FINISH]: finishCheck },
+          })
+      ),
       passed,
     ]);
     if (outcome === "deadline") {

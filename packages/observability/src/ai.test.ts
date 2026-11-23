@@ -144,6 +144,28 @@ describe("traceAiCall", () => {
     expect(lastSpan().ends).toBe(1);
   });
 
+  it("counts every step of a multi-step generateText", async () => {
+    await traceAiCall(
+      {
+        functionId: "api.expense-check",
+        model: MODEL,
+        operation: "generate_text",
+      },
+      async () => ({
+        text: "",
+        totalUsage: { inputTokens: 900, outputTokens: 60 },
+        usage: { inputTokens: 100, outputTokens: 20 },
+      })
+    );
+    expect(lastSpan().op).toBe("gen_ai.generate_content");
+    expect(lastSpan().attributes).toMatchObject({
+      "gen_ai.pipeline.name": "api.expense-check",
+      "gen_ai.usage.input_tokens": 900,
+      "gen_ai.usage.output_tokens": 60,
+      "gen_ai.usage.total_tokens": 960,
+    });
+  });
+
   it("returns the call's result unchanged", async () => {
     const result = { object: { reply: "hi" }, usage: { inputTokens: 1 } };
     await expect(
