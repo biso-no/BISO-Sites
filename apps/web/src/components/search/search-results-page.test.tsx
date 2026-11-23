@@ -15,6 +15,8 @@ vi.mock("@repo/ui/components/image", () => ({
 
 import { SearchResultsPage } from "./search-results-page";
 
+const H1 = /<h1/g;
+
 const base = {
   campusId: null,
   locale: "en" as const,
@@ -86,5 +88,44 @@ describe("SearchResultsPage", () => {
     );
     expect(without).not.toContain("aria-pressed");
     expect(withCampus).toContain('aria-pressed="false"');
+  });
+
+  it("renders exactly one h1 in every state", () => {
+    const results = {
+      ...emptyPageResponse("winter", "en", null),
+      hits: [searchHit({ id: "a", group: "news" })],
+      total: 1,
+      total_pages: 1,
+      counts: { event: 0, news: 1, job: 0, product: 0, page: 0, unit: 0 },
+    };
+    const states = [
+      <SearchResultsPage {...base} error key="e" response={null} />,
+      <SearchResultsPage
+        {...base}
+        error={false}
+        key="z"
+        response={emptyPageResponse("winter", "en", null)}
+      />,
+      <SearchResultsPage {...base} error={false} key="r" response={results} />,
+    ];
+    for (const state of states) {
+      expect(renderToStaticMarkup(state).match(H1)).toHaveLength(1);
+    }
+  });
+
+  it("offers a way back to page 1 when the page is past the end", () => {
+    const response = {
+      ...emptyPageResponse("winter", "en", null),
+      page: 50,
+      total: 30,
+      total_pages: 2,
+      counts: { event: 0, news: 30, job: 0, product: 0, page: 0, unit: 0 },
+    };
+    const html = renderToStaticMarkup(
+      <SearchResultsPage {...base} error={false} response={response} />
+    );
+    expect(html).toContain("page.pastEnd");
+    expect(html).toContain('href="/search?q=winter"');
+    expect(html).not.toContain("page.pageOf");
   });
 });

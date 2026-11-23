@@ -4,7 +4,12 @@ import { useTranslations } from "next-intl";
 import { Pill } from "@/components/ui/pill";
 import { Highlighted } from "./highlighted";
 import { HitLead } from "./hit-lead";
-import { formatSeconds, hitMeta, intlLocaleOf, productMeta } from "./hit-meta";
+import {
+  formatSeconds,
+  hitMeta,
+  intlLocaleOf,
+  type SearchTranslate,
+} from "./hit-meta";
 
 const SITE_HOST = "biso.no";
 const PATH_END = /[?#]/;
@@ -13,6 +18,50 @@ const PATH_END = /[?#]/;
 function breadcrumbOf(url: string): string {
   const segments = url.split(PATH_END)[0].split("/").filter(Boolean);
   return [SITE_HOST, ...segments].join(" / ");
+}
+
+/** The right-hand column: one fact per line (deadline; price, member price, stock). */
+function asideLines(
+  hit: SearchHit,
+  locale: string,
+  t: SearchTranslate
+): string[] {
+  if (hit.group === "job") {
+    const deadline = formatSeconds(
+      hit.deadline,
+      { day: "numeric", month: "short" },
+      locale
+    );
+    return deadline ? [t("meta.applyBy", { date: deadline })] : [];
+  }
+  if (hit.group !== "product") {
+    return [];
+  }
+  const money = new Intl.NumberFormat(locale, {
+    currency: "NOK",
+    maximumFractionDigits: 0,
+    style: "currency",
+  });
+  const lines: string[] = [];
+  if (hit.price !== null) {
+    lines.push(money.format(hit.price));
+  }
+  if (hit.member_price === 0) {
+    lines.push(t("meta.freeForMembers"));
+  } else if (
+    hit.member_price !== null &&
+    hit.price !== null &&
+    hit.member_price < hit.price
+  ) {
+    lines.push(
+      t("meta.memberPrice", { price: money.format(hit.member_price) })
+    );
+  }
+  // Buyers see in stock / out of stock only, never a count.
+  if (hit.in_stock !== null) {
+    lines.push(hit.in_stock ? t("meta.inStock") : t("meta.outOfStock"));
+  }
+  return lines;
 }
 
 /**
@@ -42,22 +91,7 @@ export function SearchResultRow({
     metaText = hitMeta(hit, intl, t);
   }
 
-  let aside: string | null = null;
-  if (hit.group === "job") {
-    const deadline = formatSeconds(
-      hit.deadline,
-      { day: "numeric", month: "short" },
-      intl
-    );
-    aside = deadline ? t("meta.applyBy", { date: deadline }) : null;
-  } else if (hit.group === "product") {
-    aside = [
-      productMeta(hit, intl, t),
-      hit.in_stock === true ? t("meta.inStock") : null,
-    ]
-      .filter(Boolean)
-      .join(" · ");
-  }
+  const aside = asideLines(hit, intl, t);
 
   return (
     <li className="flex items-start gap-4 border-edge border-b py-5">
@@ -87,10 +121,17 @@ export function SearchResultRow({
           </p>
         ) : null}
       </div>
-      {aside ? (
-        <p className="type-body-sm max-w-[10rem] shrink-0 text-end font-semibold text-ink">
-          {aside}
-        </p>
+      {aside.length > 0 ? (
+        <div className="type-body-sm shrink-0 text-end">
+          {aside.map((line, index) => (
+            <p
+              className={`whitespace-nowrap ${index === 0 ? "font-semibold text-ink" : "text-ink-muted"}`}
+              key={line}
+            >
+              {line}
+            </p>
+          ))}
+        </div>
       ) : null}
     </li>
   );

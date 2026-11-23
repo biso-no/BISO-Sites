@@ -45,10 +45,15 @@
     "pageOf": "Page {page} of {total}",
     "all": "All",
     "filterLabel": "Filter results by type",
-    "pagination": "Search results pages"
+    "pagination": "Search results pages",
+    "resultsHeading": "Search results",
+    "pastEnd": "No results on this page",
+    "pastEndBody": "The page you asked for is past the last one.",
+    "backToFirst": "Back to page 1"
   },
   "meta": {
     "membersFrom": "Members from {price}",
+    "memberPrice": "Member price {price}",
     "freeForMembers": "Free for members",
     "applyBy": "Apply by {date}",
     "inStock": "In stock",

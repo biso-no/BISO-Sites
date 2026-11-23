@@ -45,10 +45,15 @@
     "pageOf": "Side {page} av {total}",
     "all": "Alle",
     "filterLabel": "Filtrer treff etter type",
-    "pagination": "Sider med søketreff"
+    "pagination": "Sider med søketreff",
+    "resultsHeading": "Søketreff",
+    "pastEnd": "Ingen treff på denne siden",
+    "pastEndBody": "Siden du ba om er etter den siste siden.",
+    "backToFirst": "Tilbake til side 1"
   },
   "meta": {
     "membersFrom": "Medlemmer fra {price}",
+    "memberPrice": "Medlemspris {price}",
     "freeForMembers": "Gratis for medlemmer",
     "applyBy": "Søk innen {date}",
     "inStock": "På lager",

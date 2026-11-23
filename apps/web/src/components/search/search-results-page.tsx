@@ -6,10 +6,10 @@ import { campusIdToLabel } from "@repo/shared/utils/unit-urls";
 import { cn } from "@repo/ui/lib/utils";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { FilterChips } from "@/components/ui/filter-chips";
+import type { ReactNode } from "react";
+import { FilterChips, type FilterOption } from "@/components/ui/filter-chips";
 import { Section } from "@/components/ui/section";
 import {
-  StatusPanel,
   statusPanelPrimaryAction,
   statusPanelSecondaryAction,
 } from "@/components/ui/status-panel";
@@ -39,6 +39,27 @@ function Shortcuts({
         </Link>
       ))}
     </>
+  );
+}
+
+/** The error, empty and past-the-end panel; the band above owns the page's only h1. */
+function SearchState({
+  actions,
+  body,
+  title,
+}: {
+  actions: ReactNode;
+  body: string;
+  title: string;
+}) {
+  return (
+    <Section tone="paper" width="prose">
+      <div className="flex flex-col items-start gap-4 rounded-biso-md border border-edge p-10">
+        <h2 className="type-display-sm break-words text-ink">{title}</h2>
+        <p className="type-body text-ink-muted">{body}</p>
+        <div className="mt-2 flex flex-wrap gap-3">{actions}</div>
+      </div>
+    </Section>
   );
 }
 
@@ -121,6 +142,30 @@ function Pager({
   );
 }
 
+function filterOptions(
+  response: PageSearchResponse | null,
+  group: SearchPageParams["group"],
+  t: (key: string) => string
+): FilterOption[] {
+  if (!response) {
+    return [];
+  }
+  const totalAll = SEARCH_GROUPS.reduce(
+    (sum, key) => sum + response.counts[key],
+    0
+  );
+  return [
+    { value: "all", label: t("page.all"), count: totalAll },
+    ...SEARCH_GROUPS.filter(
+      (key) => response.counts[key] > 0 || key === group
+    ).map((key) => ({
+      value: key,
+      label: t(`groups.${key}`),
+      count: response.counts[key],
+    })),
+  ];
+}
+
 /**
  * The `/search` page as markup from props: the navy band with the form, the
  * filters, the rows and the pager. Data fetching lives in the route, so this
@@ -163,27 +208,13 @@ export function SearchResultsPage({
   if (onlyCampus) {
     chipParams.only = "1";
   }
-  const totalAll = response
-    ? SEARCH_GROUPS.reduce((sum, key) => sum + response.counts[key], 0)
-    : 0;
-  const options = response
-    ? [
-        { value: "all", label: t("page.all"), count: totalAll },
-        ...SEARCH_GROUPS.filter(
-          (key) => response.counts[key] > 0 || key === group
-        ).map((key) => ({
-          value: key,
-          label: t(`groups.${key}`),
-          count: response.counts[key],
-        })),
-      ]
-    : [];
-
+  const options = filterOptions(response, group, t);
   const hasResults = response !== null && response.total > 0;
+  const pastEnd = hasResults && response.hits.length === 0;
 
   return (
     <>
-      <Section clearNav tone="deep">
+      <Section className="border-edge border-b" clearNav tone="deep">
         <h1 className="type-display-lg text-ink">{t("page.title")}</h1>
         <SearchPageForm
           defaultValue={q}
@@ -218,7 +249,7 @@ export function SearchResultsPage({
       )}
 
       {error ? (
-        <StatusPanel
+        <SearchState
           actions={
             <Link
               className={statusPanelPrimaryAction}
@@ -233,7 +264,7 @@ export function SearchResultsPage({
       ) : null}
 
       {q && response && !hasResults ? (
-        <StatusPanel
+        <SearchState
           actions={
             <>
               <span className="type-body-sm basis-full text-ink-muted">
@@ -247,8 +278,24 @@ export function SearchResultsPage({
         />
       ) : null}
 
-      {response && hasResults ? (
+      {pastEnd ? (
+        <SearchState
+          actions={
+            <Link
+              className={statusPanelPrimaryAction}
+              href={searchPageHref({ q, group, onlyCampus })}
+            >
+              {t("page.backToFirst")}
+            </Link>
+          }
+          body={t("page.pastEndBody")}
+          title={t("page.pastEnd")}
+        />
+      ) : null}
+
+      {response && hasResults && !pastEnd ? (
         <Section tone="paper">
+          <h2 className="sr-only">{t("page.resultsHeading")}</h2>
           <FilterChips
             active={group ?? "all"}
             basePath="/search"

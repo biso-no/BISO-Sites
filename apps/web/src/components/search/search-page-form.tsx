@@ -1,6 +1,7 @@
 "use client";
 
 import { trackEvent } from "@repo/shared/utils/analytics";
+import { Search } from "lucide-react";
 
 /**
  * The search field in the band, as a real GET form. Client only for the
@@ -41,11 +42,15 @@ export function SearchPageForm({
       {Object.entries(hidden).map(([key, value]) => (
         <input key={key} name={key} type="hidden" value={value} />
       ))}
-      <label className="min-w-0 flex-1">
+      <label className="relative min-w-0 flex-1">
         <span className="sr-only">{label}</span>
+        <Search
+          aria-hidden="true"
+          className="pointer-events-none absolute start-5 top-1/2 size-6 -translate-y-1/2 text-deep"
+        />
         <input
           autoComplete="off"
-          className="w-full rounded-biso-md border border-edge bg-white px-4 py-3 font-black font-display text-deep text-xl placeholder:text-deep/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+          className="h-16 w-full rounded-biso-md border border-edge bg-white ps-14 pe-4 font-black font-display text-[1.7rem] text-deep placeholder:text-deep/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
           defaultValue={defaultValue}
           enterKeyHint="search"
           maxLength={100}
@@ -55,7 +60,7 @@ export function SearchPageForm({
         />
       </label>
       <button
-        className="type-label shrink-0 rounded-biso-pill bg-action px-6 py-3 text-action-ink transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+        className="type-label h-16 shrink-0 rounded-biso-pill bg-action px-8 text-action-ink transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
         type="submit"
       >
         {submitLabel}
