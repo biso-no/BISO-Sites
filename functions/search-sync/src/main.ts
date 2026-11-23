@@ -16,6 +16,7 @@ import { reporterFromEnv } from "@repo/observability/functions";
 import { createSearchClient } from "@repo/shared/search/client";
 import { searchIndexName } from "@repo/shared/search/settings";
 import { handleRequest } from "./handler";
+import { runReindex } from "./reindex";
 import { reportResponse } from "./report";
 import { adoptRuntimeApiKey } from "./runtime-key";
 import { appwriteSource, departmentNames } from "./source";
@@ -38,11 +39,6 @@ interface AppwriteContext {
     method?: string;
   };
   res: { json: (data: unknown, statusCode?: number) => unknown };
-}
-
-/** Task 8 replaces this with the stamp-and-sweep reindex. */
-function reindexNotImplemented(): Promise<Record<string, unknown>> {
-  return Promise.reject(new Error("Reindex is not implemented yet"));
 }
 
 export default async function main(context: AppwriteContext) {
@@ -75,7 +71,7 @@ async function handle(
     };
     const result = await handleRequest({
       deps,
-      reindex: reindexNotImplemented,
+      reindex: () => runReindex(deps),
       req,
       secret: process.env.CRON_SECRET,
     });
