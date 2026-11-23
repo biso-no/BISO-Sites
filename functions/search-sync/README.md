@@ -18,8 +18,12 @@ Two kinds of execution reach this one function:
    maps it with the shared mappers (`@repo/shared/search`) and upserts its
    entries, or deletes them when the item is gone or no longer public. Items
    that depend on it are re-synced too. A department change re-syncs that
-   unit's events, jobs, news, products and pages. A table or translation type
-   that is not indexed answers `200 {"ignored"}`.
+   unit's published events (not yet finished), jobs, news, products and pages,
+   but only when the unit's own entry changes (it appears or disappears, or its
+   title or URL changes, in either locale). The daily `project_share` update
+   from the Finago project sync touches many departments and changes none of
+   that, so it re-reads only the units. A table or translation type that is
+   not indexed answers `200 {"ignored"}`.
 2. **The full reindex**, a secret-guarded HTTP call (`x-cron-secret` or
    `Authorization: Bearer <CRON_SECRET>`). It applies the index settings, then
    stamp-and-sweep: every item of every type and the coded pages are written
@@ -36,6 +40,11 @@ ends `failed`) answers **500** and reaches Sentry.
 - A page whose slug is changed away from a project or unit address: the old
   slug is not known on update, so the coded hub it replaced comes back with the
   next reindex.
+- A department change to a unit with no entry in either locale (an operating
+  ledger, an inactive unit, or a national unit whose project page serves its
+  URL in both locales) does not re-sync its linked items. A renamed
+  department's name on its events, jobs, news and products, or a national
+  project page whose unit was deactivated, waits for the reindex.
 - Anything that changed while the event triggers were disabled.
 - Changes to `CODED_PAGES` (`packages/shared/search/coded-pages.ts`): redeploy
   the function, then run the reindex.

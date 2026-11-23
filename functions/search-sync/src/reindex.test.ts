@@ -30,6 +30,7 @@ function fakeWriter(): FakeWriter {
       writer.sweptBefore = syncedAt;
       return Promise.resolve();
     },
+    getEntry: () => Promise.resolve(null),
     settingsApplied: false,
     sweptBefore: null,
     upsert: (entries) => {

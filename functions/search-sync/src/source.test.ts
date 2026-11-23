@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { MapContext } from "@repo/shared/search/entries/common";
+import { baseEntry, type MapContext } from "@repo/shared/search/entries/common";
 import type { SearchType } from "@repo/shared/search/types";
 import { resolveTargets } from "./resolve";
 import { type AdminDb, appwriteSource, departmentNames } from "./source";
@@ -13,6 +13,37 @@ interface ParsedQuery {
   attribute?: string;
   method: string;
   values?: unknown[];
+}
+
+const FILTER_METHODS = new Set([
+  "and",
+  "equal",
+  "greaterThanEqual",
+  "isNull",
+  "or",
+]);
+
+/** Whether a row passes one filter query (`and`/`or` nest one level). */
+function matches(row: Row, q: ParsedQuery): boolean {
+  const value = row[q.attribute ?? ""];
+  switch (q.method) {
+    case "equal":
+      return (q.values ?? []).some((v) => sameValue(value, v));
+    case "isNull":
+      return value == null;
+    case "greaterThanEqual":
+      return value != null && String(value) >= String(q.values?.[0]);
+    case "or":
+      return ((q.values ?? []) as ParsedQuery[]).some((sub) =>
+        matches(row, sub)
+      );
+    case "and":
+      return ((q.values ?? []) as ParsedQuery[]).every((sub) =>
+        matches(row, sub)
+      );
+    default:
+      return true;
+  }
 }
 
 interface Call {
@@ -35,7 +66,10 @@ function notFound(type: string) {
   return Object.assign(new Error(type), { code: 404, type });
 }
 
-/** An in-memory TablesDB that understands equal, cursorAfter and limit. */
+/**
+ * An in-memory TablesDB that understands equal, isNull, greaterThanEqual,
+ * or/and, cursorAfter and limit.
+ */
 function fakeDb(tables: Tables) {
   const calls: Call[] = [];
   const db = {
@@ -64,11 +98,8 @@ function fakeDb(tables: Tables) {
       calls.push({ queries, tableId: params.tableId });
       let rows = tables[params.tableId] ?? [];
       for (const q of queries) {
-        if (q.method === "equal") {
-          const attribute = q.attribute ?? "";
-          rows = rows.filter((r) =>
-            (q.values ?? []).some((v) => sameValue(r[attribute], v))
-          );
+        if (FILTER_METHODS.has(q.method)) {
+          rows = rows.filter((r) => matches(r, q));
         }
       }
       const cursor = queries.find((q) => q.method === "cursorAfter")
@@ -648,6 +679,14 @@ describe("appwriteSource.load: units", () => {
   });
 });
 
+const NOW = new Date("2026-11-23T12:00:00.000Z");
+const FUTURE = "2026-12-01T10:00:00.000Z";
+const PAST = "2026-11-01T10:00:00.000Z";
+
+function linked($id: string, overrides: Record<string, unknown> = {}): Row {
+  return { $id, department_id: "d1", status: "published", ...overrides };
+}
+
 describe("appwriteSource.departmentRelated", () => {
   it("lists the department's events, jobs, news, products and pages", async () => {
     const { src } = source({
@@ -656,17 +695,17 @@ describe("appwriteSource.departmentRelated", () => {
         page("pw", "projects/winter-games", { department_id: "dwg" }),
       ],
       events: [
-        { $id: "e1", department_id: "d1" },
-        { $id: "e2", department_id: "dwg" },
+        linked("e1", { end_date: FUTURE, start_date: PAST }),
+        linked("e2", { department_id: "dwg", start_date: FUTURE }),
       ],
-      jobs: [{ $id: "j1", department_id: "d1" }],
-      news: [{ $id: "n1", department_id: "d1" }],
+      jobs: [linked("j1")],
+      news: [linked("n1")],
       webshop_products: [
-        { $id: "w1", departmentId: "d1" },
-        { $id: "w2", department_id: "d1", departmentId: "dwg" },
+        linked("w1", { department_id: undefined, departmentId: "d1" }),
+        linked("w2", { departmentId: "dwg" }),
       ],
     });
-    expect(await src.departmentRelated("d1")).toEqual([
+    expect(await src.departmentRelated("d1", NOW)).toEqual([
       { id: "e1", type: "event" },
       { id: "j1", type: "job" },
       { id: "n1", type: "news" },
@@ -675,8 +714,98 @@ describe("appwriteSource.departmentRelated", () => {
     ]);
   });
 
+  it("lists only rows that can have entries", async () => {
+    const { calls, src } = source({
+      events: [
+        linked("upcoming", { end_date: FUTURE, start_date: PAST }),
+        linked("starts", { end_date: null, start_date: FUTURE }),
+        linked("undated", { end_date: null, start_date: null }),
+        linked("finished", { end_date: PAST, start_date: PAST }),
+        linked("started", { end_date: null, start_date: PAST }),
+        linked("draft", { end_date: FUTURE, status: "draft" }),
+      ],
+      jobs: [linked("j1"), linked("j2", { status: "closed" })],
+      news: [linked("n1"), linked("n2", { status: "draft" })],
+      pages: [
+        page("p1", "units/oslo/fadderullan/a", { department_id: "d1" }),
+        page("p2", "units/oslo/fadderullan/b", {
+          department_id: "d1",
+          status: "draft",
+        }),
+      ],
+      webshop_products: [
+        linked("w1", { departmentId: "d1" }),
+        linked("w2", { departmentId: "d1", status: "draft" }),
+      ],
+    });
+    expect(await src.departmentRelated("d1", NOW)).toEqual([
+      { id: "upcoming", type: "event" },
+      { id: "starts", type: "event" },
+      { id: "undated", type: "event" },
+      { id: "j1", type: "job" },
+      { id: "n1", type: "news" },
+      { id: "w1", type: "product" },
+      { id: "p1", type: "page" },
+    ]);
+    const published = {
+      attribute: "status",
+      method: "equal",
+      values: ["published"],
+    };
+    for (const table of [
+      "events",
+      "jobs",
+      "news",
+      "webshop_products",
+      "pages",
+    ]) {
+      const read = calls.find((c) => c.tableId === table);
+      expect({ queries: read?.queries, table }).toEqual({
+        queries: expect.arrayContaining([published]),
+        table,
+      });
+    }
+    const nowIso = NOW.toISOString();
+    expect(calls.find((c) => c.tableId === "events")?.queries).toContainEqual({
+      method: "or",
+      values: [
+        { attribute: "end_date", method: "greaterThanEqual", values: [nowIso] },
+        {
+          method: "and",
+          values: [
+            { attribute: "end_date", method: "isNull" },
+            {
+              attribute: "start_date",
+              method: "greaterThanEqual",
+              values: [nowIso],
+            },
+          ],
+        },
+        {
+          method: "and",
+          values: [
+            { attribute: "end_date", method: "isNull" },
+            { attribute: "start_date", method: "isNull" },
+          ],
+        },
+      ],
+    });
+  });
+
   it("drops a deactivated unit's sub-page on the department event", async () => {
     const deleted: [SearchType, string][] = [];
+    // Before the change the unit had its entry, so the change fans out.
+    const before = baseEntry(
+      {
+        campusId: "1",
+        locale: "no",
+        rowId: "d1",
+        textLocale: "no",
+        type: "unit",
+        url: "/units/oslo/fadderullan",
+      },
+      { syncedAt: 1 }
+    );
     const writer: IndexWriter = {
       applySettings: () => Promise.resolve(),
       deleteIds: () => Promise.resolve(),
@@ -685,6 +814,7 @@ describe("appwriteSource.departmentRelated", () => {
         return Promise.resolve();
       },
       deleteOlderThan: () => Promise.resolve(),
+      getEntry: (id) => Promise.resolve(id === before.id ? before : null),
       upsert: () => Promise.resolve(),
     };
     const { src } = source({
@@ -726,17 +856,16 @@ describe("appwriteSource.departmentRelated", () => {
   });
 
   it("pages past the first 100 rows", async () => {
-    const events = Array.from({ length: 150 }, (_, i) => ({
-      $id: `e${i}`,
-      department_id: "d1",
-    }));
+    const events = Array.from({ length: 150 }, (_, i) =>
+      linked(`e${i}`, { end_date: FUTURE })
+    );
     const { src } = source({
       events,
       jobs: [],
       news: [],
       webshop_products: [],
     });
-    expect(await src.departmentRelated("d1")).toHaveLength(150);
+    expect(await src.departmentRelated("d1", NOW)).toHaveLength(150);
   });
 });
 

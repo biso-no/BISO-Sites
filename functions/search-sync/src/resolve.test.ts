@@ -52,12 +52,13 @@ describe("resolveTargets", () => {
     expect(resolveTargets(row("page_translations")).kind).toBe("ignored");
   });
 
-  it("maps departments to unit and department-related", () => {
+  it("maps departments to department-related, then unit", () => {
+    // department-related compares the unit's entry before the unit writes.
     expect(resolveTargets(row("departments"))).toEqual({
       kind: "targets",
       targets: [
-        { type: "unit", id: "r1" },
         { type: "department-related", id: "r1" },
+        { type: "unit", id: "r1" },
       ],
     });
   });

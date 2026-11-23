@@ -1,6 +1,10 @@
 import { SEARCH_INDEX_SETTINGS } from "@repo/shared/search/settings";
 import type { SearchEntry, SearchType } from "@repo/shared/search/types";
-import type { EnqueuedTaskPromise, Meilisearch } from "meilisearch";
+import {
+  type EnqueuedTaskPromise,
+  type Meilisearch,
+  MeilisearchApiError,
+} from "meilisearch";
 
 export interface IndexWriter {
   /** Write every setting in `SEARCH_INDEX_SETTINGS`. */
@@ -11,12 +15,15 @@ export interface IndexWriter {
   deleteItem(type: SearchType, rowId: string): Promise<void>;
   /** The reindex sweep: `synced_at < N`. */
   deleteOlderThan(syncedAt: number): Promise<void>;
+  /** One entry by document id, or null when the index has none. */
+  getEntry(id: string): Promise<SearchEntry | null>;
   /** Add or replace entries by `id`. */
   upsert(entries: SearchEntry[]): Promise<void>;
 }
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 const PRIMARY_KEY = "id";
+const HTTP_NOT_FOUND = 404;
 
 /** A filter string literal; JSON escaping matches Meilisearch's `\"` and `\\`. */
 function quote(value: string): string {
@@ -61,6 +68,19 @@ export function meiliWriter(
       ),
     deleteOlderThan: (syncedAt) =>
       settle(index.deleteDocuments({ filter: `synced_at < ${syncedAt}` })),
+    getEntry: async (id) => {
+      try {
+        return await index.getDocument<SearchEntry>(id);
+      } catch (error) {
+        if (
+          error instanceof MeilisearchApiError &&
+          error.response.status === HTTP_NOT_FOUND
+        ) {
+          return null;
+        }
+        throw error;
+      }
+    },
     upsert: async (entries) => {
       if (entries.length === 0) {
         return;

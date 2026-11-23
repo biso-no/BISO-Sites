@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { baseEntry } from "@repo/shared/search/entries/common";
 import { SEARCH_INDEX_SETTINGS } from "@repo/shared/search/settings";
 import type { SearchEntry } from "@repo/shared/search/types";
-import type { Meilisearch } from "meilisearch";
+import { type Meilisearch, MeilisearchApiError } from "meilisearch";
 import { meiliWriter } from "./writer";
 
 const FAILED_BAD_FILTER = /Meilisearch task 7 failed: bad filter/;
@@ -17,6 +17,8 @@ interface Call {
 
 interface FakeOptions {
   error?: string;
+  /** What `getDocument` answers: a document, or a rejection. */
+  getDocument?: () => Promise<unknown>;
   taskStatus?: "succeeded" | "failed" | "canceled";
 }
 
@@ -41,6 +43,10 @@ function fakeClient(options: FakeOptions = {}) {
       addDocuments: (...args: unknown[]) => task(name, "addDocuments", args),
       deleteDocuments: (...args: unknown[]) =>
         task(name, "deleteDocuments", args),
+      getDocument: (...args: unknown[]) => {
+        calls.push({ args, index: name, method: "getDocument", timeout: 0 });
+        return options.getDocument?.() ?? Promise.resolve(null);
+      },
       updateSettings: (...args: unknown[]) =>
         task(name, "updateSettings", args),
     }),
@@ -133,6 +139,45 @@ describe("meiliWriter", () => {
     const { calls, client } = fakeClient();
     await meiliWriter(client, "site_content").deleteIds([]);
     expect(calls).toEqual([]);
+  });
+
+  it("reads one entry by id", async () => {
+    const stored = entry("no");
+    const { calls, client } = fakeClient({
+      getDocument: () => Promise.resolve(stored),
+    });
+    expect(await meiliWriter(client, "site_content").getEntry(stored.id)).toBe(
+      stored
+    );
+    expect(calls[0]).toMatchObject({
+      args: [stored.id],
+      method: "getDocument",
+    });
+  });
+
+  it("answers null for an entry the index does not have", async () => {
+    const notFound = new MeilisearchApiError(
+      new Response(null, { status: 404 }),
+      {
+        code: "document_not_found",
+        link: "",
+        message: "Document `x` not found.",
+        type: "invalid_request",
+      }
+    );
+    const { client } = fakeClient({
+      getDocument: () => Promise.reject(notFound),
+    });
+    expect(await meiliWriter(client, "site_content").getEntry("x")).toBeNull();
+  });
+
+  it("rethrows any other read failure", async () => {
+    const { client } = fakeClient({
+      getDocument: () => Promise.reject(new Error("connection refused")),
+    });
+    await expect(
+      meiliWriter(client, "site_content").getEntry("x")
+    ).rejects.toThrow("connection refused");
   });
 
   it("quotes row ids inside the filter", async () => {

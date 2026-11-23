@@ -36,10 +36,11 @@ const pageEntry = entry("page", "p2", "no", "/projects/winter-games");
 interface FakeWriter extends IndexWriter {
   deleted: [SearchType, string][];
   deletedIds: string[][];
+  entryReads: string[];
   upserted: SearchEntry[];
 }
 
-function fakeWriter(): FakeWriter {
+function fakeWriter(current: SearchEntry[] = []): FakeWriter {
   const writer: FakeWriter = {
     applySettings: () => Promise.resolve(),
     deleted: [],
@@ -53,6 +54,11 @@ function fakeWriter(): FakeWriter {
       return Promise.resolve();
     },
     deleteOlderThan: () => Promise.resolve(),
+    entryReads: [],
+    getEntry: (id) => {
+      writer.entryReads.push(id);
+      return Promise.resolve(current.find((e) => e.id === id) ?? null);
+    },
     upsert: (entries) => {
       writer.upserted.push(...entries);
       return Promise.resolve();
@@ -65,11 +71,13 @@ function fakeWriter(): FakeWriter {
 interface FakeSource extends Source {
   contexts: MapContext[];
   loadCalls: string[];
-  relatedCalls: string[];
+  relatedCalls: [string, Date][];
   servableCalls: number;
 }
 
 interface Overrides {
+  /** Entries already in the index, for `getEntry`. */
+  current?: SearchEntry[];
   departmentRelated?: (id: string) => Promise<SyncTarget[]>;
   load?: (target: ItemTarget) => Promise<LoadedItem>;
   servable?: Record<string, SearchLocale[]>;
@@ -78,8 +86,8 @@ interface Overrides {
 function fakeSource(overrides: Overrides): FakeSource {
   const source: FakeSource = {
     contexts: [],
-    departmentRelated: (id) => {
-      source.relatedCalls.push(id);
+    departmentRelated: (id, now) => {
+      source.relatedCalls.push([id, now]);
       return overrides.departmentRelated?.(id) ?? Promise.resolve([]);
     },
     // Never used by syncTargets.
@@ -110,7 +118,7 @@ function fakeSource(overrides: Overrides): FakeSource {
 
 function setup(overrides: Overrides = {}) {
   const source = fakeSource(overrides);
-  const writer = fakeWriter();
+  const writer = fakeWriter(overrides.current);
   const logs: string[] = [];
   const deps: SyncDeps = {
     log: (message) => logs.push(message),
@@ -230,10 +238,117 @@ describe("syncTargets", () => {
   it("expands department-related into the department's items", async () => {
     const { deps, source } = setup({
       departmentRelated: () => Promise.resolve([{ id: "j1", type: "job" }]),
+      load: (target) =>
+        Promise.resolve({
+          entries:
+            target.type === "unit" ? [entry("unit", "d1", "no", "/u")] : [],
+          related: [],
+        }),
     });
     await syncTargets(deps, [{ id: "d1", type: "department-related" }]);
-    expect(source.relatedCalls).toEqual(["d1"]);
+    expect(source.relatedCalls).toEqual([["d1", NOW]]);
     expect(source.loadCalls).toContain("job:j1");
+  });
+
+  describe("a department event", () => {
+    const unitNo = entry("unit", "d1", "no", "/units/oslo/fadderullan");
+    const unitEn = entry("unit", "d1", "en", "/units/oslo/fadderullan");
+    const named = (e: SearchEntry, title: string) => ({ ...e, title });
+    const departmentEvent: SyncTarget[] = [
+      { id: "d1", type: "department-related" },
+      { id: "d1", type: "unit" },
+    ];
+    const related = () =>
+      Promise.resolve<SyncTarget[]>([{ id: "j1", type: "job" }]);
+
+    it("skips the linked items when the unit's entry is unchanged", async () => {
+      const current = [
+        named(unitNo, "Fadderullan"),
+        named(unitEn, "Fadderullan"),
+      ];
+      const { deps, logs, source, writer } = setup({
+        current,
+        departmentRelated: related,
+        load: (target) =>
+          Promise.resolve({
+            entries: target.type === "unit" ? current : [],
+            related: [],
+          }),
+      });
+      await syncTargets(deps, departmentEvent);
+      expect(source.relatedCalls).toEqual([]);
+      // The unit is read once and still written.
+      expect(source.loadCalls).toEqual(["unit:d1"]);
+      expect(writer.entryReads).toEqual([unitNo.id, unitEn.id]);
+      expect(writer.upserted).toEqual(current);
+      expect(logs.some((l) => l.includes("unchanged"))).toBe(true);
+    });
+
+    it("re-syncs the linked items when the unit is renamed", async () => {
+      const { deps, source } = setup({
+        current: [named(unitNo, "Fadderullan"), named(unitEn, "Fadderullan")],
+        departmentRelated: related,
+        load: (target) =>
+          Promise.resolve({
+            entries:
+              target.type === "unit"
+                ? [named(unitNo, "Fadderuka"), named(unitEn, "Fadderuka")]
+                : [],
+            related: [],
+          }),
+      });
+      await syncTargets(deps, departmentEvent);
+      expect(source.relatedCalls).toEqual([["d1", NOW]]);
+      expect(source.loadCalls).toEqual(["unit:d1", "job:j1"]);
+    });
+
+    it("re-syncs the linked items when the unit's URL changes", async () => {
+      const { deps, source } = setup({
+        current: [unitNo, unitEn],
+        departmentRelated: related,
+        load: () =>
+          Promise.resolve({
+            entries: [
+              { ...unitNo, url: "/units/bergen/fadderullan" },
+              { ...unitEn, url: "/units/bergen/fadderullan" },
+            ],
+            related: [],
+          }),
+      });
+      await syncTargets(deps, departmentEvent);
+      expect(source.relatedCalls).toHaveLength(1);
+    });
+
+    it("re-syncs the linked items when the unit appears or disappears", async () => {
+      const gone = setup({
+        current: [unitNo, unitEn],
+        departmentRelated: related,
+      });
+      await syncTargets(gone.deps, departmentEvent);
+      expect(gone.source.relatedCalls).toHaveLength(1);
+
+      const added = setup({
+        departmentRelated: related,
+        load: () => Promise.resolve({ entries: [unitNo, unitEn], related: [] }),
+      });
+      await syncTargets(added.deps, departmentEvent);
+      expect(added.source.relatedCalls).toHaveLength(1);
+    });
+
+    it("compares each locale, so a unit replaced in one locale still counts", async () => {
+      // A national unit whose project page serves `no` has only an `en` entry.
+      const { deps, source } = setup({
+        current: [named(unitEn, "Winter Games")],
+        departmentRelated: related,
+        load: () =>
+          Promise.resolve({
+            entries: [named(unitEn, "Winter Games 2027")],
+            related: [],
+          }),
+      });
+      await syncTargets(deps, departmentEvent);
+      expect(source.relatedCalls).toHaveLength(1);
+    });
   });
 
   it("restores a hub's coded entry when no servable page owns it", async () => {

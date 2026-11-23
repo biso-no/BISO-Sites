@@ -43,6 +43,7 @@ const writer: IndexWriter = {
   deleteIds: () => Promise.resolve(),
   deleteItem: () => Promise.resolve(),
   deleteOlderThan: () => Promise.resolve(),
+  getEntry: () => Promise.resolve(null),
   upsert: () => Promise.resolve(),
 };
 

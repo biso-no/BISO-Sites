@@ -50,7 +50,11 @@ export interface LoadedItem {
 type ListedType = Exclude<SearchType, "coded">;
 
 export interface Source {
-  departmentRelated(departmentId: string): Promise<SyncTarget[]>;
+  /**
+   * The items linked to a department that can have entries (published, and
+   * for events not finished at `now`).
+   */
+  departmentRelated(departmentId: string, now: Date): Promise<SyncTarget[]>;
   /** Pages of ids, for the reindex. The mappers still decide what is public. */
   listIds(type: ListedType): AsyncIterable<string[]>;
   load(target: ItemTarget, ctx: MapContext): Promise<LoadedItem>;
@@ -172,20 +176,72 @@ const DOCUMENT_COLUMNS = columns<DocumentRow>({
 });
 
 /**
+ * "Has not finished yet" at `now`, as the site's `upcomingQueries`
+ * (apps/web/src/lib/data/queries.ts): `end_date`, else `start_date`, and rows
+ * with neither are kept.
+ */
+function upcomingEventQueries(now: Date): string[] {
+  const nowIso = now.toISOString();
+  return [
+    Query.or([
+      Query.greaterThanEqual("end_date", nowIso),
+      Query.and([
+        Query.isNull("end_date"),
+        Query.greaterThanEqual("start_date", nowIso),
+      ]),
+      Query.and([Query.isNull("end_date"), Query.isNull("start_date")]),
+    ]),
+  ];
+}
+
+/**
  * The rows that depend on a department, and the column that links them: the
  * content that shows its name, and the pages it owns (a unit sub-page or a
- * national project page is indexed only while its unit is routed).
+ * national project page is indexed only while its unit is routed). Only rows
+ * that can have entries are listed: a draft or a finished event already had
+ * its entries removed by its own row event, and re-reading it would only
+ * delete nothing again. `sync-finago-projects` touches many departments every
+ * day, so this keeps that fan-out small.
  */
 const DEPARTMENT_LINKS: readonly {
   column: string;
+  filters: (now: Date) => string[];
   table: string;
   type: ListedType;
 }[] = [
-  { column: "department_id", table: "events", type: "event" },
-  { column: "department_id", table: "jobs", type: "job" },
-  { column: "department_id", table: "news", type: "news" },
-  { column: "departmentId", table: "webshop_products", type: "product" },
-  { column: "department_id", table: "pages", type: "page" },
+  {
+    column: "department_id",
+    filters: (now) => [
+      Query.equal("status", EventsStatus.PUBLISHED),
+      ...upcomingEventQueries(now),
+    ],
+    table: "events",
+    type: "event",
+  },
+  {
+    column: "department_id",
+    filters: () => [Query.equal("status", JobsStatus.PUBLISHED)],
+    table: "jobs",
+    type: "job",
+  },
+  {
+    column: "department_id",
+    filters: () => [Query.equal("status", NewsStatus.PUBLISHED)],
+    table: "news",
+    type: "news",
+  },
+  {
+    column: "departmentId",
+    filters: () => [Query.equal("status", WebshopProductsStatus.PUBLISHED)],
+    table: "webshop_products",
+    type: "product",
+  },
+  {
+    column: "department_id",
+    filters: () => [Query.equal("status", PagesStatus.PUBLISHED)],
+    table: "pages",
+    type: "page",
+  },
 ];
 
 /**
@@ -290,10 +346,13 @@ export function appwriteSource(
   }
 
   return {
-    departmentRelated: async (departmentId) => {
+    departmentRelated: async (departmentId, now) => {
       const targets: SyncTarget[] = [];
       for (const link of DEPARTMENT_LINKS) {
-        const filters = [Query.equal(link.column, departmentId)];
+        const filters = [
+          Query.equal(link.column, departmentId),
+          ...link.filters(now),
+        ];
         for await (const ids of pagedIds(db, link.table, filters)) {
           targets.push(...ids.map((id) => ({ id, type: link.type })));
         }

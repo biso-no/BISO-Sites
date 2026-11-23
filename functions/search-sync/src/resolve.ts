@@ -91,11 +91,13 @@ function resolvePage(trigger: RowTrigger): Resolution {
 export function resolveTargets(trigger: RowTrigger): Resolution {
   const { table, id } = trigger;
   if (table === "departments") {
+    // department-related first: it compares the unit's entry in the index
+    // with the fresh unit before the unit target writes it.
     return {
       kind: "targets",
       targets: [
-        { id, type: "unit" },
         { id, type: "department-related" },
+        { id, type: "unit" },
       ],
     };
   }
