@@ -1,6 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import type { MapContext } from "@repo/shared/search/entries/common";
+import type { SearchType } from "@repo/shared/search/types";
+import { resolveTargets } from "./resolve";
 import { type AdminDb, appwriteSource, departmentNames } from "./source";
+import { syncTargets } from "./sync";
+import type { IndexWriter } from "./writer";
 
 type Row = Record<string, unknown> & { $id: string };
 type Tables = Record<string, Row[]>;
@@ -397,10 +401,14 @@ describe("appwriteSource.load: pages", () => {
         }),
         page("draft", "projects/bergensbanelopet", { status: "draft" }),
         page("accent", "projécts/fadderullan"),
+        page("members", "projects/fadderullan", {
+          visibility: "authenticated",
+        }),
       ],
     });
     const expected = {
       accent: "/projects/fadderullan",
+      members: "/projects/fadderullan",
       bound: "/projects/fadderullan",
       draft: "/projects/bergensbanelopet",
       empty: "/projects/karrieredagene",
@@ -453,6 +461,7 @@ describe("appwriteSource.servableProjectPaths", () => {
         page("pb", "projects/bergensbanelopet", {
           translation_refs: [translation({ is_published: false })],
         }),
+        page("pm", "projects/karrieredagene", { visibility: "authenticated" }),
       ],
     });
     expect(await src.servableProjectPaths()).toEqual(
@@ -502,7 +511,7 @@ describe("appwriteSource.load: units", () => {
       pages: [
         page("pu", "units/oslo/fadderullan", {
           department_id: "d1",
-          visibility: "members_only",
+          visibility: "authenticated",
         }),
       ],
     });
@@ -542,8 +551,12 @@ describe("appwriteSource.load: units", () => {
 });
 
 describe("appwriteSource.departmentRelated", () => {
-  it("lists the department's events, jobs, news and products", async () => {
+  it("lists the department's events, jobs, news, products and pages", async () => {
     const { src } = source({
+      pages: [
+        page("ps", "units/oslo/fadderullan/program", { department_id: "d1" }),
+        page("pw", "projects/winter-games", { department_id: "dwg" }),
+      ],
       events: [
         { $id: "e1", department_id: "d1" },
         { $id: "e2", department_id: "dwg" },
@@ -560,6 +573,56 @@ describe("appwriteSource.departmentRelated", () => {
       { id: "j1", type: "job" },
       { id: "n1", type: "news" },
       { id: "w1", type: "product" },
+      { id: "ps", type: "page" },
+    ]);
+  });
+
+  it("drops a deactivated unit's sub-page on the department event", async () => {
+    const deleted: [SearchType, string][] = [];
+    const writer: IndexWriter = {
+      applySettings: () => Promise.resolve(),
+      deleteItem: (type, rowId) => {
+        deleted.push([type, rowId]);
+        return Promise.resolve();
+      },
+      deleteOlderThan: () => Promise.resolve(),
+      upsert: () => Promise.resolve(),
+    };
+    const { src } = source({
+      content_translations: [],
+      departments: [
+        department("d1", "OSL Fadderullan", "fadderullan", "1", false),
+      ],
+      events: [],
+      jobs: [],
+      news: [],
+      pages: [
+        page("ps", "units/oslo/fadderullan/program", { department_id: "d1" }),
+      ],
+      webshop_products: [],
+    });
+    const resolution = resolveTargets({
+      action: "update",
+      body: null,
+      id: "d1",
+      kind: "row",
+      table: "departments",
+    });
+    if (resolution.kind !== "targets") {
+      throw new Error("expected targets");
+    }
+    await syncTargets(
+      {
+        log: () => undefined,
+        now: () => ctx.now,
+        source: src,
+        writer,
+      },
+      resolution.targets
+    );
+    expect(deleted).toEqual([
+      ["unit", "d1"],
+      ["page", "ps"],
     ]);
   });
 

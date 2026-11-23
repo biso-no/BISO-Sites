@@ -181,9 +181,11 @@ export function pageLoader(db: AdminDb) {
 
   /**
    * Whether `/projects/<project>` serves this page instead of its coded hub
-   * (`isServableProjectPage`): a published row with a published, non-empty
-   * translation that is genuinely the project's. The one rule for both
-   * `loadPage` and `servableProjectPaths`.
+   * (`isServableProjectPage`): a published, public row with a published,
+   * non-empty translation that is genuinely the project's. The site reads
+   * project pages with guest permissions, so a signed-in-only page is not
+   * served and the coded hub stays. The one rule for both `loadPage` and
+   * `servableProjectPaths`.
    */
   async function isServableProjectPage(
     row: PageRow,
@@ -191,6 +193,7 @@ export function pageLoader(db: AdminDb) {
   ): Promise<boolean> {
     if (
       row.status !== PagesStatus.PUBLISHED ||
+      row.visibility !== PagesVisibility.PUBLIC ||
       !pageTranslations(row).some(hasPublishedContent)
     ) {
       return false;

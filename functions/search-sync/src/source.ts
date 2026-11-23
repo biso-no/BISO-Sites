@@ -161,7 +161,11 @@ const DOCUMENT_COLUMNS = columns<DocumentRow>({
   title: true,
 });
 
-/** The tables that show a department's name, and the column that links it. */
+/**
+ * The rows that depend on a department, and the column that links them: the
+ * content that shows its name, and the pages it owns (a unit sub-page or a
+ * national project page is indexed only while its unit is routed).
+ */
 const DEPARTMENT_LINKS: readonly {
   column: string;
   table: string;
@@ -171,6 +175,7 @@ const DEPARTMENT_LINKS: readonly {
   { column: "department_id", table: "jobs", type: "job" },
   { column: "department_id", table: "news", type: "news" },
   { column: "departmentId", table: "webshop_products", type: "product" },
+  { column: "department_id", table: "pages", type: "page" },
 ];
 
 /**
