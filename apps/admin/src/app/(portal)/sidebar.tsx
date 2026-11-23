@@ -1,11 +1,13 @@
 "use client";
 
+import { openReplayConsentSettings } from "@repo/ui/components/replay-consent-bar";
 import { ChevronDown, Command, LogOut, Sparkles } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
+import { useReportProblem } from "@/components/report-problem";
 import { signOut } from "@/lib/actions/user";
 import type { UserRolesForClient } from "@/lib/authorization";
 import {
@@ -14,6 +16,7 @@ import {
   type NavGroup as NavGroupNode,
 } from "@/lib/nav-tree";
 import { hasNavAccess, type NavKey } from "@/lib/roles";
+import { isSentryConfigured } from "@/lib/sentry-configured";
 import { OPEN_ASSISTANT_EVENT } from "./_components/assistant/assistant-widget";
 import { CampusSwitcher } from "./_components/campus-switcher";
 import { SERIF_STACK, STUDIO } from "./_components/studio";
@@ -37,6 +40,8 @@ export function Sidebar({ user, roles, inboxCount }: SidebarProps) {
   const router = useRouter();
   const t = useTranslations("adminPortal.nav");
   const tSidebar = useTranslations("adminPortal.sidebar");
+  const tConsent = useTranslations("replayConsent");
+  const report = useReportProblem();
 
   const tree = useMemo(
     () =>
@@ -230,6 +235,26 @@ export function Sidebar({ user, roles, inboxCount }: SidebarProps) {
             <LogOut size={15} />
           </button>
         </div>
+        {isSentryConfigured() && (
+          <>
+            <button
+              className="rounded-md px-1.5 py-1.5 text-left text-[11px] underline-offset-4 transition hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current"
+              onClick={openReplayConsentSettings}
+              style={{ color: STUDIO.ink3 }}
+              type="button"
+            >
+              {tConsent("settings")}
+            </button>
+            <button
+              className="rounded-md px-1.5 py-1.5 text-left text-[11px] underline-offset-4 transition hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current"
+              onClick={report.open}
+              style={{ color: STUDIO.ink3 }}
+              type="button"
+            >
+              {report.label}
+            </button>
+          </>
+        )}
       </div>
     </aside>
   );

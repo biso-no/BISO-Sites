@@ -1,0 +1,686 @@
+import type {
+  Breadcrumb,
+  Event,
+  Log,
+  Metric,
+  StackFrame,
+  StreamedSpanJSON,
+} from "@sentry/core";
+import { normalize } from "@sentry/core";
+
+export const REDACTED = "[redacted]";
+
+export const SENSITIVE_HEADERS: ReadonlySet<string> = new Set([
+  "authorization",
+  "cookie",
+  "proxy-authorization",
+  "set-cookie",
+  "x-api-key",
+  "x-appwrite-key",
+]);
+
+// These run on the server for every log line. A repeat the engine retries
+// from each position is bounded, or a long run (`a-a-a-…`, `a.a.a.…`) makes
+// the scan quadratic.
+const ACCOUNT_NUMBER = /\b\d{4}[ .]?\d{2}[ .]?\d{5}\b/g;
+const NATIONAL_ID = /\b\d{6} ?\d{5}\b/g;
+// Local part up to 64 characters, domain up to 253 (the RFC limits). The
+// leading group makes a match start only where a run of local-part characters
+// starts, so a long run is not rescanned from each of its characters. `+`,
+// `%20` and `%2B` also start one, since form-encoded text joins words with
+// them (`body=Hello+my+name+is+kari@biso.no`); each start scans at most 64
+// characters, so that stays linear. Percent-encoding writes the `@` as `%40`
+// and may use lower-case hex (`%2b`).
+const EMAIL =
+  /(^|[^A-Za-z0-9._%+-]|\+|%20|%2[Bb])[A-Za-z0-9._%+-]{1,64}(?:@|%40)[A-Za-z0-9.-]{1,253}\.[A-Za-z]{2,63}/g;
+// Country code, check digits, then 11–30 characters, with or without spaces
+// every four (NO93 8601 1117 947, DE89 3704 0044 0532 0130 00).
+const IBAN = /\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){2,7}(?: ?[A-Z0-9]{1,3})?\b/g;
+// An absolute URL inside free text, to its end. The match runs to the next
+// space or quote and the search resumes after it, so it stays linear.
+const EMBEDDED_URL = /https?:\/\/[^\s"'<>]*/g;
+// `secret=…`, `userId=…`, `access_token=…` outside a URL we could parse. The
+// leading group stands in for a lookbehind, which older Safari can't parse.
+// At most six prefix parts (`oauth_token_secret` has two).
+const SECRET_PAIR =
+  /(^|[^A-Za-z0-9_])((?:[A-Za-z0-9]+[_-]){0,6}(?:secret|code|state|token|userId|password))=[^&\s"'<>#]*/gi;
+const URL_SUFFIX = /[?#].*$/s;
+const URL_KEY = /(^|\.)(url|full|target|path|referer|referrer)$|^url/i;
+const DROPPED_SPAN_ATTRIBUTES = ["http.query", "url.query"];
+
+/**
+ * Pages whose path segment is a key. Whoever holds one of these links, with
+ * no sign-in, can approve an expense (`/fs/approve/<token>`, emailed to the
+ * approver), book an interview (`/recruitment/book/<token>`, emailed to the
+ * candidate) or scan member passes (`/scan/<token>`, the admin's guest
+ * scanner). `/shop/order/<orderId>`, where payment returns the buyer, needs
+ * the buyer's session, but the id still names their purchase.
+ *
+ * Used with `String.replace(pattern, "$1$2[redacted]")`: `$1` is where the
+ * path starts, `$2` the route, and the segment after it is the key. A route
+ * counts only at the start of a path: at the start of the text, after
+ * `//host`, or after a character other than a letter, digit or `_.~%-`, so
+ * `/members/scan/access` stays. A segment in square brackets is a Next.js
+ * route template (`app/(scan)/scan/[token]/page.js` in a stack frame) and
+ * stays too. Each start scans at most one host, so the scan stays linear.
+ */
+export const CAPABILITY_PATH_PATTERNS: readonly RegExp[] = [
+  /(^|\/\/[^/\s"'<>?#]*|[^\w.~%-])(\/fs\/approve\/)(?!\[|%5B)[^/?#\s"'<>]+/gi,
+  /(^|\/\/[^/\s"'<>?#]*|[^\w.~%-])(\/recruitment\/book\/)(?!\[|%5B)[^/?#\s"'<>]+/gi,
+  /(^|\/\/[^/\s"'<>?#]*|[^\w.~%-])(\/scan\/)(?!\[|%5B)[^/?#\s"'<>]+/gi,
+  /(^|\/\/[^/\s"'<>?#]*|[^\w.~%-])(\/shop\/order\/)(?!\[|%5B)[^/?#\s"'<>]+/gi,
+];
+
+type HeaderValue = string | string[] | undefined;
+type Mutable = Record<string, unknown>;
+
+// Keeps the address, drops the query and fragment.
+const dropUrlSuffix = (url: string): string => url.replace(URL_SUFFIX, "");
+
+const redactCapabilityPaths = (text: string): string =>
+  CAPABILITY_PATH_PATTERNS.reduce(
+    (out, pattern) => out.replace(pattern, `$1$2${REDACTED}`),
+    text
+  );
+
+export const scrubText = (text: string): string =>
+  redactCapabilityPaths(text.replace(EMBEDDED_URL, dropUrlSuffix))
+    .replace(SECRET_PAIR, `$1$2=${REDACTED}`)
+    .replace(EMAIL, `$1${REDACTED}`)
+    .replace(IBAN, REDACTED)
+    .replace(ACCOUNT_NUMBER, REDACTED)
+    .replace(NATIONAL_ID, REDACTED);
+
+/** An address without its query, fragment, capability key or personal data. */
+export const scrubUrl = (url: string): string => scrubText(dropUrlSuffix(url));
+
+const REFERER_HEADERS = new Set(["referer", "referrer"]);
+const IP_HEADERS = new Set([
+  "cf-connecting-ip",
+  "forwarded",
+  "true-client-ip",
+  "x-client-ip",
+  "x-forwarded-for",
+  "x-real-ip",
+]);
+const MAX_DEPTH = 6;
+
+const scrubHeaderValue = (name: string, value: HeaderValue): HeaderValue => {
+  if (SENSITIVE_HEADERS.has(name) || IP_HEADERS.has(name)) {
+    return REDACTED;
+  }
+  const clean = REFERER_HEADERS.has(name) ? scrubUrl : scrubText;
+  if (typeof value === "string") {
+    return clean(value);
+  }
+  return Array.isArray(value) ? value.map(clean) : value;
+};
+
+export const redactHeaders = (
+  headers: Record<string, HeaderValue> | undefined
+): Record<string, HeaderValue> => {
+  if (!headers) {
+    return {};
+  }
+  return Object.fromEntries(
+    Object.entries(headers).map(([key, value]) => [
+      key,
+      scrubHeaderValue(key.toLowerCase(), value),
+    ])
+  );
+};
+
+const isPlainObject = (value: unknown): value is Mutable =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/** Keys whose values are credentials or IP addresses wherever they appear. */
+const isSecretKey = (key: string): boolean => {
+  const name = key.toLowerCase();
+  return SENSITIVE_HEADERS.has(name) || IP_HEADERS.has(name);
+};
+
+const scrubValue = (key: string, value: unknown, depth = 0): unknown => {
+  if (typeof value === "string") {
+    if (isSecretKey(key)) {
+      return REDACTED;
+    }
+    return URL_KEY.test(key) ? scrubUrl(value) : scrubText(value);
+  }
+  if (depth > MAX_DEPTH) {
+    return value !== null && typeof value === "object" ? REDACTED : value;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => scrubValue(key, item, depth + 1));
+  }
+  if (isPlainObject(value)) {
+    // Attribute objects ({ value, unit }): the value inherits the attribute's
+    // key, so a URL attribute is still scrubbed as a URL.
+    if ("value" in value) {
+      return {
+        ...scrubRecord(value, depth + 1),
+        value: scrubValue(key, value.value, depth + 1),
+      };
+    }
+    return isSecretKey(key) ? REDACTED : scrubRecord(value, depth + 1);
+  }
+  return value;
+};
+
+function scrubRecord(record: Mutable, depth = 0): Mutable {
+  return Object.fromEntries(
+    Object.entries(record).map(([key, value]) => [
+      key,
+      scrubValue(key, value, depth),
+    ])
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Console arguments. `console.warn("…", error)` hands Sentry the whole error:
+// AI SDK errors keep the model's raw output in `text` and quote it in their
+// `cause`, and request objects carry headers. Pattern scrubbing can't find
+// those, so errors are reduced to their name and payload fields are dropped.
+// ---------------------------------------------------------------------------
+
+/** Fields that hold model output, request bodies or tool input. */
+const PAYLOAD_KEYS: ReadonlySet<string> = new Set([
+  "cause",
+  "data",
+  "rawValue",
+  "requestBodyValues",
+  "response",
+  "responseBody",
+  "text",
+  "toolInput",
+  "value",
+]);
+
+/** AI SDK errors whose name could appear without the `AI_` prefix. */
+const AI_ERROR_NAMES: ReadonlySet<string> = new Set([
+  "APICallError",
+  "JSONParseError",
+  "NoObjectGeneratedError",
+  "TypeValidationError",
+]);
+
+/** AI SDK error messages can quote model output, so only the name is kept. */
+const isAiErrorName = (name: string): boolean =>
+  name.startsWith("AI_") || AI_ERROR_NAMES.has(name);
+
+interface ErrorLike {
+  message: string;
+  name: string;
+}
+
+/** An `Error`, or one the SDK has already turned into `{ name, message, … }`. */
+const isErrorLike = (value: unknown): value is ErrorLike =>
+  typeof value === "object" &&
+  value !== null &&
+  typeof (value as Partial<ErrorLike>).name === "string" &&
+  typeof (value as Partial<ErrorLike>).message === "string";
+
+/** `AI_NoObjectGeneratedError`, or `TypeError: <scrubbed message>`. */
+const describeErrorLike = ({ message, name }: ErrorLike): string => {
+  if (isAiErrorName(name)) {
+    return name;
+  }
+  return message ? `${name}: ${scrubText(message)}` : name;
+};
+
+/**
+ * An error as it is safe to log or send: an AI SDK error by its name only,
+ * any other by its name and scrubbed message. Never its stack or fields.
+ */
+export const describeError = (error: unknown): string =>
+  isErrorLike(error) ? describeErrorLike(error) : "UnknownError";
+
+const reduceConsoleRecord = (record: Mutable, depth: number): Mutable =>
+  Object.fromEntries(
+    Object.entries(record)
+      .filter(([key]) => !PAYLOAD_KEYS.has(key))
+      .map(([key, value]) => [key, reduceConsoleValue(value, depth)])
+  );
+
+/** Errors become `describeError`; payload fields are dropped at any depth. */
+function reduceConsoleValue(value: unknown, depth = 0): unknown {
+  if (isErrorLike(value)) {
+    return describeErrorLike(value);
+  }
+  if (value === null || typeof value !== "object") {
+    return value;
+  }
+  if (depth > MAX_DEPTH) {
+    return REDACTED;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => reduceConsoleValue(item, depth + 1));
+  }
+  return reduceConsoleRecord(value as Mutable, depth + 1);
+}
+
+/** Breadth and depth bounds for a console argument, before any reduction. */
+const CONSOLE_NORMALIZE_DEPTH = 3;
+const CONSOLE_NORMALIZE_BREADTH = 1000;
+/** Longest console breadcrumb message; anything past it is cut. */
+const MAX_BREADCRUMB_MESSAGE = 2048;
+
+/**
+ * Cycles, huge arrays and deep graphs become a small tree first, so the
+ * reduction and JSON.stringify never see the raw object. Errors are kept
+ * as they are: normalize would turn them into plain objects.
+ */
+const normalizeConsoleArgument = (value: unknown): unknown =>
+  value instanceof Error
+    ? value
+    : normalize(value, CONSOLE_NORMALIZE_DEPTH, CONSOLE_NORMALIZE_BREADTH);
+
+const capBreadcrumbMessage = (message: string): string =>
+  message.length > MAX_BREADCRUMB_MESSAGE
+    ? `${message.slice(0, MAX_BREADCRUMB_MESSAGE - 1)}…`
+    : message;
+
+/** One console argument as the console integration writes it, made safe. */
+const renderConsoleArgument = (value: unknown): string => {
+  const clean = scrubValue(
+    "",
+    reduceConsoleValue(normalizeConsoleArgument(value))
+  );
+  return typeof clean === "string" ? clean : (JSON.stringify(clean) ?? "");
+};
+
+const CONSOLE_LOG_ORIGIN = "auto.log.console";
+const ORIGIN_ATTRIBUTE = "sentry.origin";
+const TEMPLATE_ATTRIBUTE = "sentry.message.template";
+const PARAMETER_ATTRIBUTE = /^sentry\.message\.parameter\.(\d+)$/;
+/** JSON arguments re-rendered per log line, which keeps the scan linear. */
+const MAX_JSON_ARGUMENTS = 16;
+
+const isConsoleLog = (attributes: Mutable): boolean =>
+  attributes[ORIGIN_ATTRIBUTE] === CONSOLE_LOG_ORIGIN ||
+  Object.keys(attributes).some(
+    (key) => key === TEMPLATE_ATTRIBUTE || PARAMETER_ATTRIBUTE.test(key)
+  );
+
+/** `sentry.message.parameter.N` values, in order. */
+const templateParameters = (attributes: Mutable): unknown[] =>
+  Object.entries(attributes)
+    .map(([key, value]) => ({
+      index: PARAMETER_ATTRIBUTE.exec(key)?.[1],
+      value,
+    }))
+    .filter((entry) => entry.index !== undefined)
+    .sort((a, b) => Number(a.index) - Number(b.index))
+    .map((entry) => entry.value);
+
+/**
+ * The first console argument, from a template the console integration wrote
+ * (`<first> {} {}`, one `{}` per later argument), or undefined for any other.
+ */
+const templatePrefix = (
+  template: unknown,
+  parameterCount: number
+): string | undefined => {
+  if (typeof template !== "string" || parameterCount === 0) {
+    return;
+  }
+  const suffix = ` ${Array.from({ length: parameterCount }, () => "{}").join(" ")}`;
+  return template.endsWith(suffix)
+    ? template.slice(0, template.length - suffix.length)
+    : undefined;
+};
+
+/** Index just past the JSON object or array opening at `start`, or -1. */
+const jsonEnd = (text: string, start: number): number => {
+  let depth = 0;
+  let inString = false;
+  for (let index = start; index < text.length; index += 1) {
+    const char = text[index];
+    if (inString) {
+      if (char === "\\") {
+        index += 1;
+      } else if (char === '"') {
+        inString = false;
+      }
+    } else if (char === '"') {
+      inString = true;
+    } else if (char === "{" || char === "[") {
+      depth += 1;
+    } else if (char === "}" || char === "]") {
+      depth -= 1;
+      if (depth === 0) {
+        return index + 1;
+      }
+    }
+  }
+  return -1;
+};
+
+const parseJson = (text: string): { value: unknown } | undefined => {
+  try {
+    return { value: JSON.parse(text) };
+  } catch {
+    return;
+  }
+};
+
+const opensJsonArgument = (text: string, index: number): boolean =>
+  (text[index] === "{" || text[index] === "[") &&
+  (index === 0 || text[index - 1] === " ");
+
+/**
+ * A console line with no template: the integration joined the arguments with
+ * spaces and wrote objects and errors as JSON. Each JSON argument is
+ * re-rendered like a template parameter; the caller scrubs the text around it.
+ */
+const scrubJoinedConsoleArguments = (text: string): string => {
+  const parts: string[] = [];
+  let copied = 0;
+  let attempts = 0;
+  for (
+    let index = 0;
+    index < text.length && attempts < MAX_JSON_ARGUMENTS;
+    index += 1
+  ) {
+    if (!opensJsonArgument(text, index)) {
+      continue;
+    }
+    attempts += 1;
+    const end = jsonEnd(text, index);
+    const parsed = end === -1 ? undefined : parseJson(text.slice(index, end));
+    if (parsed) {
+      parts.push(
+        text.slice(copied, index),
+        renderConsoleArgument(parsed.value)
+      );
+      copied = end;
+      index = end - 1;
+    }
+  }
+  parts.push(text.slice(copied));
+  return parts.join("");
+};
+
+/** A console log's message, rebuilt from its safe arguments where it can be. */
+const consoleLogMessage = (message: string, attributes: Mutable): string => {
+  const parameters = templateParameters(attributes);
+  const prefix = templatePrefix(
+    attributes[TEMPLATE_ATTRIBUTE],
+    parameters.length
+  );
+  if (prefix === undefined) {
+    return scrubJoinedConsoleArguments(message);
+  }
+  return [prefix, ...parameters.map(renderConsoleArgument)].join(" ");
+};
+
+const scrubBreadcrumbs = (
+  breadcrumbs: Breadcrumb[] | undefined
+): Breadcrumb[] | undefined => breadcrumbs?.map(scrubBreadcrumb);
+
+/**
+ * Console breadcrumbs keep the raw arguments, errors included, and attach to
+ * any later error event; they get the same treatment as console logs.
+ */
+const scrubConsoleBreadcrumb = (
+  breadcrumb: Breadcrumb,
+  args: unknown[]
+): Breadcrumb => ({
+  ...breadcrumb,
+  message: capBreadcrumbMessage(
+    scrubText(args.map(renderConsoleArgument).join(" "))
+  ),
+  data: scrubRecord({
+    ...breadcrumb.data,
+    arguments: args.map((arg) =>
+      reduceConsoleValue(normalizeConsoleArgument(arg))
+    ),
+  }),
+});
+
+/**
+ * A navigation names the page it left and the one it opened in `from` and
+ * `to`, as paths with their query when on the same site. Only there are
+ * those two keys addresses.
+ */
+const NAVIGATION_ADDRESS_KEYS = ["from", "to"] as const;
+
+const scrubBreadcrumbData = (
+  category: string | undefined,
+  data: Mutable
+): Mutable => {
+  const out = scrubRecord(data);
+  if (category === "navigation") {
+    for (const key of NAVIGATION_ADDRESS_KEYS) {
+      const address = data[key];
+      if (typeof address === "string") {
+        out[key] = scrubUrl(address);
+      }
+    }
+  }
+  return out;
+};
+
+export function scrubBreadcrumb(breadcrumb: Breadcrumb): Breadcrumb {
+  try {
+    const args = breadcrumb.data?.arguments;
+    if (breadcrumb.category === "console" && Array.isArray(args)) {
+      return scrubConsoleBreadcrumb(breadcrumb, args);
+    }
+    const out: Breadcrumb = { ...breadcrumb };
+    if (typeof out.message === "string") {
+      out.message = scrubText(out.message);
+    }
+    if (out.data) {
+      out.data = scrubBreadcrumbData(out.category, out.data);
+    }
+    return out;
+  } catch {
+    return {
+      type: breadcrumb.type,
+      category: breadcrumb.category,
+      level: breadcrumb.level,
+      timestamp: breadcrumb.timestamp,
+      message: REDACTED,
+    };
+  }
+}
+
+const SAFE_EVENT_FIELDS = [
+  "event_id",
+  "timestamp",
+  "level",
+  "platform",
+  "release",
+  "environment",
+  "type",
+] as const;
+
+// Used when scrubbing throws: keep identity fields only, drop everything else.
+const safeEventFallback = <T extends Event>(event: T): T => {
+  const out: Mutable = {};
+  for (const field of SAFE_EVENT_FIELDS) {
+    try {
+      out[field] = event[field];
+    } catch {
+      // drop unreadable field
+    }
+  }
+  try {
+    const app = event.tags?.app;
+    if (typeof app === "string") {
+      out.tags = { app: scrubText(app) };
+    }
+  } catch {
+    // drop tags
+  }
+  out.message = REDACTED;
+  out.exception = { values: [{ type: "Error", value: REDACTED }] };
+  return out as T;
+};
+
+const scrubRequest = (
+  request: NonNullable<Event["request"]>
+): NonNullable<Event["request"]> => {
+  const { cookies, data, query_string, headers, url, ...rest } = request;
+  return {
+    ...rest,
+    ...(url === undefined ? {} : { url: scrubUrl(url) }),
+    ...(headers
+      ? {
+          headers: redactHeaders(
+            headers as Record<string, HeaderValue>
+          ) as typeof headers,
+        }
+      : {}),
+  };
+};
+
+// Frame paths are URLs in the browser (`https://biso.no/_next/…?dpl=…`).
+const scrubFrame = ({ vars: _vars, ...frame }: StackFrame): StackFrame => ({
+  ...frame,
+  ...(typeof frame.filename === "string"
+    ? { filename: scrubUrl(frame.filename) }
+    : {}),
+  ...(typeof frame.abs_path === "string"
+    ? { abs_path: scrubUrl(frame.abs_path) }
+    : {}),
+});
+
+/** An AI SDK error's message can quote model output: keep its type only. */
+const scrubExceptionValue = (
+  type: string | undefined,
+  value: string
+): string => (type && isAiErrorName(type) ? type : scrubText(value));
+
+const scrubException = (
+  exception: NonNullable<Event["exception"]>
+): NonNullable<Event["exception"]> => ({
+  ...exception,
+  values: exception.values?.map((entry) => ({
+    ...entry,
+    ...(entry.stacktrace?.frames
+      ? {
+          stacktrace: {
+            ...entry.stacktrace,
+            frames: entry.stacktrace.frames.map(scrubFrame),
+          },
+        }
+      : {}),
+    ...(typeof entry.value === "string"
+      ? { value: scrubExceptionValue(entry.type, entry.value) }
+      : {}),
+  })),
+});
+
+/**
+ * An event made safe to send: `beforeSend` for error reports, and feedback
+ * (see `browser/feedback`), which `beforeSend` never sees.
+ */
+export function scrubEvent<T extends Event>(event: T): T {
+  try {
+    const out: T = { ...event };
+    if (typeof out.message === "string") {
+      out.message = scrubText(out.message);
+    }
+    if (typeof out.transaction === "string") {
+      out.transaction = scrubUrl(out.transaction);
+    }
+    if (out.request) {
+      out.request = scrubRequest(out.request);
+    }
+    for (const field of ["extra", "tags", "contexts"] as const) {
+      if (out[field]) {
+        (out as Mutable)[field] = scrubRecord(out[field] as Mutable);
+      }
+    }
+    if (out.logentry) {
+      out.logentry = {
+        ...out.logentry,
+        ...(typeof out.logentry.message === "string"
+          ? { message: scrubText(out.logentry.message) }
+          : {}),
+        ...(out.logentry.params
+          ? { params: scrubValue("params", out.logentry.params) as never }
+          : {}),
+      };
+    }
+    if (out.user) {
+      out.user = out.user.id === undefined ? {} : { id: out.user.id };
+    }
+    if (out.exception?.values) {
+      out.exception = scrubException(out.exception);
+    }
+    if (out.breadcrumbs) {
+      out.breadcrumbs = scrubBreadcrumbs(out.breadcrumbs);
+    }
+    return out;
+  } catch {
+    return safeEventFallback(event);
+  }
+}
+
+export function scrubLog(log: Log): Log {
+  try {
+    const { attributes } = log;
+    if (attributes && isConsoleLog(attributes)) {
+      return {
+        ...log,
+        message: scrubText(consoleLogMessage(String(log.message), attributes)),
+        // Template parameters, and the keys of an object logged first, get
+        // the same reduction as the message.
+        attributes: scrubRecord(reduceConsoleRecord(attributes, 0)),
+      };
+    }
+    return {
+      ...log,
+      message: scrubText(String(log.message)),
+      ...(attributes ? { attributes: scrubRecord(attributes) } : {}),
+    };
+  } catch {
+    return { level: log.level, message: REDACTED };
+  }
+}
+
+export function scrubSpan(span: StreamedSpanJSON): StreamedSpanJSON {
+  try {
+    const attributes: Mutable = { ...span.attributes };
+    for (const key of DROPPED_SPAN_ATTRIBUTES) {
+      delete attributes[key];
+    }
+    return {
+      ...span,
+      name: scrubUrl(span.name),
+      attributes: scrubRecord(attributes) as StreamedSpanJSON["attributes"],
+    };
+  } catch {
+    return {
+      trace_id: span.trace_id,
+      span_id: span.span_id,
+      parent_span_id: span.parent_span_id,
+      start_timestamp: span.start_timestamp,
+      end_timestamp: span.end_timestamp,
+      status: span.status,
+      is_segment: span.is_segment,
+      name: REDACTED,
+      attributes: {},
+    };
+  }
+}
+
+export function scrubMetric(metric: Metric): Metric {
+  try {
+    return {
+      ...metric,
+      ...(metric.attributes
+        ? { attributes: scrubRecord(metric.attributes) }
+        : {}),
+    };
+  } catch {
+    return {
+      name: metric.name,
+      type: metric.type,
+      value: metric.value,
+      unit: metric.unit,
+    };
+  }
+}

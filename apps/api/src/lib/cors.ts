@@ -15,9 +15,11 @@ export function applyCorsHeaders(
     "Access-Control-Allow-Methods",
     "GET, POST, PUT, DELETE, OPTIONS"
   );
+  // `sentry-trace` and `baggage`: should a browser SDK ever add trace headers
+  // to a call here, the preflight still passes.
   response.headers.set(
     "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, Cookie, X-Requested-With"
+    "Content-Type, Authorization, Cookie, X-Requested-With, sentry-trace, baggage"
   );
 
   return response;

@@ -160,3 +160,8 @@ export function getOrderItems(order: OrderWithItems): ParsedOrderItem[] {
   }
   return parseOrderItems(order.items_json);
 }
+
+/** A membership purchase: one of its lines carries the membership marker. */
+export function hasMembershipItem(items: ParsedOrderItem[]): boolean {
+  return items.some((item) => item.product_type === "membership");
+}

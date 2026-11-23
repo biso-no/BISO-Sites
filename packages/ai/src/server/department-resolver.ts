@@ -1,5 +1,6 @@
 import "server-only";
 
+import { traceAiCall } from "@repo/observability/ai";
 import {
   type DepartmentResolution,
   departmentResolutionBatchSchema,
@@ -94,12 +95,21 @@ export async function resolveDepartments(
   console.info(
     `[dept-resolver] generateObject(${model}) for ${input.campusLabel}: ${input.users.length} users, ${input.candidates.length} candidates`
   );
-  const result = await generateObject({
-    model: resolveModel(model),
-    prompt: buildPrompt(input),
-    schema: departmentResolutionBatchSchema,
-    instructions: SYSTEM_PROMPT,
-    reasoning: "low",
-  });
+  const languageModel = resolveModel(model);
+  const result = await traceAiCall(
+    {
+      functionId: "ai.department-resolver",
+      model: languageModel,
+      operation: "generate_object",
+    },
+    () =>
+      generateObject({
+        model: languageModel,
+        prompt: buildPrompt(input),
+        schema: departmentResolutionBatchSchema,
+        instructions: SYSTEM_PROMPT,
+        reasoning: "low",
+      })
+  );
   return result.object.resolutions;
 }

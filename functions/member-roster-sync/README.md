@@ -50,6 +50,14 @@ which the admin page shows as "Last refresh failed".
   `APPWRITE_*` variables — Appwrite injects its own and they take precedence.
   The project and endpoint fall back to `biso` / `https://appwrite.biso.no/v1`
   in `@repo/api/server`.
+- Sentry (optional): `SENTRY_DSN` (the biso-functions DSN; without it nothing is
+  sent), `SENTRY_ENVIRONMENT` (default `production`) and
+  `MEMBER_ROSTER_SYNC_SCHEDULE` (default `0 3 * * *`; keep it equal to the
+  console schedule). Failures are reported as errors (tag `function_name:
+  member-roster-sync`, no member data in the message) and each run checks in to
+  the `member-roster-sync` cron monitor (UTC, 30 min margin, 20 min max runtime,
+  issue after 2 failures). An overlap skip counts as a successful check-in.
+  Sentry calls are capped at 2 s per run.
 - Scopes (**Settings → Scopes**): `rows.read`, `rows.write` (member_roster,
   memberships, campus, and the `24so.auth_tokens` session cache) and
   `executions.read` (the overlap guard). Appwrite passes a key with exactly

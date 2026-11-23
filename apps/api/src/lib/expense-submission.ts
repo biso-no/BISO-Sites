@@ -7,6 +7,7 @@ import {
   type Expenses,
   ExpensesStatus,
 } from "@repo/api/types/appwrite";
+import { traceAiCall } from "@repo/observability/ai";
 import {
   AI_TYPE_CONFIDENCE_THRESHOLD,
   type CostTypeOption,
@@ -444,13 +445,21 @@ export async function chooseAccountForText(input: {
     "Answer with exactly one account number from the list, a confidence between 0 and 1, and a one-sentence reason.",
   ].join("\n");
   try {
-    const { object } = await generateObject({
-      abortSignal,
-      model: fastModel,
-      prompt,
-      reasoning: "low",
-      schema: AccountChoiceSchema,
-    });
+    const { object } = await traceAiCall(
+      {
+        functionId: "api.expense-account",
+        model: fastModel,
+        operation: "generate_object",
+      },
+      () =>
+        generateObject({
+          abortSignal,
+          model: fastModel,
+          prompt,
+          reasoning: "low",
+          schema: AccountChoiceSchema,
+        })
+    );
     if (!accounts.some((a) => a.accountNumber === object.accountNumber)) {
       return null;
     }

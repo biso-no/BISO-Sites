@@ -1,6 +1,14 @@
 import path from "node:path";
+import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
+// Relative, not `@repo/observability/build`: Next transpiles this file with
+// tsconfig `paths`, which maps `@repo/*` to `../../packages/*` and misses the
+// package `exports` (the source lives under `src/`).
+import {
+  SENTRY_TRANSPILE_PACKAGES,
+  sentryBuildOptions,
+} from "../../packages/observability/src/build";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
@@ -13,14 +21,16 @@ const baseConfig: NextConfig = {
     "@repo/shared",
     "@repo/ai",
     "@repo/editor",
+    "@repo/observability",
     "@repo/payment",
     "@repo/typescript-config",
+    // Bundles the server SDK on Bun builds too (see the constant).
+    ...SENTRY_TRANSPILE_PACKAGES,
   ],
   // pdfjs (CV text extraction for AI screening) loads its worker via a
   // relative `./pdf.worker.mjs` import that breaks once bundled.
   serverExternalPackages: ["pdfjs-dist"],
   reactStrictMode: true,
-  productionBrowserSourceMaps: false,
   outputFileTracingRoot: path.join(import.meta.dirname, "../../"),
   output: "standalone",
   cacheComponents: true,
@@ -108,6 +118,11 @@ const baseConfig: NextConfig = {
   async headers() {
     return [
       {
+        // Lets the browser profile pages for Sentry (Chromium only).
+        source: "/:path*",
+        headers: [{ key: "Document-Policy", value: "js-profiling" }],
+      },
+      {
         source: "/.well-known/apple-app-site-association",
         headers: [
           {
@@ -130,4 +145,9 @@ const baseConfig: NextConfig = {
   },
 };
 
-export default withNextIntl(baseConfig);
+// Sentry's wrapper goes outermost. It turns on browser source maps for the
+// upload and deletes them from the output afterwards.
+export default withSentryConfig(
+  withNextIntl(baseConfig),
+  sentryBuildOptions("web")
+);

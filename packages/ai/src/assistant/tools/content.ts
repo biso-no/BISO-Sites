@@ -1,3 +1,4 @@
+import { traceAiCall } from "@repo/observability/ai";
 import { generateObject, tool } from "ai";
 import { z } from "zod";
 import { draftModel } from "../models";
@@ -63,10 +64,17 @@ export function buildContentTools(deps: AssistantActionDeps) {
       }),
       execute: async ({ domain, prompt, additionalContext }) => {
         try {
-          const { object } = await generateObject({
-            model: draftModel,
-            schema: BILINGUAL_DRAFT_SCHEMA,
-            system: `You are a bilingual content writer for BI Student Organisation (BISO), a Norwegian student org.
+          const { object } = await traceAiCall(
+            {
+              functionId: "ai.assistant-content-tool",
+              model: draftModel,
+              operation: "generate_object",
+            },
+            () =>
+              generateObject({
+                model: draftModel,
+                schema: BILINGUAL_DRAFT_SCHEMA,
+                system: `You are a bilingual content writer for BI Student Organisation (BISO), a Norwegian student org.
 Generate professional, engaging ${domain} content in BOTH Norwegian Bokmål and English.
 Norwegian is primary and authoritative. English is the translation.
 Use markdown for descriptions (bold for emphasis, bullet lists for details).
@@ -74,8 +82,9 @@ For jobs: include responsibilities, requirements, and what BISO offers. Keep tit
 For events: include what, when, where, why and a call-to-action.
 For news: journalistic tone, key facts first.
 ${additionalContext ? `Additional context: ${additionalContext}` : ""}`,
-            prompt: `Create ${domain} content: ${prompt}`,
-          });
+                prompt: `Create ${domain} content: ${prompt}`,
+              })
+          );
           return { success: true, draft: object };
         } catch (error) {
           return {

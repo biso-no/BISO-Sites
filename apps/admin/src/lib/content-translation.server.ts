@@ -1,4 +1,5 @@
 import { fastModel } from "@repo/ai/models";
+import { traceAiCall } from "@repo/observability/ai";
 import { generateObject } from "ai";
 import { after } from "next/server";
 import { z } from "zod";
@@ -82,10 +83,17 @@ export const translateContentFields = async ({
     return translatedFields;
   }
 
-  const { object } = await generateObject({
-    model: fastModel,
-    reasoning: "low",
-    prompt: `Translate this ${contentType} from ${LANGUAGE_NAMES[sourceLocale]} to ${LANGUAGE_NAMES[targetLocale]}.
+  const { object } = await traceAiCall(
+    {
+      functionId: "admin.content-translation",
+      model: fastModel,
+      operation: "generate_object",
+    },
+    () =>
+      generateObject({
+        model: fastModel,
+        reasoning: "low",
+        prompt: `Translate this ${contentType} from ${LANGUAGE_NAMES[sourceLocale]} to ${LANGUAGE_NAMES[targetLocale]}.
 Return one translation for every supplied field using the exact same key.
 Preserve meaning, tone, proper nouns, URLs, email addresses, placeholders, identifiers, and HTML structure.
 In HTML, keep every tag and every attribute value exactly as written (for example data-color, href, start, colspan and rowspan), and translate only the text between tags.
@@ -93,8 +101,9 @@ Do not add facts or explanatory text. Leave formatting intact.
 
 Fields:
 ${JSON.stringify(nonEmptyFields)}`,
-    schema: translationResponseSchema,
-  });
+        schema: translationResponseSchema,
+      })
+  );
 
   const requestedKeys = new Set(nonEmptyFields.map((field) => field.key));
   for (const translation of object.translations) {

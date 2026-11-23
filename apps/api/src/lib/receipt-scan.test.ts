@@ -8,6 +8,13 @@ const generateObject = vi.hoisted(() => vi.fn());
 
 vi.mock("ai", () => ({ generateObject }));
 vi.mock("@repo/ai/models", () => ({ balancedModel: "b", fastModel: "f" }));
+vi.mock("@repo/observability/ai", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@repo/observability/ai")>();
+  return { ...actual, traceAiCall: vi.fn(actual.traceAiCall) };
+});
+
+import { traceAiCall } from "@repo/observability/ai";
 
 import {
   amountReadInNok,
@@ -170,6 +177,11 @@ describe("classifyReceipt", () => {
       reason: "Food",
     });
     expect(generateObject.mock.calls[0][0].model).toBe("f");
+    expect(vi.mocked(traceAiCall).mock.calls.at(-1)?.[0]).toEqual({
+      functionId: "api.receipt-classify",
+      model: "f",
+      operation: "generate_object",
+    });
   });
 
   it("drops an unknown slug to null with confidence 0", async () => {
@@ -367,6 +379,11 @@ describe("extractReceipt prompt", () => {
       purpose: "auto",
     });
     expect(generateObject.mock.calls.at(-1)?.[0].abortSignal).toBe(abortSignal);
+    expect(vi.mocked(traceAiCall).mock.calls.at(-1)?.[0]).toEqual({
+      functionId: "api.receipt-extract",
+      model: "b",
+      operation: "generate_object",
+    });
   });
 
   it("lists the receipt issue codes from the shared vocabulary", async () => {

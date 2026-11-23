@@ -3,6 +3,7 @@ import { balancedModel, fastModel } from "@repo/ai/models";
 import { ID, Query } from "@repo/api";
 import type { createAdminClient } from "@repo/api/server";
 import type { ExpenseReceiptScans } from "@repo/api/types/appwrite";
+import { traceAiCall } from "@repo/observability/ai";
 import type { CostTypeOption } from "@repo/shared/utils/expense-cost-types";
 import { RECEIPT_ISSUE_CODES } from "@repo/shared/utils/expense-hints";
 import { generateObject } from "ai";
@@ -296,20 +297,28 @@ export async function extractReceipt(input: {
   purpose: ScanPurpose;
 }): Promise<ExtractedReceipt> {
   const file = await fitFileForModel(input.buffer, input.mimeType);
-  const { object } = await generateObject({
-    abortSignal: input.abortSignal,
-    model: balancedModel,
-    schema: ExpenseDataSchema,
-    messages: [
-      {
-        role: "user",
-        content: [
-          { type: "text", text: purposeToPrompt(input.purpose) },
-          { type: "file", data: file.data, mediaType: file.mediaType },
+  const { object } = await traceAiCall(
+    {
+      functionId: "api.receipt-extract",
+      model: balancedModel,
+      operation: "generate_object",
+    },
+    () =>
+      generateObject({
+        abortSignal: input.abortSignal,
+        model: balancedModel,
+        schema: ExpenseDataSchema,
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: purposeToPrompt(input.purpose) },
+              { type: "file", data: file.data, mediaType: file.mediaType },
+            ],
+          },
         ],
-      },
-    ],
-  });
+      })
+  );
   return object;
 }
 
@@ -431,13 +440,21 @@ export async function classifyReceipt(
   }
   let object: z.infer<typeof ClassificationSchema>;
   try {
-    ({ object } = await generateObject({
-      abortSignal: input.abortSignal,
-      model: fastModel,
-      prompt: buildClassificationPrompt(input),
-      reasoning: "low",
-      schema: ClassificationSchema,
-    }));
+    ({ object } = await traceAiCall(
+      {
+        functionId: "api.receipt-classify",
+        model: fastModel,
+        operation: "generate_object",
+      },
+      () =>
+        generateObject({
+          abortSignal: input.abortSignal,
+          model: fastModel,
+          prompt: buildClassificationPrompt(input),
+          reasoning: "low",
+          schema: ClassificationSchema,
+        })
+    ));
   } catch (error) {
     if (!input.abortSignal?.aborted) {
       throw error;

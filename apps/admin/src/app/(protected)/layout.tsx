@@ -1,5 +1,7 @@
 import { unauthorized } from "next/navigation";
+import { ReplayConsent } from "@/components/replay-consent";
 import { getLoggedInUser } from "@/lib/actions/user";
+import { isSentryConfigured } from "@/lib/sentry-configured";
 
 export default async function ProtectedLayout({
   children,
@@ -12,5 +14,10 @@ export default async function ProtectedLayout({
     unauthorized();
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      {isSentryConfigured() && <ReplayConsent />}
+    </>
+  );
 }

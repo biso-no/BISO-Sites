@@ -10,7 +10,7 @@ import { sanitizeStudentNumber } from "./bi-student";
 import { buildMembershipInvoiceOrder } from "./finago-membership-invoice";
 import { type MembershipPlan, toMembershipPlan } from "./membership-plans";
 import type { ParsedOrderItem } from "./order-parsing";
-import { getOrderItems } from "./order-parsing";
+import { getOrderItems, hasMembershipItem } from "./order-parsing";
 import { ORDER_ITEMS_SELECT } from "./order-queries";
 import type { DbClient } from "./vipps-order-ops";
 
@@ -96,9 +96,7 @@ function tables() {
 export function isMembershipOrder(
   order: Parameters<typeof getOrderItems>[0]
 ): boolean {
-  return getOrderItems(order).some(
-    (item) => (item as { product_type?: string }).product_type === "membership"
-  );
+  return hasMembershipItem(getOrderItems(order));
 }
 
 // Stamped into `membership_invoice_id` for a NON-membership (shop) order that

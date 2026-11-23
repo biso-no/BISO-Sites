@@ -1,6 +1,6 @@
 ---
 title: Monitoring and health
-description: What watches the platform today, what each health endpoint checks, where to find the logs, and what nobody is watching.
+description: What Sentry and Better Stack watch, what is and is never sent to Sentry, who gets the alerts, what each health endpoint checks, where to find the logs, and what nobody is watching.
 covers:
   - apps/*/src/app/api/health/**
   - apps/docs/app/api/health/**
@@ -14,13 +14,139 @@ covers:
   - apps/admin/src/lib/umami/**
   - apps/admin/src/app/_components/analytics-script.tsx
   - apps/web/src/app/api/analytics/page-view/route.ts
+  - packages/observability/**
+  - apps/*/instrumentation-client.ts
+  - apps/*/sentry.server.config.ts
+  - apps/*/src/instrumentation-client.ts
+  - apps/*/src/sentry.server.config.ts
+  - apps/*/src/app/api/relay/**
+  - functions/*/src/report.ts
+  - scripts/sentry/**
+  - apps/admin/src/lib/sentry-test-error.ts
+  - apps/admin/src/app/(portal)/settings/operations/_actions/sentry-test.ts
+  - apps/*/src/components/replay-consent.tsx
+  - apps/*/src/components/report-problem.tsx
+  - apps/web/src/components/layout/footer-privacy-settings.tsx
+  - apps/web/src/components/layout/footer-report-problem.tsx
+  - apps/*/src/lib/sentry-configured.ts
+  - apps/*/src/app/global-error.tsx
+  - apps/docs/app/global-error.tsx
+  - packages/ui/components/replay-consent-bar.tsx
 ---
 
-Use this page to find out whether the platform is healthy, and where to look when it isn't. One outside service, Better Stack, sends an alert when the site can't be reached. Everything else you check yourself: the health endpoints, the logs in the Appwrite console, and the admin's operations page. Nothing alerts anyone when a scheduled job, a function or a payment fails, so read [What isn't monitored](#what-isnt-monitored) before you trust a quiet inbox.
+Use this page to find out whether the platform is healthy, and where to look when it isn't. Sentry is the first place to look: it collects errors, slow requests, scheduled-job check-ins and uptime checks for the four apps and the three functions, and emails the owner about outages, failed scheduled jobs and new errors that aren't minor. Better Stack still checks that the site can be reached. The health endpoints, the logs in the Appwrite console and the admin's operations page are the fallback when Sentry itself has nothing. Some things still alert nobody, so read [What isn't monitored](#what-isnt-monitored) before you trust a quiet inbox.
+
+## Sentry
+
+Sentry is BISO's error and performance tracker. BISO has Sentry's non-profit plan, in an organisation in Sentry's EU region, so the data stays in the EU. Who owns the account, who receives its alerts and where the auth token is kept:
+
+<Private name="sentry-account" label="Sentry account" />
+
+The BISO app (Flutter) doesn't report to Sentry.
+
+### The projects
+
+There is one project per deploy unit, so an issue's id shows where it came from.
+
+| Project | What it shows |
+|---|---|
+| `biso-web` | The website: server errors and traces, browser errors and page loads, problem reports, recordings from visitors who agreed, and the AI calls it makes (job application screening). |
+| `biso-admin` | The admin: the same as the website, plus the test error from the operations page. |
+| `biso-api` | The api: server errors and traces, the Appwrite call timings, payment, order and expense counts, and the AI calls it makes. |
+| `biso-docs` | These docs: errors and page loads for staff and developers, and the docs assistant's AI calls. |
+| `biso-functions` | The three Appwrite functions: errors, and the cron monitors for the scheduled jobs. |
+
+The older `appwrite` and `react-native` projects are leftovers. Ignore them, with one exception: `appwrite` still runs an uptime check called "BISO API" every 10 minutes. It duplicates the api check and the owner plans to delete it. An unused `biso-app` project also exists, because the BISO app doesn't report to Sentry.
+
+### What is sent
+
+- **Errors.** Every unhandled error in the apps' server code and in the browser, and the errors the three functions report themselves. Each has a readable stack trace (source maps are uploaded when the app is built) and the release it came from. A release is named `biso-<app>@<first 12 characters of the commit>`.
+- **Request traces.** One trace for each server request. Server traces are kept in full on every app. Browser page loads are kept for 25% of visits on the website and docs and for every visit on the admin. A trace shows where a slow request spent its time, including each call to Appwrite.
+- **Browser profiles.** On the website and the admin, 10% of the traced page loads also send a profile of what the browser's JavaScript was doing. It works only in Chromium browsers, and it needs the `Document-Policy: js-profiling` header that the two apps' `next.config.ts` set.
+- **The browser tunnel.** The website's and the admin's browser code doesn't call Sentry directly. It posts to its own Site at `POST /api/relay`, which forwards to Sentry, so ad-blockers don't drop the reports. The route answers `403` for an event that belongs to another DSN and `413` for a body over 10 MB. Docs posts to Sentry directly. A proxy or firewall in front of a Site must allow `POST /api/relay`, or the browser reports are lost.
+- **Server logs.** Only the `warn` and `error` lines the apps write, such as `[request-error]` and `[appwrite] slow request`. Lines at other levels stay in the Appwrite console.
+- **Business counts.** These exact names, each a count or a single value with a short list of labels (`provider`, `kind`, `app`, `client`, `outcome`) and nothing else:
+
+  | Name | What it counts |
+  |---|---|
+  | `payment.completed` | A payment that went through |
+  | `payment.failed` | A payment that didn't. Its `outcome` is `failed` or `cancelled`. Only `failed` raises an alert. |
+  | `orders.stuck` | A value, not a count, set at the end of each order reconciliation run: the payment checks that errored, plus paid orders that need a manual posting in 24SevenOffice, plus refunds with no order to settle against |
+  | `push.sent` and `push.failed` | Pushes Appwrite accepted, and pushes it refused |
+  | `expense.submitted` and `expense.booking_failed` | Reimbursements sent in, and bookings in 24SevenOffice that failed |
+  | `appwrite.slow_request` and `appwrite.timeout` | Appwrite calls that took 2 seconds or more, and calls cut off after 8 seconds |
+
+- **AI calls.** Each call to a model sends a span named `<operation> <model>` (for example `generate_content <model>`), with the operation `gen_ai.chat` or `gen_ai.generate_content`. The feature (for example `api.receipt-extract`) is in `gen_ai.pipeline.name`. The span also has the model, the token counts and, on failure, the type of error: the JavaScript class of the error, such as `AI_APICallError`. Never the prompt, the answer, a file or a tool's input.
+- **Cron monitors.** The functions report each run as a check-in. See [Scheduled jobs](#scheduled-jobs-and-uptime) below.
+- **Uptime checks.** Sentry calls the health endpoints every 5 minutes.
+- **Recordings.** Only for visitors on the website and the admin who said yes in the bar at the foot of the page. A visitor who says no, or never answers, is never recorded. Everything in a recording is masked: text and inputs show as `***`, and images, media and links that can carry personal data are blocked. The bar tells visitors that recordings are deleted after 90 days. The retention in the Sentry plan hasn't been confirmed to match, so check it in Sentry.
+- **Problem reports.** A visitor can press **Rapporter et problem** (Report a problem) in the website's footer, and an admin user can press it at the foot of the sidebar or choose **Report a Problem** in quick search. They write what went wrong. The text goes to Sentry linked to the error and recording, if there are any. The form never asks for a name or email. The website's form can also attach a screenshot if the visitor chooses to. The screenshot isn't masked, so it shows what was on the visitor's screen. The admin's form can't attach one. Sentry may file a report as spam by itself, so if one you expected is missing, look in the archived view under **User Feedback**.
+
+With no DSN set, a Site sends nothing and the consent bar, the privacy settings link and the problem report link are hidden. See [Secrets and environment](/developers/keep-it-running/secrets-and-environment#sentry).
+
+### What is never sent
+
+Sentry is a third party, and BISO's students trust it with nothing personal. The apps remove these before anything leaves the server or the browser, in `packages/observability/src/scrub.ts`:
+
+- **People.** No names, no email addresses, no IP addresses. A signed-in user is known only by their Appwrite user id.
+- **Cookies, headers and bodies.** No cookies, no request or response headers, no request bodies, and no database query values.
+- **Query strings.** `?` and what follows it is cut from every address. A parameter like `secret=…` or `userId=…` inside free text is replaced with `[redacted]`.
+- **Numbers that identify someone.** Norwegian bank account numbers, national ID numbers (fødselsnummer), IBANs and email addresses are replaced with `[redacted]` wherever they appear in an event, log line or span.
+- **Links that work as keys.** The part after `/fs/approve/`, `/recruitment/book/`, `/scan/` and `/shop/order/` is replaced, because whoever holds one of those links needs no sign-in.
+- **Variables.** No variable values in stack frames, and no source code around a frame.
+- **AI content.** No prompts, answers or tool inputs.
+- **Recordings.** None without a yes. Pages that show personal data, such as the recruitment booking page and the admin's scanner, are never recorded even after a yes.
+
+The Sentry organisation backs this up with a second layer. Under **Settings**, **Security & Privacy**, these are on: the data scrubber with its defaults, and "Prevent storing of IP addresses". Extra rules replace Norwegian bank account numbers with `[account-number]`, national ID numbers with `[national-id]`, and email addresses, IBANs and IP addresses on every string. If you see one of those markers in an event, our own scrubbing missed something, so fix it in `scrub.ts`. Sentry also drops events from browser extensions and web crawlers in all five projects, and from old browsers on the website and the admin. If you add something new to an event, a log line or a metric, check it against this list first. The same rules protect the functions: their reporter is a copy of the scrubber, and a test keeps the two in step.
+
+### Scheduled jobs and uptime
+
+- **Cron monitors** are in the `biso-functions` project. scheduled-dispatch checks in on each run (`scheduled-dispatch`, every 5 minutes), and so does each job it calls: `dispatch-<target>`, such as `dispatch-content-notifier` and `dispatch-orders-reconcile`. A `dispatch-<target>` monitor appears the first time that target runs in production. Monitors created later aren't connected to the "site is down or a scheduled job failed" alert by hand, so after the first week, check that the alert covers a new one. member-roster-sync checks in once a night (`member-roster-sync`). A run that fails or doesn't check in turns its monitor red.
+- **Two in a row.** A monitor opens an issue, and so sends an email, only after two failed or missed runs in a row, and one good run closes it again. For member-roster-sync that means the first email comes after the second failed night.
+- **Run time.** A target's monitor allows its ping's timeout plus one minute, and at least 2 minutes: 2 for most targets, 6 for `dispatch-orders-reconcile` and `dispatch-expenses-post-pending`.
+- A failed target also reports an error event tagged `target`, which doesn't alert anyone by itself. The monitor is what alerts, so a single failed run doesn't raise two alerts.
+- **Uptime checks** call `https://biso.no/api/health`, `https://admin.biso.no/api/health`, `https://api.biso.no/api/health` and `https://api.biso.no/api/health/ready`, which tells you that Appwrite answers. A check that fails twice in a row turns red. The last one costs one Appwrite request each time. Add `https://docs.biso.no/api/health` when docs is live.
+
+[Scheduled jobs](/developers/keep-it-running/scheduled-jobs#how-sentry-watches-them) explains how the functions report.
+
+### The alerts
+
+All of these apply to the `production` environment only. Add Sentry's Microsoft Teams integration in the Sentry account if you want them in Teams.
+
+| Alert | Fires when |
+|---|---|
+| A new error (medium or high priority) | An error appears for the first time in the web, admin, api, docs or functions project and Sentry rates it medium or high. Sentry's own built-in high-priority rule for each project does the same for high. Errors tagged `target` are left out, because the cron monitors cover them. |
+| A fixed error came back | An issue you marked resolved happens again in any of the five projects |
+| A site is down or a scheduled job failed | An uptime check or a cron monitor opens an issue. It acts only on those, not on ordinary errors. |
+| Someone reported a problem | A new report arrives from the website or the admin. It's immediate. |
+| Payments, stuck orders and error spikes | 3 or more failed payments in 15 minutes, `orders.stuck` above 0 for a whole hour, or an error spike (over 50 errors in 10 minutes on the website or the api, over 30 on the admin) |
+
+A new error that Sentry rates low sends no email. It's in the project's **Issues** list, so look there now and then. Most alerts send at most one email every 30 minutes, and the metric alert one an hour. While an order stays stuck, the stuck-orders alert goes on firing every hour until someone has done the manual posting or settled the refund.
+
+**Who gets them.** The built-in high-priority rules email the issue's owners, or all active members of the organisation if the issue has no owner. The BISO rules email the owner. To add someone to a BISO alert, open the alert in Sentry and add them to its action, or change the action to send to a team, once for each of the BISO alerts.
+
+### The dashboard
+
+**BISO platform health** is a Sentry dashboard of errors per project, new issues, web vitals, the slowest server routes, Appwrite calls and timeouts, payments, pushes, expense bookings, AI calls by feature and problem reports. Its definition is in `scripts/sentry/platform-health-dashboard.json`, and the repo is the source of truth. To create it or put it back after someone edits it in Sentry:
+
+```bash
+read -rs SENTRY_DASHBOARD_TOKEN && export SENTRY_DASHBOARD_TOKEN
+bun scripts/sentry/apply-dashboard.ts
+```
+
+Type or paste the personal token at the prompt. It isn't echoed and doesn't end up in your shell history. The token is a personal auth token with the `org:write` scope. `scripts/sentry/README.md` has the details, and `bun test scripts/sentry` checks the definition.
+
+### Send a test error
+
+A global admin can check the link from the admin to Sentry. Open **Innstillinger** (Settings), then **Driftshelse** (Operations health). The Sentry row shows whether `NEXT_PUBLIC_SENTRY_DSN` is set. Press **Send testfeil til Sentry** (Send test error to Sentry). The page shows an event id, and the error appears in `biso-admin` within a minute. If it says Sentry is not configured, the admin was built without a DSN. The row can say **Konfigurert** (Configured) even then, as [below](#the-admins-operations-page) explains.
+
+### Cost and limits
+
+BISO's plan has a monthly limit on errors, spans, recordings and logs, and no pay-as-you-go. Over the limit, Sentry drops data and never bills. In Sentry, open **Stats** to see the usage. If a limit is near, lower a rate in `packages/observability/src/options.ts`, where `SAMPLE_RATES` sets the trace and recording shares for each app.
 
 ## Better Stack
 
-Better Stack (free plan) checks that the site can be reached and sends an alert when it can't. It isn't set up in the repo. Which addresses it checks, how often, and who gets the alerts are all set in the Better Stack account:
+Better Stack (free plan) checks that the site can be reached and sends an alert when it can't. It isn't set up in the repo, and Sentry's uptime checks now watch the same addresses. Better Stack stays until the owner trusts Sentry's checks. Which addresses it checks, how often, and who gets the alerts are all set in the Better Stack account:
 
 <Private name="better-stack-account" label="Better Stack" />
 
@@ -63,20 +189,22 @@ Read the answers with care:
 
 ## The admin's operations page
 
-Global admins can open **Innstillinger** (Settings), then **Driftshelse** (Operations health), at `/settings/operations`. It shows two things:
+Global admins can open **Innstillinger** (Settings), then **Driftshelse** (Operations health), at `/settings/operations`. It shows three things:
 
 - For Appwrite, Microsoft 365, SharePoint, Vipps, the scheduler secrets and Umami, whether their variables are set on the admin's Site. It only checks that a value exists. It doesn't try the value.
 - The same team check as `/api/health/teams`.
+- The Sentry row and the button that sends a test error. See [Send a test error](#send-a-test-error).
 
-Three parts of it mislead:
+Four parts of it mislead:
 
 - **Vipps** is checked through the `VIPPS_*` variables on the admin. The real credentials are in the `payment_settings` table, and payments run on the api, so Vipps can show as missing while payments work.
 - **The scheduler secrets** entry wants `ENTUR_SYNC_SECRET` and `TICKSTER_SYNC_SECRET` as well as `CRON_SECRET`. Leave those two unset, as [Secrets and environment](/developers/keep-it-running/secrets-and-environment#scheduled-jobs) says.
-- **The runbook links** point at old docs pages that no longer exist. The runbooks are now [When things break](/developers/keep-it-running/when-things-break).
+- **The Sentry row** looks at the variable on the Site while it runs. The SDK uses the value that was there when the app was built. A Site that was built without a DSN, and got one set afterwards, shows **Konfigurert** (Configured) and still sends nothing. Trust the test error button, not the status.
+- **The runbook links**, the Sentry row's too, point at old docs pages that no longer exist. The runbooks are now [When things break](/developers/keep-it-running/when-things-break).
 
 ## Logs
 
-The apps write their logs to standard output and nowhere else. There's no error tracker such as Sentry, so the logs in the Appwrite console are all there is.
+The apps write their logs to standard output. Sentry gets a scrubbed copy of the `warn` and `error` lines (see [What is sent](#what-is-sent)), but the full logs, at every level and unscrubbed, are only in the Appwrite console.
 
 ### Sites
 
@@ -94,7 +222,7 @@ Appwrite deletes execution logs after 14 days unless its server is set otherwise
 
 | Line | Written by | What it means |
 |---|---|---|
-| `[request-error]` | web, admin, api, docs | A request failed with an error nothing caught. The JSON that follows names the app, the method and path, and the error with its stack. Cookies, keys and `Authorization` headers are replaced with `[redacted]`. |
+| `[request-error]` | web, admin, api, docs | A request failed with an error nothing caught. The JSON that follows names the app, the method, the path without its query string, and the error with its stack. Cookies, keys, `Authorization` and client IP headers are replaced with `[redacted]`, and the referer loses its query string. The same error also goes to Sentry, with IP addresses and queries removed. |
 | `[appwrite] slow request` | Server code using `@repo/api` | One Appwrite call took 2 seconds or more (`APPWRITE_SLOW_REQUEST_MS`). |
 | `[appwrite] request timed out` | Server code using `@repo/api` | One Appwrite call was cut off after 8 seconds (`APPWRITE_REQUEST_TIMEOUT_MS`). The caller gets a `504` error of type `appwrite_timeout`. Many of these at once usually mean Appwrite itself is struggling. |
 | `[web] …` or `[admin] …` when the Site starts | web, admin | A start-up check failed. The line names the variable that's wrong. |
@@ -109,15 +237,14 @@ When the Appwrite console itself won't load, its logs won't either. Read Appwrit
 
 ## What isn't monitored
 
-Better Stack only tells you when a site can't be reached. Nothing tells anyone about any of these:
+Sentry and Better Stack cover errors, scheduled jobs, the functions and whether the sites can be reached. Nothing tells anyone about these:
 
-- **Errors.** `[request-error]` lines stay in the Site logs until someone reads them.
-- **Scheduled jobs.** A failed scheduled-dispatch run answers `502`, which shows only in its executions.
-- **The other two functions.** content-notifier failures show only in its executions. member-roster-sync failures also show on the admin's members page as **Siste oppdatering feilet** (Last refresh failed).
-- **Appwrite failing behind a running app.** `/api/health` answers `200` while the pages are empty, as described above.
-- **Payments stuck as pending.** Order reconciliation retries them on its own, and nobody hears about the ones it can't fix.
-- **The server.** The repo has nothing that watches disk space, memory or CPU, and whether Webdock sends alerts isn't recorded.
+- **Appwrite failing behind a running app.** `/api/health` answers `200` while the pages are empty, as described above. Sentry's `appwrite.timeout` count and the `api.biso.no/api/health/ready` check catch a bad key or a dead Appwrite, but not every empty page.
+- **Payments stuck as pending.** The `orders.stuck` alert fires when the count from the last reconciliation run stays above 0 for an hour. Order reconciliation retries on its own, and nobody is told about a payment that never reached BISO at all.
+- **The server.** The repo has nothing that watches disk space, memory or CPU, and whether Webdock sends alerts isn't recorded. Sentry has no agent for it.
+- **Appwrite's own internals.** Sentry doesn't watch the self-hosted Appwrite server.
 - **The nightly backup.** Nobody checks that it ran. See [Backups and recovery](/developers/keep-it-running/backups-and-recovery).
 - **Expiry dates.** Nothing tracks when certificates and secrets run out. The [Yearly calendar](/developers/keep-it-running/yearly-calendar) lists the ones that are known.
+- **A Site built without its DSN.** It sends nothing, and no alert says so. After each deploy, check the [after-deploy list](/developers/keep-it-running/deploying#sentry-after-a-deploy).
 
-Until something better exists, open these once a week: the latest scheduled-dispatch execution (it should end with `"failed":0`), the members page's status line, and the Site logs of the admin and the api for `[request-error]`.
+A quiet inbox is only good news if Sentry is switched on for every Site. Once a week, open the **BISO platform health** dashboard and the **Crons** page in Sentry, and look at the latest scheduled-dispatch execution (it should end with `"failed":0`).

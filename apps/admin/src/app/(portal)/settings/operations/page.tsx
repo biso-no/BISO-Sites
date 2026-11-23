@@ -34,6 +34,15 @@ export default async function OperationsPage() {
       <OperationsHealth
         integrations={integrations}
         labels={{
+          sentryTest: {
+            button: t("sentryTest.button"),
+            eventId: t("sentryTest.eventId"),
+            failed: t("sentryTest.failed"),
+            forbidden: t("sentryTest.forbidden"),
+            notConfigured: t("sentryTest.notConfigured"),
+            queued: t("sentryTest.queued"),
+            sending: t("sentryTest.sending"),
+          },
           integrationsTitle: t("integrationsTitle"),
           missingSuffix: t("missingSuffix"),
           runbook: t("runbook"),

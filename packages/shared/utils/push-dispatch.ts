@@ -14,6 +14,7 @@ import {
   type UserNotifications,
   type Users,
 } from "@repo/api/types/appwrite";
+import { countMetric } from "@repo/observability/metrics";
 import {
   localizedTopicId,
   PUSH_LOCALES,
@@ -319,7 +320,10 @@ async function sendPush(
     });
   } catch (error) {
     console.error("Failed to send announcement push:", error);
+    countMetric("push.failed");
+    return;
   }
+  countMetric("push.sent");
 }
 
 /**

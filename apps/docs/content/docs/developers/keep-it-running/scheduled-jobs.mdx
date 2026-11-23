@@ -111,6 +111,19 @@ In the console, open **Functions**, then scheduled-dispatch, then **Executions**
 | `FAIL <NAME> <URL> -> no-response (…ms):` followed by any other error | The function couldn't reach the target: the app is down, or the URL is wrong | Check the target app's `/api/health`, and the URL in the function's variables |
 | `uncaught error` | An unexpected error | The stack trace in **Errors** points at the cause |
 
+### How Sentry watches them
+
+With `SENTRY_DSN` set on the function, each run reports to the `biso-functions` project in Sentry. Without it nothing is reported and the function runs as before.
+
+- **`scheduled-dispatch`** is one cron monitor for the whole run, expected every 5 minutes.
+- **`dispatch-<target>`** is one monitor per target, named after its variable in lower case with dashes: `CONTENT_NOTIFIER_URL` becomes `dispatch-content-notifier`, `ORDERS_RECONCILE_URL` becomes `dispatch-orders-reconcile`. The dispatcher checks in before it calls the target and closes the check-in when the target answers, so a monitor shows which target is slow or failing. A target's monitor is created the first time that target runs in production. After the first week, check that the "site is down or a scheduled job failed" alert covers it ([Monitoring and health](/developers/keep-it-running/monitoring-and-health#the-alerts)). A target with no URL set has no monitor.
+- A failed target also sends an error event tagged `target`. The alerts leave those events out, because the monitor already alerts.
+- **A monitor goes red** when a run fails, when no check-in arrives within 2 minutes of the expected time, or when a run takes longer than its limit. The limit is the target's timeout plus one minute, and at least 2 minutes: 2 for most targets and 6 for orders-reconcile and expenses-post-pending. scheduled-dispatch's own monitor allows 6. member-roster-sync's monitor allows 30 minutes of lateness and 20 minutes of run time.
+- **It takes two.** Every monitor opens an issue, and so emails the owner, only after two failed or missed runs in a row. One good run closes the issue. For member-roster-sync, the first email comes after the second failed night.
+- **Finding the function's errors.** Error events from the functions carry the tag `function_name`. Filter on it in `biso-functions` to see one function's errors.
+
+A failed target's error says which target failed and the HTTP status. The response body isn't sent. The events and the check-ins go through the scrubber anyway. The code is in `packages/observability/src/functions/reporter.ts`. member-roster-sync and content-notifier each have a `src/report.ts` for what they report. scheduled-dispatch has none: its reporting, including every monitor's settings, is in `src/main.ts`.
+
 ### Run a job by hand
 
 To run every target now, send the secret to the function's domain. The domain is shown on the function in the console, and `CRON_SECRET` is in Infisical.
@@ -148,6 +161,8 @@ A run started through the domain may be cut off after 30 seconds, which is Appwr
 
 If it stops, nothing new gets an automatic push. Pending locks go out at the next pass that works.
 
+With `SENTRY_DSN` set, it reports its own errors to Sentry, except a refusal for a wrong `CRON_SECRET` (`401` or `403`), which isn't an error in the function. Its pass is also watched through the dispatcher's `dispatch-content-notifier` monitor.
+
 To check it, save a news item in the admin. An execution with the trigger `event` should appear under the function's executions, and it shouldn't answer `400`.
 
 ## member-roster-sync
@@ -158,6 +173,8 @@ To check it, save a news item in the admin. An execution with the trigger `event
 - A run that overlaps another one stops at once. A failed run answers `500`, and the members page shows **Siste oppdatering feilet** (Last refresh failed). A run still `processing` after 15 minutes counts as stuck.
 
 If it stops, the members page goes stale. New membership plans added in 24SevenOffice also don't reach `memberships`, which decides what's for sale. Nothing else fills that table.
+
+With `SENTRY_DSN` set, it has its own cron monitor, `member-roster-sync`, that expects a run on `MEMBER_ROSTER_SYNC_SCHEDULE` (default `0 3 * * *`). A failed run sends an error event whose stack names files and functions but never a member. If you change the schedule in the console, change that variable too, or Sentry reports a missed run every night.
 
 Don't run it from your machine against production. A local run uses the Appwrite settings in `apps/admin/.env.local`, skips the overlap guard, and can delete the rows of a run that's in progress.
 

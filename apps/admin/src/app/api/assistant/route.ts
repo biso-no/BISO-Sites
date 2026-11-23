@@ -10,6 +10,7 @@ import type { AssistantActionDeps } from "@repo/ai/assistant/types";
 import { ID, type Models, Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Orders } from "@repo/api/types/appwrite";
+import { traceAiStream } from "@repo/observability/ai";
 import {
   FEATURE_FLAGS,
   getFlagDef,
@@ -217,15 +218,28 @@ export async function POST(request: NextRequest) {
   });
 
   // 9. Stream
-  const result = streamText({
-    model: chatModel,
-    instructions,
-    messages: await convertToModelMessages(messages),
-    tools,
-    toolApproval: gate.toolApproval,
-    experimental_toolApprovalSecret: gate.approvalSecret,
-    stopWhen: isStepCount(12),
-  });
+  const modelMessages = await convertToModelMessages(messages);
+  const result = traceAiStream(
+    {
+      functionId: "admin.assistant",
+      model: chatModel,
+      operation: "chat",
+      signal: request.signal,
+    },
+    (span) =>
+      streamText({
+        model: chatModel,
+        instructions,
+        messages: modelMessages,
+        tools,
+        toolApproval: gate.toolApproval,
+        experimental_toolApprovalSecret: gate.approvalSecret,
+        stopWhen: isStepCount(12),
+        onEnd: span.onEnd,
+        // In place of the AI SDK's own handler, which logs the whole error.
+        onError: span.onErrorWithLog,
+      })
+  );
 
   return createUIMessageStreamResponse({
     stream: toUIMessageStream({ stream: result.stream, tools }),

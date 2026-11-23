@@ -5,10 +5,12 @@
  * as a silent security problem.
  *
  * Skipped during `next build` (env/secrets are typically absent there); the
- * checks run for the dev server and the production runtime.
+ * checks run for the dev server and the production runtime. Sentry loads last;
+ * a failure to load it only logs.
  */
 
 import { logServerRequestError } from "@repo/shared/utils/server-error-logging";
+import type { captureRequestError } from "@sentry/nextjs";
 import type { Instrumentation } from "next";
 import { ADMIN_SESSION_COOKIE } from "./lib/session-cookie";
 
@@ -24,7 +26,12 @@ const RECOMMENDED_ENV = [
   "NEXT_PUBLIC_APPWRITE_PROJECT",
 ] as const;
 
-export function register() {
+// Set once Sentry has loaded. @sentry/nextjs is bundled into the build, so a
+// missing package fails the build; the catch in register() covers Sentry
+// failing to load or start at run time, and the Site then runs without it.
+let captureRequest: typeof captureRequestError | undefined;
+
+export async function register() {
   // Don't fail the build — only validate at server start / runtime.
   if (process.env.NEXT_PHASE === "phase-production-build") {
     return;
@@ -62,6 +69,17 @@ export function register() {
       )}.`
     );
   }
+
+  if (process.env.NEXT_RUNTIME !== "nodejs") {
+    return;
+  }
+  try {
+    const sentry = await import("@sentry/nextjs");
+    await import("./sentry.server.config");
+    captureRequest = sentry.captureRequestError;
+  } catch (error) {
+    console.error("[admin] Sentry failed to load; running without it", error);
+  }
 }
 
 export const onRequestError: Instrumentation.onRequestError = (
@@ -75,4 +93,5 @@ export const onRequestError: Instrumentation.onRequestError = (
     error,
     request,
   });
+  captureRequest?.(error, request, context);
 };

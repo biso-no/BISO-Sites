@@ -1,6 +1,14 @@
 import path from "node:path";
+import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
+// Relative, not `@repo/observability/build`: Next transpiles this file with
+// tsconfig `paths`, which maps `@repo/*` to `../../packages/*` and misses the
+// package `exports` (the source lives under `src/`).
+import {
+  SENTRY_TRANSPILE_PACKAGES,
+  sentryBuildOptions,
+} from "../../packages/observability/src/build";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
@@ -16,14 +24,16 @@ const baseConfig: NextConfig = {
     "@repo/shared",
     "@repo/ai",
     "@repo/editor",
+    "@repo/observability",
     "@repo/payment",
     "@repo/tours",
     "@repo/typescript-config",
+    // Bundles the server SDK on Bun builds too (see the constant).
+    ...SENTRY_TRANSPILE_PACKAGES,
   ],
   reactStrictMode: true,
   output: "standalone",
   outputFileTracingRoot: path.join(import.meta.dirname, "../../"),
-  productionBrowserSourceMaps: false,
   images: {
     remotePatterns: [
       {
@@ -106,6 +116,8 @@ const baseConfig: NextConfig = {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=()",
           },
+          // Lets the browser profile this page for Sentry (Chromium only).
+          { key: "Document-Policy", value: "js-profiling" },
         ],
       },
       // The member pass scanners need the camera. When two rules set the
@@ -135,4 +147,9 @@ const baseConfig: NextConfig = {
   },
 };
 
-export default withNextIntl(baseConfig);
+// Sentry's wrapper goes outermost. It turns on browser source maps for the
+// upload and deletes them from the output afterwards.
+export default withSentryConfig(
+  withNextIntl(baseConfig),
+  sentryBuildOptions("admin")
+);

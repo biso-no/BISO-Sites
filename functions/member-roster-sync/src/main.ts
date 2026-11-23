@@ -19,7 +19,9 @@ import {
   getMembershipInvoices,
   syncMembershipCatalog,
 } from "@repo/connectors/24sevenoffice";
+import { reporterFromEnv } from "@repo/observability/functions";
 import { STALE_EXECUTION_MS } from "@repo/shared/utils/member-roster-sync";
+import { runMonitored } from "./report";
 import type { RosterRow } from "./roster";
 import { httpStatusFor, runSync } from "./run";
 import { adoptRuntimeApiKey } from "./runtime-key";
@@ -46,93 +48,108 @@ interface AppwriteContext {
 }
 
 export default async function main(context: AppwriteContext) {
+  const reporter = reporterFromEnv(process.env, "member-roster-sync");
+  try {
+    return await handle(context, reporter);
+  } finally {
+    await reporter.flush();
+  }
+}
+
+async function handle(
+  context: AppwriteContext,
+  reporter: ReturnType<typeof reporterFromEnv>
+) {
   adoptRuntimeApiKey(context.req.headers);
   try {
     const { db, functions } = await createAdminClient();
     const functionId = process.env.APPWRITE_FUNCTION_ID;
 
-    const result = await runSync({
-      countRunningExecutions: async () => {
-        // Outside the Appwrite runtime (a manual local run) there is no id.
-        if (!functionId) {
-          return 0;
-        }
-        const list = await functions.listExecutions({
-          functionId,
-          queries: [
-            Query.equal("status", ["processing"]),
-            Query.greaterThan(
-              "$createdAt",
-              new Date(Date.now() - STALE_EXECUTION_MS).toISOString()
-            ),
-            Query.limit(1),
-          ],
-        });
-        return list.total;
-      },
-      deleteStaleRows: async (runId) => {
-        let removed = 0;
-        for (let round = 0; round < MAX_DELETE_ROUNDS; round++) {
-          // Always filtered: deleteRows with no queries empties the table.
-          const deleted = await db.deleteRows({
-            databaseId: DB,
-            queries: [Query.notEqual("sync_run_id", runId)],
-            tableId: ROSTER_TABLE,
-          });
-          if (deleted.total === 0) {
-            break;
+    const result = await runMonitored(reporter, () =>
+      runSync({
+        countRunningExecutions: async () => {
+          // Outside the Appwrite runtime (a manual local run) there is no id.
+          if (!functionId) {
+            return 0;
           }
-          removed += deleted.total;
-        }
-        return removed;
-      },
-      fetchCompanies: () =>
-        getAllCompanies({ timeoutMs: COMPANIES_TIMEOUT_MS }),
-      fetchInvoiceLines: (ids, productIds) =>
-        getMembershipInvoices(ids, productIds, {
-          timeoutMs: INVOICE_TIMEOUT_MS,
-        }),
-      fetchTree: () => getCustomerCategoryTree({ timeoutMs: TREE_TIMEOUT_MS }),
-      listCampusIds: async () => {
-        const campuses = await db.listRows<Campus>(DB, "campus", [
-          Query.select(["$id"]),
-          Query.limit(100),
-        ]);
-        return new Set(campuses.rows.map((row) => row.$id));
-      },
-      listPlanRows: async () => {
-        const plans = await db.listRows<Memberships>(DB, "memberships", [
-          Query.select([
-            "membership_id",
-            "name",
-            "category",
-            "startDate",
-            "expiryDate",
-          ]),
-          Query.limit(500),
-        ]);
-        return plans.rows.map((row) => ({
-          category: row.category,
-          expiryDate: row.expiryDate,
-          membership_id: row.membership_id,
-          name: row.name,
-          startDate: row.startDate,
-        }));
-      },
-      log: (message) => context.log(`${LOG_TAG} ${message}`),
-      newRunId: () => ID.unique(),
-      now: () => new Date(),
-      syncCatalog: () => syncMembershipCatalog(),
-      upsertRows: async (rows: RosterRow[]) => {
-        for (let i = 0; i < rows.length; i += UPSERT_BATCH) {
-          await db.upsertRows({
-            databaseId: DB,
-            rows: rows.slice(i, i + UPSERT_BATCH),
-            tableId: ROSTER_TABLE,
+          const list = await functions.listExecutions({
+            functionId,
+            queries: [
+              Query.equal("status", ["processing"]),
+              Query.greaterThan(
+                "$createdAt",
+                new Date(Date.now() - STALE_EXECUTION_MS).toISOString()
+              ),
+              Query.limit(1),
+            ],
           });
-        }
-      },
-    });
+          return list.total;
+        },
+        deleteStaleRows: async (runId) => {
+          let removed = 0;
+          for (let round = 0; round < MAX_DELETE_ROUNDS; round++) {
+            // Always filtered: deleteRows with no queries empties the table.
+            const deleted = await db.deleteRows({
+              databaseId: DB,
+              queries: [Query.notEqual("sync_run_id", runId)],
+              tableId: ROSTER_TABLE,
+            });
+            if (deleted.total === 0) {
+              break;
+            }
+            removed += deleted.total;
+          }
+          return removed;
+        },
+        fetchCompanies: () =>
+          getAllCompanies({ timeoutMs: COMPANIES_TIMEOUT_MS }),
+        fetchInvoiceLines: (ids, productIds) =>
+          getMembershipInvoices(ids, productIds, {
+            timeoutMs: INVOICE_TIMEOUT_MS,
+          }),
+        fetchTree: () =>
+          getCustomerCategoryTree({ timeoutMs: TREE_TIMEOUT_MS }),
+        listCampusIds: async () => {
+          const campuses = await db.listRows<Campus>(DB, "campus", [
+            Query.select(["$id"]),
+            Query.limit(100),
+          ]);
+          return new Set(campuses.rows.map((row) => row.$id));
+        },
+        listPlanRows: async () => {
+          const plans = await db.listRows<Memberships>(DB, "memberships", [
+            Query.select([
+              "membership_id",
+              "name",
+              "category",
+              "startDate",
+              "expiryDate",
+            ]),
+            Query.limit(500),
+          ]);
+          return plans.rows.map((row) => ({
+            category: row.category,
+            expiryDate: row.expiryDate,
+            membership_id: row.membership_id,
+            name: row.name,
+            startDate: row.startDate,
+          }));
+        },
+        log: (message) => context.log(`${LOG_TAG} ${message}`),
+        newRunId: () => ID.unique(),
+        now: () => new Date(),
+        syncCatalog: () => syncMembershipCatalog(),
+        upsertRows: async (rows: RosterRow[]) => {
+          for (let i = 0; i < rows.length; i += UPSERT_BATCH) {
+            await db.upsertRows({
+              databaseId: DB,
+              rows: rows.slice(i, i + UPSERT_BATCH),
+              tableId: ROSTER_TABLE,
+            });
+          }
+        },
+      })
+    );
     return context.res.json(result, httpStatusFor(result));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

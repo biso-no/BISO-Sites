@@ -40,3 +40,23 @@ describe("admin headers", () => {
     );
   });
 });
+
+describe("admin profiling header", () => {
+  it("sends Document-Policy: js-profiling on every route, scanners included", async () => {
+    const rules = (await config.headers?.()) ?? [];
+    for (const pathname of ["/members", "/members/scan", "/scan/abc"]) {
+      let value: string | undefined;
+      for (const rule of rules) {
+        if (!getPathMatch(rule.source, { strict: true })(pathname)) {
+          continue;
+        }
+        for (const header of rule.headers) {
+          if (header.key === "Document-Policy") {
+            value = header.value;
+          }
+        }
+      }
+      expect(value).toBe("js-profiling");
+    }
+  });
+});

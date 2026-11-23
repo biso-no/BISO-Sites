@@ -38,6 +38,7 @@
   "dependencies": {
     "@repo/api": "workspace:*",
     "@repo/connectors": "workspace:*",
+    "@repo/observability": "workspace:*",
     "node-appwrite": "catalog:",
     "passkit-generator": "^3.6.0",
     "server-only": "catalog:",

@@ -1,0 +1,407 @@
+{
+  "title": "BISO platform health",
+  "projects": [
+    4512446739972176,
+    4512446740037712,
+    4512446740103248,
+    4512446740234320,
+    4512446740299856
+  ],
+  "environment": [
+    "production"
+  ],
+  "period": "24h",
+  "filters": {},
+  "widgets": [
+    {
+      "title": "Errors per project (24h)",
+      "description": null,
+      "displayType": "line",
+      "widgetType": "error-events",
+      "interval": "1h",
+      "limit": 5,
+      "layout": {
+        "x": 0,
+        "y": 0,
+        "w": 3,
+        "h": 2
+      },
+      "queries": [
+        {
+          "name": "",
+          "conditions": "event.type:error",
+          "fields": [
+            "project",
+            "count()"
+          ],
+          "aggregates": [
+            "count()"
+          ],
+          "columns": [
+            "project"
+          ],
+          "orderby": "-count()"
+        }
+      ]
+    },
+    {
+      "title": "New unresolved issues (24h)",
+      "description": null,
+      "displayType": "table",
+      "widgetType": "issue",
+      "interval": "1h",
+      "limit": null,
+      "layout": {
+        "x": 3,
+        "y": 0,
+        "w": 3,
+        "h": 2
+      },
+      "queries": [
+        {
+          "name": "",
+          "conditions": "is:unresolved age:-24h",
+          "fields": [
+            "issue",
+            "title",
+            "project",
+            "events",
+            "users"
+          ],
+          "aggregates": [
+            "events",
+            "users"
+          ],
+          "columns": [
+            "issue",
+            "title",
+            "project"
+          ],
+          "orderby": "-events"
+        }
+      ]
+    },
+    {
+      "title": "Web vitals on biso.no (p75 LCP, INP)",
+      "description": null,
+      "displayType": "line",
+      "widgetType": "spans",
+      "interval": "1h",
+      "limit": null,
+      "layout": {
+        "x": 0,
+        "y": 2,
+        "w": 3,
+        "h": 2
+      },
+      "queries": [
+        {
+          "name": "LCP",
+          "conditions": "project:biso-web is_transaction:1 has:measurements.lcp",
+          "fields": [
+            "p75(measurements.lcp)"
+          ],
+          "aggregates": [
+            "p75(measurements.lcp)"
+          ],
+          "columns": [],
+          "orderby": ""
+        },
+        {
+          "name": "INP",
+          "conditions": "project:biso-web has:measurements.inp",
+          "fields": [
+            "p75(measurements.inp)"
+          ],
+          "aggregates": [
+            "p75(measurements.inp)"
+          ],
+          "columns": [],
+          "orderby": ""
+        }
+      ]
+    },
+    {
+      "title": "Slowest server routes (p95 duration, web + api)",
+      "description": null,
+      "displayType": "table",
+      "widgetType": "spans",
+      "interval": "1h",
+      "limit": 10,
+      "layout": {
+        "x": 3,
+        "y": 2,
+        "w": 3,
+        "h": 2
+      },
+      "queries": [
+        {
+          "name": "",
+          "conditions": "project:[biso-web,biso-api] span.op:http.server has:http.route",
+          "fields": [
+            "transaction",
+            "p95(span.duration)",
+            "count()"
+          ],
+          "aggregates": [
+            "p95(span.duration)",
+            "count()"
+          ],
+          "columns": [
+            "transaction"
+          ],
+          "orderby": "-p95(span.duration)"
+        }
+      ]
+    },
+    {
+      "title": "Appwrite calls (p95 duration, count)",
+      "description": null,
+      "displayType": "line",
+      "widgetType": "spans",
+      "interval": "1h",
+      "limit": null,
+      "layout": {
+        "x": 0,
+        "y": 4,
+        "w": 3,
+        "h": 2
+      },
+      "queries": [
+        {
+          "name": "",
+          "conditions": "span.op:http.client has:appwrite.client",
+          "fields": [
+            "p95(span.duration)",
+            "count()"
+          ],
+          "aggregates": [
+            "p95(span.duration)",
+            "count()"
+          ],
+          "columns": [],
+          "orderby": ""
+        }
+      ]
+    },
+    {
+      "title": "Appwrite timeouts (appwrite.timeout)",
+      "description": null,
+      "displayType": "line",
+      "widgetType": "tracemetrics",
+      "interval": "1h",
+      "limit": null,
+      "layout": {
+        "x": 3,
+        "y": 4,
+        "w": 3,
+        "h": 2
+      },
+      "queries": [
+        {
+          "name": "",
+          "conditions": "",
+          "fields": [
+            "sum(value,appwrite.timeout,counter,none)"
+          ],
+          "aggregates": [
+            "sum(value,appwrite.timeout,counter,none)"
+          ],
+          "columns": [],
+          "orderby": ""
+        }
+      ]
+    },
+    {
+      "title": "Payments: completed vs failed (by outcome)",
+      "description": null,
+      "displayType": "line",
+      "widgetType": "tracemetrics",
+      "interval": "1h",
+      "limit": 5,
+      "layout": {
+        "x": 0,
+        "y": 6,
+        "w": 3,
+        "h": 2
+      },
+      "queries": [
+        {
+          "name": "completed",
+          "conditions": "",
+          "fields": [
+            "sum(value,payment.completed,counter,none)"
+          ],
+          "aggregates": [
+            "sum(value,payment.completed,counter,none)"
+          ],
+          "columns": [],
+          "orderby": ""
+        },
+        {
+          "name": "failed / cancelled",
+          "conditions": "",
+          "fields": [
+            "outcome",
+            "sum(value,payment.failed,counter,none)"
+          ],
+          "aggregates": [
+            "sum(value,payment.failed,counter,none)"
+          ],
+          "columns": [
+            "outcome"
+          ],
+          "orderby": ""
+        }
+      ]
+    },
+    {
+      "title": "Pushes: sent (accepted by Appwrite) vs failed",
+      "description": null,
+      "displayType": "line",
+      "widgetType": "tracemetrics",
+      "interval": "1h",
+      "limit": null,
+      "layout": {
+        "x": 3,
+        "y": 6,
+        "w": 3,
+        "h": 2
+      },
+      "queries": [
+        {
+          "name": "sent",
+          "conditions": "",
+          "fields": [
+            "sum(value,push.sent,counter,none)"
+          ],
+          "aggregates": [
+            "sum(value,push.sent,counter,none)"
+          ],
+          "columns": [],
+          "orderby": ""
+        },
+        {
+          "name": "failed",
+          "conditions": "",
+          "fields": [
+            "sum(value,push.failed,counter,none)"
+          ],
+          "aggregates": [
+            "sum(value,push.failed,counter,none)"
+          ],
+          "columns": [],
+          "orderby": ""
+        }
+      ]
+    },
+    {
+      "title": "Expense bookings: submitted vs booking failed",
+      "description": null,
+      "displayType": "line",
+      "widgetType": "tracemetrics",
+      "interval": "1h",
+      "limit": null,
+      "layout": {
+        "x": 0,
+        "y": 8,
+        "w": 3,
+        "h": 2
+      },
+      "queries": [
+        {
+          "name": "submitted",
+          "conditions": "",
+          "fields": [
+            "sum(value,expense.submitted,counter,none)"
+          ],
+          "aggregates": [
+            "sum(value,expense.submitted,counter,none)"
+          ],
+          "columns": [],
+          "orderby": ""
+        },
+        {
+          "name": "booking failed",
+          "conditions": "",
+          "fields": [
+            "sum(value,expense.booking_failed,counter,none)"
+          ],
+          "aggregates": [
+            "sum(value,expense.booking_failed,counter,none)"
+          ],
+          "columns": [],
+          "orderby": ""
+        }
+      ]
+    },
+    {
+      "title": "AI calls by feature (count, total tokens)",
+      "description": null,
+      "displayType": "table",
+      "widgetType": "spans",
+      "interval": "1h",
+      "limit": null,
+      "layout": {
+        "x": 3,
+        "y": 8,
+        "w": 3,
+        "h": 2
+      },
+      "queries": [
+        {
+          "name": "",
+          "conditions": "span.op:gen_ai.*",
+          "fields": [
+            "gen_ai.pipeline.name",
+            "count()",
+            "sum(gen_ai.usage.total_tokens)"
+          ],
+          "aggregates": [
+            "count()",
+            "sum(gen_ai.usage.total_tokens)"
+          ],
+          "columns": [
+            "gen_ai.pipeline.name"
+          ],
+          "orderby": "-count()"
+        }
+      ]
+    },
+    {
+      "title": "Problem reports (feedback, 7 days)",
+      "description": null,
+      "displayType": "table",
+      "widgetType": "issue",
+      "interval": "1h",
+      "limit": null,
+      "layout": {
+        "x": 0,
+        "y": 10,
+        "w": 6,
+        "h": 2
+      },
+      "queries": [
+        {
+          "name": "",
+          "conditions": "issue.category:feedback age:-7d",
+          "fields": [
+            "issue",
+            "title",
+            "project",
+            "events"
+          ],
+          "aggregates": [
+            "events"
+          ],
+          "columns": [
+            "issue",
+            "title",
+            "project"
+          ],
+          "orderby": "-events"
+        }
+      ]
+    }
+  ]
+}

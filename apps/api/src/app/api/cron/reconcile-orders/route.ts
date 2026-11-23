@@ -1,5 +1,6 @@
 import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
+import { gaugeMetric } from "@repo/observability/metrics";
 import {
   reconcileOrderPayment,
   sweepPendingRefunds,
@@ -263,6 +264,14 @@ async function handle(request: Request) {
     // or refund must surface as a 5xx — a 200 would report a broken run
     // (including an Appwrite outage swallowed per order) as a healthy ping.
     const failed = errors > 0 || refunds.failed > 0;
+
+    // Orders this run left unresolved: payment reconciles that errored, paid
+    // orders needing a manual Finago posting, and refunds with no order to
+    // settle against.
+    gaugeMetric(
+      "orders.stuck",
+      reconcile.errors + (finago?.needsManual ?? 0) + refunds.unresolved
+    );
 
     return NextResponse.json(
       {

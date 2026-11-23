@@ -10,6 +10,7 @@ import {
   EventsCollectionPricing,
   type EventsStatus,
 } from "@repo/api/types/appwrite";
+import { traceAiCall } from "@repo/observability/ai";
 import { eventReadPermissions } from "@repo/shared/utils/content-read-permissions";
 import { generateObject } from "ai";
 import { revalidatePath } from "next/cache";
@@ -913,11 +914,18 @@ export async function suggestEventDescriptionSection(input: {
   }
 
   try {
-    const { object } = await generateObject({
-      model: fastModel,
-      reasoning: "low",
-      schema: eventSuggestionResultSchema,
-      prompt: `Suggest one useful description section for a student organization event.
+    const { object } = await traceAiCall(
+      {
+        functionId: "admin.event-description",
+        model: fastModel,
+        operation: "generate_object",
+      },
+      () =>
+        generateObject({
+          model: fastModel,
+          reasoning: "low",
+          schema: eventSuggestionResultSchema,
+          prompt: `Suggest one useful description section for a student organization event.
 The output should be a run-of-show block, schedule, what-to-bring list, or similar helpful section that fits the event category.
 Return one short heading and a concise HTML body using only p, h3, ul and li tags.
 Do not repeat information already present in the current description.
@@ -925,7 +933,8 @@ Do not repeat information already present in the current description.
 Category: ${validated.data.category ?? "Any"}
 Current description:
 ${validated.data.current_description}`,
-    });
+        })
+    );
 
     return { data: object };
   } catch (error) {

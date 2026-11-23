@@ -8,6 +8,13 @@ const admin = vi.hoisted(() => ({
 vi.mock("@repo/api/server", () => ({
   createAdminClient: vi.fn(async () => admin.current),
 }));
+vi.mock("@repo/observability/ai", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@repo/observability/ai")>();
+  return { ...actual, traceAiCall: vi.fn(actual.traceAiCall) };
+});
+
+import { traceAiCall } from "@repo/observability/ai";
 
 import {
   buildCheckPrompt,
@@ -116,6 +123,11 @@ describe("checkWithAgent", () => {
     expect(answer).toEqual(ANSWER);
     expect(lookup).toHaveBeenCalledTimes(1);
     expect(model.doGenerateCalls).toHaveLength(2);
+    expect(vi.mocked(traceAiCall).mock.calls.at(-1)?.[0]).toEqual({
+      functionId: "api.expense-check",
+      model,
+      operation: "generate_text",
+    });
     expect(model.doGenerateCalls[0]?.reasoning).toBe("medium");
     expect(model.doGenerateCalls[0]?.tools?.map((t) => t.name).sort()).toEqual([
       "finish_check",

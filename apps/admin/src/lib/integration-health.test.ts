@@ -18,6 +18,7 @@ describe("INTEGRATIONS registry", () => {
         "sharepoint",
         "vipps",
         "schedulers",
+        "sentry",
       ])
     );
   });
@@ -29,6 +30,12 @@ describe("INTEGRATIONS registry", () => {
       expect(integration.runbook.startsWith("/docs/")).toBe(true);
       expect(integration.label.length).toBeGreaterThan(0);
     }
+  });
+
+  test("lists Sentry as an observability integration", () => {
+    const sentry = INTEGRATIONS.find((i) => i.id === "sentry");
+    expect(sentry?.category).toBe("observability");
+    expect(sentry?.envKeys).toEqual(["NEXT_PUBLIC_SENTRY_DSN"]);
   });
 
   test("never exposes a secret value — only env key names are stored", () => {

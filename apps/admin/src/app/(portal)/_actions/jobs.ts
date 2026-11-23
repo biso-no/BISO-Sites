@@ -9,6 +9,7 @@ import {
   type Jobs,
   JobsStatus,
 } from "@repo/api/types/appwrite";
+import { traceAiCall } from "@repo/observability/ai";
 import {
   fetchRecruitmentJobsByIds,
   fetchRecruitmentListPage,
@@ -1246,11 +1247,18 @@ export async function suggestJobDescriptionSection(values: {
     validated.data.locale === "no" ? "Norwegian Bokmål" : "English";
 
   try {
-    const { object } = await generateObject({
-      model: fastModel,
-      reasoning: "low",
-      schema: jobSuggestionResultSchema,
-      prompt: `Suggest one useful description section for a student organization vacancy.
+    const { object } = await traceAiCall(
+      {
+        functionId: "admin.job-description",
+        model: fastModel,
+        operation: "generate_object",
+      },
+      () =>
+        generateObject({
+          model: fastModel,
+          reasoning: "low",
+          schema: jobSuggestionResultSchema,
+          prompt: `Suggest one useful description section for a student organization vacancy.
 Write in ${language}.
 Return one short heading and 2-4 concise bullets.
 Do not repeat information already present in the current description.
@@ -1262,7 +1270,8 @@ Commitment: ${validated.data.commitment ?? "Not specified"}
 Tags: ${(validated.data.tags ?? []).join(", ") || "None"}
 Current description:
 ${validated.data.description ?? ""}`,
-    });
+        })
+    );
 
     return { data: object };
   } catch (error) {

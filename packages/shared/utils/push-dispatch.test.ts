@@ -1,6 +1,11 @@
 import { MessagePriority, Permission, Role } from "@repo/api";
 import type { Announcements } from "@repo/api/types/appwrite";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+const metrics = vi.hoisted(() => ({ countMetric: vi.fn() }));
+
+vi.mock("@repo/observability/metrics", () => metrics);
+
 import {
   buildDeepLink,
   buildPushData,
@@ -215,6 +220,30 @@ describe("groupUserIdsByLocale", () => {
     db.listRows.mockRejectedValue(new Error("boom"));
     const grouped = await groupUserIdsByLocale(db as never, ["u1", "u2"]);
     expect(grouped).toEqual({ no: [], en: ["u1", "u2"] });
+  });
+});
+
+describe("push metrics", () => {
+  afterEach(() => {
+    metrics.countMetric.mockClear();
+  });
+
+  it("counts push.sent for each push that goes out", async () => {
+    const { clients } = makeClients();
+    await dispatchAnnouncement(makeAnnouncement({ title_no: "Fest" }), clients);
+    expect(metrics.countMetric).toHaveBeenCalledWith("push.sent");
+    expect(metrics.countMetric).not.toHaveBeenCalledWith("push.failed");
+  });
+
+  it("counts push.failed and swallows the error when a push is rejected", async () => {
+    vi.spyOn(console, "error").mockImplementation(noop);
+    const { clients, messaging } = makeClients();
+    messaging.createPush.mockRejectedValue(new Error("fcm down"));
+    await expect(
+      dispatchAnnouncement(makeAnnouncement({ title_no: "Fest" }), clients)
+    ).resolves.toBeDefined();
+    expect(metrics.countMetric).toHaveBeenCalledWith("push.failed");
+    expect(metrics.countMetric).not.toHaveBeenCalledWith("push.sent");
   });
 });
 

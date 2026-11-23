@@ -7,6 +7,7 @@ import {
   createSessionJwt,
 } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
+import { setSentryUser } from "@repo/observability/user";
 import {
   accountEmailField,
   buildProfileRowPermissions,
@@ -144,6 +145,7 @@ const _getLoggedInUser = cache(
       if (!isAuthenticatedAccount(user)) {
         return null;
       }
+      setSentryUser(user.$id);
 
       try {
         const profile = await db.getRow<Users>("app", "user", user.$id);

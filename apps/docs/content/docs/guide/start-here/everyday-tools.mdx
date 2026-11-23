@@ -1,7 +1,7 @@
 ---
 title: Everyday tools
-description: The overview and its push subscriber counts, review drafts, the activity log, quick search and the BISO Assistant, and who sees each one.
-who: "Global admins (National + Operations Unit) and campus leaders (Ledelsen on your campus). Quick search and the BISO Assistant are for everyone with an admin role, including department members, HR and benefits editors."
+description: The overview and its push subscriber counts, review drafts, the activity log, quick search, the BISO Assistant, the recordings choice and reporting a problem, and who sees each one.
+who: "Global admins (National + Operations Unit) and campus leaders (Ledelsen on your campus). Quick search, the BISO Assistant, the recordings choice and reporting a problem are for everyone with an admin role, including department members, HR and benefits editors."
 covers:
   - apps/admin/src/app/(portal)/page.tsx
   - apps/admin/src/app/(portal)/_components/content-chart.tsx
@@ -21,6 +21,12 @@ covers:
   - apps/admin/src/app/api/assistant/**
   - packages/ai/src/assistant/**
   - apps/admin/src/app/(portal)/sidebar.tsx
+  - apps/admin/src/components/replay-consent.tsx
+  - apps/admin/src/components/report-problem.tsx
+  - apps/admin/src/lib/sentry-configured.ts
+  - packages/ui/components/replay-consent-bar.tsx
+  - packages/i18n/messages/*/replayConsent.json
+  - packages/i18n/messages/*/reportProblem.json
   - apps/admin/src/app/(portal)/_components/admin-shell.tsx
   - apps/admin/src/app/(portal)/layout.tsx
   - apps/admin/src/lib/assistant-publish.ts
@@ -137,7 +143,7 @@ With nothing typed, you see:
 - **Recent**: the last five admin pages and items you opened. They're kept in this browser, so another computer has its own list.
 - **Navigate**: the admin pages your role can open. A few aren't here: **Medlemmer** (Members), **Regnskap** (Accounting), **Varsling** (Whistleblowing) and **Appversjoner** (App versions). Use the sidebar for those. Some names differ from the sidebar: **Shop** is **Produkter** (Products), **Drafts** is **Gjennomgå utkast** (Review Drafts), **IT Console** is **IT** and **Payment settings** is **Betaling** (Payments).
 - **Create**, if your role can create content: **New Event** and **New News Article**, plus **New Job Posting** for HR and global admins. Each opens the editor for a new item.
-- **Account**: **Sign Out**.
+- **Account**: **Privacy Settings**, **Report a Problem** and **Sign Out**. The first two are there only when the developers have switched error reporting on.
 
 Global admins also get **Switch campus: Oslo**, **Switch campus: Bergen**, **Switch campus: Trondheim**, **Switch campus: Stavanger** and **Switch campus: All campuses**. They do the same as the campus box in the sidebar.
 
@@ -194,13 +200,24 @@ Nobody is told about the request, and you aren't told when it's decided. When it
 If **Spør BISO Assistant** (Ask BISO Assistant) opens nothing and quick search has no **AI** row, the assistant is switched off for the whole admin. Ask the global admins.
 
 </Step>
+<Step title="Report a problem, and choose about recordings (everyone)">
+
+When error reporting is switched on, three things appear. If you don't see them, it's off, and a problem has to go to the developers another way.
+
+- **Hjelp oss å finne feil** (Help us find what's broken) is a bar along the bottom of the screen. It asks whether the admin may record your visits to see where it fails or is hard to use. Everything you type or read is hidden in the recording, and recordings are deleted after 90 days. Choose **Tillat** (Allow) or **Nei takk** (No thanks). The two buttons look the same, and the bar goes away after you choose. Until you choose, nothing is recorded.
+- **Personverninnstillinger** (Privacy settings) is a small link at the foot of the sidebar, under your name. It brings the bar back so you can change your answer. Quick search has the same thing as **Privacy Settings**.
+- **Rapporter et problem** (Report a problem) is next to it at the foot of the sidebar, and quick search has it as **Report a Problem**. It opens a form titled **Rapporter et problem** (Report a problem). Write what you did and what happened under **Hva gikk galt?** (What went wrong?) and choose **Send** (Send). You see **Takk. Vi har fått rapporten din.** (Thanks. We got your report.). The form has no screenshot button and never asks for your name or email.
+
+The report reaches the developers with the error and recording from your visit, if there are any. The form doesn't take your name or email, so nobody can reply to it. Tell the developers directly if you need an answer.
+
+</Step>
 </Steps>
 
 <WhatHappensNext>
 
 ## What happens next
 
-- None of these tools sends an email, a push or a Teams message of its own.
+- None of these tools sends an email, a push or a Teams message of its own. A problem report goes to the developers' error tracker, not to your inbox or theirs.
 - Approving a draft publishes it on biso.no at once. Events and news show on the biso.no lists, and jobs on biso.no/jobs. For an event, news item or job, its automatic push notification follows if the item's **Notify students when published** setting is on. It's on for items the assistant creates, so switch it off in the item's editor and save first if you don't want a push.
 - Approving a draft is written to the activity log with your email.
 - An approval request sent from the assistant waits in the approvers' inbox. Nobody gets a message about it.
@@ -219,3 +236,4 @@ Students and members never see these tools. They see what comes out of them: a d
 - Losing an assistant conversation. Reloading or closing the admin clears it. Copy anything you need first.
 - Choosing **Confirm** or **Delete** on an assistant card without reading every line. The card lists exactly what will be written, including the campus and whether the item goes live. A deletion can't be undone.
 - Looking for a member or a form submission in quick search. Use **Medlemmer** (Members) or **Innboks** (Inbox).
+- Answering **Tillat** (Allow) or **Nei takk** (No thanks) in a hurry and then wanting the other answer. Choose **Personverninnstillinger** (Privacy settings) to change it.

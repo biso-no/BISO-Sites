@@ -1,14 +1,19 @@
 import { readFileSync } from "node:fs";
-import path, { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import path from "node:path";
+import { withSentryConfig } from "@sentry/nextjs/config";
 import { createMDX } from "fumadocs-mdx/next";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import type { NextConfig } from "next";
+// Relative, not `@repo/observability/build`: Next transpiles this file with
+// tsconfig `paths`, which maps `@repo/*` to `../../packages/*` and misses the
+// package `exports` (the source lives under `src/`).
+import {
+  SENTRY_TRANSPILE_PACKAGES,
+  sentryBuildOptions,
+} from "../../packages/observability/src/build";
 
 const redirectRules = JSON.parse(
-  readFileSync(path.join(__dirname, "redirects.json"), "utf8")
-);
+  readFileSync(path.join(import.meta.dirname, "redirects.json"), "utf8")
+) as { source: string; destination: string }[];
 
 const withMDX = createMDX();
 
@@ -23,8 +28,7 @@ const NO_FRAMING_HEADERS = [
   { key: "X-Frame-Options", value: "DENY" },
 ];
 
-/** @type {import('next').NextConfig} */
-const config = {
+const config: NextConfig = {
   reactStrictMode: true,
   transpilePackages: [
     "@repo/api",
@@ -33,11 +37,14 @@ const config = {
     "@repo/connectors",
     "@repo/shared",
     "@repo/ai",
+    "@repo/observability",
     "@repo/payment",
     "@repo/typescript-config",
+    // Bundles the server SDK on Bun builds too (see the constant).
+    ...SENTRY_TRANSPILE_PACKAGES,
   ],
   output: "standalone",
-  outputFileTracingRoot: path.join(__dirname, "../../"),
+  outputFileTracingRoot: path.join(import.meta.dirname, "../../"),
   headers() {
     return Promise.resolve([
       { source: "/:path*", headers: NO_FRAMING_HEADERS },
@@ -50,4 +57,6 @@ const config = {
   },
 };
 
-export default withMDX(config);
+// Sentry's wrapper goes outermost. It turns on browser source maps for the
+// upload and deletes them from the output afterwards.
+export default withSentryConfig(withMDX(config), sentryBuildOptions("docs"));

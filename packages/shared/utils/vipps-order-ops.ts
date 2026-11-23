@@ -1,7 +1,12 @@
 import { ID, Permission, Query, Role } from "@repo/api";
 import { type Orders, OrdersStatus } from "@repo/api/types/appwrite";
+import { countMetric } from "@repo/observability/metrics";
 import type { CheckoutSessionParams } from "../types/vipps";
-import { getOrderItems, type ParsedOrderItem } from "./order-parsing";
+import {
+  getOrderItems,
+  hasMembershipItem,
+  type ParsedOrderItem,
+} from "./order-parsing";
 import { ORDER_ITEMS_SELECT } from "./order-queries";
 
 export interface DbClient {
@@ -286,6 +291,32 @@ function isStaleBackwardTransition(
 }
 
 /**
+ * Counts a settled payment, or one that didn't happen: `outcome: "cancelled"`
+ * for a checkout the buyer abandoned or let expire (or an admin cancel),
+ * `outcome: "failed"` for a payment that failed. `kind` comes from the order
+ * lines already read. Never throws.
+ */
+function countOrderOutcome(
+  newStatus: OrdersStatus,
+  currentOrder: Orders,
+  updateData: Partial<Orders>,
+  orderItems: ParsedOrderItem[]
+): void {
+  const provider = updateData.payment_provider ?? currentOrder.payment_provider;
+  const attributes = {
+    ...(provider ? { provider } : {}),
+    kind: hasMembershipItem(orderItems) ? "membership" : "shop",
+  };
+  if (newStatus === OrdersStatus.PAID) {
+    countMetric("payment.completed", attributes);
+  } else if (newStatus === OrdersStatus.CANCELLED) {
+    countMetric("payment.failed", { ...attributes, outcome: "cancelled" });
+  } else if (newStatus === OrdersStatus.FAILED) {
+    countMetric("payment.failed", { ...attributes, outcome: "failed" });
+  }
+}
+
+/**
  * Applies a resolved order status transition: reads the current order, adjusts
  * stock + reservations for the old→new transition, then persists the new status
  * plus any extra column updates. Provider-agnostic — the Vipps reconcile path
@@ -392,6 +423,11 @@ export async function applyOrderStatusTransition(
     );
 
     console.log(`[Order] Status updated: ${oldStatus} -> ${newStatus}`);
+    // A repeated same-status apply (webhook, return route and cron racing) is
+    // a no-op change; count the transition once.
+    if (oldStatus !== newStatus) {
+      countOrderOutcome(newStatus, currentOrder, updateData, orderItems);
+    }
     return { newStatus };
   } catch (error) {
     console.error("Error updating order status:", error);

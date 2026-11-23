@@ -20,7 +20,8 @@ export type IntegrationCategory =
   | "documents"
   | "payments"
   | "schedulers"
-  | "analytics";
+  | "analytics"
+  | "observability";
 
 export interface IntegrationDef {
   category: IntegrationCategory;
@@ -122,6 +123,16 @@ export const INTEGRATIONS: readonly IntegrationDef[] = [
     purpose:
       "Read-API access to the self-hosted Umami instance that powers the " +
       "admin analytics dashboard. Missing keys leave the dashboard empty.",
+  },
+  {
+    id: "sentry",
+    label: "Sentry",
+    category: "observability",
+    envKeys: ["NEXT_PUBLIC_SENTRY_DSN"],
+    runbook: "/docs/developers/keep-it-running/monitoring-and-health",
+    purpose:
+      "Error and performance reporting. Without the DSN Sentry stays off and " +
+      "errors are only visible in the server logs.",
   },
 ];
 

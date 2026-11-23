@@ -1,5 +1,6 @@
 "use client";
 
+import { setSentryUser } from "@repo/observability/user";
 import { ChevronLeft, Search } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -51,6 +52,11 @@ export function AdminShell({
   const tAdmin = useTranslations("admin");
   const crumbs = getCrumbKeys(pathname);
   const flatNav = useMemo(() => flattenNavTree(), []);
+
+  // Sentry gets the account id only.
+  useEffect(() => {
+    setSentryUser(user.id);
+  }, [user.id]);
 
   // Record visited nav sections for the command palette's Recent group.
   useEffect(() => {
@@ -158,7 +164,7 @@ export function AdminShell({
           <NotificationsPanel roles={roles} />
         </header>
 
-        <main className="portal-scrollbar min-h-0 flex-1 overflow-y-auto">
+        <main className="portal-scrollbar min-h-0 flex-1 overflow-y-auto pb-[var(--replay-consent-bar-height,0px)]">
           <div className="mx-auto min-h-full max-w-[1640px] px-5 py-7 md:px-9 md:py-9">
             {children}
           </div>

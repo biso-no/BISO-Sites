@@ -6,7 +6,10 @@ import { getLocale } from "@/app/actions/locale";
 import { Container } from "@/components/ui/container";
 import { StatRow } from "@/components/ui/stat-row";
 import { cachedCampuses, cachedHomeCounts } from "@/lib/data/public-content";
+import { isSentryConfigured } from "@/lib/sentry-configured";
 import { AppStoreBadge } from "./app-store-badge";
+import { FooterPrivacySettings } from "./footer-privacy-settings";
+import { FooterReportProblem } from "./footer-report-problem";
 import { FooterSocial } from "./footer-social";
 
 /**
@@ -65,9 +68,10 @@ async function footerStats(): Promise<{ value: string; label: string }[]> {
 }
 
 export async function FooterV2() {
-  const [t, tCommon, stats] = await Promise.all([
+  const [t, tCommon, tConsent, stats] = await Promise.all([
     getTranslations("common.footer"),
     getTranslations("common"),
+    getTranslations("replayConsent"),
     footerStats(),
   ]);
 
@@ -176,6 +180,16 @@ export async function FooterV2() {
                     <FooterLink href={link.href}>{link.label}</FooterLink>
                   </li>
                 ))}
+                {column.id === "practical" && isSentryConfigured() && (
+                  <li>
+                    <FooterPrivacySettings label={tConsent("settings")} />
+                  </li>
+                )}
+                {column.id === "practical" && isSentryConfigured() && (
+                  <li>
+                    <FooterReportProblem />
+                  </li>
+                )}
               </ul>
             </nav>
           ))}

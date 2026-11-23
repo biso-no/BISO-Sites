@@ -43,7 +43,7 @@ In **Generelt** (General) and **Varsler** (Notifications), **Lagre innstillinger
 
 Choose the **Driftshelse** (Operations health) tab. The page only reads. It shows whether the settings the admin needs exist, but never their values.
 
-**Integrasjoner** (Integrations) lists six services: Appwrite, Microsoft 365, SharePoint, Vipps MobilePay, Scheduler secrets and Umami analytics. Each has an English line on what it's for, and a status:
+**Integrasjoner** (Integrations) lists seven services: Appwrite, Microsoft 365, SharePoint, Vipps MobilePay, Scheduler secrets, Umami analytics and Sentry. Each has an English line on what it's for, and a status:
 
 - **Konfigurert** (Configured): every setting it needs exists.
 - **Ufullstendig** (Incomplete): some exist. The row says how many are missing, such as **2 mangler** (2 missing), but not which.
@@ -53,6 +53,8 @@ A status only says whether a setting exists. It doesn't test the service. Two ro
 
 - **Vipps MobilePay** checks a fallback set of Vipps settings on the admin. The settings checkout normally uses are under **Betaling** (Payments), so check those instead.
 - **Scheduler secrets** counts two old settings that the developers leave empty. So **Ufullstendig** (Incomplete) with **2 mangler** (2 missing) is normal there.
+
+The **Sentry** row has a button, **Send testfeil til Sentry** (Send test error to Sentry). It sends one test error to Sentry, the error tracker the developers use, and shows an event id. If it says Sentry is not configured, nothing was sent, and the developers need to hear about it. **Konfigurert** (Configured) on this row doesn't prove errors are reaching Sentry, so use the button to check.
 
 The **Driftshåndbok** (Runbook) links point to pages that don't exist. If a service looks wrong, tell the developers (see the [developer docs](/developers)).
 

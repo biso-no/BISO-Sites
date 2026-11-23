@@ -25,6 +25,9 @@ const payee = vi.hoisted(() => ({
   })),
 }));
 
+const metrics = vi.hoisted(() => ({ countMetric: vi.fn() }));
+
+vi.mock("@repo/observability/metrics", () => metrics);
 vi.mock("@repo/api/server", () => ({
   createAdminClient: vi.fn(async () => ({ db, storage })),
 }));
@@ -117,6 +120,7 @@ const failBookedEvents = () =>
   );
 
 beforeEach(() => {
+  metrics.countMetric.mockReset();
   for (const fn of [
     ...Object.values(db),
     ...Object.values(storage),
@@ -251,6 +255,8 @@ describe("retryExpenseBooking", () => {
       ok: false,
     });
     expect(eventActions()).toContain("booking_failed");
+    expect(metrics.countMetric).toHaveBeenCalledTimes(1);
+    expect(metrics.countMetric).toHaveBeenCalledWith("expense.booking_failed");
   });
 });
 

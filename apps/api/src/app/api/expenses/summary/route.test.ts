@@ -17,7 +17,13 @@ vi.mock("@repo/shared/utils/feature-flags-server", () => ({
 vi.mock("@repo/ai/models", () => ({ fastModel: "f" }));
 const generateObject = vi.hoisted(() => vi.fn());
 vi.mock("ai", () => ({ generateObject }));
+vi.mock("@repo/observability/ai", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@repo/observability/ai")>();
+  return { ...actual, traceAiCall: vi.fn(actual.traceAiCall) };
+});
 
+import { traceAiCall } from "@repo/observability/ai";
 import { POST } from "./route";
 
 const ORIGIN = "http://localhost:3000";
@@ -109,6 +115,11 @@ describe("expenses/summary result", () => {
     expect(
       schema.safeParse({ occasionSuggestion: null, summary: "x" }).success
     ).toBe(true);
+    expect(vi.mocked(traceAiCall).mock.calls.at(-1)?.[0]).toEqual({
+      functionId: "api.expense-summary",
+      model: "f",
+      operation: "generate_object",
+    });
   });
 
   it("asks for the occasion suggestion in the student's language", async () => {

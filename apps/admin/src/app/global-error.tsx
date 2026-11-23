@@ -19,6 +19,14 @@ export default function GlobalError({
       "Global error boundary caught:",
       error.digest ?? error.message
     );
+    // Loaded here, not at the top: this boundary is server-rendered with
+    // every page, and a Sentry module missing from the build must not take
+    // page rendering down with it.
+    import("@sentry/nextjs")
+      .then(({ captureException }) => captureException(error))
+      .catch(() => {
+        // Sentry is unavailable; the console.error above still records it.
+      });
   }, [error]);
 
   return (

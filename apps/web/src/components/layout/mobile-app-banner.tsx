@@ -51,7 +51,7 @@ export function MobileAppBannerView({
   return (
     <aside
       aria-label={t("title")}
-      className="fixed inset-x-3 bottom-3 z-40 mx-auto max-w-md rounded-biso-lg border border-edge bg-surface p-3.5 text-ink shadow-elev-2 sm:inset-x-4 sm:bottom-4"
+      className="fixed inset-x-3 bottom-[calc(var(--replay-consent-bar-height,0px)+0.75rem)] z-40 mx-auto max-w-md rounded-biso-lg border border-edge bg-surface p-3.5 text-ink shadow-elev-2 sm:inset-x-4 sm:bottom-[calc(var(--replay-consent-bar-height,0px)+1rem)]"
       data-surface="deep"
     >
       <div className="flex items-center justify-between gap-3">

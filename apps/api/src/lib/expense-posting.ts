@@ -25,6 +25,7 @@ import {
   resolveReimbursementCustomer,
   uploadDocument,
 } from "@repo/connectors/24sevenoffice";
+import { countMetric } from "@repo/observability/metrics";
 import {
   type CostTypeOption,
   DEFAULT_COST_TYPE_SLUG,
@@ -286,6 +287,8 @@ async function recordFailureEvent(
       note: error instanceof Error ? error.message : String(error),
     },
   ]);
+  // Every path that fails a booking records this event exactly once.
+  countMetric("expense.booking_failed");
 }
 
 async function recordFailure(

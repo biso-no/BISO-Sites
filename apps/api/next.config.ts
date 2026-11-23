@@ -1,5 +1,13 @@
 import path from "node:path";
+import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
+// Relative, not `@repo/observability/build`: Next transpiles this file with
+// tsconfig `paths`, which maps `@repo/*` to `../../packages/*` and misses the
+// package `exports` (the source lives under `src/`).
+import {
+  SENTRY_TRANSPILE_PACKAGES,
+  sentryBuildOptions,
+} from "../../packages/observability/src/build";
 
 const baseConfig: NextConfig = {
   transpilePackages: [
@@ -9,8 +17,11 @@ const baseConfig: NextConfig = {
     "@repo/connectors",
     "@repo/shared",
     "@repo/ai",
+    "@repo/observability",
     "@repo/payment",
     "@repo/typescript-config",
+    // Bundles the server SDK on Bun builds too (see the constant).
+    ...SENTRY_TRANSPILE_PACKAGES,
   ],
   reactStrictMode: false,
   output: "standalone",
@@ -35,4 +46,4 @@ const baseConfig: NextConfig = {
   // No framework-level redirects at this time (user preference)
 };
 
-export default baseConfig;
+export default withSentryConfig(baseConfig, sentryBuildOptions("api"));

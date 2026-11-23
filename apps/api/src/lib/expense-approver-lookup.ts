@@ -1,5 +1,6 @@
 import { fastModel } from "@repo/ai/models";
 import type { GraphUserService } from "@repo/connectors/azure/users";
+import { traceAiCall } from "@repo/observability/ai";
 import { CAMPUS_MAILBOX_SLUGS } from "@repo/shared/utils/expense-approvers";
 import { stripCampusPrefix } from "@repo/shared/utils/unit-names";
 import { generateObject } from "ai";
@@ -247,13 +248,21 @@ export async function chooseApprover(input: {
     .filter((line, index, all) => line !== "" || all[index - 1] !== "")
     .join("\n");
   // A model error propagates: the caller tells a failure from "none fits".
-  const { object } = await generateObject({
-    abortSignal,
-    model: fastModel,
-    prompt,
-    reasoning: "low",
-    schema: ApproverChoiceSchema,
-  });
+  const { object } = await traceAiCall(
+    {
+      functionId: "api.expense-approver",
+      model: fastModel,
+      operation: "generate_object",
+    },
+    () =>
+      generateObject({
+        abortSignal,
+        model: fastModel,
+        prompt,
+        reasoning: "low",
+        schema: ApproverChoiceSchema,
+      })
+  );
   const chosen = candidates.find(
     (c) => c.email.toLowerCase() === object.email?.trim().toLowerCase()
   );

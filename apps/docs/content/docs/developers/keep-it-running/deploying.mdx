@@ -3,6 +3,7 @@ title: Deploying
 description: How each app and function gets to production today, how the BISO app reaches the stores, what to check after a deploy, and what a deploy workflow would need.
 covers:
   - package.json
+  - packages/observability/src/build.ts
   - apps/*/next.config.*
   - apps/api/package.json
   - apps/*/Dockerfile
@@ -91,6 +92,13 @@ The first time you deploy, open each Site's settings and write down what you fin
 
 Next.js copies every `NEXT_PUBLIC_*` value into the build. Set those on the Site before you deploy, and redeploy after you change one, as below. The other variables are read while the app runs. [Secrets and environment](/developers/keep-it-running/secrets-and-environment) lists them all.
 
+Sentry adds two variables to each of the four Sites:
+
+- **`NEXT_PUBLIC_SENTRY_DSN`** must be set **before** the build. It is copied into the browser code and the server code when the app is built, so a Site built without it reports nothing until you set it and build again. Setting it on a Site that is already deployed changes nothing.
+- **`SENTRY_AUTH_TOKEN`** is read only during the build. It uploads the source maps, so stack traces in Sentry show your code and not minified code. Without it the build still passes, and the stack traces stay unreadable.
+
+Leave `NEXT_PUBLIC_SENTRY_ENVIRONMENT` unset in production. Events are then filed under `production`, which is the only environment the alerts watch.
+
 ### Redeploy without shipping new code
 
 After you change a variable or rotate a secret, you redeploy. A new deployment of `main` also ships every commit on `main` that isn't live yet. To avoid that:
@@ -106,6 +114,15 @@ After you change a variable or rotate a secret, you redeploy. A new deployment o
 - **api** uses `sharp`, a native module, to shrink receipt photos before the AI reads them. `bun install` fetches its binary for the machine it runs on, so let the Site build it. Don't upload a build made on a Mac. If the binary can't load, receipts still go to the AI unshrunk, the log says `[receipt-scan] Could not shrink the image`, and photos over 8000 px fail to read.
 - **docs** runs at `docs.biso.no`. It must stay on a `*.biso.no` host, or the browser never sends it the admin's session cookie. The "Owner actions" in `apps/docs/CLAUDE.md` set up its sign-in and private details. Do the "Owner steps" under "Assistant" there before you switch the assistant on.
 
+### After upgrading @sentry/*
+
+Do this before you deploy a change to a `@sentry/*` version in the root `package.json` (Dependabot may open one). Sentry's server code is bundled into each app by `transpilePackages` (`SENTRY_TRANSPILE_PACKAGES` in `packages/observability/src/build.ts`), and an upgrade can break that without failing `check-types`.
+
+1. For each app, run `bun --bun run build:<app>:appwrite`. It must finish in well under a minute. At the last check a cold build took 8 to 14 seconds per app.
+2. Copy the output folder `.next/standalone` somewhere outside the repo and start `server.js` from the copy with Bun. The app must boot and answer `/api/health` with `200`.
+
+A build that takes several minutes is a failure, even if it passes. A tracing setting once made each build copy the other apps' build output into its own, nesting deeper every time. A single build took 28 minutes and wrote 81 GB. If that happens again, the setting that matches files for tracing (`outputFileTracingIncludes`) is the first thing to look for, and Sentry's own `withSentryConfig` options come after it.
+
 ### Don't use the Dockerfiles
 
 `apps/web/Dockerfile` and `apps/api/Dockerfile` are out of date. They copy `bun.lockb`, but the repo uses `bun.lock`, and they expect build output the monorepo build doesn't produce. `apps/admin/Dockerfile` follows the monorepo layout, but nothing uses it.
@@ -118,7 +135,7 @@ A Site keeps its earlier deployments, and one of them is the active one. To roll
 
 The three functions live in `functions/`. Each one's README lists its console settings. The console is the source of truth. The repo keeps a copy of only scheduled-dispatch's settings, in `packages/api/appwrite.config.json`.
 
-Redeploy a function when you change its folder. content-notifier and member-roster-sync also bundle shared packages when they're built, so redeploy them after changes to `packages/api` or `packages/shared`, and member-roster-sync after changes to `packages/connectors` as well. scheduled-dispatch uses no shared packages.
+Redeploy a function when you change its folder. content-notifier and member-roster-sync also bundle shared packages when they're built, so redeploy them after changes to `packages/api` or `packages/shared`, and member-roster-sync after changes to `packages/connectors` as well. scheduled-dispatch uses no shared packages, but all three load the Sentry reporter from `packages/observability/src/functions/reporter.ts`, so redeploy all three after a change to it.
 
 Never set `APPWRITE_*` variables on a function. Appwrite passes each run its own key, scoped to the function's settings.
 
@@ -147,7 +164,7 @@ Its README says it is deployed through the console's Git integration, and that t
 | Timeout | 330 seconds in the console. `appwrite.config.json` says 60, but the console value is the real one. |
 | Execute access | `any`, so it can be started through its domain. The code then checks `CRON_SECRET`. |
 | Scopes | None. It only makes HTTP calls. |
-| Variables | `CRON_SECRET` and the target URLs. See [Scheduled jobs](/developers/keep-it-running/scheduled-jobs). |
+| Variables | `CRON_SECRET`, the target URLs and `SENTRY_DSN`. See [Scheduled jobs](/developers/keep-it-running/scheduled-jobs). |
 
 Keep the timeout above 300 seconds. Four of its targets, order reconciliation, expense posting, the Finago project sync and the expense check backstop, are allowed 300 seconds each (`functions/scheduled-dispatch/src/main.ts`). Appwrite allows at most 900.
 
@@ -169,7 +186,7 @@ Its README lists the settings under "Console setup (not in code)". It doesn't sa
 | Execute access | `any`, so scheduled-dispatch can call its domain |
 | Scopes | `rows.read`, `rows.write`, `messages.write`, `executions.read` |
 | Timeout | 120 seconds. No schedule. |
-| Variables | `CRON_SECRET`, and optionally `NOTIFY_DELAY_MINUTES` (default 3) |
+| Variables | `CRON_SECRET`, `SENTRY_DSN`, and optionally `NOTIFY_DELAY_MINUTES` (default 3) |
 | Domain | Its domain is set as `CONTENT_NOTIFIER_URL` on scheduled-dispatch |
 
 After a deploy, save a news item in the admin. An execution with the trigger `event` should appear, and it shouldn't answer 400.
@@ -190,7 +207,7 @@ Its README also lists the settings under "Console setup (not in code)" and doesn
 | Timeout | At least 600 seconds. A run takes about 2 minutes. |
 | Execute access | None. The admin starts runs with its own API key. |
 | Scopes | `rows.read`, `rows.write`, `executions.read` |
-| Variables | `TFSO_APP_ID`, `TFSO_USERNAME`, `TFSO_PASSWORD` |
+| Variables | `TFSO_APP_ID`, `TFSO_USERNAME`, `TFSO_PASSWORD`, `SENTRY_DSN`, and `MEMBER_ROSTER_SYNC_SCHEDULE` set to the schedule above |
 
 The admin needs `MEMBER_ROSTER_FUNCTION_ID` set to this function's id, and the admin's API key needs the `executions.read` and `executions.write` scopes.
 
@@ -297,6 +314,15 @@ It answers `{"started":true}` at once (the route is `apps/api/src/app/api/intern
 
 - **web:** open `https://biso.no` and a page that loads data, such as the events list.
 - **admin:** sign in, and open a page you changed.
+- **Sentry:** see [Sentry, after a deploy](#sentry-after-a-deploy) below.
 - **Any app:** if a Site doesn't start, read its logs in the console for a `[web]` or `[admin]` start-up error. They name the variable that's wrong.
 - **Scheduled jobs:** most of scheduled-dispatch's targets are on the apps. After deploying an app, open the next scheduled-dispatch execution and check that every target shows `OK`. [Scheduled jobs](/developers/keep-it-running/scheduled-jobs#check-that-its-working) explains the log.
 - **Functions:** do the check under each function above.
+
+### Sentry, after a deploy
+
+1. Open any production event in the project of the app you deployed. `environment` should say `production` and `release` should name the new commit (`biso-<app>@<12 characters>`). An empty project after a deploy usually means the Site was built without `NEXT_PUBLIC_SENTRY_DSN`.
+2. Open its stack trace. Frames should show file names and lines from the repo. Minified frames mean the source map upload failed: check `SENTRY_AUTH_TOKEN` and the build log.
+3. `runtime.name` on an event says `node` whether the Site runs on Node or on Bun, because the Sentry SDK is bundled into the build. A Site run on Bun doesn't get the outbound request spans that Sentry's Bun setup would add. Appwrite calls and AI calls keep their own spans either way.
+4. For the admin, send a test error from the operations page, as in [Monitoring and health](/developers/keep-it-running/monitoring-and-health#send-a-test-error).
+5. For the functions, set `SENTRY_DSN` and redeploy, then check **Crons** in Sentry after the next run. [Scheduled jobs](/developers/keep-it-running/scheduled-jobs#how-sentry-watches-them) lists the monitors.

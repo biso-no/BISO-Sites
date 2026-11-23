@@ -1,0 +1,13 @@
+{
+  "link": "Report a problem",
+  "formTitle": "Report a problem",
+  "messageLabel": "What went wrong?",
+  "messagePlaceholder": "Tell us what you did and what happened.",
+  "isRequiredLabel": "(required)",
+  "submitButtonLabel": "Send",
+  "cancelButtonLabel": "Cancel",
+  "addScreenshotButtonLabel": "Add a screenshot",
+  "removeScreenshotButtonLabel": "Remove screenshot",
+  "successMessageText": "Thanks. We got your report.",
+  "errorGenericText": "Sending failed. Please try again."
+}

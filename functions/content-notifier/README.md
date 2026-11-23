@@ -84,6 +84,13 @@ these guards for when two passes do overlap:
 - Timeout: 120s. No schedule: the ping drives dispatch.
 - Variables: `CRON_SECRET`; optional `NOTIFY_DELAY_MINUTES` (default 3).
   Do **not** set `APPWRITE_*` variables.
+- Sentry (optional): `SENTRY_DSN` (the biso-functions DSN; without it nothing is
+  sent) and `SENTRY_ENVIRONMENT` (default `production`). Thrown errors and any
+  answer of 400 or above except 401 and 403 (public-domain scanners; a real
+  secret mismatch shows on the dispatcher) are reported as errors (tag `function_name:
+  content-notifier`; the message names the status, not the body). There is no
+  cron monitor here: `scheduled-dispatch` watches this function's ping as
+  `dispatch-content-notifier`. Sentry calls are capped at 2 s per run.
 - Give the function a domain and set it as `CONTENT_NOTIFIER_URL` on
   `scheduled-dispatch`.
 - Keep execution logging on.

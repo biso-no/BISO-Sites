@@ -2,6 +2,7 @@
 
 import { balancedModel, fastModel } from "@repo/ai/models";
 import { createSessionClient } from "@repo/api/server";
+import { traceAiCall } from "@repo/observability/ai";
 import { getRecruitmentJobById } from "@repo/shared/recruitment";
 import { generateObject } from "ai";
 import { z } from "zod";
@@ -113,16 +114,24 @@ export async function generateComparisonSynthesis(
     : "Not enough data to compare these candidates.";
 
   try {
-    const { object } = await generateObject({
-      model: balancedModel,
-      prompt: buildComparePrompt(jobTitle, candidates),
-      schema: z.object({
-        verdict: z.string(),
-        winnerLabel: z.string(),
-      }),
-      // Provider-side retention follows the Anthropic account's data
-      // settings, not a per-request option.
-    });
+    const { object } = await traceAiCall(
+      {
+        functionId: "admin.recruitment-comparison",
+        model: balancedModel,
+        operation: "generate_object",
+      },
+      () =>
+        generateObject({
+          model: balancedModel,
+          prompt: buildComparePrompt(jobTitle, candidates),
+          schema: z.object({
+            verdict: z.string(),
+            winnerLabel: z.string(),
+          }),
+          // Provider-side retention follows the Anthropic account's data
+          // settings, not a per-request option.
+        })
+    );
     const winner =
       idsForLabels([object.winnerLabel], buildLabelMap(candidates))[0] ?? null;
     return {
@@ -159,37 +168,45 @@ export async function askRecruitmentAssistant(input: {
   await assertJobReviewable(input.jobId);
 
   try {
-    const { object } = await generateObject({
-      model: fastModel,
-      reasoning: "low",
-      prompt: buildAssistantPrompt(
-        input.jobTitle,
-        input.message,
-        input.candidates
-      ),
-      // Provider-side retention follows the Anthropic account's data
-      // settings, not a per-request option.
-      // Every field is required, so the model always returns the whole shape.
-      // `.optional()` / `.default()` would make a field droppable. Empty arrays
-      // are allowed.
-      schema: z.object({
-        reply: z.string(),
-        citedLabels: z
-          .array(z.string())
-          .describe("Candidate labels cited in the reply; [] if none"),
-        actions: z
-          .array(
-            z.object({
-              kind: z.enum(["compare", "email", "schedule", "none"]),
-              label: z.string(),
-              candidateLabels: z
-                .array(z.string())
-                .describe("Relevant candidate labels; [] if none"),
-            })
-          )
-          .describe("At most 2 follow-up actions; [] if none"),
-      }),
-    });
+    const { object } = await traceAiCall(
+      {
+        functionId: "admin.recruitment-assistant",
+        model: fastModel,
+        operation: "generate_object",
+      },
+      () =>
+        generateObject({
+          model: fastModel,
+          reasoning: "low",
+          prompt: buildAssistantPrompt(
+            input.jobTitle,
+            input.message,
+            input.candidates
+          ),
+          // Provider-side retention follows the Anthropic account's data
+          // settings, not a per-request option.
+          // Every field is required, so the model always returns the whole shape.
+          // `.optional()` / `.default()` would make a field droppable. Empty arrays
+          // are allowed.
+          schema: z.object({
+            reply: z.string(),
+            citedLabels: z
+              .array(z.string())
+              .describe("Candidate labels cited in the reply; [] if none"),
+            actions: z
+              .array(
+                z.object({
+                  kind: z.enum(["compare", "email", "schedule", "none"]),
+                  label: z.string(),
+                  candidateLabels: z
+                    .array(z.string())
+                    .describe("Relevant candidate labels; [] if none"),
+                })
+              )
+              .describe("At most 2 follow-up actions; [] if none"),
+          }),
+        })
+    );
 
     const labelMap = buildLabelMap(input.candidates);
     return {

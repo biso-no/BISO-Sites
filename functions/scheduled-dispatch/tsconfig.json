@@ -5,10 +5,11 @@
     "moduleResolution": "Bundler",
     "strict": true,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "types": ["node"]
+    "types": ["node", "bun"]
   },
   "include": ["src/**/*.ts"]
 }

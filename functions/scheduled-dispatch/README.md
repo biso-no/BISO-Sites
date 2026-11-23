@@ -46,6 +46,14 @@ Set these on the function in the Appwrite console (**Settings → Variables**) �
   `JOBS_PUBLISH_SCHEDULED_URL`, `MEMBER_PASS_CLEANUP_URL`,
   `FINAGO_PROJECTS_SYNC_URL`, `EXPENSE_CHECK_BACKSTOP_URL`,
   `RECRUITMENT_RETENTION_CLEANUP_URL` — optional.
+- `SENTRY_DSN` — optional; the biso-functions DSN. Without it nothing is sent.
+  With it, failures are reported as Sentry errors (tag `function_name:
+  scheduled-dispatch`) and the run checks in to cron monitors: `scheduled-dispatch`
+  (the dispatcher itself) and one `dispatch-<target>` per configured URL, e.g.
+  `ORDERS_RECONCILE_URL` becomes `dispatch-orders-reconcile`. Monitors are created
+  on the first check-in (every 5 minutes, UTC, 2 min margin, 6 min max runtime,
+  issue after 2 failures). Sentry calls are capped at 2 s per run.
+- `SENTRY_ENVIRONMENT` — optional; defaults to `production`.
 - `CRON_TIMEOUT_MS` — optional **per-request** timeout (default `30000`). This is
   not the execution limit — that's the function's `timeout` (see below).
 

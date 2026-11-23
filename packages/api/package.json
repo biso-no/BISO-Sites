@@ -37,6 +37,8 @@
     "vitest": "catalog:"
   },
   "dependencies": {
+    "@repo/observability": "workspace:*",
+    "@sentry/core": "catalog:",
     "@types/node": "catalog:",
     "appwrite": "catalog:",
     "next": "catalog:",

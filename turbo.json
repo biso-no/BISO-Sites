@@ -24,6 +24,7 @@
         "APPWRITE_ORDERS_COLLECTION_ID",
         "APPWRITE_SESSION_COOKIE",
         "APPWRITE_SESSION_COOKIE_FALLBACK",
+        "APPWRITE_VCS_COMMIT_HASH",
         "APPWRITE_WEBSHOP_PRODUCTS_COLLECTION_ID",
         "AZURE_ACCOUNT_TURNOVER_WEBHOOK_URL",
         "AZURE_APP_ID",
@@ -55,6 +56,8 @@
         "NEXT_PUBLIC_APPWRITE_PROJECT_ID",
         "NEXT_PUBLIC_BASE_URL",
         "NEXT_PUBLIC_DOCS_URL",
+        "NEXT_PUBLIC_SENTRY_DSN",
+        "NEXT_PUBLIC_SENTRY_ENVIRONMENT",
         "ANTHROPIC_API_KEYB_BASE_URL",
         "NODE_ENV",
         "OPENAI_API_KEY",
@@ -62,6 +65,7 @@
         "PINECONE_INDEX_NAME",
         "RATE_LIMIT_CLIENT_IP_HEADER",
         "RATE_LIMIT_TRUSTED_PROXY_HOPS",
+        "SENTRY_RELEASE",
         "SHAREPOINT_CLIENT_ID",
         "SHAREPOINT_CLIENT_SECRET",
         "SHAREPOINT_DOCUMENTS_DRIVE_ID",
@@ -89,8 +93,14 @@
         "VIPPS_WEBHOOK_SECRET",
         "WEBDOCK_API_KEY"
       ],
+      "passThroughEnv": ["SENTRY_AUTH_TOKEN", "SENTRY_DEBUG_BUILD"],
       "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"],
-      "outputs": ["**/.next/**", "!**/.next/cache/**", "!**/.next/dev/**", "**/dist/**"]
+      "outputs": [
+        "**/.next/**",
+        "!**/.next/cache/**",
+        "!**/.next/dev/**",
+        "**/dist/**"
+      ]
     },
     "_transit": {
       "dependsOn": ["^_transit"]

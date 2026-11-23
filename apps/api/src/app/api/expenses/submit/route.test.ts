@@ -22,6 +22,9 @@ const storage = vi.hoisted(() => ({
   getFileDownload: vi.fn(),
 }));
 
+const metrics = vi.hoisted(() => ({ countMetric: vi.fn() }));
+
+vi.mock("@repo/observability/metrics", () => metrics);
 vi.mock("@/lib/auth", () => ({
   createAuthenticatedClient: vi.fn(async () => ({ account, db: sessionDb })),
 }));
@@ -136,6 +139,7 @@ describe("expense submit route", () => {
     account.get.mockResolvedValue({ $id: "submitter-1" });
     vi.mocked(isFeatureEnabled).mockResolvedValue(true);
     scheduled.tasks.length = 0;
+    metrics.countMetric.mockClear();
     check.runExpenseCheck.mockReset();
     check.runExpenseCheck.mockResolvedValue("done");
     preparation.prepareSubmission.mockReset();
@@ -316,6 +320,7 @@ describe("expense submit route", () => {
     const response = await POST(submitRequest(SUBMIT_BODY));
 
     expect(response.status).toBe(200);
+    expect(metrics.countMetric).toHaveBeenCalledWith("expense.submitted");
     expect(sessionDb.createRow).not.toHaveBeenCalled();
     expect(adminDb.createRow).toHaveBeenCalledWith(
       "app",
@@ -466,6 +471,7 @@ describe("expense submit route", () => {
     const response = await POST(submitRequest(SUBMIT_BODY));
 
     expect(response.status).toBe(500);
+    expect(metrics.countMetric).not.toHaveBeenCalled();
     await expect(response.json()).resolves.toEqual({
       success: false,
       error: "Failed to submit expense",

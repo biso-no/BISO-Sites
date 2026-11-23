@@ -7,6 +7,7 @@ import {
   ExpensesCheckState,
   ExpensesStatus,
 } from "@repo/api/types/appwrite";
+import { countMetric } from "@repo/observability/metrics";
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { reimbursementNumber } from "@repo/shared/utils/reimbursement-number";
 import { after, type NextRequest, NextResponse } from "next/server";
@@ -375,6 +376,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await submitExpense(req);
+    countMetric("expense.submitted");
     return applyCorsHeaders(NextResponse.json(body), origin);
   } catch (error) {
     if (!(error instanceof SubmitRejection)) {

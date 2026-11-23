@@ -7,16 +7,18 @@ import {
   AccordionTrigger,
 } from "@repo/ui/components/ui/accordion";
 import { cn } from "@repo/ui/lib/utils";
-import { LogIn, LogOut } from "lucide-react";
+import { LifeBuoy, LogIn, LogOut } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useTransition } from "react";
 import { LocaleSwitcher } from "@/components/locale-switcher";
+import { useReportProblem } from "@/components/report-problem";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import {
   statusPanelPrimaryAction,
   statusPanelSecondaryAction,
 } from "@/components/ui/status-panel";
+import { isSentryConfigured } from "@/lib/sentry-configured";
 import { signOut } from "@/lib/server";
 import type { NavAccount, NavProjectLink } from "@/lib/types/nav";
 import { accountLinksFor } from "./account-menu";
@@ -83,6 +85,7 @@ export function MobileDrawer({
   const t = useTranslations("common.navigation");
   const tProjects = useTranslations("projects.featured");
   const [isSigningOut, startSignOut] = useTransition();
+  const report = useReportProblem();
 
   return (
     <div className="space-y-6 px-4 pt-2 pb-8">
@@ -200,6 +203,20 @@ export function MobileDrawer({
             />
           ))}
         </DrawerGroup>
+      )}
+
+      {isSentryConfigured() && (
+        <button
+          className="type-body-sm flex w-full items-center gap-2 rounded-biso-sm px-2 py-1.5 text-ink transition-colors hover:bg-surface-raised hover:text-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          onClick={() => {
+            onNavigate();
+            report.open();
+          }}
+          type="button"
+        >
+          <LifeBuoy aria-hidden className="size-4 shrink-0 text-ink-muted" />
+          {report.label}
+        </button>
       )}
 
       <div className="flex flex-wrap items-center gap-2">

@@ -15,6 +15,7 @@ covers:
   - packages/shared/utils/push-dispatch.ts
   - apps/admin/src/lib/announcements/send.ts
   - functions/content-notifier/**
+  - packages/observability/src/ai.ts
   - packages/ai/src/models.ts
   - apps/api/src/lib/expense-check/**
   - apps/api/src/app/api/cron/expense-check-backstop/**
@@ -37,6 +38,20 @@ Docs is built to run on Appwrite too, so once it's live at `docs.biso.no`, it go
 
 ## First checks
 
+Start in Sentry. A new error that Sentry rates medium or high, a failed scheduled job and a site that can't be reached have already raised an email to the owner, and the issue shows the stack trace, the release and the trace of the request. The [Monitoring and health](/developers/keep-it-running/monitoring-and-health#sentry) page says what is sent and who gets the alerts. Where to look first:
+
+| Kind of failure | Look at |
+|---|---|
+| A page or action throws | **Issues** in the app's project (`biso-web`, `biso-admin`, `biso-api` or `biso-docs`). The new issue's trace shows what the request did. |
+| A site is unreachable | **Uptime** in Sentry, then Better Stack. Then the commands below. |
+| A scheduled job stopped | **Crons**, in the `biso-functions` project. A red `dispatch-<target>` monitor names the target. |
+| Payments, stuck orders or pushes | The **BISO platform health** dashboard, then the payments and push widgets. Stuck orders have no widget: the `Orders stuck` monitor in Sentry, which emails the owner, is the place to look. |
+| Appwrite is slow | The dashboard's Appwrite widgets, and `appwrite.timeout`. |
+| An AI feature fails | Spans in **Traces** whose operation starts with `gen_ai`. Search on the feature in `gen_ai.pipeline.name`, such as `api.receipt-extract`. |
+| A user wrote in | The problem reports in `biso-web` or `biso-admin`, under **User Feedback**. |
+
+If Sentry shows nothing, that doesn't mean nothing is wrong: a Site built without `NEXT_PUBLIC_SENTRY_DSN` sends nothing. Use the checks below.
+
 1. **See which apps answer.**
 
    ```bash
@@ -58,7 +73,7 @@ The logs are described in [Monitoring and health](/developers/keep-it-running/mo
 
 ## The site is down
 
-**What you see.** Better Stack sends an alert, or `biso.no`, `admin.biso.no` or `api.biso.no` won't load. If only the api is down, the website and the app also lose BI sign-in, checkout and membership purchase, because those go through the api.
+**What you see.** Sentry or Better Stack sends an alert, or `biso.no`, `admin.biso.no` or `api.biso.no` won't load. If only the api is down, the website and the app also lose BI sign-in, checkout and membership purchase, because those go through the api.
 
 **Check**
 
@@ -169,7 +184,7 @@ If every admin page fails with an error instead, and the admin logs `[getUserAut
 
 **What you see.** Scheduled announcements don't go out, scheduled vacancies stay unpublished, orders stay pending, departures in the app go stale, or the members page shows **Siste oppdatering feilet** (Last refresh failed).
 
-**Check.** Open scheduled-dispatch's latest executions in the console, and match what you see against the table in [Scheduled jobs](/developers/keep-it-running/scheduled-jobs#check-that-its-working). For the members page, open member-roster-sync's executions instead.
+**Check.** In Sentry, open **Crons** in the `biso-functions` project. A red `scheduled-dispatch` or `dispatch-<target>` monitor says which job and when. Then open scheduled-dispatch's latest executions in the console, and match what you see against the table in [Scheduled jobs](/developers/keep-it-running/scheduled-jobs#check-that-its-working). For the members page, open member-roster-sync's executions instead.
 
 **Fix.** The same table gives the fix for each case. After Appwrite has been down, check that new scheduled-dispatch executions appear every 5 minutes again.
 
@@ -308,7 +323,7 @@ Copying groups to teams at sign-in uses the person's own Microsoft sign-in, and 
 
    | Log shows | What it means |
    |---|---|
-   | `Anthropic API key is missing` | `ANTHROPIC_API_KEY` isn't set on that Site. It's in no `.env.example` of these three apps, because the AI library reads it by itself. |
+   | `Anthropic API key is missing`, or `AI_LoadAPIKeyError` from the assistant or the page editor's chat | `ANTHROPIC_API_KEY` isn't set on that Site. It's in no `.env.example` of these three apps, because the AI library reads it by itself. |
    | `authentication_error` (`401`) | The key is wrong, revoked or expired. |
    | `billing_error` (`402`) | Something is wrong with billing at Anthropic. |
    | `rate_limit_error` (`429`), or `invalid_request_error` (`400`) about a spend limit | Too many requests, or a spend limit or the month's spend cap has been reached. BISO's plan comes with about USD 160 of credit a month. |
@@ -325,7 +340,7 @@ Copying groups to teams at sign-in uses the person's own Microsoft sign-in, and 
 - **Billing, limits or credit:** check usage and billing in Anthropic's console. Who owns the account: <Private name="account-owners" label="Account owners" />.
 - **Screening skipped:** set `OPENAI_API_KEY` on the web and api Sites. Any non-empty value switches screening on. The Sites never send it anywhere, so no OpenAI account is needed. The lasting fix is a small code change: make `isAutoScreened` check `ANTHROPIC_API_KEY` instead.
 
-The docs assistant logs nothing, not even Anthropic's error. If it fails, check the key and the account in Anthropic's console, and see the "When it fails" checks under "Assistant" in `apps/docs/CLAUDE.md`.
+With a Sentry DSN set, the model calls of the admin, the api and the docs assistant show in Sentry as spans named `<operation> <model>`, with the operation `gen_ai.chat` or `gen_ai.generate_content`. The feature is in `gen_ai.pipeline.name`. The spans carry the model, the token counts and, on failure, the error's class, such as `AI_APICallError`, but never the prompt or the answer. Search **Traces** for the feature, for example `docs.ask` or `api.receipt-extract`. The docs assistant still logs nothing itself, so without a DSN, check the key and the account in Anthropic's console, and see the "When it fails" checks under "Assistant" in `apps/docs/CLAUDE.md`.
 
 ## After an incident
 

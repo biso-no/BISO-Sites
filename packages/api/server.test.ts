@@ -24,6 +24,9 @@ interface AppwriteService {
   };
 }
 
+const metrics = vi.hoisted(() => ({ countMetric: vi.fn() }));
+
+vi.mock("@repo/observability/metrics", () => metrics);
 vi.mock("next/headers", () => ({
   cookies: () => Promise.resolve({ get: () => undefined }),
   headers: () => Promise.resolve(new Headers()),
@@ -32,7 +35,7 @@ vi.mock("next/headers", () => ({
 const TEST_PROJECT_ID = "test-project";
 const TEST_API_KEY = "test-api-key";
 
-function loadServerModule(endpoint: string, timeoutMs = "50") {
+function loadServerModule(endpoint: string, timeoutMs = "2000") {
   vi.stubEnv("APPWRITE_API_KEY", TEST_API_KEY);
   vi.stubEnv("APPWRITE_PROJECT_ID", TEST_PROJECT_ID);
   vi.stubEnv("NEXT_PUBLIC_APPWRITE_ENDPOINT", endpoint);
@@ -157,6 +160,7 @@ describe("createSessionJwt", () => {
 describe("server Appwrite clients", () => {
   beforeEach(() => {
     vi.useRealTimers();
+    metrics.countMetric.mockClear();
   });
 
   afterEach(() => {
@@ -220,8 +224,62 @@ describe("server Appwrite clients", () => {
         message: "Appwrite request timed out after 20ms (admin GET /ping)",
         type: "appwrite_timeout",
       });
+      expect(metrics.countMetric).toHaveBeenCalledWith("appwrite.timeout", {
+        client: "admin",
+      });
     } finally {
       await slowServer.close();
+    }
+  });
+
+  test("count a slow request that still succeeds", async () => {
+    const slowServer = await createSlowServer(60);
+    vi.stubEnv("APPWRITE_SLOW_REQUEST_MS", "10");
+
+    try {
+      const { createAdminClient } = await loadServerModule(
+        slowServer.endpoint,
+        "2000"
+      );
+      const admin = await createAdminClient();
+      const client = (admin.account as AppwriteService).client;
+
+      await client.call("GET", new URL(`${slowServer.endpoint}/ping`));
+
+      expect(metrics.countMetric).toHaveBeenCalledWith(
+        "appwrite.slow_request",
+        { client: "admin" }
+      );
+      expect(metrics.countMetric).not.toHaveBeenCalledWith(
+        "appwrite.timeout",
+        expect.anything()
+      );
+    } finally {
+      await slowServer.close();
+    }
+  });
+});
+
+describe("Appwrite call spans without Sentry", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  test("pass the result through unchanged when no Sentry client is initialised", async () => {
+    const server = await createRowServer();
+    try {
+      const { createAdminClient } = await loadServerModule(
+        server.endpoint,
+        "2000"
+      );
+      const admin = await createAdminClient();
+      const client = (admin.account as AppwriteService).client;
+
+      await expect(
+        client.call("GET", new URL(`${server.endpoint}/account`))
+      ).resolves.toMatchObject({ $id: "user-1", name: "Ada" });
+    } finally {
+      await server.close();
     }
   });
 });

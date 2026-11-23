@@ -1261,6 +1261,15 @@
     "teamsUnavailable": "Kunne ikke laste team-helse. Sjekk Appwrite-tilkobling.",
     "runbook": "Driftshåndbok",
     "missingSuffix": "mangler",
+    "sentryTest": {
+      "button": "Send testfeil til Sentry",
+      "sending": "Sender...",
+      "eventId": "Sendt. Hendelses-ID:",
+      "queued": "Lagt i kø, ikke bekreftet: Sentry svarte ikke i tide. Hendelses-ID:",
+      "notConfigured": "Sentry er ikke konfigurert, ingenting ble sendt.",
+      "forbidden": "Bare globale administratorer kan sende en testfeil.",
+      "failed": "Kunne ikke sende testfeilen."
+    },
     "status": {
       "configured": "Konfigurert",
       "incomplete": "Ufullstendig",

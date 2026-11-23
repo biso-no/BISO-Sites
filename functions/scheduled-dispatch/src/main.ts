@@ -55,11 +55,53 @@
  */
 
 import { timingSafeEqual } from "node:crypto";
+// Relative on purpose: this function deploys from the repo root with only
+// `bun install` run in its own folder, so workspace packages (@repo/*) are not
+// available. The reporter file has no imports by design, so it loads as is.
+import {
+  type MonitorConfig,
+  reporterFromEnv,
+} from "../../../packages/observability/src/functions/reporter.ts";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_BODY_CHARS = 500;
 const BEARER_PREFIX = "Bearer ";
 const LOG_TAG = "[scheduled-dispatch]";
+const MS_PER_SECOND = 1000;
+const MS_PER_MINUTE = 60_000;
+const HTTP_OK_MIN = 200;
+const HTTP_OK_MAX = 299;
+const DISPATCHER_SLUG = "scheduled-dispatch";
+const URL_ENV_SUFFIX = /_URL$/;
+
+/** Cron monitor settings for the dispatcher and each target it pings. */
+const MONITOR_CONFIG: MonitorConfig = {
+  schedule: "*/5 * * * *",
+  checkinMargin: 2,
+  maxRuntime: 6,
+  failureIssueThreshold: 2,
+  recoveryThreshold: 1,
+  timezone: "UTC",
+};
+
+/**
+ * A target's monitor may run as long as its ping can: the timeout in whole
+ * minutes plus one, never below 2.
+ */
+function targetMonitorConfig(timeoutMs: number): MonitorConfig {
+  return {
+    ...MONITOR_CONFIG,
+    maxRuntime: Math.max(2, Math.ceil(timeoutMs / MS_PER_MINUTE) + 1),
+  };
+}
+
+/** `ORDERS_RECONCILE_URL` -> `dispatch-orders-reconcile`. */
+export function monitorSlugFor(envVar: string): string {
+  return `dispatch-${envVar
+    .replace(URL_ENV_SUFFIX, "")
+    .toLowerCase()
+    .replaceAll("_", "-")}`;
+}
 
 /** Env vars that hold a target endpoint URL, in dispatch order. */
 const TARGET_ENV_VARS = [
@@ -294,8 +336,59 @@ function logResults(results: PingResult[], log: LogFn, error: LogFn): void {
   }
 }
 
-export default async ({ req, res, log, error }: AppwriteContext) => {
+/** Error text for a failed ping; says when a 2xx body reported the failure. */
+function failureMessage(result: PingResult): string {
+  const { status } = result;
+  if (status === undefined) {
+    return `${result.name} failed: no response`;
+  }
+  const bodyFailure = status >= HTTP_OK_MIN && status <= HTTP_OK_MAX;
+  return `${result.name} failed: ${status}${bodyFailure ? " (body reported failure)" : ""}`;
+}
+
+/**
+ * Ping one target under its own cron monitor: an in_progress check-in goes out
+ * just before the ping and is closed (same id) as soon as THIS ping settles, so
+ * a slow sibling never leaves a fast target's monitor waiting for a check-in.
+ */
+async function pingWithCheckIn(
+  reporter: ReturnType<typeof reporterFromEnv>,
+  target: Target,
+  secret: string
+): Promise<PingResult> {
+  const slug = monitorSlugFor(target.name);
+  const monitorConfig = targetMonitorConfig(target.timeoutMs);
+  const checkInId = reporter.checkIn(slug, "in_progress", { monitorConfig });
+  const result = await ping(target, secret);
+  reporter.checkIn(slug, result.ok ? "ok" : "error", {
+    checkInId,
+    durationSeconds: result.durationMs / MS_PER_SECOND,
+    monitorConfig,
+  });
+  if (!result.ok) {
+    reporter.captureError(new Error(failureMessage(result)), {
+      target: result.name,
+    });
+  }
+  return result;
+}
+
+export default async (context: AppwriteContext) => {
+  const reporter = reporterFromEnv(process.env, DISPATCHER_SLUG);
+  try {
+    return await dispatch(context, reporter);
+  } finally {
+    await reporter.flush();
+  }
+};
+
+async function dispatch(
+  { req, res, log, error }: AppwriteContext,
+  reporter: ReturnType<typeof reporterFromEnv>
+) {
   const startedAt = Date.now();
+  let checkInId: string | undefined;
+  const elapsedSeconds = () => (Date.now() - startedAt) / MS_PER_SECOND;
 
   try {
     const headers = req?.headers ?? {};
@@ -324,6 +417,10 @@ export default async ({ req, res, log, error }: AppwriteContext) => {
       return res.json({ ok: false, error: "Unauthorized" }, 401);
     }
 
+    checkInId = reporter.checkIn(DISPATCHER_SLUG, "in_progress", {
+      monitorConfig: MONITOR_CONFIG,
+    });
+
     const fallbackTimeoutMs = resolveTimeoutMs();
     const { targets, skipped } = collectTargets(fallbackTimeoutMs);
     log(
@@ -332,6 +429,10 @@ export default async ({ req, res, log, error }: AppwriteContext) => {
 
     if (targets.length === 0) {
       log(`${LOG_TAG} no cron endpoints configured; nothing to do`);
+      reporter.checkIn(DISPATCHER_SLUG, "ok", {
+        checkInId,
+        durationSeconds: elapsedSeconds(),
+      });
       return res.json({ ok: true, results: [] });
     }
 
@@ -342,7 +443,7 @@ export default async ({ req, res, log, error }: AppwriteContext) => {
     // Independent, idempotent endpoints — fire them concurrently so the run's
     // wall-clock is the slowest single request, not the sum of all of them.
     const results = await Promise.all(
-      targets.map((target) => ping(target, secret))
+      targets.map((target) => pingWithCheckIn(reporter, target, secret))
     );
     logResults(results, log, error);
 
@@ -362,8 +463,20 @@ export default async ({ req, res, log, error }: AppwriteContext) => {
       error(`${LOG_TAG} completed with failures ${summary}`);
     }
 
+    reporter.checkIn(DISPATCHER_SLUG, ok ? "ok" : "error", {
+      checkInId,
+      durationSeconds: elapsedSeconds(),
+    });
+
     return res.json({ ok, results }, ok ? 200 : 502);
   } catch (err) {
+    reporter.captureError(err);
+    if (checkInId) {
+      reporter.checkIn(DISPATCHER_SLUG, "error", {
+        checkInId,
+        durationSeconds: elapsedSeconds(),
+      });
+    }
     // Catch-all so an unexpected throw surfaces in the Errors tab (with a stack)
     // and the execution still terminates cleanly instead of an opaque crash.
     const message = err instanceof Error ? err.message : String(err);
@@ -375,4 +488,4 @@ export default async ({ req, res, log, error }: AppwriteContext) => {
     }
     return res.json({ ok: false, error: message }, 500);
   }
-};
+}

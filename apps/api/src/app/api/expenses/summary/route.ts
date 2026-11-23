@@ -1,5 +1,6 @@
 import { fastModel } from "@repo/ai/models";
 import { appwriteErrorStatus } from "@repo/api/errors";
+import { traceAiCall } from "@repo/observability/ai";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
 import { generateObject } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
@@ -76,17 +77,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { object } = await generateObject({
-      model: fastModel,
-      reasoning: "low",
-      schema: SummarySchema,
-      messages: [
-        {
-          role: "user",
-          content: buildExpenseSummaryPrompt(summaryRequest),
-        },
-      ],
-    });
+    const { object } = await traceAiCall(
+      {
+        functionId: "api.expense-summary",
+        model: fastModel,
+        operation: "generate_object",
+      },
+      () =>
+        generateObject({
+          model: fastModel,
+          reasoning: "low",
+          schema: SummarySchema,
+          messages: [
+            {
+              role: "user",
+              content: buildExpenseSummaryPrompt(summaryRequest),
+            },
+          ],
+        })
+    );
 
     return applyCorsHeaders(
       NextResponse.json({
