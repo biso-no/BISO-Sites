@@ -6,7 +6,6 @@ import {
   PROJECT_UNIT_SLUGS,
   type ProjectSlug,
   projectPageSlug,
-  projectSlugForUnit,
 } from "@repo/shared/utils/project-units";
 import {
   campusSegmentToId,
@@ -184,16 +183,6 @@ export async function isServableProjectPage(
 
 /**
  * The national project whose own page takes over this unit's URL (C3), or
- * null. Only a project's campus-5 unit, and only a national project: a hub
- * project's page stands beside its campus units, it replaces none of them.
+ * null. Lives in shared so the search mappers decide the same way.
  */
-export function nationalProjectForUnit(unit: {
-  campus_id?: string | null;
-  slug?: string | null;
-}): ProjectSlug | null {
-  if (unit.campus_id !== NATIONAL_CAMPUS_ID) {
-    return null;
-  }
-  const project = projectSlugForUnit(unit.slug);
-  return project && !isHubProject(project) ? project : null;
-}
+export { nationalProjectForUnit } from "@repo/shared/utils/project-units";

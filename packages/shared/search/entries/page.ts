@@ -1,0 +1,185 @@
+import type { Pages } from "@repo/api/types/appwrite";
+import { PagesStatus, PagesVisibility } from "@repo/api/types/appwrite";
+import { toPlainText, truncateAtWord } from "../../utils/content-text";
+import {
+  isProjectNamespaceSlug,
+  isProjectSlug,
+  type ProjectSlug,
+} from "../../utils/project-units";
+import {
+  isUnitPageSlug,
+  parseUnitSubPageSlug,
+  UNIT_PAGE_SLUG_PREFIX,
+} from "../../utils/unit-urls";
+import { pageDocText } from "../page-text";
+import {
+  campusBucket,
+  SEARCH_LOCALES,
+  type SearchEntry,
+  type SearchLocale,
+} from "../types";
+import { baseEntry, type MapContext } from "./common";
+
+export interface PageTranslationText {
+  description: string | null;
+  is_published: boolean | null;
+  locale: SearchLocale;
+  published_doc: string | null;
+  title: string | null;
+}
+
+export type PageOwner =
+  | { kind: "standalone" }
+  | { kind: "unit"; unitSlug: string }
+  | { kind: "unitSubPage"; unitSlug: string }
+  | { kind: "project"; project: ProjectSlug }
+  | { kind: "reserved" };
+
+const UNIT_SEGMENTS = 3;
+const SUMMARY_MAX = 200;
+
+/** Who serves a page slug, decided from the slug alone. */
+export function pageOwner(slug: string): PageOwner {
+  const sub = parseUnitSubPageSlug(slug);
+  if (sub) {
+    return { kind: "unitSubPage", unitSlug: sub.unitSlug };
+  }
+  const normalized = slug.trim().toLowerCase();
+  if (normalized.startsWith(UNIT_PAGE_SLUG_PREFIX)) {
+    const segments = normalized.split("/");
+    if (segments.length === UNIT_SEGMENTS && segments.every(Boolean)) {
+      return { kind: "unit", unitSlug: normalized };
+    }
+    return { kind: "reserved" };
+  }
+  if (isUnitPageSlug(slug)) {
+    return { kind: "reserved" };
+  }
+  if (isProjectNamespaceSlug(slug)) {
+    const project = normalized.split("/")[1] ?? "";
+    return normalized.split("/").length === 2 && isProjectSlug(project)
+      ? { kind: "project", project }
+      : { kind: "reserved" };
+  }
+  return { kind: "standalone" };
+}
+
+type JsonObject = Record<string, unknown>;
+
+function isObject(value: unknown): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Parses a stored page document; empty or invalid JSON gives null. */
+export function parsePublishedDoc(raw: string | null): JsonObject | null {
+  if (!raw) {
+    return null;
+  }
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return isObject(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function docHasContent(doc: JsonObject): boolean {
+  return (
+    (Array.isArray(doc.sections) && doc.sections.length > 0) ||
+    isObject(doc.header)
+  );
+}
+
+/** Whether a translation has a published, non-empty document. */
+export function hasPublishedContent(t: PageTranslationText): boolean {
+  if (t.is_published !== true) {
+    return false;
+  }
+  const doc = parsePublishedDoc(t.published_doc);
+  return doc !== null && docHasContent(doc);
+}
+
+/** The published translation for `locale`, else the other locale's. */
+export function publishedTranslationFor(
+  translations: PageTranslationText[],
+  locale: SearchLocale
+): PageTranslationText | null {
+  const published = translations.filter(hasPublishedContent);
+  return published.find((t) => t.locale === locale) ?? published[0] ?? null;
+}
+
+export function pageSummary(t: PageTranslationText): string {
+  return truncateAtWord(toPlainText(t.description), SUMMARY_MAX);
+}
+
+export function pageBody(t: PageTranslationText): string {
+  return pageDocText(parsePublishedDoc(t.published_doc));
+}
+
+function titleOf(
+  t: PageTranslationText,
+  doc: JsonObject | null,
+  slug: string
+): string {
+  const header = doc && isObject(doc.header) ? doc.header : null;
+  const meta = doc && isObject(doc.meta) ? doc.meta : null;
+  const candidates = [t.title, header?.title, meta?.title];
+  for (const candidate of candidates) {
+    const text = typeof candidate === "string" ? toPlainText(candidate) : "";
+    if (text) {
+      return text;
+    }
+  }
+  return slug.split("/").at(-1) ?? slug;
+}
+
+type PageRow = Pick<
+  Pages,
+  "$id" | "slug" | "status" | "visibility" | "campus_id"
+>;
+
+/** Entries for a standalone page, unit sub-page or project page. */
+export function pageEntries(
+  row: PageRow,
+  translations: PageTranslationText[],
+  ctx: MapContext
+): SearchEntry[] {
+  const slug = row.slug?.trim();
+  if (
+    !slug ||
+    row.status !== PagesStatus.PUBLISHED ||
+    row.visibility !== PagesVisibility.PUBLIC
+  ) {
+    return [];
+  }
+  const { kind } = pageOwner(slug);
+  if (kind === "unit" || kind === "reserved") {
+    return [];
+  }
+
+  const entries: SearchEntry[] = [];
+  for (const locale of SEARCH_LOCALES) {
+    const t = publishedTranslationFor(translations, locale);
+    if (!t) {
+      return [];
+    }
+    const doc = parsePublishedDoc(t.published_doc);
+    entries.push({
+      ...baseEntry(
+        {
+          type: "page",
+          rowId: row.$id,
+          locale,
+          textLocale: t.locale,
+          campusId: campusBucket(row.campus_id),
+          url: `/${slug}`,
+        },
+        ctx
+      ),
+      title: titleOf(t, doc, slug),
+      summary: pageSummary(t),
+      body: pageBody(t),
+    });
+  }
+  return entries;
+}

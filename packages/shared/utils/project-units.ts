@@ -167,3 +167,21 @@ export function sortByCampusOrder<T extends { campusId: string }>(
     CAMPUS_ORDER[campusId] ?? UNKNOWN_CAMPUS_RANK;
   return [...units].sort((a, b) => rank(a.campusId) - rank(b.campusId));
 }
+
+const NATIONAL_CAMPUS_ID = "5";
+
+/**
+ * The national project a unit runs, or null. Only a national unit (campus
+ * "5") whose slug maps to a non-hub project qualifies: a hub project's page
+ * stands beside its campus units, it replaces none of them.
+ */
+export function nationalProjectForUnit(unit: {
+  campus_id?: string | null;
+  slug?: string | null;
+}): ProjectSlug | null {
+  if (unit.campus_id !== NATIONAL_CAMPUS_ID) {
+    return null;
+  }
+  const project = projectSlugForUnit(unit.slug);
+  return project && !isHubProject(project) ? project : null;
+}
