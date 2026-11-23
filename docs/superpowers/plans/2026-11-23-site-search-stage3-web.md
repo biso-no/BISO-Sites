@@ -36,6 +36,20 @@ Work in the worktree `/Users/markus/Documents/dev/BISO-Sites/.claude/worktrees/s
 
 ---
 
+### Task 0: Stage 2 follow-up
+
+**Files:** Modify `packages/shared/search/query.ts`, `packages/shared/search/query.test.ts`.
+
+Page mode's second call guard must be `restTotal > 0 && start - mineTotal < restTotal` (the stage 2 fix wave dropped the `restTotal > 0` part, so a partial first page with no other-campus matches makes a wasted empty query).
+
+- [ ] **Step 1: Failing test** — campus split, mine = 5 items, rest = 0, page 1 → `fake.calls` has length 1 and `hits` are the 5 mine items.
+- [ ] **Step 2: Run** `cd packages/shared && bunx vitest run search/query.test.ts` → FAIL.
+- [ ] **Step 3: Implement** the guard.
+- [ ] **Step 4: Run** `bunx vitest run search/` PASS; `bun run check-types` PASS.
+- [ ] **Step 5: Commit** — `fix(search): no second query when other campuses have no matches`
+
+---
+
 ### Task 1: Data layer, highlight rendering, strings, privacy
 
 **Files:**
