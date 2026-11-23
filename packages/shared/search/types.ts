@@ -19,7 +19,7 @@ export const ALL_CAMPUSES = "all";
 export const OPEN_ENDED = 32_503_680_000;
 
 const CAMPUS_IDS = new Set(["1", "2", "3", "4"]);
-const SAFE_ID_CHAR = /[A-Za-z0-9_-]/;
+const SAFE_ID_CHAR = /[A-Za-z0-9_]/;
 
 export interface SearchEntry {
   body: string;
@@ -57,8 +57,9 @@ export interface SearchEntry {
 }
 
 /**
- * Deterministic Meilisearch document id. Characters outside [A-Za-z0-9_-]
- * are encoded as `-<hex>-`, so `a.b` and `a-b` never collide.
+ * Deterministic Meilisearch document id. "-" is the escape character: every
+ * character outside [A-Za-z0-9_] (including "-" itself) is encoded as
+ * `-<hex>-`, so distinct row ids never collide.
  */
 export function searchEntryId(
   type: SearchType,

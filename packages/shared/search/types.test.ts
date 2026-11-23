@@ -17,6 +17,13 @@ describe("searchEntryId", () => {
     expect(searchEntryId("page", "a.b", "en")).toMatch(SAFE_ID);
   });
 
+  it("encodes the escape character itself", () => {
+    expect(searchEntryId("page", "a-b", "en")).toBe("page_a-2d-b_en");
+    expect(searchEntryId("page", "a-2e-b", "en")).not.toBe(
+      searchEntryId("page", "a.b", "en")
+    );
+  });
+
   it("encodes injectively", () => {
     expect(searchEntryId("page", "a.b", "en")).not.toBe(
       searchEntryId("page", "a-b", "en")
