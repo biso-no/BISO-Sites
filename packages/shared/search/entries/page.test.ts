@@ -147,22 +147,43 @@ describe("pageEntries", () => {
     expect(pageEntries(page({ slug: null }), [tr()], ctx())).toEqual([]);
   });
 
-  it("falls back to the other locale's published translation", () => {
+  it("indexes only the locales whose own translation is published", () => {
+    // The site serves a page in the request locale only; no fallback.
     const p = pageEntries(
       page({ slug: "packing-list" }),
       [tr({ title: "Pakkeliste" }), tr({ locale: "en", is_published: false })],
       ctx()
     );
-    expect(p).toHaveLength(2);
-    expect(p[0]).toMatchObject({ locale: "no", text_locale: "no" });
-    expect(p[1]).toMatchObject({
-      locale: "en",
+    expect(p).toHaveLength(1);
+    expect(p[0]).toMatchObject({
+      locale: "no",
       text_locale: "no",
       url: "/packing-list",
       type: "page",
       title: "Pakkeliste",
     });
     expect(p[0].body).toContain("Pakkeliste");
+  });
+
+  it("gives each published locale its own text", () => {
+    const p = pageEntries(
+      page(),
+      [tr(), tr({ locale: "en", title: "About us" })],
+      ctx()
+    );
+    expect(p.map((e) => [e.locale, e.text_locale, e.title])).toEqual([
+      ["no", "no", "Om oss"],
+      ["en", "en", "About us"],
+    ]);
+  });
+
+  it("skips a locale whose published document is empty", () => {
+    const p = pageEntries(
+      page(),
+      [tr(), tr({ locale: "en", published_doc: emptyDoc })],
+      ctx()
+    );
+    expect(p.map((e) => e.locale)).toEqual(["no"]);
   });
 
   it("builds title, summary and body from the translation", () => {

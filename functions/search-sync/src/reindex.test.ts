@@ -1,6 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import { baseEntry } from "@repo/shared/search/entries/common";
-import type { SearchEntry, SearchType } from "@repo/shared/search/types";
+import type {
+  SearchEntry,
+  SearchLocale,
+  SearchType,
+} from "@repo/shared/search/types";
 import { runReindex } from "./reindex";
 import type { Source } from "./source";
 import type { SyncDeps } from "./sync";
@@ -20,6 +24,7 @@ function fakeWriter(): FakeWriter {
       writer.settingsApplied = true;
       return Promise.resolve();
     },
+    deleteIds: () => Promise.resolve(),
     deleteItem: () => Promise.resolve(),
     deleteOlderThan: (syncedAt) => {
       writer.sweptBefore = syncedAt;
@@ -39,10 +44,10 @@ function fakeWriter(): FakeWriter {
 interface Options {
   entriesPer: number;
   ids: Partial<Record<string, string[][]>>;
-  servable?: string[];
+  servable?: Record<string, SearchLocale[]>;
 }
 
-function setup({ entriesPer, ids, servable = [] }: Options) {
+function setup({ entriesPer, ids, servable = {} }: Options) {
   const writer = fakeWriter();
   const source: Source = {
     departmentRelated: () => Promise.resolve([]),
@@ -65,7 +70,15 @@ function setup({ entriesPer, ids, servable = [] }: Options) {
       );
       return Promise.resolve({ entries, related: [] });
     },
-    servableProjectPaths: () => Promise.resolve(new Set(servable)),
+    servableProjectPaths: () =>
+      Promise.resolve(
+        new Map(
+          Object.entries(servable).map(([path, locales]) => [
+            path,
+            new Set(locales),
+          ])
+        )
+      ),
   };
   const deps: SyncDeps = {
     log: () => undefined,
@@ -95,18 +108,23 @@ describe("runReindex", () => {
     expect(r.entries).toBe(writer.upserted.length);
   });
 
-  it("skips the coded hub of a project a servable page has taken over", async () => {
+  it("skips a project's coded hub in the locales its page serves", async () => {
     const { deps, writer } = setup({
       entriesPer: 0,
       ids: {},
-      servable: ["/projects/winter-games"],
+      servable: {
+        "/projects/fadderullan": ["no", "en"],
+        "/projects/winter-games": ["no"],
+      },
     });
     await runReindex(deps);
-    expect(
-      writer.upserted.filter(
-        (e) => e.url === "/projects/winter-games" && e.type === "coded"
-      )
-    ).toEqual([]);
+    const codedLocales = (url: string) =>
+      writer.upserted
+        .filter((e) => e.url === url && e.type === "coded")
+        .map((e) => e.locale);
+    expect(codedLocales("/projects/fadderullan")).toEqual([]);
+    expect(codedLocales("/projects/winter-games")).toEqual(["en"]);
+    expect(codedLocales("/projects/karrieredagene")).toEqual(["no", "en"]);
   });
 
   it("upserts in batches of at most 500", async () => {

@@ -301,7 +301,9 @@ describe("appwriteSource.load: pages", () => {
   it("reads only published page fields and maps a standalone page", async () => {
     const { calls, src } = source({ pages: [page("p1", "om-oss")] });
     const item = await src.load({ id: "p1", type: "page" }, ctx);
-    expect(item.entries.map((e) => e.url)).toEqual(["/om-oss", "/om-oss"]);
+    expect(item.entries.map((e) => [e.url, e.locale])).toEqual([
+      ["/om-oss", "no"],
+    ]);
     expect(item.codedSkip).toBeUndefined();
     const read = calls.find((c) => c.tableId === "pages");
     expect(read?.queries).toContainEqual({
@@ -353,7 +355,34 @@ describe("appwriteSource.load: pages", () => {
     const item = await src.load({ id: "ps", type: "page" }, ctx);
     expect(item.entries.map((e) => e.url)).toEqual([
       "/units/oslo/fadderullan/program",
-      "/units/oslo/fadderullan/program",
+    ]);
+  });
+
+  it("indexes a page only in the locales whose own translation is published", async () => {
+    const { src } = source({
+      pages: [
+        page("p1", "om-oss", {
+          translation_refs: [
+            translation(),
+            translation({ $id: "t-en", is_published: false, locale: "en" }),
+          ],
+        }),
+        page("p2", "about", {
+          translation_refs: [
+            translation(),
+            translation({ $id: "t-en", locale: "en", title: "About" }),
+          ],
+        }),
+      ],
+    });
+    const noOnly = await src.load({ id: "p1", type: "page" }, ctx);
+    expect(noOnly.entries.map((e) => [e.locale, e.text_locale])).toEqual([
+      ["no", "no"],
+    ]);
+    const both = await src.load({ id: "p2", type: "page" }, ctx);
+    expect(both.entries.map((e) => [e.locale, e.title])).toEqual([
+      ["no", "Tittel"],
+      ["en", "About"],
     ]);
   });
 
@@ -379,17 +408,53 @@ describe("appwriteSource.load: pages", () => {
   });
 
   it("lets a servable hub project page replace its coded entry", async () => {
-    const { src } = source({ pages: [page("pf", "projects/fadderullan")] });
+    const { src } = source({
+      pages: [
+        page("pf", "projects/fadderullan", {
+          translation_refs: [
+            translation(),
+            translation({ $id: "t-en", locale: "en" }),
+          ],
+        }),
+      ],
+    });
     const item = await src.load({ id: "pf", type: "page" }, ctx);
-    expect(item.entries.map((e) => e.url)).toEqual([
-      "/projects/fadderullan",
-      "/projects/fadderullan",
+    expect(item.entries.map((e) => [e.url, e.locale])).toEqual([
+      ["/projects/fadderullan", "no"],
+      ["/projects/fadderullan", "en"],
     ]);
     expect(item.codedSkip).toEqual({
       path: "/projects/fadderullan",
-      skip: true,
+      skipIn: new Set(["no", "en"]),
     });
     expect(item.related).toEqual([]);
+  });
+
+  it("replaces the coded hub only in the locale the page is published in", async () => {
+    const { src } = source({ pages: [page("pf", "projects/fadderullan")] });
+    const item = await src.load({ id: "pf", type: "page" }, ctx);
+    expect(item.entries.map((e) => e.locale)).toEqual(["no"]);
+    expect(item.codedSkip).toEqual({
+      path: "/projects/fadderullan",
+      skipIn: new Set(["no"]),
+    });
+  });
+
+  it("decides the coded hub from every row at the address, not the one loaded", async () => {
+    // A stray row at the project address must not bring back the coded hub
+    // while the genuine page still serves it.
+    const { src } = source({
+      pages: [
+        page("pf", "projects/fadderullan"),
+        page("stray", "projects/fadderullan", { department_id: "d1" }),
+      ],
+    });
+    const item = await src.load({ id: "stray", type: "page" }, ctx);
+    expect(item.entries).toEqual([]);
+    expect(item.codedSkip).toEqual({
+      path: "/projects/fadderullan",
+      skipIn: new Set(["no"]),
+    });
   });
 
   it("keeps the coded entry when a project page is not servable", async () => {
@@ -418,7 +483,7 @@ describe("appwriteSource.load: pages", () => {
       expect({ entries: item.entries, id, skip: item.codedSkip }).toEqual({
         entries: [],
         id,
-        skip: { path, skip: false },
+        skip: { path, skipIn: new Set() },
       });
     }
   });
@@ -428,10 +493,10 @@ describe("appwriteSource.load: pages", () => {
       pages: [page("pw", "projects/winter-games", { department_id: "dwg" })],
     });
     const item = await src.load({ id: "pw", type: "page" }, ctx);
-    expect(item.entries).toHaveLength(2);
+    expect(item.entries).toHaveLength(1);
     expect(item.codedSkip).toEqual({
       path: "/projects/winter-games",
-      skip: true,
+      skipIn: new Set(["no"]),
     });
     expect(item.related).toEqual([{ id: "dwg", type: "unit" }]);
   });
@@ -444,7 +509,7 @@ describe("appwriteSource.load: pages", () => {
     expect(item.entries).toEqual([]);
     expect(item.codedSkip).toEqual({
       path: "/projects/winter-games",
-      skip: false,
+      skipIn: new Set(),
     });
     // The national unit is re-synced so it can take its URL back.
     expect(item.related).toEqual([{ id: "dwg", type: "unit" }]);
@@ -452,12 +517,23 @@ describe("appwriteSource.load: pages", () => {
 });
 
 describe("appwriteSource.servableProjectPaths", () => {
-  it("applies the same servable rule as load", async () => {
+  it("applies the same servable rule as load, per locale", async () => {
     const { src } = source({
       pages: [
-        page("pf", "projects/fadderullan"),
+        page("pf", "projects/fadderullan", {
+          translation_refs: [
+            translation(),
+            translation({ $id: "t-en", locale: "en" }),
+          ],
+        }),
         page("pk", "projects/karrieredagene", { department_id: "d1" }),
-        page("pw", "projects/winter-games", { department_id: "dwg" }),
+        page("pw", "projects/winter-games", {
+          department_id: "dwg",
+          translation_refs: [
+            translation({ is_published: false }),
+            translation({ $id: "t-en", locale: "en" }),
+          ],
+        }),
         page("pb", "projects/bergensbanelopet", {
           translation_refs: [translation({ is_published: false })],
         }),
@@ -465,7 +541,10 @@ describe("appwriteSource.servableProjectPaths", () => {
       ],
     });
     expect(await src.servableProjectPaths()).toEqual(
-      new Set(["/projects/fadderullan", "/projects/winter-games"])
+      new Map([
+        ["/projects/fadderullan", new Set(["no", "en"])],
+        ["/projects/winter-games", new Set(["en"])],
+      ])
     );
   });
 });
@@ -522,7 +601,15 @@ describe("appwriteSource.load: units", () => {
   it("drops a national unit whose project page is servable", async () => {
     const { src } = source({
       content_translations: [],
-      pages: [page("pw", "projects/winter-games", { department_id: "dwg" })],
+      pages: [
+        page("pw", "projects/winter-games", {
+          department_id: "dwg",
+          translation_refs: [
+            translation(),
+            translation({ $id: "t-en", locale: "en" }),
+          ],
+        }),
+      ],
     });
     expect((await src.load({ id: "dwg", type: "unit" }, ctx)).entries).toEqual(
       []
@@ -532,6 +619,17 @@ describe("appwriteSource.load: units", () => {
     expect(
       (await unserved.src.load({ id: "dwg", type: "unit" }, ctx)).entries
     ).toHaveLength(2);
+  });
+
+  it("replaces a national unit only in the locale its project page serves", async () => {
+    const { src } = source({
+      content_translations: [],
+      pages: [page("pw", "projects/winter-games", { department_id: "dwg" })],
+    });
+    const item = await src.load({ id: "dwg", type: "unit" }, ctx);
+    expect(item.entries.map((e) => [e.locale, e.url])).toEqual([
+      ["en", "/units/national/wintergames"],
+    ]);
   });
 
   it("gives no entries for a unit the site does not route", async () => {
@@ -581,6 +679,7 @@ describe("appwriteSource.departmentRelated", () => {
     const deleted: [SearchType, string][] = [];
     const writer: IndexWriter = {
       applySettings: () => Promise.resolve(),
+      deleteIds: () => Promise.resolve(),
       deleteItem: (type, rowId) => {
         deleted.push([type, rowId]);
         return Promise.resolve();

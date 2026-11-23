@@ -780,17 +780,21 @@ export function codedRowId(path: string): string {
   return escapeIdPart(path);
 }
 
+/** Path → the locales in which a servable project page has taken it over. */
+export type CodedSkip = ReadonlyMap<string, ReadonlySet<SearchLocale>>;
+
 /**
- * One entry per page per locale. `skipPaths` drops pages that a servable
- * project page has taken over, so the same URL is not indexed twice.
+ * One entry per page per locale. `skip` drops a page in the locales where a
+ * servable project page has taken its URL over (the site decides per request
+ * locale), so the same URL is not indexed twice in one locale.
  */
 export function codedPageEntries(
   ctx: Pick<MapContext, "syncedAt">,
-  skipPaths: ReadonlySet<string> = new Set()
+  skip: CodedSkip = new Map()
 ): SearchEntry[] {
-  return CODED_PAGES.filter((page) => !skipPaths.has(page.path)).flatMap(
-    (page) =>
-      SEARCH_LOCALES.map((locale) => {
+  return CODED_PAGES.flatMap((page) =>
+    SEARCH_LOCALES.filter((locale) => !skip.get(page.path)?.has(locale)).map(
+      (locale) => {
         const { title, description, keywords } = page.text[locale];
         return {
           ...baseEntry(
@@ -809,6 +813,7 @@ export function codedPageEntries(
           body: description,
           keywords,
         };
-      })
+      }
+    )
   );
 }

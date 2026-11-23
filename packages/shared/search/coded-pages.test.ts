@@ -45,12 +45,20 @@ describe("coded pages", () => {
     expect(new Set(ids).size).toBe(CODED_PAGES.length);
   });
 
-  it("drops skipped paths", () => {
-    const entries = codedPageEntries(
-      { syncedAt: 1 },
-      new Set(["/projects/winter-games"])
-    );
-    expect(entries.some((e) => e.url === "/projects/winter-games")).toBe(false);
+  it("drops a skipped path only in the locales it is skipped in", () => {
+    const winterGames = (skip: Map<string, Set<"no" | "en">>) =>
+      codedPageEntries({ syncedAt: 1 }, skip)
+        .filter((e) => e.url === "/projects/winter-games")
+        .map((e) => e.locale);
+    expect(
+      winterGames(new Map([["/projects/winter-games", new Set(["no"])]]))
+    ).toEqual(["en"]);
+    expect(
+      winterGames(
+        new Map([["/projects/winter-games", new Set(["no", "en"] as const)]])
+      )
+    ).toEqual([]);
+    expect(winterGames(new Map())).toEqual(["no", "en"]);
   });
 
   it("scopes campus landing pages to their campus", () => {

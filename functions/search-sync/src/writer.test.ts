@@ -116,6 +116,25 @@ describe("meiliWriter", () => {
     ]);
   });
 
+  it("deletes entries by document id", async () => {
+    const { calls, client } = fakeClient();
+    await meiliWriter(client, "site_content").deleteIds(["coded_x_no"]);
+    expect(calls).toEqual([
+      {
+        args: [["coded_x_no"]],
+        index: "site_content",
+        method: "deleteDocuments",
+        timeout: 10_000,
+      },
+    ]);
+  });
+
+  it("skips an empty id list", async () => {
+    const { calls, client } = fakeClient();
+    await meiliWriter(client, "site_content").deleteIds([]);
+    expect(calls).toEqual([]);
+  });
+
   it("quotes row ids inside the filter", async () => {
     const { calls, client } = fakeClient();
     await meiliWriter(client, "site_content").deleteItem("page", 'a"b\\c');

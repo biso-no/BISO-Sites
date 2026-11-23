@@ -1,7 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import { codedRowId } from "@repo/shared/search/coded-pages";
 import { baseEntry, type MapContext } from "@repo/shared/search/entries/common";
-import type { SearchEntry, SearchType } from "@repo/shared/search/types";
+import {
+  type SearchEntry,
+  type SearchLocale,
+  type SearchType,
+  searchEntryId,
+} from "@repo/shared/search/types";
 import type { ItemTarget, SyncTarget } from "./resolve";
 import type { LoadedItem, Source } from "./source";
 import { type SyncDeps, syncTargets } from "./sync";
@@ -9,6 +14,8 @@ import type { IndexWriter } from "./writer";
 
 const NOW = new Date("2026-11-23T12:00:00Z");
 const WINTER_GAMES_ROW = codedRowId("/projects/winter-games");
+const winterGamesId = (locale: SearchLocale) =>
+  searchEntryId("coded", WINTER_GAMES_ROW, locale);
 
 function entry(
   type: SearchType,
@@ -28,6 +35,7 @@ const pageEntry = entry("page", "p2", "no", "/projects/winter-games");
 
 interface FakeWriter extends IndexWriter {
   deleted: [SearchType, string][];
+  deletedIds: string[][];
   upserted: SearchEntry[];
 }
 
@@ -35,6 +43,11 @@ function fakeWriter(): FakeWriter {
   const writer: FakeWriter = {
     applySettings: () => Promise.resolve(),
     deleted: [],
+    deletedIds: [],
+    deleteIds: (ids) => {
+      writer.deletedIds.push(ids);
+      return Promise.resolve();
+    },
     deleteItem: (type, rowId) => {
       writer.deleted.push([type, rowId]);
       return Promise.resolve();
@@ -59,7 +72,7 @@ interface FakeSource extends Source {
 interface Overrides {
   departmentRelated?: (id: string) => Promise<SyncTarget[]>;
   load?: (target: ItemTarget) => Promise<LoadedItem>;
-  servable?: string[];
+  servable?: Record<string, SearchLocale[]>;
 }
 
 function fakeSource(overrides: Overrides): FakeSource {
@@ -86,7 +99,10 @@ function fakeSource(overrides: Overrides): FakeSource {
     servableCalls: 0,
     servableProjectPaths: () => {
       source.servableCalls += 1;
-      return Promise.resolve(new Set(overrides.servable ?? []));
+      const served = Object.entries(overrides.servable ?? {});
+      return Promise.resolve(
+        new Map(served.map(([path, locales]) => [path, new Set(locales)]))
+      );
     },
   };
   return source;
@@ -141,31 +157,70 @@ describe("syncTargets", () => {
     expect(source.loadCalls).toEqual(["unit:u1", "page:p1"]);
   });
 
+  it("removes a locale's entry that the item no longer has", async () => {
+    const { deps, writer } = setup({
+      load: () => Promise.resolve({ entries: [entryNo], related: [] }),
+    });
+    await syncTargets(deps, [{ id: "e1", type: "event" }]);
+    expect(writer.upserted).toEqual([entryNo]);
+    expect(writer.deletedIds).toEqual([[searchEntryId("event", "e1", "en")]]);
+    expect(writer.deleted).toEqual([]);
+  });
+
   it("removes the coded entry a project page has taken over", async () => {
     const { deps, writer } = setup({
       load: () =>
         Promise.resolve({
-          codedSkip: { path: "/projects/winter-games", skip: true },
+          codedSkip: {
+            path: "/projects/winter-games",
+            skipIn: new Set<SearchLocale>(["no", "en"]),
+          },
+          entries: [pageEntry, { ...pageEntry, id: "x", locale: "en" }],
+          related: [],
+        }),
+    });
+    await syncTargets(deps, [{ id: "p2", type: "page" }]);
+    expect(writer.upserted.map((e) => e.type)).toEqual(["page", "page"]);
+    expect(writer.deletedIds).toEqual([
+      [winterGamesId("no"), winterGamesId("en")],
+    ]);
+  });
+
+  it("swaps the coded entry only in the locale the project page serves", async () => {
+    const { deps, writer } = setup({
+      load: () =>
+        Promise.resolve({
+          codedSkip: {
+            path: "/projects/winter-games",
+            skipIn: new Set<SearchLocale>(["no"]),
+          },
           entries: [pageEntry],
           related: [],
         }),
     });
     await syncTargets(deps, [{ id: "p2", type: "page" }]);
-    expect(writer.upserted).toEqual([pageEntry]);
-    expect(writer.deleted).toContainEqual(["coded", WINTER_GAMES_ROW]);
+    expect(writer.deletedIds).toEqual([
+      [searchEntryId("page", "p2", "en")],
+      [winterGamesId("no")],
+    ]);
+    expect(writer.upserted.map((e) => [e.type, e.locale])).toEqual([
+      ["page", "no"],
+      ["coded", "en"],
+    ]);
   });
 
   it("restores the coded entry when the project page is not servable", async () => {
     const { deps, writer } = setup({
       load: () =>
         Promise.resolve({
-          codedSkip: { path: "/projects/winter-games", skip: false },
+          codedSkip: { path: "/projects/winter-games", skipIn: new Set() },
           entries: [],
           related: [],
         }),
     });
     await syncTargets(deps, [{ id: "p2", type: "page" }]);
     expect(writer.deleted).toEqual([["page", "p2"]]);
+    expect(writer.deletedIds).toEqual([]);
     expect(writer.upserted.map((e) => [e.type, e.url, e.locale])).toEqual([
       ["coded", "/projects/winter-games", "no"],
       ["coded", "/projects/winter-games", "en"],
@@ -197,19 +252,37 @@ describe("syncTargets", () => {
   });
 
   it("removes a hub's coded entry while a servable page owns it", async () => {
-    const { deps, writer } = setup({ servable: ["/projects/winter-games"] });
+    const { deps, writer } = setup({
+      servable: { "/projects/winter-games": ["no", "en"] },
+    });
     await syncTargets(deps, [{ id: "winter-games", type: "project-path" }]);
-    expect(writer.deleted).toEqual([["coded", WINTER_GAMES_ROW]]);
+    expect(writer.deletedIds).toEqual([
+      [winterGamesId("no"), winterGamesId("en")],
+    ]);
     expect(writer.upserted).toEqual([]);
   });
 
+  it("keeps a hub's coded entry in the locale no servable page serves", async () => {
+    const { deps, writer } = setup({
+      servable: { "/projects/winter-games": ["no"] },
+    });
+    await syncTargets(deps, [{ id: "winter-games", type: "project-path" }]);
+    expect(writer.deletedIds).toEqual([[winterGamesId("no")]]);
+    expect(writer.upserted.map((e) => [e.type, e.locale])).toEqual([
+      ["coded", "en"],
+    ]);
+  });
+
   it("writes nothing for a project with no coded page", async () => {
-    const { deps, writer } = setup();
+    const { deps, writer } = setup({
+      servable: { "/projects/bergensbanelopet": ["no"] },
+    });
     const counts = await syncTargets(deps, [
       { id: "bergensbanelopet", type: "project-path" },
     ]);
     expect(writer.upserted).toEqual([]);
     expect(writer.deleted).toEqual([]);
+    expect(writer.deletedIds).toEqual([]);
     expect(counts).toEqual({ deleted: 0, upserted: 0 });
   });
 

@@ -25,7 +25,23 @@ export interface MapContext {
 const SUMMARY_MAX = 200;
 const BODY_MAX = 4000;
 
-/** The translation for `locale`, else the other one, else null. */
+/**
+ * The translation in exactly `locale`, else null. For content whose page on
+ * the site reads only the request locale's translation (news), where a
+ * fallback entry would link to a 404.
+ */
+export function textIn(
+  translations: TranslationText[],
+  locale: SearchLocale
+): TranslationText | null {
+  return translations.find((t) => t.locale === locale) ?? null;
+}
+
+/**
+ * The translation for `locale`, else the other one, else null. For content
+ * whose page on the site falls back the same way (events, jobs, products,
+ * units).
+ */
 export function textFor(
   translations: TranslationText[],
   locale: SearchLocale

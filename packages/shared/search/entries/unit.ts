@@ -2,7 +2,12 @@ import type { Departments } from "@repo/api/types/appwrite";
 import { unitDisplayName } from "../../utils/unit-names";
 import { unitCanonicalPath } from "../../utils/unit-urls";
 import { isPublicUnit } from "../../utils/unit-visibility";
-import { campusBucket, SEARCH_LOCALES, type SearchEntry } from "../types";
+import {
+  campusBucket,
+  SEARCH_LOCALES,
+  type SearchEntry,
+  type SearchLocale,
+} from "../types";
 import {
   baseEntry,
   bodyOf,
@@ -27,8 +32,11 @@ type UnitRow = Pick<
 interface UnitExtras {
   overlay: TranslationText[];
   page: PageTranslationText[] | null;
-  /** A servable project page stands in for this unit's own page. */
-  replacedByProjectPage: boolean;
+  /**
+   * The locales in which a servable project page stands in for this unit's
+   * own page (the site decides per request locale).
+   */
+  replacedIn: ReadonlySet<SearchLocale>;
 }
 
 export function unitEntries(
@@ -36,7 +44,7 @@ export function unitEntries(
   extras: UnitExtras,
   ctx: MapContext
 ): SearchEntry[] {
-  if (extras.replacedByProjectPage || !isPublicUnit(row)) {
+  if (!isPublicUnit(row)) {
     return [];
   }
   const url = unitCanonicalPath({ campusId: row.campus_id, slug: row.slug });
@@ -45,7 +53,10 @@ export function unitEntries(
   }
   const title = unitDisplayName(row.Name);
 
-  return SEARCH_LOCALES.map((locale) => {
+  const locales = SEARCH_LOCALES.filter(
+    (locale) => !extras.replacedIn.has(locale)
+  );
+  return locales.map((locale) => {
     const overlay = textFor(extras.overlay, locale);
     const page = overlay
       ? null

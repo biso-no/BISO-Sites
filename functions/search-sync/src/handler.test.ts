@@ -26,8 +26,11 @@ const quietSource: Source = {
     yield* [];
   },
   load: () =>
-    Promise.resolve<LoadedItem>({ entries: [eventEntry], related: [] }),
-  servableProjectPaths: () => Promise.resolve(new Set<string>()),
+    Promise.resolve<LoadedItem>({
+      entries: [eventEntry, { ...eventEntry, id: "event_e1_en", locale: "en" }],
+      related: [],
+    }),
+  servableProjectPaths: () => Promise.resolve(new Map()),
 };
 
 const throwingSource: Source = {
@@ -37,6 +40,7 @@ const throwingSource: Source = {
 
 const writer: IndexWriter = {
   applySettings: () => Promise.resolve(),
+  deleteIds: () => Promise.resolve(),
   deleteItem: () => Promise.resolve(),
   deleteOlderThan: () => Promise.resolve(),
   upsert: () => Promise.resolve(),
@@ -109,7 +113,7 @@ describe("handleRequest", () => {
 
   it("syncs a row event and answers its counts", async () => {
     expect(await handleRequest(input())).toEqual({
-      body: { deleted: 0, ok: true, upserted: 1 },
+      body: { deleted: 0, ok: true, upserted: 2 },
       status: 200,
     });
   });

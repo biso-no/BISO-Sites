@@ -17,9 +17,13 @@ import { eventEntries } from "@repo/shared/search/entries/event";
 import { jobEntries } from "@repo/shared/search/entries/job";
 import { newsEntries } from "@repo/shared/search/entries/news";
 import { productEntries } from "@repo/shared/search/entries/product";
-import type { SearchEntry, SearchType } from "@repo/shared/search/types";
+import type {
+  SearchEntry,
+  SearchLocale,
+  SearchType,
+} from "@repo/shared/search/types";
 import { unitDisplayName } from "@repo/shared/utils/unit-names";
-import { pageLoader } from "./pages";
+import { pageLoader, type ServedProjectPaths } from "./pages";
 import type { ItemTarget, SyncTarget } from "./resolve";
 import {
   type AdminDb,
@@ -32,8 +36,11 @@ import {
 export type { AdminDb } from "./rows";
 
 export interface LoadedItem {
-  /** A project page took over (`skip`) or gave back its coded hub's URL. */
-  codedSkip?: { path: string; skip: boolean };
+  /**
+   * A project page's coded hub: in `skipIn` the page has taken the URL over,
+   * in the other locales the hub entry comes back.
+   */
+  codedSkip?: { path: string; skipIn: ReadonlySet<SearchLocale> };
   /** Empty when the item is gone or not public: its entries are removed. */
   entries: SearchEntry[];
   /** Other items whose entries depend on this one. */
@@ -47,8 +54,11 @@ export interface Source {
   /** Pages of ids, for the reindex. The mappers still decide what is public. */
   listIds(type: ListedType): AsyncIterable<string[]>;
   load(target: ItemTarget, ctx: MapContext): Promise<LoadedItem>;
-  /** `/projects/<slug>` paths that a servable project page has taken over. */
-  servableProjectPaths(): Promise<Set<string>>;
+  /**
+   * `/projects/<slug>` paths that a servable project page has taken over, and
+   * the locales it serves them in (the site decides per request locale).
+   */
+  servableProjectPaths(): Promise<ServedProjectPaths>;
 }
 
 type DepartmentName = (id: string | null | undefined) => Promise<string | null>;

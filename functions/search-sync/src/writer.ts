@@ -5,6 +5,8 @@ import type { EnqueuedTaskPromise, Meilisearch } from "meilisearch";
 export interface IndexWriter {
   /** Write every setting in `SEARCH_INDEX_SETTINGS`. */
   applySettings(): Promise<void>;
+  /** Entries by document id (one locale of an item). */
+  deleteIds(ids: string[]): Promise<void>;
   /** Every entry of one item: `type = X AND row_id = Y`. */
   deleteItem(type: SearchType, rowId: string): Promise<void>;
   /** The reindex sweep: `synced_at < N`. */
@@ -45,6 +47,12 @@ export function meiliWriter(
 
   return {
     applySettings: () => settle(index.updateSettings(SEARCH_INDEX_SETTINGS)),
+    deleteIds: async (ids) => {
+      if (ids.length === 0) {
+        return;
+      }
+      await settle(index.deleteDocuments(ids));
+    },
     deleteItem: (type, rowId) =>
       settle(
         index.deleteDocuments({

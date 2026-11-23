@@ -12,7 +12,7 @@ import {
   nonEmpty,
   type TranslationText,
   textFields,
-  textFor,
+  textIn,
 } from "./common";
 
 type NewsRow = Pick<
@@ -34,11 +34,12 @@ export function newsEntries(
   if (row.status !== NewsStatus.PUBLISHED || !row.slug) {
     return [];
   }
+  // `getNewsBySlug` reads the request locale's translation only: no fallback.
   const entries: SearchEntry[] = [];
   for (const locale of SEARCH_LOCALES) {
-    const text = textFor(translations, locale);
+    const text = textIn(translations, locale);
     if (!text) {
-      return [];
+      continue;
     }
     entries.push({
       ...baseEntry(
@@ -46,7 +47,7 @@ export function newsEntries(
           type: "news",
           rowId: row.$id,
           locale,
-          textLocale: text.locale,
+          textLocale: locale,
           campusId: campusBucket(row.campus_id),
           url: `/news/${row.slug}`,
         },

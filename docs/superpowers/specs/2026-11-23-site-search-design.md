@@ -140,15 +140,36 @@ so.
 
 ### Locale
 
-- Every item gets an entry for `no` and for `en`.
-- If the item has no translation in a locale, that locale's entry uses the
-  other language's text, and records which language its text is in
-  (`text_locale`). The detail pages fall back the same way (`pickContent`,
-  `pickTranslation`), so the link always works. The `/events` and `/news` feeds
-  instead hide such items. Search falls back on purpose: admin writes the source
-  locale and schedules a machine translation of the other one, so the fallback
-  only bridges the minutes before that translation lands (its row event then
-  replaces the entry) and covers older content that was never translated.
+The rule: an item has an entry in a locale exactly when the site serves its
+page in that locale. A search link must never 404, and results should be in
+the visitor's language. Whether a missing translation falls back depends on
+what the detail page does.
+
+- **Events, jobs, products and units** get an entry for `no` and for `en`. If
+  the item has no translation in a locale, that locale's entry uses the other
+  language's text and records which language its text is in (`text_locale`).
+  Their detail pages fall back the same way (`pickContent`, `pickTranslation`),
+  so the link works. The `/events` feed instead hides such items. Search falls
+  back on purpose: admin writes the source locale and schedules a machine
+  translation of the other one, so the fallback only bridges the minutes
+  before that translation lands (its row event then replaces the entry) and
+  covers older content that was never translated.
+- **News** has an entry only in the locales with their own translation, and
+  `text_locale` is always that locale. The news page does not fall back:
+  `getNewsBySlug` filters on `translation_refs.locale = locale`, so a fallback
+  entry would link to a 404.
+- **Editor pages** (standalone pages, unit sub-pages and project pages) have
+  an entry only in the locales whose own translation is published with
+  content. `getPage` matches the exact locale, and `isPublishedPage` and
+  `publishedUnitSubPage` need that locale's published translation.
+- **Project pages take over per locale.** `/projects/<slug>` serves the editor
+  page in a locale where it is servable (`isServableProjectPage` on that
+  locale's translation) and the coded hub in the other. So the coded hub entry
+  is absent in exactly the locales where the page is servable, and present in
+  the rest. A national project's unit entry is replaced the same way, per
+  locale.
+- A unit's text taken from its own editor page keeps the fallback (the unit
+  page exists in both locales; only its text source differs).
 - Documents have one `language`; they get an entry in both locales.
 - The API always filters on the requested locale. The web passes the
   `NEXT_LOCALE` value; default `no`.
@@ -332,7 +353,9 @@ changes show in search within seconds.
 - Finished events and closed jobs are hidden from search, as they are from the
   feeds.
 - A missing translation falls back to the other language rather than hiding the
-  item (the feeds hide it; the detail pages fall back).
+  item, for events, jobs, products and units (their detail pages fall back).
+  News and editor pages are not indexed in a locale without their own
+  translation, because their pages 404 there (see Locale).
 - No "did you mean" on an empty result.
 - Documents and coded pages show under Pages in the quick panel.
 - The reindex call reuses `CRON_SECRET`.

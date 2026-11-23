@@ -1,5 +1,10 @@
-import { codedPageEntries, codedRowId } from "@repo/shared/search/coded-pages";
+import {
+  CODED_PAGES,
+  codedPageEntries,
+  codedRowId,
+} from "@repo/shared/search/coded-pages";
 import type { MapContext } from "@repo/shared/search/entries/common";
+import { SEARCH_LOCALES, searchEntryId } from "@repo/shared/search/types";
 import { projectPageSlug } from "@repo/shared/utils/project-units";
 import type { ItemTarget, SyncTarget } from "./resolve";
 import type { LoadedItem, Source } from "./source";
@@ -13,13 +18,18 @@ export interface SyncDeps {
 }
 
 interface Counts {
-  /** Items whose entries were removed (one delete per item). */
+  /** Delete writes: an item's entries, or the locales it no longer has. */
   deleted: number;
   /** Entries written. */
   upserted: number;
 }
 
-/** Write one item's entries, or remove them when it has none. */
+/**
+ * Write one item's entries, or remove them when it has none. An item can have
+ * an entry in one locale only (news and pages are not indexed in a locale
+ * without their own translation), so the locale it lacks is removed too: a
+ * translation that was deleted or unpublished must not leave its old entry.
+ */
 async function writeItem(
   deps: SyncDeps,
   target: ItemTarget,
@@ -29,7 +39,19 @@ async function writeItem(
   if (item.entries.length > 0) {
     await deps.writer.upsert(item.entries);
     counts.upserted += item.entries.length;
-    deps.log(`${target.type} ${target.id}: ${item.entries.length} entries`);
+    const missing = SEARCH_LOCALES.filter(
+      (locale) => !item.entries.some((e) => e.locale === locale)
+    );
+    if (missing.length > 0) {
+      await deps.writer.deleteIds(
+        missing.map((locale) => searchEntryId(target.type, target.id, locale))
+      );
+      counts.deleted += 1;
+    }
+    const removed = missing.length > 0 ? `, removed ${missing.join(", ")}` : "";
+    deps.log(
+      `${target.type} ${target.id}: ${item.entries.length} entries${removed}`
+    );
   } else {
     await deps.writer.deleteItem(target.type, target.id);
     counts.deleted += 1;
@@ -37,28 +59,38 @@ async function writeItem(
   }
 }
 
-/** A project page took over (`skip`) or gave back its coded hub's URL. */
+/**
+ * A project page took its coded hub's URL over in the locales in `skipIn` and
+ * gave it back (or never had it) in the others.
+ */
 async function writeCoded(
   deps: SyncDeps,
   codedSkip: NonNullable<LoadedItem["codedSkip"]>,
   ctx: MapContext,
   counts: Counts
 ): Promise<void> {
-  const { path, skip } = codedSkip;
-  if (skip) {
-    await deps.writer.deleteItem("coded", codedRowId(path));
-    counts.deleted += 1;
-    deps.log(`coded ${path}: removed`);
-    return;
-  }
-  const entries = codedPageEntries(ctx).filter((e) => e.url === path);
-  if (entries.length === 0) {
+  const { path, skipIn } = codedSkip;
+  if (!CODED_PAGES.some((page) => page.path === path)) {
     // A project without a coded hub (no hub page in CODED_PAGES).
     return;
   }
-  await deps.writer.upsert(entries);
-  counts.upserted += entries.length;
-  deps.log(`coded ${path}: ${entries.length} entries`);
+  if (skipIn.size > 0) {
+    const locales = [...skipIn];
+    const rowId = codedRowId(path);
+    await deps.writer.deleteIds(
+      locales.map((locale) => searchEntryId("coded", rowId, locale))
+    );
+    counts.deleted += 1;
+    deps.log(`coded ${path}: removed in ${locales.join(", ")}`);
+  }
+  const entries = codedPageEntries(ctx, new Map([[path, skipIn]])).filter(
+    (e) => e.url === path
+  );
+  if (entries.length > 0) {
+    await deps.writer.upsert(entries);
+    counts.upserted += entries.length;
+    deps.log(`coded ${path}: ${entries.length} entries`);
+  }
 }
 
 /**
@@ -97,7 +129,8 @@ export async function syncTargets(
       // when no servable page owns the path.
       const path = `/${projectPageSlug(target.id)}`;
       const served = await deps.source.servableProjectPaths();
-      await writeCoded(deps, { path, skip: served.has(path) }, ctx, counts);
+      const skipIn = served.get(path) ?? new Set();
+      await writeCoded(deps, { path, skipIn }, ctx, counts);
       continue;
     }
     const item = await deps.source.load(target, ctx);

@@ -7,12 +7,13 @@ import type {
 import { PagesStatus, PagesVisibility } from "@repo/api/types/appwrite";
 import type { MapContext } from "@repo/shared/search/entries/common";
 import {
-  hasPublishedContent,
   type PageTranslationText,
   pageEntries,
   pageOwner,
+  publishedLocales,
 } from "@repo/shared/search/entries/page";
 import { unitEntries } from "@repo/shared/search/entries/unit";
+import type { SearchLocale } from "@repo/shared/search/types";
 import {
   isHubProject,
   nationalProjectForUnit,
@@ -88,6 +89,11 @@ const UNIT_COLUMNS = columns<UnitRow>({
 
 /** Room for case and whitespace variants of the project addresses. */
 const PROJECT_PAGE_LIMIT = 25;
+
+/** `/projects/<slug>` → the locales a servable project page serves it in. */
+export type ServedProjectPaths = ReadonlyMap<string, ReadonlySet<SearchLocale>>;
+
+const NO_LOCALES: ReadonlySet<SearchLocale> = new Set();
 
 function empty(): LoadedItem {
   return { entries: [], related: [] };
@@ -180,43 +186,59 @@ export function pageLoader(db: AdminDb) {
   }
 
   /**
-   * Whether `/projects/<project>` serves this page instead of its coded hub
-   * (`isServableProjectPage`): a published, public row with a published,
-   * non-empty translation that is genuinely the project's. The site reads
-   * project pages with guest permissions, so a signed-in-only page is not
-   * served and the coded hub stays. The one rule for both `loadPage` and
-   * `servableProjectPaths`.
+   * The locales in which `/projects/<project>` serves this page instead of
+   * its coded hub. The site runs `isServableProjectPage` on `getPage(slug,
+   * locale)`, which reads the request locale's translation only: a published,
+   * public row that is genuinely the project's, in each locale whose own
+   * translation has published, non-empty content. The site reads project
+   * pages with guest permissions, so a signed-in-only page is not served and
+   * the coded hub stays. The one rule behind `servableProjectPaths`, and so
+   * behind `loadPage`, `loadUnit` and the reindex.
    */
-  async function isServableProjectPage(
+  async function servableLocales(
     row: PageRow,
     project: ProjectSlug
-  ): Promise<boolean> {
+  ): Promise<ReadonlySet<SearchLocale>> {
     if (
       row.status !== PagesStatus.PUBLISHED ||
-      row.visibility !== PagesVisibility.PUBLIC ||
-      !pageTranslations(row).some(hasPublishedContent)
+      row.visibility !== PagesVisibility.PUBLIC
     ) {
-      return false;
+      return NO_LOCALES;
     }
-    return await projectPageIsGenuine(row, project);
+    const locales = publishedLocales(pageTranslations(row));
+    if (locales.size === 0) {
+      return NO_LOCALES;
+    }
+    return (await projectPageIsGenuine(row, project)) ? locales : NO_LOCALES;
   }
 
-  async function servableProjectPaths(): Promise<Set<string>> {
+  async function servableProjectPaths(): Promise<ServedProjectPaths> {
     const rows = await readPages([
       Query.equal("slug", PROJECTS.map(projectPageSlug)),
       Query.limit(PROJECT_PAGE_LIMIT),
     ]);
-    const paths = await Promise.all(
+    const servedRows = await Promise.all(
       rows.map(async (row) => {
         const owner = pageOwner(row.slug?.trim() ?? "");
         if (owner.kind !== "project") {
           return null;
         }
-        const servable = await isServableProjectPage(row, owner.project);
-        return servable ? projectPath(owner.project) : null;
+        const locales = await servableLocales(row, owner.project);
+        return { locales, path: projectPath(owner.project) };
       })
     );
-    return new Set(paths.filter((path): path is string => path !== null));
+    const served = new Map<string, Set<SearchLocale>>();
+    for (const servedRow of servedRows) {
+      if (!servedRow || servedRow.locales.size === 0) {
+        continue;
+      }
+      const locales = served.get(servedRow.path) ?? new Set<SearchLocale>();
+      for (const locale of servedRow.locales) {
+        locales.add(locale);
+      }
+      served.set(servedRow.path, locales);
+    }
+    return served;
   }
 
   /**
@@ -245,23 +267,32 @@ export function pageLoader(db: AdminDb) {
     );
   }
 
+  /**
+   * A project page: its own entries in the locales it is servable in, and the
+   * coded hub decided from every row at the address (`servableProjectPaths`),
+   * so loading a stray row there cannot bring the hub back while the genuine
+   * page still serves it.
+   */
   async function loadProjectPage(
     row: PageRow,
     project: ProjectSlug,
     ctx: MapContext
   ): Promise<LoadedItem> {
     const path = projectPath(project);
-    const servable = await isServableProjectPage(row, project);
+    const [served, own] = await Promise.all([
+      servableProjectPaths(),
+      servableLocales(row, project),
+    ]);
     // A national unit gives its URL to a servable project page and takes it
     // back when the page stops being servable, so re-sync it either way.
     const unit = isHubProject(project) ? null : await nationalUnit(project);
     const related: SyncTarget[] = unit ? [{ id: unit.$id, type: "unit" }] : [];
-    if (!servable) {
-      return { codedSkip: { path, skip: false }, entries: [], related };
-    }
+    const entries = pageEntries(row, pageTranslations(row), ctx).filter(
+      (entry) => own.has(entry.locale)
+    );
     return {
-      codedSkip: { path, skip: true },
-      entries: pageEntries(row, pageTranslations(row), ctx),
+      codedSkip: { path, skipIn: served.get(path) ?? NO_LOCALES },
+      entries,
       related,
     };
   }
@@ -339,12 +370,15 @@ export function pageLoader(db: AdminDb) {
     const [overlay, page, served] = await Promise.all([
       contentTranslations(db, "department", id),
       boundUnitPage(row),
-      project ? servableProjectPaths() : Promise.resolve(new Set<string>()),
+      project ? servableProjectPaths() : Promise.resolve(new Map()),
     ]);
-    const replacedByProjectPage =
-      project !== null && served.has(projectPath(project));
+    // The project page takes the unit's URL over per locale, as the site's
+    // unit redirect decides per request locale.
+    const replacedIn: ReadonlySet<SearchLocale> = project
+      ? (served.get(projectPath(project)) ?? NO_LOCALES)
+      : NO_LOCALES;
     return {
-      entries: unitEntries(row, { overlay, page, replacedByProjectPage }, ctx),
+      entries: unitEntries(row, { overlay, page, replacedIn }, ctx),
       related: [],
     };
   }

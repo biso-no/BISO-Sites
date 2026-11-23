@@ -1,8 +1,12 @@
 # search-sync (Appwrite Function)
 
 Keeps the Meilisearch site-search index in step with Appwrite. Each indexed
-item has one entry per locale (`no`, `en`); the site's search reads only from
-that index.
+item has one entry per locale (`no`, `en`) in which the site serves it: events,
+jobs, products, units and documents in both (a missing translation falls back
+to the other language, as their pages do); news and editor pages only in the
+locales with their own (published) translation, because their pages 404 in the
+other. A servable project page takes `/projects/<slug>` over from its coded hub
+per locale. The site's search reads only from that index.
 
 ## How it works
 

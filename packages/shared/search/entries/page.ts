@@ -111,7 +111,36 @@ export function hasPublishedContent(t: PageTranslationText): boolean {
   return doc !== null && docHasContent(doc);
 }
 
-/** The published translation for `locale`, else the other locale's. */
+/**
+ * The translation in exactly `locale` when it has published content, else
+ * null. The site serves an editor page in the request locale only (`getPage`
+ * matches the exact locale), so a page has an entry only where its own
+ * translation is published.
+ */
+export function publishedTranslationIn(
+  translations: PageTranslationText[],
+  locale: SearchLocale
+): PageTranslationText | null {
+  const own = translations.find((t) => t.locale === locale);
+  return own && hasPublishedContent(own) ? own : null;
+}
+
+/** The locales whose own translation has published content. */
+export function publishedLocales(
+  translations: PageTranslationText[]
+): Set<SearchLocale> {
+  return new Set(
+    SEARCH_LOCALES.filter((locale) =>
+      publishedTranslationIn(translations, locale)
+    )
+  );
+}
+
+/**
+ * The published translation for `locale`, else the other locale's. Only for
+ * text that stands in for something the site does fall back for (a unit's
+ * page text on its unit entry), never for a page's own entries.
+ */
 export function publishedTranslationFor(
   translations: PageTranslationText[],
   locale: SearchLocale
@@ -150,7 +179,10 @@ type PageRow = Pick<
   "$id" | "slug" | "status" | "visibility" | "campus_id"
 >;
 
-/** Entries for a standalone page, unit sub-page or project page. */
+/**
+ * Entries for a standalone page, unit sub-page or project page: one per
+ * locale whose own translation is published, with no fallback.
+ */
 export function pageEntries(
   row: PageRow,
   translations: PageTranslationText[],
@@ -171,9 +203,9 @@ export function pageEntries(
 
   const entries: SearchEntry[] = [];
   for (const locale of SEARCH_LOCALES) {
-    const t = publishedTranslationFor(translations, locale);
+    const t = publishedTranslationIn(translations, locale);
     if (!t) {
-      return [];
+      continue;
     }
     const doc = parsePublishedDoc(t.published_doc);
     entries.push({
@@ -182,7 +214,7 @@ export function pageEntries(
           type: "page",
           rowId: row.$id,
           locale,
-          textLocale: t.locale,
+          textLocale: locale,
           campusId: campusBucket(row.campus_id),
           url: `/${slug}`,
         },

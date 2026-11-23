@@ -23,7 +23,7 @@ function unit(overrides: Partial<Row> = {}): Row {
 const noExtras: Extras = {
   overlay: [],
   page: null,
-  replacedByProjectPage: false,
+  replacedIn: new Set(),
 };
 
 const doc = JSON.stringify({
@@ -52,8 +52,21 @@ describe("unitEntries", () => {
     );
     expect(unitEntries(unit({ active: false }), noExtras, ctx())).toEqual([]);
     expect(
-      unitEntries(unit(), { ...noExtras, replacedByProjectPage: true }, ctx())
+      unitEntries(
+        unit(),
+        { ...noExtras, replacedIn: new Set(["no", "en"]) },
+        ctx()
+      )
     ).toEqual([]);
+  });
+
+  it("gives its URL to a project page only in the locales it serves", () => {
+    const entries = unitEntries(
+      unit(),
+      { ...noExtras, replacedIn: new Set(["no"]) },
+      ctx()
+    );
+    expect(entries.map((e) => e.locale)).toEqual(["en"]);
   });
 
   it("skips a unit with no campus segment", () => {
