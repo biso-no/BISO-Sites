@@ -5,6 +5,7 @@
   },
   "open": "Søk",
   "close": "Lukk søk",
+  "cancel": "Avbryt",
   "submit": "Søk",
   "showAll": "{count, plural, one {Vis # treff for «{query}»} other {Vis alle # treff for «{query}»}}",
   "groups": {

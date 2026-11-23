@@ -5,6 +5,7 @@
   },
   "open": "Search",
   "close": "Close search",
+  "cancel": "Cancel",
   "submit": "Search",
   "showAll": "{count, plural, one {Show # result for \"{query}\"} other {Show all # results for \"{query}\"}}",
   "groups": {

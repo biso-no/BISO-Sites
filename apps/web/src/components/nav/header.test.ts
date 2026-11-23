@@ -23,6 +23,14 @@ const shell = read("../layout/site-shell.tsx");
 
 /** A `/campus/<slug>` template literal in the source. */
 const CAMPUS_LANDING_TEMPLATE = /`\/campus\/\$\{/;
+/** A search trigger somewhere before a cart button. */
+const TRIGGER_BEFORE_CART = /<SearchTrigger[\s\S]*<CartButton/;
+/** Static imports of the quick search or the modules only it needs. */
+const STATIC_QUICK_SEARCH_IMPORTS = [
+  /from "@\/components\/search\/quick-search"/,
+  /from "@\/components\/search\/quick-search-/,
+  /from "@\/components\/search\/use-quick-search"/,
+];
 
 describe("header (RD-017)", () => {
   it("keeps the panel behaviour in a hook, not in the header", () => {
@@ -124,6 +132,50 @@ describe("header (RD-017)", () => {
     expect(shell).toContain("<NavigationV2");
     expect(shell).not.toContain("<Navigation ");
     expect(shell).not.toContain("isShellV2Enabled");
+  });
+});
+
+describe("site search in the header", () => {
+  const UTILITY_GROUP = "hidden shrink-0 items-center gap-2 min-[1340px]:flex";
+  const utilityGroup = v2.slice(
+    v2.indexOf(UTILITY_GROUP),
+    v2.indexOf("<AccountMenu")
+  );
+  const mobileCluster = v2.slice(v2.indexOf("min-[1340px]:hidden"));
+
+  it("loads the quick search only when it opens", () => {
+    // The first paint of the header must not carry the search code.
+    expect(v2).toContain("dynamic(");
+    expect(v2).toContain('import("@/components/search/quick-search")');
+    expect(v2).toContain("ssr: false");
+    for (const staticImport of STATIC_QUICK_SEARCH_IMPORTS) {
+      expect(v2).not.toMatch(staticImport);
+    }
+  });
+
+  it("puts a trigger before the cart in the utility group and on phones", () => {
+    expect(v2).toMatch(TRIGGER_BEFORE_CART);
+    expect(utilityGroup).toMatch(TRIGGER_BEFORE_CART);
+    expect(mobileCluster).toMatch(TRIGGER_BEFORE_CART);
+  });
+
+  it("opens from / and Ctrl/Cmd+K, in the layout the viewport shows", () => {
+    expect(v2).toContain("useSearchShortcut(");
+    expect(v2).toContain('DESKTOP_MEDIA_QUERY = "(min-width: 1340px)"');
+    expect(v2).toContain("window.matchMedia(DESKTOP_MEDIA_QUERY)");
+  });
+
+  it("keeps search apart from the mega panels", () => {
+    // The panel hook closes on mouse-leave; search must not.
+    expect(hook).not.toContain("search");
+    // Opening search closes any panel.
+    const openSearch = v2.slice(v2.indexOf("const openSearch ="));
+    expect(openSearch.slice(0, 300)).toContain("closeNow()");
+  });
+
+  it("keeps the header solid while search is open", () => {
+    const solid = v2.slice(v2.indexOf("const solid ="));
+    expect(solid.slice(0, solid.indexOf(";"))).toContain("searchOpen");
   });
 });
 

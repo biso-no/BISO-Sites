@@ -4,12 +4,20 @@ import { trackEvent } from "@repo/shared/utils/analytics";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import { cn } from "@repo/ui/lib/utils";
 import { Menu, ShoppingCart, X } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useCampus } from "@/components/context/campus";
 import { useUserMembership } from "@/components/context/membership-provider";
 import { LocaleSwitcher } from "@/components/locale-switcher";
+import {
+  SEARCH_PANEL_ID,
+  SEARCH_SHEET_ID,
+  SearchTrigger,
+} from "@/components/search/search-trigger";
+import { useSearchShortcut } from "@/components/search/use-search-shortcut";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { CampusPill } from "@/components/ui/campus-pill";
 import { useCart } from "@/lib/contexts/cart-context";
@@ -19,6 +27,8 @@ import { DesktopMenu, NavRowLink, NavRowLinkGhost } from "./desktop-menu";
 import { MegaPanel } from "./mega-panel";
 import { MobileDrawer } from "./mobile-drawer";
 import {
+  HEADER_CONTAINER_CLASS,
+  HEADER_LOGO_WIDTH_CLASS,
   hasSolidNavRoute,
   NAV_OVERFLOW_DROP_ORDER,
   OVERFLOW_TRIGGER_KEY,
@@ -65,6 +75,13 @@ import { useNavOverflow } from "./use-nav-overflow";
  *   - **The Projects panel follows campus**: the flagship hubs, then the
  *     project units of the campus the page shows (`projectLinks`).
  *
+ * **Search** is not a mega panel and does not go through `useMegaPanels`: it
+ * must not close when the mouse leaves the header. Its trigger opens a bar
+ * over the header row with results in a panel below (desktop) or a
+ * full-screen sheet (phones); `/` and Ctrl/Cmd+K open whichever the viewport
+ * shows. The quick search is loaded on open, never with the header. Opening
+ * search closes any panel and the drawer; a panel opening closes search.
+ *
  * PLACEHOLDER-001: the logo lockup wants the BISO chevron as a vector. Only a
  * PNG exists, so the existing asset is used until an SVG is supplied.
  */
@@ -86,6 +103,16 @@ const EMPTY_PROJECT_LINKS: NavProjectLink[] = [];
  * typography, or the ghost measures a different string than the row draws.
  */
 const ROW_CLASS = "flex items-center gap-0.5 text-[0.92rem]";
+
+/** Where the desktop bar takes over from the drawer; matches `min-[1340px]:`. */
+const DESKTOP_MEDIA_QUERY = "(min-width: 1340px)";
+
+type SearchLayout = "panel" | "sheet";
+
+/** Loaded when search first opens, so the header's first paint never carries it. */
+const QuickSearch = dynamic(() => import("@/components/search/quick-search"), {
+  ssr: false,
+});
 
 export function NavigationV2({
   account = null,
@@ -118,6 +145,96 @@ export function NavigationV2({
   const cartCount = getItemCount();
   const memberActive = isMember ?? memberFromContext;
   const closeMobile = useCallback(() => setIsMobileOpen(false), []);
+  const { activeCampusId } = useCampus();
+
+  // Search: open as the desktop panel or the phone sheet, or closed.
+  const [searchLayout, setSearchLayout] = useState<SearchLayout | null>(null);
+  const searchOpen = searchLayout !== null;
+  const panelTriggerRef = useRef<HTMLButtonElement>(null);
+  const sheetTriggerRef = useRef<HTMLButtonElement>(null);
+  const lastSearchLayoutRef = useRef<SearchLayout | null>(null);
+  const returnFocusRef = useRef(false);
+
+  const openSearch = useCallback(
+    (layout: SearchLayout) => {
+      closeNow();
+      setIsMobileOpen(false);
+      setSearchLayout(layout);
+    },
+    [closeNow]
+  );
+  const openSearchForViewport = useCallback(() => {
+    openSearch(
+      window.matchMedia(DESKTOP_MEDIA_QUERY).matches ? "panel" : "sheet"
+    );
+  }, [openSearch]);
+  useSearchShortcut(openSearchForViewport);
+
+  const closeSearch = useCallback((returnFocus: boolean) => {
+    returnFocusRef.current = returnFocus;
+    setSearchLayout(null);
+  }, []);
+  const closeSearchFromInside = useCallback(
+    () => closeSearch(true),
+    [closeSearch]
+  );
+
+  // A mega panel opening closes search (opening search closed the panels
+  // above). Leaving the page closes it too, however the visitor left.
+  const [searchPathname, setSearchPathname] = useState(pathname);
+  if (pathname !== searchPathname) {
+    setSearchPathname(pathname);
+    setSearchLayout(null);
+  } else if (openPanel !== null && searchLayout !== null) {
+    setSearchLayout(null);
+  }
+
+  // Focus goes back to the trigger for the layout that was open. Run after
+  // the commit: the desktop trigger is inert while the bar covers it.
+  useEffect(() => {
+    if (searchLayout) {
+      lastSearchLayoutRef.current = searchLayout;
+      return;
+    }
+    if (!returnFocusRef.current) {
+      return;
+    }
+    returnFocusRef.current = false;
+    const trigger =
+      lastSearchLayoutRef.current === "panel"
+        ? panelTriggerRef.current
+        : sheetTriggerRef.current;
+    trigger?.focus();
+  }, [searchLayout]);
+
+  // While open: a pointer press or focus outside the header closes the
+  // desktop panel (mouse-leave does not), and crossing the breakpoint closes
+  // either layout, since it no longer matches the screen.
+  useEffect(() => {
+    if (!searchLayout) {
+      return;
+    }
+    const isOutside = (target: EventTarget | null) =>
+      !(target instanceof Node && navRef.current?.contains(target));
+    const handleOutside = (event: Event) => {
+      if (searchLayout === "panel" && isOutside(event.target)) {
+        closeSearch(false);
+      }
+    };
+    const media = window.matchMedia(DESKTOP_MEDIA_QUERY);
+    const handleBreakpoint = () => closeSearch(false);
+    document.addEventListener("pointerdown", handleOutside);
+    document.addEventListener("focusin", handleOutside);
+    media.addEventListener("change", handleBreakpoint);
+    return () => {
+      document.removeEventListener("pointerdown", handleOutside);
+      document.removeEventListener("focusin", handleOutside);
+      media.removeEventListener("change", handleBreakpoint);
+    };
+  }, [searchLayout, navRef, closeSearch]);
+
+  // The bar covers the menu row and the utilities: keep focus out of them.
+  const coveredBySearch = searchLayout === "panel";
 
   // What fits in the row is measured, not guessed from breakpoints: the
   // utility group's width moves with the locale, the campus name, whether the
@@ -138,11 +255,12 @@ export function NavigationV2({
     label: t(link.labelKey),
   }));
 
-  // Solid whenever something hangs below the bar — a panel or the drawer —
-  // and from the first paint on the routes that do not open on navy.
+  // Solid whenever something hangs below the bar — a panel, search or the
+  // drawer — and from the first paint on the routes that do not open on navy.
   const solid =
     isScrolled ||
     openPanel !== null ||
+    searchOpen ||
     isMobileOpen ||
     hasSolidNavRoute(pathname);
 
@@ -157,10 +275,13 @@ export function NavigationV2({
       data-surface="deep"
       ref={navRef}
     >
-      <div className="mx-auto w-full max-w-biso-wide px-4 sm:px-6 lg:px-8">
+      <div className={HEADER_CONTAINER_CLASS}>
         <div className="flex h-20 items-center justify-between gap-4">
           <Link
-            className="relative block h-11 w-[clamp(140px,12vw,190px)] shrink-0 rounded-biso-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+            className={cn(
+              "relative block h-11 shrink-0 rounded-biso-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
+              HEADER_LOGO_WIDTH_CLASS
+            )}
             href="/"
           >
             <ImageWithFallback
@@ -187,7 +308,10 @@ export function NavigationV2({
               RD-035 measurement had News and Shop inside the 516px menu), and
               below 1340px the drawer takes over. The utility group stays
               `shrink-0`, so it is never squeezed. */}
-          <div className="relative hidden min-w-0 flex-1 min-[1340px]:block">
+          <div
+            className="relative hidden min-w-0 flex-1 min-[1340px]:block"
+            inert={coveredBySearch}
+          >
             <div className={cn(ROW_CLASS, "min-w-0")} ref={rowRef}>
               <div
                 className="flex shrink-0 items-center"
@@ -266,12 +390,22 @@ export function NavigationV2({
             </div>
           </div>
 
-          {/* Six utility controls: campus, locale, theme, cart, one CTA,
-              account. Never collapsed. */}
-          <div className="hidden shrink-0 items-center gap-2 min-[1340px]:flex">
+          {/* Seven utility controls: campus, locale, theme, search, cart, one
+              CTA, account. Never collapsed. Search is an icon button like the
+              cart: the bar is full at 1340px. */}
+          <div
+            className="hidden shrink-0 items-center gap-2 min-[1340px]:flex"
+            inert={coveredBySearch}
+          >
             <CampusPill />
             <LocaleSwitcher className="text-ink" size="sm" variant="ghost" />
             <ThemeSwitcher className="text-ink" size="sm" variant="ghost" />
+            <SearchTrigger
+              controls={SEARCH_PANEL_ID}
+              expanded={searchLayout === "panel"}
+              onOpen={() => openSearch("panel")}
+              triggerRef={panelTriggerRef}
+            />
             <CartButton
               count={cartCount}
               label={tShop("cart.title")}
@@ -294,6 +428,12 @@ export function NavigationV2({
           </div>
 
           <div className="flex items-center gap-2 min-[1340px]:hidden">
+            <SearchTrigger
+              controls={SEARCH_SHEET_ID}
+              expanded={searchLayout === "sheet"}
+              onOpen={() => openSearch("sheet")}
+              triggerRef={sheetTriggerRef}
+            />
             <CartButton
               count={cartCount}
               label={tShop("cart.title")}
@@ -335,6 +475,15 @@ export function NavigationV2({
           )}
           {openPanel === "about" && <AboutPanel onNavigate={closeNow} />}
         </MegaPanel>
+      )}
+
+      {searchLayout && (
+        <QuickSearch
+          campusId={activeCampusId}
+          layout={searchLayout}
+          locale={locale === "en" ? "en" : "no"}
+          onClose={closeSearchFromInside}
+        />
       )}
 
       {isMobileOpen && (
