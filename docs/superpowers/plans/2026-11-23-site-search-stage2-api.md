@@ -36,6 +36,24 @@ Work in the worktree `/Users/markus/Documents/dev/BISO-Sites/.claude/worktrees/s
 
 ---
 
+### Task 0: Stage 1 follow-ups (from stage 1's final review)
+
+**Files:**
+- Modify: `functions/search-sync/src/sync.ts` (+ `src/sync.test.ts`)
+- Modify: `docs/superpowers/specs/2026-11-23-site-search-design.md` ("The sync function" steps 3–5)
+
+**Rules:**
+- When a `department-related` target decides to fan out, its linked item targets must be processed BEFORE the `unit` target that follows it in the queue (e.g. `queue.unshift(...related)`), so the unit entry — the "before" marker the next department event compares against — is written last. If a linked load/write fails, the unit entry stays unchanged and the next department event fans out again.
+- Spec: rewrite steps 3–5 so they match the code: entries per locale (news/pages only in their own locale; others fall back), the other locale's entry is deleted when an item now has one locale only, a deleted translation re-syncs its parent, department changes fan out only when the unit's entry (existence/title/url, both locales) changed and only to published (events: not finished) rows, products' `in_stock` is `inventory_mode === "unlimited" || (stock ?? 1) > 0`, and the settle delay.
+
+- [ ] **Step 1: Failing test** — in `sync.test.ts`: a department fan-out where loading one linked item throws leaves the unit entry unwritten (`writer.upserted` has no unit entry; the error propagates); and a successful fan-out writes linked entries before the unit entry (order of `writer.upserted`).
+- [ ] **Step 2: Run** `cd functions/search-sync && bun test ./src/sync.test.ts` → FAIL.
+- [ ] **Step 3: Implement** and update the spec text.
+- [ ] **Step 4: Run** `bun test ./src` PASS; `bun run check-types` PASS.
+- [ ] **Step 5: Commit** — `fix(search-sync): write a unit's linked items before the unit`
+
+---
+
 ### Task 1: Response types, parameter normalisation, highlight segments
 
 **Files:**
