@@ -27,7 +27,7 @@ covers:
   - apps/web/src/app/api/checkout/**
 ---
 
-This page lists everything that runs without someone pressing a button, and every webhook. Use it when something that should happen on its own didn't: an announcement wasn't sent, an order stayed pending, a push never went out. Three Appwrite functions do all the scheduling. The work itself happens in the apps, behind endpoints that only accept a shared secret.
+This page lists everything that runs without someone pressing a button, and every webhook. Use it when something that should happen on its own didn't: an announcement wasn't sent, an order stayed pending, a push never went out. Three Appwrite functions do all the scheduling. A fourth, search-sync, runs on row changes and by hand, and isn't a scheduled job. See [Site search](/developers/reference/search). The work itself happens in the apps, behind endpoints that only accept a shared secret.
 
 ## The three functions
 

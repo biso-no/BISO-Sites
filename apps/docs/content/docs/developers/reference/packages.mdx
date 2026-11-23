@@ -11,6 +11,8 @@ covers:
   - packages/editor/src/index.ts
   - packages/editor/src/render/index.ts
   - packages/editor/src/editor/serialize.ts
+  - packages/shared/utils/content-text.ts
+  - packages/shared/utils/project-units.ts
   - packages/i18n/messages/index.ts
   - packages/i18n/types.ts
   - packages/tours/src/types.ts
@@ -71,11 +73,12 @@ All Appwrite access goes through this package: the server, guest and browser cli
 
 ## `@repo/shared`
 
-Plain TypeScript modules that more than one app needs. They cover membership status and fulfilment, postings to 24SevenOffice, team roles, unit visibility, feature flags, benefits, push dispatch, the member pass with its Apple and Google Wallet passes, and recruitment.
+Plain TypeScript modules that more than one app needs. They cover membership status and fulfilment, postings to 24SevenOffice, team roles, unit visibility, the site-search entries and query, feature flags, benefits, push dispatch, the member pass with its Apple and Google Wallet passes, and recruitment.
 
 | Import | What it gives you |
 |---|---|
 | `@repo/shared/utils/*` | One import per file in `utils/`, for example `@repo/shared/utils/team-roles` |
+| `@repo/shared/search/*` | The site-search code, one import per file in `search/`, such as `@repo/shared/search/query`. See [Site search](/developers/reference/search). |
 | `@repo/shared/types/*` | Shared types, such as recruitment and user management |
 | `@repo/shared/member-pass/*` | The member pass, scanning, scanner grants and the wallet passes |
 | `@repo/shared/recruitment` | Recruitment helpers. `/recruitment/apply`, `/recruitment/booking-slots`, `/recruitment/booking-link` and `/recruitment/application-documents` are separate entry points. |
@@ -85,6 +88,7 @@ It depends on `@repo/api` and `@repo/connectors`, so importing it can pull both 
 **Sharp edges**
 
 - **Some files are server only.** Six files import `server-only`: the wallet-pass modules in `member-pass/`, `recruitment/apply.ts` and `utils/bi-identity-sync.ts`. Importing one of them into a client component fails the build, so check the top of a file before you use it in the browser.
+- **Site search is built here, and the function, the api and the website all import it.** `search/` holds the entry model, the mappers that turn rows into entries, the index settings, the coded pages and the query that the api runs. `meilisearch` is its dependency, pinned in the root catalog. The mappers use `utils/content-text.ts` to flatten rich text to plain text, and `utils/project-units.ts` for `nationalProjectForUnit()`, which the website's unit page uses too, so both decide in the same way which unit a national project's page takes over. [Site search](/developers/reference/search) explains the rest.
 - **Roles are worked out here, for the admin and the API both.** `utils/team-roles.ts` holds the trusted team ids, `keepSyncedTeams()` and `rolesFromTeams()`. Change a role rule there and both apps follow. [Auth and roles](/developers/change-it/auth-and-roles#roles) explains them.
 - **The scripts write to whatever `apps/admin/.env.local` names.** The `lockdown:*`, `backfill:*`, `migrate:*`, `reconcile:*` and `clear:legacy-benefit-codes` scripts in `packages/shared/scripts/` read that file and use `node-appwrite` directly. Check which project the file names before you run one. [Maintenance scripts](#maintenance-scripts) covers the newest four.
 - **Its tests run on Vitest.** Run them with `bun run test`. A bare `bun test` starts Bun's own runner, which ignores the Vitest config. See [Tests](/developers/change-it/local-setup#tests).
@@ -253,7 +257,7 @@ The locale config (`no` and `en`, with `no` as the default) and the message file
 
 **Sharp edges**
 
-- **The namespace lists are incomplete.** `messageNamespaces` in `messages/index.ts` lists 37 namespaces, and the `MessageNamespace` type in `types.ts` fewer, but there are 43 files per language. `loadMessages()` loads everything through `messages/no.ts` and `messages/en.ts` and ignores both lists, so nothing breaks today. Don't build on them.
+- **The namespace lists are incomplete.** `messageNamespaces` in `messages/index.ts` lists 40 namespaces, and the `MessageNamespace` type in `types.ts` fewer, but there are 46 files per language. `loadMessages()` loads everything through `messages/no.ts` and `messages/en.ts` and ignores both lists, so nothing breaks today. Don't build on them.
 - **`bun run translate` needs `OPENAI_API_KEY` to start**, but translates with Anthropic, so it needs `ANTHROPIC_API_KEY` too. See [Leftovers](/developers/reference/ai#leftovers).
 - It has no tests.
 
@@ -295,6 +299,6 @@ The shared `tsconfig` presets. It has no code and no exports map: other workspac
 
 **Sharp edges**
 
-- The three functions in `functions/` don't use it. Each has its own `tsconfig.json`.
+- The four functions in `functions/` don't use it. Each has its own `tsconfig.json`.
 - Each app sets its own `paths` in its `tsconfig.json`, which replace the ones in `nextjs.json`. That's where the `@/*` mapping described under [`@repo/editor`](#repoeditor) comes from.
 - Its `build`, `lint` and `check-types` scripts only print a message. Its `README.md` says `@repo/ui` uses `react-library.json`. It uses `nextjs.json`.

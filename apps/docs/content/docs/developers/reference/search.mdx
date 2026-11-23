@@ -1,0 +1,226 @@
+---
+title: Site search
+description: How biso.no search works from end to end. What is indexed, how the search-sync function keeps Meilisearch current, how to reindex, the API contract the app will use, the search box on the website, and the variables each part needs.
+covers:
+  - functions/search-sync/**
+  - packages/shared/search/**
+  - apps/api/src/app/api/search/**
+  - apps/api/src/lib/search.ts
+  - apps/web/src/components/search/**
+  - apps/web/src/lib/search/**
+  - apps/web/src/app/(public)/search/**
+---
+
+Read this before you change what search finds, when a page or event is missing from results, or when you build search into the mobile app. One Meilisearch index holds a copy of the public content. The `search-sync` function keeps it current, the api reads it, and the website shows it in a quick panel and on `/search`.
+
+```text
+Appwrite rows  ->  search-sync (function)  ->  Meilisearch index  <-  api /api/search  <-  website, later the app
+```
+
+The shared code is in `packages/shared/search/`. The function, the api route and the website all import it, so they agree on what an entry is.
+
+## What is searchable
+
+Each item gets one entry per language (`no` and `en`) in which the site shows it. An entry is stored only while the item is public. Anything else is deleted from the index.
+
+| Type | What it is | Stored while |
+|---|---|---|
+| `event` | A standalone event or a collection's parent, not a child event | Published, has a slug and a translation, and its end date (or start date) hasn't passed. No dates means it stays. |
+| `job` | A vacancy | Published and open: the application deadline hasn't passed, or there is none. Has a slug and a translation. |
+| `news` | A news article | Published and has a slug. |
+| `product` | A shop product | Published, not unlisted, has a slug and a translation. |
+| `page` | A page from the page editor | Published and public, in each language whose own translation is published with content. Unit pages are not separate entries. |
+| `unit` | A department or project on `/units` | A public unit (operating ledgers and national accounting rows are left out). Takes its text from its published page, if it has one. |
+| `document` | A published document | Published. |
+| `coded` | A page written in code, such as the front page or `/about` | Always. The list is `CODED_PAGES`. |
+
+Which language gets an entry:
+
+- Events, jobs, products, units and documents get both. If a translation is missing, the entry carries the other language's text. The `text_locale` field says which language the text is in.
+- News and editor pages get an entry only in a language that has its own published translation, because their pages answer 404 in the other language. There is no fallback.
+- A project page that serves a unit's address takes over that address from the coded hub, per language. Only one of the two is indexed.
+
+The rule for what counts as public is in `packages/shared/search/entries/`, one file per type. Change a visibility rule there, then reindex.
+
+A search request is limited to the entries whose `locale` is the request's language and whose `visible_until` hasn't passed. `visible_until` is Unix seconds, and `32503680000` (the year 3000) means the entry never expires. That is how an event that has just finished drops out of search without a sync.
+
+### Adding a coded page
+
+A page that lives in code is not in the database, so nothing syncs it. To make it searchable:
+
+1. Add it to `CODED_PAGES` in `packages/shared/search/coded-pages.ts`, with a title, description and keywords in both languages.
+2. Add it to `STATIC_SITEMAP_ROUTES` in `apps/web/src/app/sitemap-static.ts`. A test fails when a sitemap page is missing from `CODED_PAGES`.
+3. Redeploy `search-sync`, then run a reindex. Nothing else puts the page in the index.
+
+[Common changes](/developers/change-it/common-changes) lists the same steps for a new page.
+
+## How the sync works
+
+`search-sync` is an Appwrite function with two ways in.
+
+**A row event.** Appwrite starts the function when a row changes in `events`, `news`, `jobs`, `webshop_products`, `pages`, `page_translations`, `content_translations`, `departments` or `documents`. The function waits, reads the affected item again with the admin client, maps it to entries and either upserts them or deletes them if the item is gone or no longer public. It never trusts the event's payload. An event for another table or translation type is answered `200` with `ignored`.
+
+**The settle delay.** Before it reads anything, a row event waits `SYNC_SETTLE_MS` (default 2000 ms). One admin save writes several rows, for example each `page_translations` row and then the `pages` row, and each write starts its own execution. They run in parallel and can finish in any order, so one that read too early could write an older state after a newer one. The pause lets the save finish. Set it to `0` to turn it off. It narrows the window and doesn't close it: a save that takes longer than the delay can leave an entry one step behind until the item's next event or the next reindex.
+
+**Department fan-out.** An event, job, news item, product or page shows its department's name, and a unit page shows the unit. So a change to a `departments` row re-syncs that unit's published events (not yet finished), jobs, news, products and pages. It does this only when the unit's own entry changes: it appears or disappears, or its title or URL changes, in either language. The daily `project_share` update from the Finago project sync touches many departments and changes none of that, so it only re-reads the units.
+
+**A failure.** A failed Appwrite read or Meilisearch write answers `500` and reaches Sentry with the tag `function_name: search-sync`.
+
+### The events to configure
+
+In the function's settings in the Appwrite console, add these events. Each ends in `.rows.*`, because admin saves are upserts, and subscribing to create and update alone misses them:
+
+- `databases.app.tables.events.rows.*`
+- `databases.app.tables.news.rows.*`
+- `databases.app.tables.jobs.rows.*`
+- `databases.app.tables.webshop_products.rows.*`
+- `databases.app.tables.pages.rows.*`
+- `databases.app.tables.page_translations.rows.*`
+- `databases.app.tables.content_translations.rows.*`
+- `databases.app.tables.departments.rows.*`
+- `databases.app.tables.documents.rows.*`
+
+Add them after the first reindex. The index settings that make deletes work are written by the reindex, so a row event before then fails. The README, `functions/search-sync/README.md`, has the full go-live order and the count check to run after the first reindex.
+
+### Run a reindex
+
+A reindex applies the index settings, writes every item of every type and every coded page with the run's start time as `synced_at`, then deletes every entry older than that. Entries that row events write while it runs are newer, so the sweep keeps them.
+
+1. In the Appwrite console, open the function, then **Executions**, then **Create execution**.
+2. Method `POST`, with the header `x-cron-secret` set to the function's `CRON_SECRET`.
+3. Run it **asynchronously**. A synchronous execution times out at 30 seconds, and a full reindex takes longer.
+4. Read the result in the execution's response and logs: `{"ok":true,"entries","byType","sweptBefore"}`.
+
+If a table read returns nothing for every type (a wrong database or a missing scope), the run refuses to sweep and answers `500`, so an empty read can't empty the index. Avoid editing content while a reindex runs.
+
+**What only a reindex corrects:**
+
+- A page whose slug is changed away from a project or unit address. The old slug isn't known on update, so the coded hub it replaced comes back with the next reindex.
+- A department change to a unit that has no entry in either language. Its linked items keep the old department name.
+- A unit page moved to another department. The old unit's entry keeps the page's text.
+- An item unpublished while a reindex was running.
+- Anything that changed while the event triggers were off.
+- A change to `CODED_PAGES`, after the function is redeployed.
+
+There is no scheduled reindex. Run one by hand after any of the above.
+
+## The API contract
+
+`GET /api/search` on the api. It needs no sign-in and sends no cookies. It is built for the website now and for the app later. The response is never cached (`Cache-Control: private, no-store`). The query text is never logged.
+
+### Parameters
+
+| Parameter | Meaning |
+|---|---|
+| `q` | The query. Whitespace is collapsed and it is cut to 100 characters. Empty gives an empty `200` result, not an error. |
+| `locale` | `no` or `en`. Anything else means `no`. |
+| `campus` | A campus id, `1` to `4`. Anything else is ignored. Never a slug. |
+| `only_campus` | `1` or `true`: show only that campus's entries and the ones for all campuses. Without it, `campus` only changes the order. |
+| `type` | One of `event`, `news`, `job`, `product`, `page`, `unit`. Used by `mode=page`. An unknown value is ignored. |
+| `page` | Result page, from 1. A non-number means 1. The cap is 50. |
+| `mode` | `page` for the results page. Anything else is the quick mode. |
+
+Bad parameters never throw. They fall back to the defaults above.
+
+### Quick mode
+
+`mode` left out. Built for a panel. The response:
+
+| Field | Meaning |
+|---|---|
+| `mode` | `"quick"` |
+| `query` | The query after normalising: trimmed, whitespace collapsed, cut to 100 characters. Show this, not what was typed. |
+| `locale` | The language used. |
+| `best` | The single best hit, or `null`. |
+| `groups` | An object with the keys `event`, `news`, `job`, `product`, `page`, `unit`. Each holds up to two hits, and never the `best` hit. |
+| `counts` | The number of matches per group, from the index. |
+| `total` | The sum of `counts`. |
+
+### Page mode
+
+`mode=page`. Built for a full results list, 20 hits a page.
+
+| Field | Meaning |
+|---|---|
+| `mode` | `"page"` |
+| `query`, `locale` | As above. |
+| `group` | The `type` asked for, or `null`. |
+| `hits` | The hits on this page. |
+| `page` | The page number. |
+| `page_size` | 20. |
+| `total` | The number of matches for the query, in the asked group. |
+| `total_pages` | `total` divided by 20, rounded up, and never above 50. |
+| `counts` | Matches per group. Ignores the `type` filter, so tabs can show every group's number. |
+
+Meilisearch reaches at most 1000 hits (`maxTotalHits`). So `counts` and `total` can be capped at 1000, and `total_pages` is capped at 50. Don't offer a page the response says doesn't exist.
+
+### A hit
+
+All keys are snake_case. A field that doesn't apply to the type is `null`.
+
+| Field | Meaning |
+|---|---|
+| `id` | The index id, `<type>_<row id>_<locale>`. Unique per entry. |
+| `row_id` | The Appwrite row id of the item. The same item has the same `row_id` in both languages. |
+| `type` | One of `event`, `news`, `job`, `product`, `page`, `unit`, `document`, `coded`. |
+| `group` | The group to show it under. `page`, `document` and `coded` all give `page`. |
+| `title` | A list of segments, `{ text, match }`. `match: true` is a matched word. Draw the segments as text. Don't join them into HTML. |
+| `snippet` | Segments too. It is the summary, or a cut from the body when the body has the match. It may start or end with `…`. |
+| `url` | A path starting with `/`, for example `/events/<slug>`. The app adds the site's origin. |
+| `image` | As stored in Appwrite: a file id or a URL, whatever the item holds. Not a ready link. |
+| `cover_pattern` | The pattern name for items that have no image. |
+| `campus_id` | `"1"` to `"4"`, or `"all"`. |
+| `campus_name` | The label for `campus_id`. `"all"` becomes "Alle campus" or "All campuses" by the request's language. |
+| `category`, `department`, `location` | Plain text, or `null`. `department` is the display name. |
+| `starts_at`, `ends_at`, `published_at`, `deadline` | Unix seconds. |
+| `price`, `member_price` | Whole NOK, not øre. `price` is `0` for a free event. |
+| `member_only` | `true` when the event or product is for members. |
+| `in_stock` | Products only. Buyers see In stock or Out of stock, never a count. |
+| `text_locale` | The language the text is in. It differs from `locale` when the other language was used as a fallback. |
+
+### Ordering
+
+With a `campus`, the results put that campus's entries (and the ones for all campuses) first, then the rest. In quick mode this applies inside each group.
+
+The `best` hit follows the same rule, with one exception: another campus's top hit takes the card when its relevance score is at least `0.1` higher than the chosen campus's. That number is `BEST_OTHER_CAMPUS_MARGIN` in `packages/shared/search/query.ts`. Without a campus, `best` is the top hit overall.
+
+### Errors
+
+| Status | Body | When |
+|---|---|---|
+| `200` | A normal body with empty `groups` or `hits` and zero counts | No query, or nothing matched. |
+| `502` | `{ "error": "Search is unavailable", "code": "UPSTREAM_ERROR" }` | Meilisearch failed or didn't answer. |
+| `503` | `{ "error": "Search is not configured", "code": "NOT_CONFIGURED" }` | `MEILISEARCH_HOST` or `MEILISEARCH_SEARCH_KEY` is unset on the api. |
+
+The api gives Meilisearch 4 seconds (`SEARCH_TIMEOUT_MS` in `apps/api/src/lib/search.ts`), then answers `502`. A client should have a timeout of its own that is a little longer, and show a readable message on `502` and `503`.
+
+The route logs only the error's name and codes. Never pass a Meilisearch error object to Sentry or a log line: a timeout error carries the request body, which holds the query.
+
+## The search box on the website
+
+The code is in `apps/web/src/components/search/`, `apps/web/src/lib/search/` and `apps/web/src/app/(public)/search/`.
+
+- **Quick search** opens from the magnifier in the header. On a wide screen it is a panel under the header. On a phone it is a sheet that covers the page and locks the page's scroll.
+- **Shortcuts.** `/` and Ctrl or Cmd+K open it. Shift+/ works too, because a Norwegian keyboard types `/` as Shift+7. The shortcuts stay out of the way while the visitor types in a field, or works in a dialog, menu or list. Escape closes it from anywhere. Focus goes back to the header button.
+- **Lazy loading.** The panel's code is not in the header's first load. It loads when the visitor opens search, and it is prefetched when the pointer, focus or a touch reaches the button. A search error boundary shows a message if the chunk fails to load.
+- **Typing.** Requests are debounced by 150 ms, and each new one aborts the previous. A sequence guard makes sure an old answer never replaces a newer one. The browser calls `NEXT_PUBLIC_API_BASE_URL` plus `/api/search` with no credentials.
+- **iOS keyboard.** iOS raises the keyboard only for a focus that happens inside the tap. The phone's header button focuses a hidden proxy field in the tap, and the sheet copies what was typed into the real field and moves focus there once its code has loaded.
+- **Recent searches** are kept in the browser's local storage, the last five. If storage is blocked, they are skipped.
+- **`/search`** is the results page, with a link per group that has matches and 20 hits a page. It renders for a missing `q`, an absurd `page` or an unknown `type`. When the api answers with an error, it shows a message, not an empty list.
+- **Privacy.** Analytics gets only `trackEvent("search", { surface, queryLength })`, never the query. The Umami hook in `apps/web/src/lib/analytics-privacy.ts` strips the query string from `/search` URLs before it sends the page view. `/search` is `Disallow` in `robots.ts` and the page is `noindex`.
+- **Matched words** are drawn from the segments as `bg-marker text-deep`. The page never sets HTML from the response.
+
+## Variables
+
+| Variable | Where | Notes |
+|---|---|---|
+| `MEILISEARCH_HOST` | api, search-sync | The Meilisearch server's address. Version 1.2 or later. |
+| `MEILISEARCH_SEARCH_KEY` | api | A search-only key. Never the admin key. |
+| `MEILISEARCH_ADMIN_KEY` | search-sync | Writes the index. Never set it on a Site. |
+| `MEILISEARCH_INDEX` | api, search-sync | Optional. Default `site_content`. Must match on both. |
+| `CRON_SECRET` | search-sync | Guards the reindex. |
+| `SYNC_SETTLE_MS` | search-sync | Optional. Default `2000`. |
+| `SENTRY_DSN`, `SENTRY_ENVIRONMENT` | search-sync | Optional. |
+| `NEXT_PUBLIC_API_BASE_URL` | web | Where the browser finds the api. Already set for the website. |
+
+Don't set `APPWRITE_*` on the function. [Secrets and environment](/developers/keep-it-running/secrets-and-environment#search) has the table with the other variables.
