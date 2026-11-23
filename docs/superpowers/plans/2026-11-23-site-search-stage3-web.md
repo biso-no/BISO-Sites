@@ -24,6 +24,8 @@ Work in the worktree `/Users/markus/Documents/dev/BISO-Sites/.claude/worktrees/s
 - `src/components/nav/header.test.ts` asserts the utility group class string and the overflow drop order — don't change either. First paint of the header must not load the quick-search code (lazy import on open).
 - Commit messages end with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` and `Claude-Session: https://claude.ai/code/session_014NDgSQY3WssKw3UU1yJNnL`.
 
+- API contract (stage 2 final): responses are snake_case (`page_size`, `total_pages`); hits carry `row_id`; `emptyQuickResponse(query, locale)` / `emptyPageResponse(query, locale, group)` live in `@repo/shared/search/response` — reuse them for empty/idle states instead of hand-building objects. The API takes campus ids `"1"`–`"4"` (the web's `useCampus().activeCampusId` and `getUserPreferences().campusId` are ids already; never pass a slug).
+
 ## Review Focus
 
 1. Typing fast must never show results for an older query after a newer one (abort + sequence guard). (Task 2.)
@@ -209,7 +211,7 @@ Rules:
 - Page: `generateMetadata` → title from `search.page.metaTitle`, `robots: { index: false, follow: true }`, `alternates: { canonical: "/search" }`. Body inside `<Suspense fallback={<FeedSkeleton />}>` with an async list component that `await connection()`s.
 - Navy band (`PageHeader` / `Section tone="deep"`): `<h1>` from `search.page.title`; a GET `<form action="/search">` with a large input `name="q"` (Museo Slab 900, white field on navy as in the mockup) and a submit button (`bg-action text-action-ink`); hidden inputs keep `type` and `only`. Under it: the result count and, when a study campus is selected, a link toggling "Only <campus>" (`only=1`) rendered as a switch (`role="switch"`-styled link with `aria-pressed`, no JS needed). Then `FilterChips` for All + the six groups with counts (`param="type"`, other params preserved).
 - List: one `SearchResultRow` per hit separated by `border-edge` rules (no cards). Lead: events → `DateBlock` of `starts_at`; news/products with `image` → `ChevronFrame` thumbnail (`ImageWithFallback` from `@repo/ui/components/image`); everything else → no lead (no icon tiles; the text column aligns). Title (`Highlighted`, Museo Slab 700) links to `hit.url`; a meta line with the type name, campus (`Pill tone="accent"` when it is the visitor's campus), date/place/department; snippet (`Highlighted`); a right column with price (`meta.membersFrom` / `meta.freeForMembers` / plain price), job deadline (`meta.applyBy`), or stock (`meta.inStock`/`meta.outOfStock`). Page entries show their path as a breadcrumb line.
-- Pagination: previous/next links (`searchPageHref`) and `page.pageOf`; hidden when `totalPages <= 1`.
+- Pagination: previous/next links (`searchPageHref`) and `page.pageOf`; hidden when `total_pages <= 1`.
 - States: no `q` → the band with the empty field and the shortcuts list; `total === 0` → `StatusPanel` with `empty.*` and links; `SearchUnavailableError` → `StatusPanel` with `error.*` (HTTP 200, the band and form still render).
 - Submitting the form is tracked by a tiny client wrapper like `FeedSearch` (`surface: "search-page"`, `queryLength`).
 
@@ -227,7 +229,7 @@ page hit → breadcrumb text "biso.no / projects / winter-games / packing-list"
 // results page component (pure props → markup)
 error prop → error.title rendered, form still present
 total 0 → empty.title with the query
-totalPages 1 → no pagination links
+total_pages 1 → no pagination links
 ```
 - [ ] **Step 2: Run** `bunx vitest run src/lib/search src/components/search` → FAIL.
 - [ ] **Step 3: Implement.**
@@ -243,7 +245,7 @@ totalPages 1 → no pagination links
 - Modify: that folder's `meta.json`; the staff-guide page that explains publishing content (find it under `apps/docs/content/docs/guide/`) — add one short note; `functions/search-sync/README.md` only if a cross-link is useful
 - Test: the docs app's content tests (`cd apps/docs && bunx vitest run`)
 
-Rules (read `apps/docs/CLAUDE.md` first): front matter with `title`, `description`, `covers` (globs for `functions/search-sync/**`, `packages/shared/search/**`, `apps/api/src/app/api/search/**`, `apps/api/src/lib/search.ts`, `apps/web/src/components/search/**`, `apps/web/src/lib/search/**`, `apps/web/src/app/(public)/search/**`). Content: what is searchable and the visibility rules (one per type), locales (fallback for events/jobs/products/units/documents; news and pages only in their own language), how sync works (row events → re-read → upsert/delete; the settle delay; department fan-out), the event list to configure, running a reindex (async Console execution with `x-cron-secret`) and what only a reindex corrects, adding a coded page (`CODED_PAGES` + `STATIC_SITEMAP_ROUTES`, then redeploy + reindex), the API parameters and response shape (for the Flutter app later), environment variables per app. The guide note (plain words for staff): published changes show up in search within seconds; unpublishing removes them.
+Rules (read `apps/docs/CLAUDE.md` first): front matter with `title`, `description`, `covers` (globs for `functions/search-sync/**`, `packages/shared/search/**`, `apps/api/src/app/api/search/**`, `apps/api/src/lib/search.ts`, `apps/web/src/components/search/**`, `apps/web/src/lib/search/**`, `apps/web/src/app/(public)/search/**`). Content: the API's response contract for the Flutter app (every field's meaning and unit — prices in NOK, times in Unix seconds, `url` is a path, `image` as stored, `snippet` may start/end with "…", `counts` can exceed the reachable `total` beyond 1000 hits, `query` is the normalised query, `row_id`; errors: 200 empty result, 502 `UPSTREAM_ERROR`, 503 `NOT_CONFIGURED`; the 4 s upstream timeout; campus-first ordering and the best-card margin), what is searchable and the visibility rules (one per type), locales (fallback for events/jobs/products/units/documents; news and pages only in their own language), how sync works (row events → re-read → upsert/delete; the settle delay; department fan-out), the event list to configure, running a reindex (async Console execution with `x-cron-secret`) and what only a reindex corrects, adding a coded page (`CODED_PAGES` + `STATIC_SITEMAP_ROUTES`, then redeploy + reindex), the API parameters and response shape (for the Flutter app later), environment variables per app. The guide note (plain words for staff): published changes show up in search within seconds; unpublishing removes them.
 
 Also clear the docs PR check's warnings left by stages 1–2: update the pages whose `covers` match code this branch changed — at least `developers/…/packages.mdx` (shared `search/` folder, `utils/content-text.ts`, `nationalProjectForUnit` in `utils/project-units.ts`), `local-setup.mdx`, `guide/…/department-pages.mdx`, and the pages that still say "three functions" (`backups-and-recovery`, `secrets-and-environment`, `known-limitations`) — and `apps/api`'s env/route docs if stage 2 didn't. Find them with `grep -rl` on their `covers`.
 
