@@ -83,11 +83,23 @@ export function parsePublishedDoc(raw: string | null): JsonObject | null {
   }
 }
 
+/** The document version `normalizePageDoc` accepts (`PAGE_DOC_VERSION`). */
+const PAGE_DOC_VERSION = 2;
+
+/**
+ * `hasPageContent(normalizePageDoc(doc))`: anything but a version 2 document
+ * with a `sections` array normalizes to an empty page. Of the rest, a section
+ * counts when it is an object (`normalizePageDoc` drops other values) and a
+ * header alone is content.
+ */
 function docHasContent(doc: JsonObject): boolean {
-  return (
-    (Array.isArray(doc.sections) && doc.sections.length > 0) ||
-    isObject(doc.header)
+  if (doc.version !== PAGE_DOC_VERSION || !Array.isArray(doc.sections)) {
+    return false;
+  }
+  const hasSection = doc.sections.some(
+    (section) => typeof section === "object" && section !== null
   );
+  return hasSection || isObject(doc.header);
 }
 
 /** Whether a translation has a published, non-empty document. */

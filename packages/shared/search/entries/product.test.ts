@@ -56,6 +56,14 @@ describe("productEntries", () => {
       )[0].in_stock
     ).toBe(true);
   });
+  it("treats negative stock as out of stock and missing stock as in stock", () => {
+    expect(
+      productEntries(product({ stock: -2 }), noText, ctx())[0].in_stock
+    ).toBe(false);
+    expect(
+      productEntries(product({ stock: null }), noText, ctx())[0].in_stock
+    ).toBe(true);
+  });
   it("hides unlisted and unpublished products", () => {
     expect(productEntries(product({ unlisted: true }), noText, ctx())).toEqual(
       []

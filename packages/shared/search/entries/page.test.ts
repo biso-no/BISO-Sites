@@ -82,6 +82,36 @@ describe("hasPublishedContent", () => {
     });
     expect(hasPublishedContent(tr({ published_doc: doc }))).toBe(true);
   });
+
+  it("mirrors normalizePageDoc: only a version 2 document with sections", () => {
+    const headerNoSections = JSON.stringify({
+      version: 2,
+      meta: {},
+      header: { title: "Hei" },
+    });
+    const legacy = JSON.stringify({
+      version: 1,
+      sections: [{ id: "s", blocks: [{ type: "text", text: "<p>Hei</p>" }] }],
+    });
+    const noVersion = JSON.stringify({
+      sections: [{ id: "s", blocks: [] }],
+    });
+    expect(hasPublishedContent(tr({ published_doc: headerNoSections }))).toBe(
+      false
+    );
+    expect(hasPublishedContent(tr({ published_doc: legacy }))).toBe(false);
+    expect(hasPublishedContent(tr({ published_doc: noVersion }))).toBe(false);
+  });
+
+  it("ignores sections and a header that normalizePageDoc would drop", () => {
+    const junk = JSON.stringify({
+      version: 2,
+      meta: {},
+      sections: ["x", null],
+      header: ["not", "an", "object"],
+    });
+    expect(hasPublishedContent(tr({ published_doc: junk }))).toBe(false);
+  });
 });
 
 describe("pageEntries", () => {

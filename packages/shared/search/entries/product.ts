@@ -47,10 +47,11 @@ export function productEntries(
   ) {
     return [];
   }
-  // Buyers see only In stock / Out of stock, never the count.
+  // Buyers see only In stock / Out of stock, never the count. A missing
+  // count is not tracked (in stock); zero or below is sold out.
   const inStock =
     row.inventory_mode === WebshopProductsInventoryMode.UNLIMITED ||
-    row.stock !== 0;
+    (row.stock ?? 1) > 0;
   const entries: SearchEntry[] = [];
   for (const locale of SEARCH_LOCALES) {
     const text = textFor(translations, locale);
