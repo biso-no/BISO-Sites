@@ -13,17 +13,24 @@
 export const UMAMI_BEFORE_SEND = "bisoUmamiBeforeSend";
 
 const AUTH_PATH = "/auth";
+const SEARCH_PATH = "/search";
 const HAS_SCHEME = /^[a-z][a-z\d+.-]*:/i;
 /** Only resolves path-only URLs; never part of a returned value. */
 const PARSE_BASE = "https://biso.no";
 
-function isAuthPath(pathname: string): boolean {
-  return pathname === AUTH_PATH || pathname.startsWith(`${AUTH_PATH}/`);
+function isSensitivePath(pathname: string): boolean {
+  return (
+    pathname === AUTH_PATH ||
+    pathname.startsWith(`${AUTH_PATH}/`) ||
+    // The query is what the visitor typed, which can be a name.
+    pathname === SEARCH_PATH ||
+    pathname.startsWith(`${SEARCH_PATH}/`)
+  );
 }
 
 /**
  * `url` without its query string (and fragment) when it points at an `/auth/`
- * page, otherwise unchanged. Takes a full URL, as this Umami version sends, or
+ * or `/search` page, otherwise unchanged. Takes a full URL, as this Umami version sends, or
  * a path, as older versions did, and returns the same form.
  */
 export function withoutAuthQuery(url: string): string {
@@ -36,7 +43,7 @@ export function withoutAuthQuery(url: string): string {
   } catch {
     return url;
   }
-  if (!(isAuthPath(parsed.pathname) && (parsed.search || parsed.hash))) {
+  if (!(isSensitivePath(parsed.pathname) && (parsed.search || parsed.hash))) {
     return url;
   }
   parsed.search = "";

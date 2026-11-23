@@ -7,6 +7,7 @@ export type MessageNamespace =
   | "contact"
   | "home"
   | "unused"
+  | "search"
   | "varsling"
   | "partner"
   | "press"

@@ -75,3 +75,22 @@ describe("umamiBeforeSend", () => {
     });
   });
 });
+
+describe("search page", () => {
+  it("drops the whole query from /search", () => {
+    expect(
+      umamiBeforeSend("pageview", { url: "/search?q=ola+nordmann&type=job" })
+        .url
+    ).toBe("/search");
+    expect(withoutAuthQuery("https://biso.no/search?q=a#b")).toBe(
+      "https://biso.no/search"
+    );
+  });
+
+  it("scrubs a /search referrer", () => {
+    expect(
+      umamiBeforeSend("pageview", { referrer: "https://biso.no/search?q=x" })
+        .referrer
+    ).toBe("https://biso.no/search");
+  });
+});
