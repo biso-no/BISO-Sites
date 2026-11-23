@@ -176,7 +176,13 @@ export async function syncTargets(
         );
         continue;
       }
-      queue.push(...(await deps.source.departmentRelated(target.id, ctx.now)));
+      // Ahead of the unit target that follows: the unit's entry is the
+      // "before" marker the next department event compares against, so it
+      // is written last. If a linked item fails, the marker still shows the
+      // change and the next event fans out again.
+      queue.unshift(
+        ...(await deps.source.departmentRelated(target.id, ctx.now))
+      );
       continue;
     }
     if (target.type === "project-path") {

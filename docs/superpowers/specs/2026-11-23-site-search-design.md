@@ -214,14 +214,30 @@ Triggers (configured by the owner in the Console, `rows.*` on each):
 2. Re-read the item and its translations with the admin client. The event
    payload is never trusted as the current state.
 3. If the item is gone or not public, delete its entries (filter on `type` +
-   `row_id`). Otherwise build both locale entries with the shared mapper and
-   upsert them.
-4. A deleted translation re-syncs its parent, which then falls back to the
-   remaining language.
-5. A changed department also re-syncs the entries that show its name (its
-   jobs, events, news and products), so a rename does not leave stale names.
-   Stock changes arrive as `webshop_products` events; variations need no
-   trigger, because the shop reads only `stock === 0`.
+   `row_id`). Otherwise build its entries with the shared mapper and upsert
+   them. Entries follow the Locale rules above: news and pages get an entry
+   only in a locale with their own translation, other types fall back to the
+   other language's text. When an item ends up with one locale only, the
+   other locale's entry is deleted, so a removed or unpublished translation
+   leaves nothing behind. A product entry has `in_stock` set to
+   `inventory_mode === "unlimited" || (stock ?? 1) > 0`.
+4. A deleted translation re-syncs its parent, which then keeps entries only in
+   the locales it still has, with the fallback rules above.
+5. A changed department re-syncs the entries that show its name only when its
+   unit's entry changed: the function compares the unit's current index entry
+   with the freshly loaded one, in each locale, for existence, title and URL.
+   If they differ, it re-syncs the department's published jobs, events (not
+   finished), news, products and pages, and writes these before the unit
+   entry. The unit entry is the marker the next department event compares
+   against, so a failed write leaves it as it was and the next event fans out
+   again. An unchanged unit, such as the daily `project_share` update,
+   re-reads nothing else. Stock changes arrive as `webshop_products` events;
+   variations need no trigger, because the shop reads only `stock === 0`.
+
+Each row event waits a short settle delay before it reads (2 seconds, or
+`SYNC_SETTLE_MS`; 0 turns it off). An admin save writes several rows, each
+starting its own execution, and executions can finish out of order; the wait
+lets the save finish so every execution reads the final rows.
 
 Every step is idempotent, so duplicate or out-of-order events converge on the
 current state.

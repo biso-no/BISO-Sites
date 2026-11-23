@@ -335,6 +335,48 @@ describe("syncTargets", () => {
       expect(added.source.relatedCalls).toHaveLength(1);
     });
 
+    it("writes the linked items before the unit", async () => {
+      const job = entry("job", "j1", "no");
+      const { deps, writer } = setup({
+        current: [named(unitNo, "Fadderullan"), named(unitEn, "Fadderullan")],
+        departmentRelated: related,
+        load: (target) =>
+          Promise.resolve({
+            entries:
+              target.type === "unit"
+                ? [named(unitNo, "Fadderuka"), named(unitEn, "Fadderuka")]
+                : [job],
+            related: [],
+          }),
+      });
+      await syncTargets(deps, departmentEvent);
+      expect(writer.upserted.map((e) => e.id)).toEqual([
+        job.id,
+        unitNo.id,
+        unitEn.id,
+      ]);
+    });
+
+    it("leaves the unit unwritten when a linked item fails, so the next event fans out again", async () => {
+      const current = [
+        named(unitNo, "Fadderullan"),
+        named(unitEn, "Fadderullan"),
+      ];
+      const renamed = [named(unitNo, "Fadderuka"), named(unitEn, "Fadderuka")];
+      const { deps, writer } = setup({
+        current,
+        departmentRelated: related,
+        load: (target) =>
+          target.type === "unit"
+            ? Promise.resolve({ entries: renamed, related: [] })
+            : Promise.reject(new Error("load failed")),
+      });
+      await expect(syncTargets(deps, departmentEvent)).rejects.toThrow(
+        "load failed"
+      );
+      expect(writer.upserted).toEqual([]);
+    });
+
     it("compares each locale, so a unit replaced in one locale still counts", async () => {
       // A national unit whose project page serves `no` has only an `en` entry.
       const { deps, source } = setup({

@@ -849,9 +849,10 @@ describe("appwriteSource.departmentRelated", () => {
       },
       resolution.targets
     );
+    // The linked page goes first; the unit entry is written last.
     expect(deleted).toEqual([
-      ["unit", "d1"],
       ["page", "ps"],
+      ["unit", "d1"],
     ]);
   });
 
