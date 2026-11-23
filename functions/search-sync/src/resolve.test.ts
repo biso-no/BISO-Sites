@@ -62,6 +62,55 @@ describe("resolveTargets", () => {
     });
   });
 
+  it("re-syncs what a page row was bound to, from its body", () => {
+    const deleted = (body: Record<string, unknown>) =>
+      ({
+        kind: "row",
+        table: "pages",
+        id: "p1",
+        action: "delete",
+        body,
+      }) as const;
+    expect(
+      resolveTargets(
+        deleted({ slug: "projects/winter-games", department_id: null })
+      )
+    ).toEqual({
+      kind: "targets",
+      targets: [
+        { type: "page", id: "p1" },
+        { type: "project-path", id: "winter-games" },
+      ],
+    });
+    expect(
+      resolveTargets(
+        deleted({ slug: "projects/winter-games", department_id: "d1" })
+      )
+    ).toEqual({
+      kind: "targets",
+      targets: [
+        { type: "page", id: "p1" },
+        { type: "unit", id: "d1" },
+        { type: "project-path", id: "winter-games" },
+      ],
+    });
+    expect(
+      resolveTargets(
+        deleted({ slug: "units/oslo/fadderullan", department_id: "d1" })
+      )
+    ).toEqual({
+      kind: "targets",
+      targets: [
+        { type: "page", id: "p1" },
+        { type: "unit", id: "d1" },
+      ],
+    });
+    expect(resolveTargets(row("pages"))).toEqual({
+      kind: "targets",
+      targets: [{ type: "page", id: "r1" }],
+    });
+  });
+
   it("ignores other tables", () => {
     expect(resolveTargets(row("orders")).kind).toBe("ignored");
   });

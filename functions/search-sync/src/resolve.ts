@@ -1,9 +1,19 @@
+import { pageOwner } from "@repo/shared/search/entries/page";
 import type { SearchType } from "@repo/shared/search/types";
+import type { ProjectSlug } from "@repo/shared/utils/project-units";
 import type { Trigger } from "./trigger";
 
+/** One indexed item, re-read and mapped by `Source.load`. */
+export interface ItemTarget {
+  id: string;
+  type: Exclude<SearchType, "coded">;
+}
+
 export type SyncTarget =
-  | { type: Exclude<SearchType, "coded">; id: string }
-  | { type: "department-related"; id: string };
+  | ItemTarget
+  | { type: "department-related"; id: string }
+  /** Re-decide whether `/projects/<id>` shows its coded hub entry. */
+  | { type: "project-path"; id: ProjectSlug };
 
 export type Resolution =
   | { kind: "targets"; targets: SyncTarget[] }
@@ -17,7 +27,6 @@ const TABLE_TYPES: Record<string, PlainType> = {
   events: "event",
   jobs: "job",
   news: "news",
-  pages: "page",
   webshop_products: "product",
 };
 
@@ -57,6 +66,27 @@ function resolveContentTranslation(trigger: RowTrigger): Resolution {
   return single(type, contentId);
 }
 
+/**
+ * A page and what its row was bound to. The body carries the row's columns
+ * even on delete, when the page can no longer be read: its unit and its
+ * project address are re-read from Appwrite, so the body only says which
+ * items to look at, never what they contain. (The old slug of a re-slugged
+ * page is not in the body; the reindex covers that.)
+ */
+function resolvePage(trigger: RowTrigger): Resolution {
+  const targets: SyncTarget[] = [{ id: trigger.id, type: "page" }];
+  const departmentId = bodyString(trigger.body, "department_id");
+  if (departmentId) {
+    targets.push({ id: departmentId, type: "unit" });
+  }
+  const slug = bodyString(trigger.body, "slug");
+  const owner = slug ? pageOwner(slug.trim()) : null;
+  if (owner?.kind === "project") {
+    targets.push({ id: owner.project, type: "project-path" });
+  }
+  return { kind: "targets", targets };
+}
+
 /** Which search items a row event can change. */
 export function resolveTargets(trigger: RowTrigger): Resolution {
   const { table, id } = trigger;
@@ -71,6 +101,9 @@ export function resolveTargets(trigger: RowTrigger): Resolution {
   }
   if (table === "content_translations") {
     return resolveContentTranslation(trigger);
+  }
+  if (table === "pages") {
+    return resolvePage(trigger);
   }
   if (table === "page_translations") {
     const pageId = bodyString(trigger.body, "page_id");

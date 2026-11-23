@@ -20,7 +20,7 @@ import { productEntries } from "@repo/shared/search/entries/product";
 import type { SearchEntry, SearchType } from "@repo/shared/search/types";
 import { unitDisplayName } from "@repo/shared/utils/unit-names";
 import { pageLoader } from "./pages";
-import type { SyncTarget } from "./resolve";
+import type { ItemTarget, SyncTarget } from "./resolve";
 import {
   type AdminDb,
   columns,
@@ -40,14 +40,13 @@ export interface LoadedItem {
   related: SyncTarget[];
 }
 
-type LoadTarget = Exclude<SyncTarget, { type: "department-related" }>;
 type ListedType = Exclude<SearchType, "coded">;
 
 export interface Source {
   departmentRelated(departmentId: string): Promise<SyncTarget[]>;
   /** Pages of ids, for the reindex. The mappers still decide what is public. */
   listIds(type: ListedType): AsyncIterable<string[]>;
-  load(target: LoadTarget, ctx: MapContext): Promise<LoadedItem>;
+  load(target: ItemTarget, ctx: MapContext): Promise<LoadedItem>;
   /** `/projects/<slug>` paths that a servable project page has taken over. */
   servableProjectPaths(): Promise<Set<string>>;
 }
@@ -246,7 +245,7 @@ export function appwriteSource(
 
   async function loadContent<Row>(
     spec: ContentSpec<Row>,
-    type: LoadTarget["type"],
+    type: ItemTarget["type"],
     id: string,
     ctx: MapContext
   ): Promise<LoadedItem> {

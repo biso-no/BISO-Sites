@@ -1,12 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import { baseEntry, type MapContext } from "@repo/shared/search/entries/common";
 import type { SearchEntry, SearchType } from "@repo/shared/search/types";
-import type { SyncTarget } from "./resolve";
+import type { ItemTarget, SyncTarget } from "./resolve";
 import type { LoadedItem, Source } from "./source";
 import { type SyncDeps, syncTargets } from "./sync";
 import type { IndexWriter } from "./writer";
-
-type LoadTarget = Exclude<SyncTarget, { type: "department-related" }>;
 
 const NOW = new Date("2026-11-23T12:00:00Z");
 
@@ -53,11 +51,13 @@ interface FakeSource extends Source {
   contexts: MapContext[];
   loadCalls: string[];
   relatedCalls: string[];
+  servableCalls: number;
 }
 
 interface Overrides {
   departmentRelated?: (id: string) => Promise<SyncTarget[]>;
-  load?: (target: LoadTarget) => Promise<LoadedItem>;
+  load?: (target: ItemTarget) => Promise<LoadedItem>;
+  servable?: string[];
 }
 
 function fakeSource(overrides: Overrides): FakeSource {
@@ -81,7 +81,11 @@ function fakeSource(overrides: Overrides): FakeSource {
     },
     loadCalls: [],
     relatedCalls: [],
-    servableProjectPaths: () => Promise.resolve(new Set<string>()),
+    servableCalls: 0,
+    servableProjectPaths: () => {
+      source.servableCalls += 1;
+      return Promise.resolve(new Set(overrides.servable ?? []));
+    },
   };
   return source;
 }
@@ -173,6 +177,38 @@ describe("syncTargets", () => {
     await syncTargets(deps, [{ id: "d1", type: "department-related" }]);
     expect(source.relatedCalls).toEqual(["d1"]);
     expect(source.loadCalls).toContain("job:j1");
+  });
+
+  it("restores a hub's coded entry when no servable page owns it", async () => {
+    const { deps, source, writer } = setup();
+    await syncTargets(deps, [
+      { id: "winter-games", type: "project-path" },
+      { id: "winter-games", type: "project-path" },
+    ]);
+    expect(source.servableCalls).toBe(1);
+    expect(source.loadCalls).toEqual([]);
+    expect(writer.deleted).toEqual([]);
+    expect(writer.upserted.map((e) => [e.type, e.row_id, e.locale])).toEqual([
+      ["coded", "projects-winter-games", "no"],
+      ["coded", "projects-winter-games", "en"],
+    ]);
+  });
+
+  it("removes a hub's coded entry while a servable page owns it", async () => {
+    const { deps, writer } = setup({ servable: ["/projects/winter-games"] });
+    await syncTargets(deps, [{ id: "winter-games", type: "project-path" }]);
+    expect(writer.deleted).toEqual([["coded", "projects-winter-games"]]);
+    expect(writer.upserted).toEqual([]);
+  });
+
+  it("writes nothing for a project with no coded page", async () => {
+    const { deps, writer } = setup();
+    const counts = await syncTargets(deps, [
+      { id: "bergensbanelopet", type: "project-path" },
+    ]);
+    expect(writer.upserted).toEqual([]);
+    expect(writer.deleted).toEqual([]);
+    expect(counts).toEqual({ deleted: 0, upserted: 0 });
   });
 
   it("hands every load the same clock and sync time", async () => {

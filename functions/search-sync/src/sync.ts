@@ -1,6 +1,7 @@
 import { codedPageEntries, codedRowId } from "@repo/shared/search/coded-pages";
 import type { MapContext } from "@repo/shared/search/entries/common";
-import type { SyncTarget } from "./resolve";
+import { projectPageSlug } from "@repo/shared/utils/project-units";
+import type { ItemTarget, SyncTarget } from "./resolve";
 import type { LoadedItem, Source } from "./source";
 import type { IndexWriter } from "./writer";
 
@@ -18,12 +19,10 @@ interface Counts {
   upserted: number;
 }
 
-type LoadTarget = Exclude<SyncTarget, { type: "department-related" }>;
-
 /** Write one item's entries, or remove them when it has none. */
 async function writeItem(
   deps: SyncDeps,
-  target: LoadTarget,
+  target: ItemTarget,
   item: LoadedItem,
   counts: Counts
 ): Promise<void> {
@@ -38,7 +37,7 @@ async function writeItem(
   }
 }
 
-/** A project page took over (or gave back) its coded hub's URL. */
+/** A project page took over (`skip`) or gave back its coded hub's URL. */
 async function writeCoded(
   deps: SyncDeps,
   codedSkip: NonNullable<LoadedItem["codedSkip"]>,
@@ -53,6 +52,10 @@ async function writeCoded(
     return;
   }
   const entries = codedPageEntries(ctx).filter((e) => e.url === path);
+  if (entries.length === 0) {
+    // A project without a coded hub (no hub page in CODED_PAGES).
+    return;
+  }
   await deps.writer.upsert(entries);
   counts.upserted += entries.length;
   deps.log(`coded ${path}: ${entries.length} entries`);
@@ -87,6 +90,14 @@ export async function syncTargets(
 
     if (target.type === "department-related") {
       queue.push(...(await deps.source.departmentRelated(target.id)));
+      continue;
+    }
+    if (target.type === "project-path") {
+      // The same servable rule as the reindex: the coded hub shows exactly
+      // when no servable page owns the path.
+      const path = `/${projectPageSlug(target.id)}`;
+      const served = await deps.source.servableProjectPaths();
+      await writeCoded(deps, { path, skip: served.has(path) }, ctx, counts);
       continue;
     }
     const item = await deps.source.load(target, ctx);
