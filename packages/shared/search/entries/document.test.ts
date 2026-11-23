@@ -43,6 +43,14 @@ describe("documentEntries", () => {
       campus_id: "3",
     });
   });
+  it("caps a long body like the other types", () => {
+    const e = documentEntries(
+      doc({ description: `<p>${"ord ".repeat(3000)}</p>` }),
+      ctx()
+    );
+    expect(e[0].body.length).toBeLessThanOrEqual(4001);
+    expect(e[0].summary.length).toBeLessThanOrEqual(201);
+  });
   it("hides drafts", () => {
     expect(
       documentEntries(doc({ status: DocumentsStatus.DRAFT }), ctx())

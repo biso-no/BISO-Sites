@@ -1,6 +1,5 @@
 import type { Documents } from "@repo/api/types/appwrite";
 import { DocumentsScope, DocumentsStatus } from "@repo/api/types/appwrite";
-import { toPlainText, truncateAtWord } from "../../utils/content-text";
 import {
   ALL_CAMPUSES,
   campusBucket,
@@ -8,7 +7,7 @@ import {
   type SearchEntry,
   type SearchLocale,
 } from "../types";
-import { baseEntry, type MapContext, nonEmpty } from "./common";
+import { baseEntry, type MapContext, nonEmpty, textFields } from "./common";
 
 type DocumentRow = Pick<
   Documents,
@@ -22,8 +21,6 @@ type DocumentRow = Pick<
   | "language"
 >;
 
-const SUMMARY_MAX = 200;
-
 export function documentEntries(
   row: DocumentRow,
   ctx: MapContext
@@ -32,7 +29,12 @@ export function documentEntries(
     return [];
   }
   const textLocale: SearchLocale = row.language === "en" ? "en" : "no";
-  const description = toPlainText(row.description);
+  const text = textFields({
+    locale: textLocale,
+    title: row.title,
+    description: row.description,
+    short_description: null,
+  });
   const campusId =
     row.scope === DocumentsScope.NATIONAL
       ? ALL_CAMPUSES
@@ -50,9 +52,7 @@ export function documentEntries(
       },
       ctx
     ),
-    title: toPlainText(row.title),
-    summary: truncateAtWord(description, SUMMARY_MAX),
-    body: description,
+    ...text,
     category: nonEmpty(row.category),
   }));
 }
