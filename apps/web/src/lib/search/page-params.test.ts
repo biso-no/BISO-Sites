@@ -39,3 +39,12 @@ describe("searchPageHref", () => {
     );
   });
 });
+
+describe("searchPageHref (query handling)", () => {
+  it("encodes and trims the query, and gives the bare page when blank", () => {
+    expect(searchPageHref({ q: " vår & høst " })).toBe(
+      "/search?q=v%C3%A5r+%26+h%C3%B8st"
+    );
+    expect(searchPageHref({ q: "  " })).toBe("/search");
+  });
+});

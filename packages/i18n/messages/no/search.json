@@ -1,7 +1,7 @@
 {
   "field": {
     "label": "Søk på biso.no",
-    "placeholder": "Søk etter arrangementer, jobber, nyheter og mer"
+    "placeholder": "Søk etter arrangementer, verv, nyheter og mer"
   },
   "open": "Søk",
   "close": "Lukk søk",
@@ -11,30 +11,38 @@
   "groups": {
     "event": "Arrangementer",
     "news": "Nyheter",
-    "job": "Jobber",
+    "job": "Verv",
     "product": "Butikk",
     "page": "Sider",
     "unit": "Avdelinger og enheter"
   },
   "best": "Beste treff",
-  "recent": { "title": "Siste søk", "clear": "Tøm" },
+  "recent": {
+    "title": "Siste søk",
+    "clear": "Tøm"
+  },
   "shortcuts": {
     "title": "Snarveier",
     "events": "Kommende arrangementer",
-    "jobs": "Ledige stillinger",
+    "jobs": "Ledige verv",
     "shop": "Butikk"
   },
   "empty": {
     "title": "Ingen treff på «{query}»",
-    "body": "Sjekk stavemåten, eller prøv et kortere eller mer allment ord.",
+    "body": "Sjekk stavemåten, eller prøv færre eller andre ord.",
     "links": "Eller gå rett til"
   },
   "error": {
     "title": "Søket er utilgjengelig",
     "body": "Vi kom ikke i kontakt med søket akkurat nå. Prøv igjen om litt.",
-    "link": "Gå til søkesiden"
+    "link": "Gå til søkesiden",
+    "retry": "Prøv igjen"
   },
-  "hints": { "move": "Flytt", "open": "Åpne", "close": "Lukk" },
+  "hints": {
+    "move": "Flytt",
+    "open": "Åpne",
+    "close": "Lukk"
+  },
   "resultsCount": "{count, plural, =0 {Ingen treff} one {# treff} other {# treff}}",
   "page": {
     "title": "Søk",
@@ -46,18 +54,23 @@
     "all": "Alle",
     "filterLabel": "Filtrer treff etter type",
     "pagination": "Sider med søketreff",
-    "resultsHeading": "Søketreff",
+    "resultsHeading": "Søkeresultater",
     "pastEnd": "Ingen treff på denne siden",
-    "pastEndBody": "Siden du ba om er etter den siste siden.",
-    "backToFirst": "Tilbake til side 1"
+    "pastEndBody": "Det er ikke flere treff her.",
+    "backToFirst": "Tilbake til side 1",
+    "emptyGroup": "Ingen {group} for «{query}»",
+    "emptyGroupBody": "Det finnes treff i andre kategorier.",
+    "showAllTypes": "Vis alle treff",
+    "campusOn": "på",
+    "campusOff": "av"
   },
   "meta": {
     "membersFrom": "Medlemmer fra {price}",
     "memberPrice": "Medlemspris {price}",
     "freeForMembers": "Gratis for medlemmer",
-    "applyBy": "Søk innen {date}",
+    "applyBy": "Søknadsfrist {date}",
     "inStock": "På lager",
-    "outOfStock": "Utsolgt",
-    "allCampuses": "Alle campus"
-  }
+    "outOfStock": "Utsolgt"
+  },
+  "searching": "Søker …"
 }

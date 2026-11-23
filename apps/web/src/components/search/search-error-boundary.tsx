@@ -1,11 +1,26 @@
 "use client";
 
 import { Component, type ReactNode } from "react";
+import { searchPageHref } from "@/lib/search/page-params";
 
-/** `/search` for the trimmed query, or the bare page when there is none. */
-export function searchPageHref(query: string): string {
-  const q = query.trim();
-  return q ? `/search?${new URLSearchParams({ q }).toString()}` : "/search";
+const SENTRY_FLUSH_MS = 500;
+/** Never keep the visitor waiting on reporting. */
+const REPORT_CAP_MS = 800;
+
+/**
+ * Reports the error to Sentry. Loaded on demand, like the root error page, so
+ * a missing Sentry module cannot break this fallback. Only the error goes: no
+ * context, since the query is what the visitor typed.
+ */
+async function reportError(error: unknown): Promise<void> {
+  try {
+    const { captureException, flush } = await import("@sentry/nextjs");
+    captureException(error);
+    // The page is about to be replaced; give the event a moment to leave.
+    await flush(SENTRY_FLUSH_MS);
+  } catch {
+    // Sentry is unavailable; search still falls back to the full page.
+  }
 }
 
 interface SearchErrorBoundaryProps {
@@ -38,10 +53,15 @@ export class SearchErrorBoundary extends Component<
     return { failed: true };
   }
 
-  componentDidCatch(): void {
-    const href = searchPageHref(this.props.readQuery());
+  componentDidCatch(error: unknown): void {
+    const href = searchPageHref({ q: this.props.readQuery() });
     this.props.onClose();
-    window.location.assign(href);
+    const cap = new Promise<void>((resolve) =>
+      setTimeout(resolve, REPORT_CAP_MS)
+    );
+    Promise.race([reportError(error), cap]).then(() =>
+      window.location.assign(href)
+    );
   }
 
   render(): ReactNode {

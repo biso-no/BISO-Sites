@@ -5,10 +5,10 @@ import {
 import { describe, expect, it } from "vitest";
 import { winterResponse as resp } from "@/test/search-fixtures";
 import {
+  EMPTY_STATE_LINKS,
   optionDomId,
   quickOptions,
   SHOW_ALL_OPTION_ID,
-  searchHref,
 } from "./quick-options";
 
 const flatGroups = SEARCH_GROUPS.flatMap((group) =>
@@ -73,8 +73,12 @@ describe("optionDomId", () => {
   });
 });
 
-describe("searchHref", () => {
-  it("encodes the trimmed query", () => {
-    expect(searchHref("  ski & fun ")).toBe("/search?q=ski+%26+fun");
+describe("EMPTY_STATE_LINKS", () => {
+  it("lists events, news and jobs", () => {
+    expect(EMPTY_STATE_LINKS.map((link) => link.href)).toEqual([
+      "/events",
+      "/news",
+      "/jobs",
+    ]);
   });
 });

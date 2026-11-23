@@ -36,7 +36,8 @@ Each item gets one entry per language (`no` and `en`) in which the site shows it
 
 Which language gets an entry:
 
-- Events, jobs, products, units and documents get both. If a translation is missing, the entry carries the other language's text. The `text_locale` field says which language the text is in.
+- Events, jobs, products and units get both. If a translation is missing, the entry carries the other language's text.
+- Documents get both too, but a document has one language only. Both entries carry that text, and `text_locale` says which language it is in.
 - News and editor pages get an entry only in a language that has its own published translation, because their pages answer 404 in the other language. There is no fallback.
 - A project page that serves a unit's address takes over that address from the coded hub, per language. Only one of the two is indexed.
 
@@ -133,7 +134,7 @@ Bad parameters never throw. They fall back to the defaults above.
 | `locale` | The language used. |
 | `best` | The single best hit, or `null`. |
 | `groups` | An object with the keys `event`, `news`, `job`, `product`, `page`, `unit`. Each holds up to two hits, and never the `best` hit. |
-| `counts` | The number of matches per group, from the index. |
+| `counts` | The number of matches per group, from the index's facets. Not capped. |
 | `total` | The sum of `counts`. |
 
 ### Page mode
@@ -148,11 +149,11 @@ Bad parameters never throw. They fall back to the defaults above.
 | `hits` | The hits on this page. |
 | `page` | The page number. |
 | `page_size` | 20. |
-| `total` | The number of matches for the query, in the asked group. |
+| `total` | The number of matches for the query, in the asked group. It comes from `totalHits`, so it is capped (see below). |
 | `total_pages` | `total` divided by 20, rounded up, and never above 50. |
-| `counts` | Matches per group. Ignores the `type` filter, so tabs can show every group's number. |
+| `counts` | Matches per group, from the facets. Not capped. Ignores the `type` filter, so tabs can show every group's number. |
 
-Meilisearch reaches at most 1000 hits (`maxTotalHits`). So `counts` and `total` can be capped at 1000, and `total_pages` is capped at 50. Don't offer a page the response says doesn't exist.
+Meilisearch reaches at most 1000 hits per search (`maxTotalHits`). `counts` are not affected, because they come from facets. `total` comes from `totalHits` and is capped per scope. With a campus split, the api searches two scopes, so `total` can reach 2000. Only 50 pages of 20 hits are reachable, so `total_pages` never goes above 50, even when `total` is higher. A client such as the Flutter app should page by `total_pages`, not by `total`, and should not offer a page the response says doesn't exist.
 
 ### A hit
 
@@ -200,9 +201,9 @@ The route logs only the error's name and codes. Never pass a Meilisearch error o
 
 The code is in `apps/web/src/components/search/`, `apps/web/src/lib/search/` and `apps/web/src/app/(public)/search/`.
 
-- **Quick search** opens from the magnifier in the header. On a wide screen it is a panel under the header. On a phone it is a sheet that covers the page and locks the page's scroll.
+- **Quick search** opens from the magnifier in the header. From 1340px wide it is a panel under the header. Below 1340px wide it is a sheet that covers the page and locks the page's scroll.
 - **Shortcuts.** `/` and Ctrl or Cmd+K open it. Shift+/ works too, because a Norwegian keyboard types `/` as Shift+7. The shortcuts stay out of the way while the visitor types in a field, or works in a dialog, menu or list. Escape closes it from anywhere. Focus goes back to the header button.
-- **Lazy loading.** The panel's code is not in the header's first load. It loads when the visitor opens search, and it is prefetched when the pointer, focus or a touch reaches the button. A search error boundary shows a message if the chunk fails to load.
+- **Lazy loading.** The panel's code is not in the header's first load. It loads when the visitor opens search, and it is prefetched when the pointer, focus or a touch reaches the button. If the chunk fails to load or the panel throws, a search error boundary closes search and loads `/search` in full, with the query the visitor had typed.
 - **Typing.** Requests are debounced by 150 ms, and each new one aborts the previous. A sequence guard makes sure an old answer never replaces a newer one. The browser calls `NEXT_PUBLIC_API_BASE_URL` plus `/api/search` with no credentials.
 - **iOS keyboard.** iOS raises the keyboard only for a focus that happens inside the tap. The phone's header button focuses a hidden proxy field in the tap, and the sheet copies what was typed into the real field and moves focus there once its code has loaded.
 - **Recent searches** are kept in the browser's local storage, the last five. If storage is blocked, they are skipped.

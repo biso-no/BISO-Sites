@@ -2,8 +2,9 @@
 
 Keeps the Meilisearch site-search index in step with Appwrite. Each indexed
 item has one entry per locale (`no`, `en`) in which the site serves it: events,
-jobs, products, units and documents in both (a missing translation falls back
-to the other language, as their pages do); news and editor pages only in the
+jobs, products and units in both (a missing translation falls back
+to the other language, as their pages do); documents in both, with the
+document's one language as the text in each entry (`text_locale` says which); news and editor pages only in the
 locales with their own (published) translation, because their pages 404 in the
 other. A servable project page takes `/projects/<slug>` over from its coded hub
 per locale. The site's search reads only from that index.

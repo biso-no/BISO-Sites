@@ -17,7 +17,10 @@
     "unit": "Departments and units"
   },
   "best": "Best match",
-  "recent": { "title": "Recent searches", "clear": "Clear" },
+  "recent": {
+    "title": "Recent searches",
+    "clear": "Clear"
+  },
   "shortcuts": {
     "title": "Quick links",
     "events": "Upcoming events",
@@ -32,9 +35,14 @@
   "error": {
     "title": "Search is unavailable",
     "body": "We could not reach search right now. Try again in a moment.",
-    "link": "Go to the search page"
+    "link": "Go to the search page",
+    "retry": "Try again"
   },
-  "hints": { "move": "Move", "open": "Open", "close": "Close" },
+  "hints": {
+    "move": "Move",
+    "open": "Open",
+    "close": "Close"
+  },
   "resultsCount": "{count, plural, =0 {No results} one {# result} other {# results}}",
   "page": {
     "title": "Search",
@@ -49,7 +57,12 @@
     "resultsHeading": "Search results",
     "pastEnd": "No results on this page",
     "pastEndBody": "The page you asked for is past the last one.",
-    "backToFirst": "Back to page 1"
+    "backToFirst": "Back to page 1",
+    "emptyGroup": "No {group} for “{query}”",
+    "emptyGroupBody": "There are matches in other categories.",
+    "showAllTypes": "Show all results",
+    "campusOn": "on",
+    "campusOff": "off"
   },
   "meta": {
     "membersFrom": "Members from {price}",
@@ -57,7 +70,7 @@
     "freeForMembers": "Free for members",
     "applyBy": "Apply by {date}",
     "inStock": "In stock",
-    "outOfStock": "Out of stock",
-    "allCampuses": "All campuses"
-  }
+    "outOfStock": "Out of stock"
+  },
+  "searching": "Searching…"
 }

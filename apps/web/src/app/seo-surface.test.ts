@@ -30,7 +30,9 @@ describe("crawler surface (RD-033)", () => {
 
   it("keeps /search out of the index", () => {
     // Result pages are query-dependent and thin; crawlers get nothing from them.
-    expect(robots).toContain('"/search"');
+    expect(robots).toContain('"/search$"');
+    expect(robots).toContain('"/search?"');
+    expect(robots).not.toContain('"/search"');
   });
 
   it("serves the legacy aliases as 308 route handlers, not pages", () => {

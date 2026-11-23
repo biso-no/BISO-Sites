@@ -21,12 +21,12 @@ import {
   HEADER_CONTAINER_CLASS,
   HEADER_LOGO_WIDTH_CLASS,
 } from "@/components/nav/nav-config";
+import { searchPageHref } from "@/lib/search/page-params";
 import { rememberSearch } from "@/lib/search/recent";
 import {
   QUICK_SEARCH_LISTBOX_ID,
   type QuickOption,
   quickOptions,
-  searchHref,
 } from "./quick-options";
 import { QuickSearchInput } from "./quick-search-input";
 import { QuickSearchResults } from "./quick-search-results";
@@ -218,7 +218,7 @@ export default function QuickSearch({
       navigate(option.href);
     } else if (query.trim()) {
       event.preventDefault();
-      navigate(searchHref(query));
+      navigate(searchPageHref({ q: query }));
     }
   };
 
@@ -285,7 +285,7 @@ export default function QuickSearch({
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-          {results}
+          <div className="mx-auto w-full max-w-2xl">{results}</div>
         </div>
       </div>,
       document.body

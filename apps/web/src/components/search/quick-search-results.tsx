@@ -14,16 +14,17 @@ import {
   useId,
   useState,
 } from "react";
+import { searchPageHref } from "@/lib/search/page-params";
 import { clearRecentSearches, readRecentSearches } from "@/lib/search/recent";
 import { Highlighted } from "./highlighted";
 import { HitLead } from "./hit-lead";
 import { hitMeta, intlLocaleOf, type SearchTranslate } from "./hit-meta";
 import {
+  EMPTY_STATE_LINKS,
   optionDomId,
   QUICK_SEARCH_LISTBOX_ID,
   type QuickSection,
   SHOW_ALL_OPTION_ID,
-  searchHref,
   sectionsOf,
 } from "./quick-options";
 import { type QuickSearchState, shownResponse } from "./use-quick-search";
@@ -340,7 +341,7 @@ function ResultsList({
             "px-2 py-1.5",
             isPanel ? "-mx-2" : "w-full justify-center py-3"
           )}
-          href={searchHref(query)}
+          href={searchPageHref({ q: query })}
           id={SHOW_ALL_OPTION_ID}
           scope={scope}
         >
@@ -393,6 +394,8 @@ function IdleContent({
               onClick={() => {
                 clearRecentSearches();
                 setRecent([]);
+                // The button is about to unmount: hand focus back to the field.
+                onPickQuery("");
               }}
               type="button"
             >
@@ -455,11 +458,10 @@ function EmptyContent({
   query: string;
 }) {
   const t = useTranslations("search");
-  const links: { href: string; label: string }[] = [
-    { href: "/events", label: t("groups.event") },
-    { href: "/news", label: t("groups.news") },
-    { href: "/jobs", label: t("groups.job") },
-  ];
+  const links = EMPTY_STATE_LINKS.map(({ group, href }) => ({
+    href,
+    label: t(`groups.${group}`),
+  }));
   return (
     <div className="max-w-xl">
       <p className="font-bold font-display text-ink text-lg">
@@ -492,7 +494,7 @@ function ErrorContent({
   query: string;
 }) {
   const t = useTranslations("search");
-  const href = searchHref(query);
+  const href = searchPageHref({ q: query });
   return (
     <div className="max-w-xl">
       <p className="font-bold font-display text-ink text-lg">
@@ -511,6 +513,22 @@ function ErrorContent({
       ) : null}
     </div>
   );
+}
+
+const SLOW_SEARCH_MS = 400;
+
+/** True once `active` has stayed true for `ms`; false again as soon as it ends. */
+function useAfterDelay(active: boolean, ms: number): boolean {
+  const [elapsed, setElapsed] = useState(false);
+  useEffect(() => {
+    if (!active) {
+      setElapsed(false);
+      return;
+    }
+    const timer = setTimeout(() => setElapsed(true), ms);
+    return () => clearTimeout(timer);
+  }, [active, ms]);
+  return active && elapsed;
 }
 
 export interface QuickSearchResultsProps {
@@ -544,6 +562,8 @@ export function QuickSearchResults({
 }: QuickSearchResultsProps) {
   const t = useTranslations("search");
   const response = shownResponse(state);
+  const firstSearchPending = state.status === "loading" && !response;
+  const slow = useAfterDelay(firstSearchPending, SLOW_SEARCH_MS);
 
   useEffect(() => {
     if (activeId) {
@@ -558,6 +578,8 @@ export function QuickSearchResults({
     announcement = t("resultsCount", { count: response.total });
   } else if (state.status === "error") {
     announcement = t("error.title");
+  } else if (slow) {
+    announcement = t("searching");
   }
 
   let body: ReactNode = null;
@@ -584,8 +606,14 @@ export function QuickSearchResults({
       />
     );
   } else {
-    // First search still loading: hold the space instead of flashing content.
-    body = <div aria-hidden="true" className="h-24" />;
+    // First search still loading: hold the space, and say so once it is slow.
+    body = (
+      <div aria-hidden="true" className="h-24">
+        {slow ? (
+          <p className="type-body-sm text-ink-muted">{t("searching")}</p>
+        ) : null}
+      </div>
+    );
   }
 
   return (

@@ -11,6 +11,7 @@ import {
   type SearchTranslate,
 } from "./hit-meta";
 
+const API_ROUTE_PREFIX = "/api/";
 const SITE_HOST = "biso.no";
 const PATH_END = /[?#]/;
 
@@ -92,18 +93,25 @@ export function SearchResultRow({
   }
 
   const aside = asideLines(hit, intl, t);
+  const linkClass =
+    "underline-offset-4 hover:underline focus-visible:rounded-biso-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring";
 
   return (
     <li className="flex items-start gap-4 border-edge border-b py-5">
       <HitLead hit={hit} locale={intl} size="small" />
       <div className="min-w-0 flex-1">
         <h3 className="type-heading-card text-ink">
-          <Link
-            className="underline-offset-4 hover:underline focus-visible:rounded-biso-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
-            href={hit.url}
-          >
-            <Highlighted segments={hit.title} />
-          </Link>
+          {hit.url.startsWith(API_ROUTE_PREFIX) ? (
+            // A download route, not an app page: a plain link, so Next never
+            // prefetches the file (same as the document download button).
+            <a className={linkClass} download href={hit.url}>
+              <Highlighted segments={hit.title} />
+            </a>
+          ) : (
+            <Link className={linkClass} href={hit.url}>
+              <Highlighted segments={hit.title} />
+            </Link>
+          )}
         </h3>
         <p className="type-body-sm mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-ink-muted">
           <span className="font-semibold">{t(`groups.${hit.group}`)}</span>

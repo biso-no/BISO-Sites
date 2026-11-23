@@ -44,6 +44,58 @@ describe("SearchResultsPage", () => {
     expect(html).toContain("empty.title winter");
   });
 
+  it("offers retry on the error state and the same three links on the empty state", () => {
+    const error = renderToStaticMarkup(
+      <SearchResultsPage {...base} error response={null} />
+    );
+    expect(error).toContain("error.retry");
+    expect(error).toContain('href="/search?q=winter"');
+    const empty = renderToStaticMarkup(
+      <SearchResultsPage
+        {...base}
+        error={false}
+        response={emptyPageResponse("winter", "en", null)}
+      />
+    );
+    for (const href of ["/events", "/news", "/jobs"]) {
+      expect(empty).toContain(`href="${href}"`);
+    }
+    expect(empty).not.toContain('href="/shop"');
+  });
+
+  it("keeps the chips and a way back when the chosen type is empty", () => {
+    const response = {
+      ...emptyPageResponse("winter", "en", "job"),
+      counts: { event: 4, news: 0, job: 0, product: 0, page: 0, unit: 0 },
+    };
+    const html = renderToStaticMarkup(
+      <SearchResultsPage
+        {...base}
+        error={false}
+        params={{ ...base.params, group: "job" }}
+        response={response}
+      />
+    );
+    expect(html).toContain("page.emptyGroup");
+    expect(html).not.toContain("empty.title");
+    expect(html).toContain("page.filterLabel");
+    expect(html).toContain("page.showAllTypes");
+    expect(html).toContain('href="/search?q=winter"');
+  });
+
+  it("shows the global empty state when no type has hits", () => {
+    const html = renderToStaticMarkup(
+      <SearchResultsPage
+        {...base}
+        error={false}
+        params={{ ...base.params, group: "job" }}
+        response={emptyPageResponse("winter", "en", "job")}
+      />
+    );
+    expect(html).toContain("empty.title");
+    expect(html).not.toContain("page.emptyGroup");
+  });
+
   it("hides pagination for a single page", () => {
     const response = {
       ...emptyPageResponse("winter", "en", null),
@@ -86,8 +138,12 @@ describe("SearchResultsPage", () => {
         response={response}
       />
     );
-    expect(without).not.toContain("aria-pressed");
-    expect(withCampus).toContain('aria-pressed="false"');
+    expect(without).not.toContain("page.onlyCampus");
+    expect(withCampus).toContain("page.onlyCampus");
+    // A plain link: no button role, state spoken as text.
+    expect(withCampus).not.toContain("aria-pressed");
+    expect(withCampus).not.toContain('role="button"');
+    expect(withCampus).toContain("page.campusOff");
   });
 
   it("renders exactly one h1 in every state", () => {

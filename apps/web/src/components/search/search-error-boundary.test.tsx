@@ -2,7 +2,13 @@
 import { act, createElement, lazy, Suspense } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SearchErrorBoundary, searchPageHref } from "./search-error-boundary";
+import { SearchErrorBoundary } from "./search-error-boundary";
+
+const { captureException, flush } = vi.hoisted(() => ({
+  captureException: vi.fn(),
+  flush: vi.fn(() => Promise.resolve(true)),
+}));
+vi.mock("@sentry/nextjs", () => ({ captureException, flush }));
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -31,6 +37,10 @@ async function render(child: ReturnType<typeof createElement>, query = "") {
     );
     await Promise.resolve();
   });
+  // Reporting runs before the full page load.
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
 }
 
 beforeEach(() => {
@@ -49,6 +59,7 @@ afterEach(async () => {
   root = null;
   document.body.innerHTML = "";
   vi.restoreAllMocks();
+  captureException.mockClear();
 });
 
 describe("SearchErrorBoundary", () => {
@@ -57,6 +68,15 @@ describe("SearchErrorBoundary", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(assign).toHaveBeenCalledWith("/search?q=winter");
     expect(onUncaughtError).not.toHaveBeenCalled();
+  });
+
+  it("reports the error to Sentry without the query", async () => {
+    await render(createElement(Thrower), "private name");
+    expect(captureException).toHaveBeenCalledTimes(1);
+    const args = captureException.mock.calls[0] as unknown[];
+    expect(args).toHaveLength(1);
+    expect((args[0] as Error).message).toBe("quick search broke");
+    expect(JSON.stringify(args)).not.toContain("private");
   });
 
   it("loads the bare search page when nothing was typed", async () => {
@@ -81,14 +101,5 @@ describe("SearchErrorBoundary", () => {
     await render(createElement("p", null, "results"));
     expect(document.body.textContent).toBe("results");
     expect(assign).not.toHaveBeenCalled();
-  });
-});
-
-describe("searchPageHref", () => {
-  it("encodes the trimmed query", () => {
-    expect(searchPageHref(" vår & høst ")).toBe(
-      "/search?q=v%C3%A5r+%26+h%C3%B8st"
-    );
-    expect(searchPageHref("")).toBe("/search");
   });
 });

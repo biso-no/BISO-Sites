@@ -77,7 +77,7 @@ export function productMeta(
     hit.price !== null &&
     hit.member_price < hit.price
   ) {
-    member = t("meta.membersFrom", { price: money.format(hit.member_price) });
+    member = t("meta.memberPrice", { price: money.format(hit.member_price) });
   }
   // Buyers see in stock / out of stock only, never a count.
   return joinMeta([

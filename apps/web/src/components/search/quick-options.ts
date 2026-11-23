@@ -4,6 +4,7 @@ import {
   type SearchGroup,
   type SearchHit,
 } from "@repo/shared/search/response";
+import { searchPageHref } from "@/lib/search/page-params";
 
 export const QUICK_SEARCH_LISTBOX_ID = "quick-search-listbox";
 /** The option id of the "Show all N results" row. */
@@ -28,10 +29,12 @@ export interface QuickSection {
   hits: SearchHit[];
 }
 
-/** `/search?q=…` for the trimmed query. */
-export function searchHref(query: string): string {
-  return `/search?${new URLSearchParams({ q: query.trim() }).toString()}`;
-}
+/** Where an empty search sends the visitor; labels are the `groups.*` names. */
+export const EMPTY_STATE_LINKS: { group: SearchGroup; href: string }[] = [
+  { group: "event", href: "/events" },
+  { group: "news", href: "/news" },
+  { group: "job", href: "/jobs" },
+];
 
 /** The groups that have rows to show, in SEARCH_GROUPS order. */
 export function sectionsOf(response: QuickSearchResponse): QuickSection[] {
@@ -65,6 +68,6 @@ export function quickOptions(
       options.push({ href: hit.url, id: hit.id });
     }
   }
-  options.push({ href: searchHref(query), id: SHOW_ALL_OPTION_ID });
+  options.push({ href: searchPageHref({ q: query }), id: SHOW_ALL_OPTION_ID });
   return options;
 }

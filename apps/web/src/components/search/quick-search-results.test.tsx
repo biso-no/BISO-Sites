@@ -315,6 +315,23 @@ describe("QuickSearchResults (other states)", () => {
     expect(container.querySelector('[role="listbox"]')).toBeNull();
   });
 
+  it("says it is searching only after the first search has been slow", async () => {
+    vi.useFakeTimers();
+    try {
+      await render({ state: { status: "loading", previous: null } });
+      expect(container.textContent).not.toContain("searching");
+      await act(() => {
+        vi.advanceTimersByTime(450);
+      });
+      expect(container.textContent).toContain("searching");
+      expect(container.querySelector('[aria-live="polite"]')?.textContent).toBe(
+        "searching"
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("shows the error and a link to the search page", async () => {
     const onNavigate = vi.fn();
     await render({ state: { status: "error" }, onNavigate });
@@ -369,7 +386,8 @@ describe("QuickSearchResults (idle)", () => {
       "biso.search.recent": JSON.stringify(["jobs"]),
     });
     vi.stubGlobal("localStorage", storage);
-    await render({ state: { status: "idle" }, query: "" });
+    const onPickQuery = vi.fn();
+    await render({ state: { status: "idle" }, query: "", onPickQuery });
     const clear = [...container.querySelectorAll("button")].find(
       (b) => b.textContent === "recent.clear"
     );
@@ -378,6 +396,8 @@ describe("QuickSearchResults (idle)", () => {
     });
     expect(storage.getItem("biso.search.recent")).toBeNull();
     expect(container.textContent).not.toContain("recent.title");
+    // Focus goes back to the field (the picker focuses it) once the button is gone.
+    expect(onPickQuery).toHaveBeenCalledWith("");
   });
 
   it("omits the recent list when there is none", async () => {

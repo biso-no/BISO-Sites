@@ -31,12 +31,18 @@ export function parseSearchPageParams(sp: RawParams): SearchPageParams {
   return { q, group, page, onlyCampus };
 }
 
-/** Canonical order: q, type, only, page (page omitted when 1). */
+/**
+ * `/search` with canonical order: q, type, only, page (page omitted when 1).
+ * The query is trimmed and left out when blank, giving the bare search page.
+ */
 export function searchPageHref(
   params: Partial<SearchPageParams> & { q: string }
 ): string {
   const next = new URLSearchParams();
-  next.set("q", params.q);
+  const q = params.q.trim();
+  if (q) {
+    next.set("q", q);
+  }
   if (params.group && SEARCH_GROUPS.includes(params.group)) {
     next.set("type", params.group);
   }
@@ -46,5 +52,6 @@ export function searchPageHref(
   if (params.page && params.page > 1) {
     next.set("page", String(params.page));
   }
-  return `/search?${next.toString()}`;
+  const query = next.toString();
+  return query ? `/search?${query}` : "/search";
 }

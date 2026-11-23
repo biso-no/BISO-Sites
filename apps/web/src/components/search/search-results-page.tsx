@@ -1,6 +1,7 @@
 import {
   type PageSearchResponse,
   SEARCH_GROUPS,
+  type SearchGroup,
 } from "@repo/shared/search/response";
 import { campusIdToLabel } from "@repo/shared/utils/unit-urls";
 import { cn } from "@repo/ui/lib/utils";
@@ -17,6 +18,7 @@ import {
   type SearchPageParams,
   searchPageHref,
 } from "@/lib/search/page-params";
+import { EMPTY_STATE_LINKS } from "./quick-options";
 import { SearchPageForm } from "./search-page-form";
 import { SearchResultRow } from "./search-result-row";
 
@@ -63,21 +65,22 @@ function SearchState({
   );
 }
 
+/** A link styled as a switch; its state is read out as "on" or "off". */
 function CampusSwitch({
   href,
   label,
   on,
+  stateLabel,
 }: {
   href: string;
   label: string;
   on: boolean;
+  stateLabel: string;
 }) {
   return (
     <Link
-      aria-pressed={on}
       className="type-body-sm inline-flex items-center gap-3 rounded-biso-pill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
       href={href}
-      role="button"
     >
       <span
         aria-hidden="true"
@@ -93,7 +96,10 @@ function CampusSwitch({
           )}
         />
       </span>
-      <span className="text-ink">{label}</span>
+      <span className="text-ink">
+        {label}
+        <span className="sr-only"> {stateLabel}</span>
+      </span>
     </Link>
   );
 }
@@ -142,6 +148,54 @@ function Pager({
   );
 }
 
+/** The chosen type has no hits while other types do: keep the chips, offer "all". */
+function EmptyGroupState({
+  chipParams,
+  group,
+  locale,
+  onlyCampus,
+  options,
+  q,
+}: {
+  chipParams: Record<string, string>;
+  group: SearchGroup;
+  locale: string;
+  onlyCampus: boolean;
+  options: FilterOption[];
+  q: string;
+}) {
+  const t = useTranslations("search");
+  return (
+    <>
+      <Section tone="paper">
+        <FilterChips
+          active={group}
+          basePath="/search"
+          label={t("page.filterLabel")}
+          options={options}
+          param="type"
+          searchParams={chipParams}
+        />
+      </Section>
+      <SearchState
+        actions={
+          <Link
+            className={statusPanelPrimaryAction}
+            href={searchPageHref({ q, onlyCampus })}
+          >
+            {t("page.showAllTypes")}
+          </Link>
+        }
+        body={t("page.emptyGroupBody")}
+        title={t("page.emptyGroup", {
+          group: t(`groups.${group}`).toLocaleLowerCase(locale),
+          query: q,
+        })}
+      />
+    </>
+  );
+}
+
 function filterOptions(
   response: PageSearchResponse | null,
   group: SearchPageParams["group"],
@@ -164,6 +218,41 @@ function filterOptions(
       count: response.counts[key],
     })),
   ];
+}
+
+/** Hidden form fields (they keep type and campus across a new query) and the chips' base params. */
+function formParamsOf({ q, group, onlyCampus }: SearchPageParams) {
+  const hidden: Record<string, string> = {};
+  const chipParams: Record<string, string> = { q };
+  if (group) {
+    hidden.type = group;
+  }
+  if (onlyCampus) {
+    hidden.only = "1";
+    chipParams.only = "1";
+  }
+  return { chipParams, hidden };
+}
+
+/** Which of the mutually exclusive result states applies. */
+function viewStateOf(
+  q: string,
+  group: SearchGroup | null,
+  response: PageSearchResponse | null
+) {
+  const hasResults = response !== null && response.total > 0;
+  const pastEnd = hasResults && response.hits.length === 0;
+  const settledEmpty = Boolean(q) && response !== null && !hasResults;
+  // The chosen type is empty while other types match: not "no results".
+  const otherGroupsMatch =
+    response !== null && SEARCH_GROUPS.some((key) => response.counts[key] > 0);
+  const emptyGroup = settledEmpty && group !== null && otherGroupsMatch;
+  return {
+    emptyAll: settledEmpty && !emptyGroup,
+    emptyGroup,
+    hasResults,
+    pastEnd,
+  };
 }
 
 /**
@@ -190,27 +279,23 @@ export function SearchResultsPage({
   const studyCampus =
     campusId !== null && STUDY_CAMPUSES.has(campusId) ? campusId : null;
   const campusLabel = campusIdToLabel(studyCampus);
-  const links = [
+  const links = EMPTY_STATE_LINKS.map(({ group, href }) => ({
+    href,
+    label: t(`groups.${group}`),
+  }));
+  const shortcutLinks = [
     { href: "/events", label: t("shortcuts.events") },
     { href: "/jobs", label: t("shortcuts.jobs") },
     { href: "/shop", label: t("shortcuts.shop") },
   ];
 
-  const hidden: Record<string, string> = {};
-  if (group) {
-    hidden.type = group;
-  }
-  if (onlyCampus) {
-    hidden.only = "1";
-  }
-
-  const chipParams: Record<string, string> = { q };
-  if (onlyCampus) {
-    chipParams.only = "1";
-  }
+  const { chipParams, hidden } = formParamsOf(params);
   const options = filterOptions(response, group, t);
-  const hasResults = response !== null && response.total > 0;
-  const pastEnd = hasResults && response.hits.length === 0;
+  const { emptyAll, emptyGroup, hasResults, pastEnd } = viewStateOf(
+    q,
+    group,
+    response
+  );
 
   return (
     <>
@@ -233,6 +318,7 @@ export function SearchResultsPage({
                 href={searchPageHref({ q, group, onlyCampus: !onlyCampus })}
                 label={t("page.onlyCampus", { campus: campusLabel })}
                 on={onlyCampus}
+                stateLabel={t(onlyCampus ? "page.campusOn" : "page.campusOff")}
               />
             ) : null}
           </div>
@@ -243,7 +329,10 @@ export function SearchResultsPage({
         <Section tone="paper" width="prose">
           <h2 className="type-label text-ink-muted">{t("shortcuts.title")}</h2>
           <div className="mt-4 flex flex-wrap gap-3">
-            <Shortcuts className={statusPanelSecondaryAction} links={links} />
+            <Shortcuts
+              className={statusPanelSecondaryAction}
+              links={shortcutLinks}
+            />
           </div>
         </Section>
       )}
@@ -255,7 +344,7 @@ export function SearchResultsPage({
               className={statusPanelPrimaryAction}
               href={searchPageHref({ q, group, onlyCampus })}
             >
-              {t("error.link")}
+              {t("error.retry")}
             </Link>
           }
           body={t("error.body")}
@@ -263,7 +352,18 @@ export function SearchResultsPage({
         />
       ) : null}
 
-      {q && response && !hasResults ? (
+      {emptyGroup && group ? (
+        <EmptyGroupState
+          chipParams={chipParams}
+          group={group}
+          locale={locale}
+          onlyCampus={onlyCampus}
+          options={options}
+          q={q}
+        />
+      ) : null}
+
+      {emptyAll ? (
         <SearchState
           actions={
             <>
@@ -309,7 +409,7 @@ export function SearchResultsPage({
               <SearchResultRow
                 campusId={studyCampus}
                 hit={hit}
-                key={hit.row_id}
+                key={hit.id}
                 locale={locale}
               />
             ))}

@@ -67,4 +67,19 @@ describe("SearchResultRow", () => {
     );
     expect(html).toContain("biso.no / projects / winter-games / packing-list");
   });
+
+  it("links a document as a plain download anchor, not a prefetching Link", () => {
+    const html = render(
+      searchHit({
+        id: "d1",
+        group: "page",
+        type: "document",
+        url: "/api/documents/abc/download",
+      })
+    );
+    expect(html).toContain("<a class=");
+    expect(html).toContain("download");
+    expect(html).toContain('href="/api/documents/abc/download"');
+    expect(html).not.toContain("data-prefetch");
+  });
 });

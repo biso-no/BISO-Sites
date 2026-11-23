@@ -87,7 +87,11 @@ export default async function SearchPage({
   const searchLocale = locale === "en" ? "en" : "no";
   // The visitor's campus only enables the "only my campus" switch and scopes
   // ranking; an unknown `?campus=` falls back to the cookie rather than 404ing.
-  const campusId = resolveRequestCampus(sp.campus, prefs?.campusId) ?? null;
+  const fromUrl = resolveRequestCampus(sp.campus, prefs?.campusId);
+  const campusId =
+    (fromUrl === undefined
+      ? resolveRequestCampus(undefined, prefs?.campusId)
+      : fromUrl) ?? null;
   return (
     <Suspense fallback={<FeedSkeleton />}>
       <SearchResults

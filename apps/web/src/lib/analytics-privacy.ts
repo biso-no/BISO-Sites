@@ -1,10 +1,11 @@
 /**
- * Keeps sign-in secrets out of Umami.
+ * Keeps sign-in secrets and search queries out of Umami.
  *
  * Umami records each page's full URL and the page it came from. The app's
  * emailed sign-in link opens `/auth/verify?userId=…&secret=…` when it lands in
  * a browser, and that secret is still valid there, so `/auth/` pages are
- * recorded without their query string. Everywhere else the query string is
+ * recorded without their query string. `/search` pages are too: the query is
+ * what the visitor typed, which can be a name. Everywhere else the query string is
  * kept: campaign links rely on their `utm_*` parameters.
  *
  * Umami calls the function named by the tracker's `data-before-send`
@@ -30,10 +31,10 @@ function isSensitivePath(pathname: string): boolean {
 
 /**
  * `url` without its query string (and fragment) when it points at an `/auth/`
- * or `/search` page, otherwise unchanged. Takes a full URL, as this Umami version sends, or
- * a path, as older versions did, and returns the same form.
+ * or `/search` page, otherwise unchanged. Takes a full URL, as this Umami
+ * version sends, or a path, as older versions did, and returns the same form.
  */
-export function withoutAuthQuery(url: string): string {
+export function withoutSensitiveQuery(url: string): string {
   if (!url) {
     return url;
   }
@@ -64,8 +65,8 @@ export function umamiBeforeSend<T>(_type: string, payload: T): T {
   return {
     ...payload,
     ...(typeof referrer === "string" && {
-      referrer: withoutAuthQuery(referrer),
+      referrer: withoutSensitiveQuery(referrer),
     }),
-    ...(typeof url === "string" && { url: withoutAuthQuery(url) }),
+    ...(typeof url === "string" && { url: withoutSensitiveQuery(url) }),
   };
 }

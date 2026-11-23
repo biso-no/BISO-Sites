@@ -17,7 +17,8 @@ export default function robots(): MetadataRoute.Robots {
           "/fs",
           "/profile",
           // Result pages depend on the query and add nothing to the index.
-          "/search",
+          "/search$",
+          "/search?",
           "/shop/order/",
           "/shop/checkout",
           "/shop/cart",

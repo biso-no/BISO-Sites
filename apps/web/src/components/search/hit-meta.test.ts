@@ -85,7 +85,7 @@ describe("hitMeta", () => {
         t
       )
     );
-    expect(meta).toBe("449 kr · meta.membersFrom 349 kr · meta.outOfStock");
+    expect(meta).toBe("449 kr · meta.memberPrice 349 kr · meta.outOfStock");
   });
 
   it("says free for members when the member price is zero", () => {
