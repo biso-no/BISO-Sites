@@ -4,7 +4,7 @@ import type { SearchLocale } from "./types";
 export const SEARCH_QUERY_MAX = 100;
 export const SEARCH_PAGE_SIZE = 20;
 export const QUICK_GROUP_SIZE = 2;
-const SEARCH_PAGE_MAX = 50;
+export const SEARCH_PAGE_MAX = 50;
 
 const WHITESPACE = /\s+/g;
 const DIGITS = /^\d+$/;

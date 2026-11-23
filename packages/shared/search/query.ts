@@ -12,6 +12,7 @@ import {
 } from "./highlight";
 import {
   QUICK_GROUP_SIZE,
+  SEARCH_PAGE_MAX,
   SEARCH_PAGE_SIZE,
   type SearchRequest,
 } from "./params";
@@ -91,7 +92,10 @@ export function toHit(hit: Hit<SearchEntry>, locale: SearchLocale): SearchHit {
   const formatted = hit._formatted;
   const summary = toSegments(formatted?.summary ?? hit.summary ?? "");
   const body = toSegments(formatted?.body ?? "");
-  const snippet = hasMatch(summary) || !hasMatch(body) ? summary : body;
+  let snippet = summary;
+  if (!hasMatch(summary) && (hasMatch(body) || summary.length === 0)) {
+    snippet = body;
+  }
   return {
     id: hit.id,
     type: hit.type,
@@ -131,7 +135,7 @@ function makeQuery(
     indexUid: indexName,
     q: req.q,
     filter,
-    attributesToHighlight: ["title", "summary"],
+    attributesToHighlight: ["title", "summary", "body"],
     attributesToCrop: ["body"],
     cropLength: CROP_LENGTH,
     highlightPreTag: HIGHLIGHT_PRE,
@@ -316,7 +320,7 @@ function pageResponse(
     counts,
     hits: hits.map((h) => toHit(h, req.locale)),
     total,
-    totalPages: Math.ceil(total / SEARCH_PAGE_SIZE),
+    totalPages: Math.min(Math.ceil(total / SEARCH_PAGE_SIZE), SEARCH_PAGE_MAX),
   };
 }
 

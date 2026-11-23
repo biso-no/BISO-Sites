@@ -373,3 +373,52 @@ describe("runSearch page", () => {
     expect(r.total).toBe(4);
   });
 });
+
+describe("query shape and edges", () => {
+  it("highlights and crops the body, and filters every query", async () => {
+    const inEn = (e: SearchEntry): SearchEntry => ({ ...e, locale: "en" });
+    const mine = many("event", 5, "2", "m").map(inEn);
+    const rest = many("event", 30, "1", "r").map(inEn);
+    const f = fake([...mine, ...rest]);
+    await runSearch(
+      f,
+      "i",
+      req({ q: "x", campus: "2", mode: "page", page: 1, locale: "en" }),
+      NOW
+    );
+    const quick = fake([...mine, ...rest]);
+    await runSearch(quick, "i", req({ campus: "2", locale: "en" }), NOW);
+    const all = [...f.calls, ...quick.calls];
+    expect(f.calls).toHaveLength(2);
+    for (const q of all.flat()) {
+      expect(q.filter).toContain('locale = "en"');
+      expect(q.filter).toContain("visible_until >= 1795435200");
+      expect(q.attributesToHighlight).toContain("body");
+      expect(q.attributesToCrop).toContain("body");
+    }
+  });
+
+  it("uses the cropped body when the summary is empty", () => {
+    const hit = toHit(
+      hitWith({
+        _formatted: { title: "t", summary: "", body: "cropped body" },
+      }),
+      "en"
+    );
+    expect(hit.snippet).toEqual([{ text: "cropped body", match: false }]);
+  });
+
+  it("clamps totalPages to the page cap", async () => {
+    const r = await runSearch(
+      fake(many("event", 1100, "all")),
+      "i",
+      req({ q: "x", mode: "page" }),
+      NOW
+    );
+    if (r.mode !== "page") {
+      throw new Error("mode");
+    }
+    expect(r.total).toBe(1100);
+    expect(r.totalPages).toBe(50);
+  });
+});
