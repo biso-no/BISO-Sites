@@ -1,5 +1,8 @@
 import { ExpenseApprovalsStatus } from "@repo/api/types/appwrite";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("./pdf/expense-pdf", () => ({ generateExpensePdf: vi.fn() }));
+
 import { assertApprovedExpenseChain } from "./expense-approval-chain";
 
 const db = {

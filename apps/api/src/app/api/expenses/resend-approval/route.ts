@@ -44,8 +44,8 @@ export async function POST(req: NextRequest) {
     const result = await resendApprovalNotification(expenseId);
     if (!result.ok) {
       return NextResponse.json(
-        { error: result.error ?? "Resend failed" },
-        { status: 400 }
+        { error: result.error ?? "Resend failed", code: result.code },
+        { status: result.code === "not_pending" ? 409 : 400 }
       );
     }
     return NextResponse.json({ success: true });

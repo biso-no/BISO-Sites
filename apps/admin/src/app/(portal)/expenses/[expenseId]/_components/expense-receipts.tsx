@@ -1,3 +1,4 @@
+import type { ApproverHint } from "@repo/shared/utils/expense-hints";
 import { useLocale, useTranslations } from "next-intl";
 import { MONO_STACK, STUDIO, StudioPanel } from "../../../_components/studio";
 import {
@@ -5,13 +6,20 @@ import {
   fmtNOK,
   normalizeLocale,
 } from "../../../shop/_components/shop-studio-theme";
+import { hintsForReceipt } from "../../check-model";
 import type { ExpenseDetailReceipt } from "../../expenses-data";
+import { useHintLine } from "./expense-header";
 import { type ReceiptEditOptions, ReceiptEditor } from "./receipt-editor";
 
 interface Props {
-  /** Present only when the viewer may edit receipts. */
+  departmentName: string;
+  /** Present only when the viewer may edit receipts now. */
   editOptions: ReceiptEditOptions | null;
+  /** The viewer may edit, but the check is still working: edits wait. */
+  editsWait: boolean;
   expenseId: string;
+  /** All the expense's hints; each receipt shows the ones tied to it. */
+  hints: ApproverHint[];
   receipts: ExpenseDetailReceipt[];
 }
 
@@ -22,6 +30,7 @@ const COLUMNS = [
   "amount",
   "type",
   "account",
+  "project",
   "ai",
   "booked",
 ] as const;
@@ -37,8 +46,21 @@ function typeText(r: ExpenseDetailReceipt, none: string): string {
   return r.costTypeLabel ?? r.costType ?? none;
 }
 
-export function ExpenseReceipts({ editOptions, expenseId, receipts }: Props) {
+/** The project column: blank for a supporting statement, which is never booked. */
+function projectText(r: ExpenseDetailReceipt, none: string): string {
+  return r.isSupporting ? "" : (r.projectName ?? none);
+}
+
+export function ExpenseReceipts({
+  departmentName,
+  editOptions,
+  editsWait,
+  expenseId,
+  hints,
+  receipts,
+}: Props) {
   const t = useTranslations("adminPortal.expenses");
+  const hintLine = useHintLine();
   const locale = normalizeLocale(useLocale());
   const date = (iso: string | null) => (iso ? fmtDate(iso, locale) : t("none"));
 
@@ -47,6 +69,11 @@ export function ExpenseReceipts({ editOptions, expenseId, receipts }: Props) {
       <h3 className="px-5 pt-4 font-medium text-[14px]">
         {t("detail.receiptsTitle")}
       </h3>
+      {editsWait && (
+        <p className="px-5 pt-1 text-[13px]" style={{ color: STUDIO.ink3 }}>
+          {t("edit.checking")}
+        </p>
+      )}
       {receipts.length === 0 ? (
         <p className="px-5 py-4 text-[13px]" style={{ color: STUDIO.ink3 }}>
           {t("detail.noReceipts")}
@@ -127,6 +154,7 @@ export function ExpenseReceipts({ editOptions, expenseId, receipts }: Props) {
                       </>
                     )}
                   </td>
+                  <td className="px-3 py-2">{projectText(r, t("none"))}</td>
                   <td className="px-3 py-2">
                     {r.aiCostType && (
                       <span className="block">
@@ -141,11 +169,29 @@ export function ExpenseReceipts({ editOptions, expenseId, receipts }: Props) {
                         {t(`issues.${issue}`)}
                       </span>
                     ))}
+                    {hintsForReceipt(hints, r.id).map((hint) => (
+                      <span
+                        className="block"
+                        key={`${hint.code}-${hint.attachmentId ?? ""}`}
+                        style={{ color: STUDIO.ink3 }}
+                      >
+                        {hintLine(hint)}
+                      </span>
+                    ))}
+                    {r.checkReason && (
+                      <span
+                        className="block text-[12px]"
+                        style={{ color: STUDIO.ink4 }}
+                      >
+                        {t("receipts.checkNote", { reason: r.checkReason })}
+                      </span>
+                    )}
                   </td>
                   <td className="px-3 py-2">{date(r.bookedDate)}</td>
                   {editOptions && (
                     <td className="px-3 py-2 text-right">
                       <ReceiptEditor
+                        departmentName={departmentName}
                         expenseId={expenseId}
                         options={editOptions}
                         receipt={r}

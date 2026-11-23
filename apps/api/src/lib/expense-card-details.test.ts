@@ -81,6 +81,9 @@ beforeEach(() => {
   db.listRows.mockReset();
 });
 
+const BANK_DIGITS = /9999|1111/;
+const BRACES = /[{}]/;
+
 describe("loadApprovalCardDetails", () => {
   it("loads receipts with type labels and account names", async () => {
     seed({
@@ -108,10 +111,26 @@ describe("loadApprovalCardDetails", () => {
         account: "6555 Reise",
         amount: 250,
         date: "2026-11-02",
+        projectName: null,
         text: "Ruter",
         type: "Taxi",
       },
       expect.objectContaining({ account: null, amount: 90, type: '"Pizza"' }),
+    ]);
+  });
+
+  it("carries each receipt's project name", async () => {
+    seed({
+      attachments: [
+        { ...TAXI, project_id: "p1", project_name: "Fadderuke 2026" },
+        { ...TAXI, $id: "a2", sort_order: 1 },
+      ],
+      costTypes: COST_TYPES,
+    });
+    const { receipts } = await loadApprovalCardDetails(asDb(), "e1");
+    expect(receipts.map((r) => r.projectName)).toEqual([
+      "Fadderuke 2026",
+      null,
     ]);
   });
 
@@ -194,6 +213,61 @@ describe("loadApprovalCardDetails", () => {
       "Submitter says they are the campus controller"
     );
     expect(details.fallbackNote).toContain("general manager");
+  });
+
+  it("words the hints the background check writes", async () => {
+    seed(
+      { approvals: [{ approver_role: "national" }], costTypes: COST_TYPES },
+      {
+        ...EXPENSE,
+        approver_hints: JSON.stringify([
+          { code: "type_unsure", data: { reason: "two types fit" } },
+          { code: "type_unsure" },
+          { code: "project_unsure" },
+          { code: "project_unsure", data: { reason: "two events" } },
+          { code: "project_missing" },
+          { code: "project_not_created", data: { series: "BISO", year: 2026 } },
+          { code: "ai_check_incomplete" },
+          { code: "ai_check_disagrees", data: { aiType: "taxi" } },
+        ]),
+      }
+    );
+
+    const { hints } = await loadApprovalCardDetails(asDb(), "e1");
+
+    expect(hints).toHaveLength(8);
+    expect(hints[0]).toContain("two types fit");
+    expect(hints[1]).not.toContain("{");
+    expect(hints[3]).toContain("two events");
+    expect(hints[5]).toContain("BISO");
+    expect(hints[5]).toContain("2026");
+    expect(hints[7]).toContain("Taxi");
+    expect(hints[7]).not.toContain("taxi");
+    for (const hint of hints) {
+      expect(hint).not.toMatch(BRACES);
+    }
+  });
+
+  it("keeps a long, multi-line reason to one short line", async () => {
+    seed(
+      { approvals: [{ approver_role: "national" }] },
+      {
+        ...EXPENSE,
+        approver_hints: JSON.stringify([
+          {
+            code: "type_unsure",
+            data: { reason: `line one\nline two ${"y".repeat(600)}` },
+          },
+        ]),
+      }
+    );
+
+    const { hints } = await loadApprovalCardDetails(asDb(), "e1");
+
+    expect(hints).toHaveLength(1);
+    expect(hints[0]).not.toContain("\n");
+    expect(hints[0]?.length).toBeLessThan(260);
+    expect(hints[0]).toContain("line one line two");
   });
 
   it("says the president could not be found when national stands in for one", async () => {
@@ -374,6 +448,116 @@ describe("loadApprovalCardDetails", () => {
     );
     expect(query).toContain("orderDesc");
     expect(query).toContain("6");
+  });
+
+  it("renders a flag from the background check", async () => {
+    seed({
+      events: [
+        {
+          $createdAt: "2026-11-12T14:03:00.000Z",
+          action: "ai_flagged",
+          actor_kind: "ai",
+          actor_name: "AI check",
+          after: "food",
+          field: "ai_check_disagrees",
+          attachment_id: "a1",
+          note: "Thinks the type is food: pizza for the board",
+        },
+      ],
+      attachments: [TAXI],
+      costTypes: COST_TYPES,
+    });
+
+    const { history } = await loadApprovalCardDetails(asDb(), "e1");
+
+    expect(history[0]?.text).toBe(
+      "AI check flagged Taxi: Thinks the type is food: pizza for the board"
+    );
+  });
+
+  it("gives each receipt the check's reason when it changed or flagged it", async () => {
+    seed(
+      {
+        attachments: [
+          TAXI,
+          { ...TAXI, $id: "a2", sort_order: 1 },
+          { ...TAXI, $id: "a3", sort_order: 2 },
+        ],
+        costTypes: COST_TYPES,
+        events: [
+          {
+            $createdAt: "2026-11-12T10:00:00.000Z",
+            action: "ai_classified",
+            actor_kind: "ai",
+            actor_name: "AI check",
+            attachment_id: "a1",
+            note: "Confidence 0.9: A Ruter ticket.",
+          },
+          {
+            $createdAt: "2026-11-12T10:00:01.000Z",
+            action: "ai_flagged",
+            actor_kind: "ai",
+            actor_name: "AI check",
+            attachment_id: "a2",
+            note: "Looks like food, not transport.",
+          },
+          {
+            $createdAt: "2026-11-12T10:00:02.000Z",
+            action: "ai_flagged",
+            actor_kind: "ai",
+            actor_name: "AI check",
+            attachment_id: "a3",
+            note: "Already shown as a hint.",
+          },
+        ],
+      },
+      {
+        ...EXPENSE,
+        approver_hints: JSON.stringify([
+          { attachmentId: "a3", code: "type_unsure" },
+        ]),
+      }
+    );
+
+    const { receipts } = await loadApprovalCardDetails(asDb(), "e1");
+
+    expect(receipts.map((r) => r.checkNote)).toEqual([
+      "A Ruter ticket.",
+      "Looks like food, not transport.",
+      undefined,
+    ]);
+  });
+
+  it("words the check's flags and keeps bank accounts out of the history", async () => {
+    seed({
+      attachments: [TAXI],
+      costTypes: COST_TYPES,
+      events: [
+        {
+          $createdAt: "2026-11-12T10:00:00.000Z",
+          action: "ai_flagged",
+          actor_kind: "ai",
+          attachment_id: "a1",
+          field: "project_unsure",
+          note: "Could be two events.",
+        },
+        {
+          $createdAt: "2026-11-12T10:00:01.000Z",
+          action: "edited",
+          actor_kind: "student",
+          after: "9999.99.99999",
+          before: "1111.11.11111",
+          field: "bank_account",
+        },
+      ],
+    });
+    const { history } = await loadApprovalCardDetails(asDb(), "e1");
+    expect(history.map((line) => line.text)).toContain(
+      "AI flagged Taxi: Could be two events."
+    );
+    expect(history.map((line) => line.text).join("\n")).not.toMatch(
+      BANK_DIGITS
+    );
   });
 
   it("a failed lookup still returns a sendable card", async () => {

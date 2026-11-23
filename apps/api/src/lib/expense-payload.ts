@@ -1,7 +1,10 @@
 import { Permission, Role } from "@repo/api";
 import { ExpensesStatus } from "@repo/api/types/appwrite";
 import { approvalSwitchFor } from "@repo/shared/utils/expense-approvers";
-import { DEFAULT_COST_TYPE_SLUG } from "@repo/shared/utils/expense-cost-types";
+import {
+  DEFAULT_COST_TYPE_SLUG,
+  EXPENSE_DESCRIPTION_MAX,
+} from "@repo/shared/utils/expense-cost-types";
 import { receiptFileId } from "@repo/shared/utils/receipt-file-id";
 import { z } from "zod";
 
@@ -49,7 +52,14 @@ const ExpensePayloadSchema = z.object({
   bank_account: z.string().min(1),
   campus: z.string().min(1),
   department: z.string().min(1),
-  description: z.string().nullable().optional(),
+  // Cut, not refused: an older client may send more than the column holds.
+  description: z
+    .string()
+    .nullable()
+    .optional()
+    .transform((text) =>
+      typeof text === "string" ? text.slice(0, EXPENSE_DESCRIPTION_MAX) : text
+    ),
   event_id: z.string().max(EVENT_ID_MAX).nullish(),
   // Cut, not refused: an event title may be longer than the column, and an
   // older client that sends one must still be able to save.

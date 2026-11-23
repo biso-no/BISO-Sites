@@ -11,7 +11,11 @@ export interface ApprovalCardReceipt {
   /** Account label such as "7140 Reise", or null when none is set. */
   account: string | null;
   amount: number;
+  /** The background check's one-line reason, when it changed or flagged this receipt. */
+  checkNote?: string | null;
   date: string;
+  /** The Finago project the receipt is booked on, or null/absent when none. */
+  projectName?: string | null;
   /** Vendor or description. */
   text: string;
   type: string;
@@ -93,7 +97,26 @@ function truncate(value: string, max: number): string {
   return value.length > max ? `${value.slice(0, max - 1)}…` : value;
 }
 
+/**
+ * The project every receipt shares (shown once), or null. `perReceipt` is true
+ * when the receipts disagree, so each one names its own.
+ */
+export function projectSummary(receipts: ApprovalCardReceipt[]): {
+  perReceipt: boolean;
+  shared: string | null;
+} {
+  if (receipts.length === 0) {
+    return { perReceipt: false, shared: null };
+  }
+  const names = new Set(receipts.map((r) => r.projectName?.trim() || null));
+  if (names.size === 1) {
+    return { perReceipt: false, shared: [...names][0] ?? null };
+  }
+  return { perReceipt: true, shared: null };
+}
+
 function factSet(data: ApprovalCardData) {
+  const { shared } = projectSummary(data.receipts);
   return [
     { title: "Submitter", value: truncate(data.submitterName, MAX_FACT_VALUE) },
     {
@@ -103,6 +126,9 @@ function factSet(data: ApprovalCardData) {
         MAX_FACT_VALUE
       ),
     },
+    ...(shared
+      ? [{ title: "Project", value: truncate(shared, MAX_FACT_VALUE) }]
+      : []),
     { title: "Amount", value: formatAmount(data.total, data.currency) },
     {
       title: "Reference",
@@ -205,6 +231,7 @@ function cardBody(data: ApprovalCardData, limits: CardLimits) {
     });
   }
 
+  const { perReceipt } = projectSummary(data.receipts);
   if (data.receipts.length > 0) {
     body.push(receiptRow(["Date", "Text", "Type", "Account", "Amount"], true));
     for (const receipt of data.receipts.slice(0, limits.receipts)) {
@@ -220,6 +247,22 @@ function cardBody(data: ApprovalCardData, limits: CardLimits) {
           false
         )
       );
+      if (perReceipt) {
+        body.push(
+          cell(
+            `Project: ${truncate(receipt.projectName?.trim() || "none", MAX_RECEIPT_TEXT)}`,
+            { isSubtle: true, spacing: "None" }
+          )
+        );
+      }
+      if (receipt.checkNote?.trim()) {
+        body.push(
+          cell(`AI check: ${truncate(receipt.checkNote.trim(), MAX_LINE)}`, {
+            isSubtle: true,
+            spacing: "None",
+          })
+        );
+      }
     }
     const hidden = data.receipts.length - limits.receipts;
     if (hidden > 0) {
@@ -387,12 +430,13 @@ export function buildApprovalEmailHtml(
       ? `<p style="margin:0 0 8px;color:${color}">${escapeHtml(text)}</p>`
       : "";
 
+  const { perReceipt, shared: sharedProject } = projectSummary(data.receipts);
   const cellStyle = "padding:4px 8px;border-bottom:1px solid #eee";
   const receiptRows = data.receipts
     .slice(0, MAX_EMAIL_RECEIPTS)
     .map(
       (r) =>
-        `<tr><td style="${cellStyle}">${escapeHtml(r.date)}</td><td style="${cellStyle}">${escapeHtml(r.text)}</td><td style="${cellStyle}">${escapeHtml(r.type)}</td><td style="${cellStyle}">${escapeHtml(r.account ?? "—")}</td><td style="${cellStyle};text-align:right">${escapeHtml(formatAmount(r.amount, data.currency))}</td></tr>`
+        `<tr><td style="${cellStyle}">${escapeHtml(r.date)}</td><td style="${cellStyle}">${escapeHtml(r.text)}</td><td style="${cellStyle}">${escapeHtml(r.type)}</td>${perReceipt ? `<td style="${cellStyle}">${escapeHtml(r.projectName?.trim() || "—")}</td>` : ""}<td style="${cellStyle}">${escapeHtml(r.account ?? "—")}</td><td style="${cellStyle};text-align:right">${escapeHtml(formatAmount(r.amount, data.currency))}</td></tr>${r.checkNote?.trim() ? `<tr><td></td><td colspan="${perReceipt ? 5 : 4}" style="${cellStyle};color:#555;font-size:12px">AI check: ${escapeHtml(r.checkNote.trim())}</td></tr>` : ""}`
     )
     .join("");
   const hiddenReceipts = data.receipts.length - MAX_EMAIL_RECEIPTS;
@@ -403,7 +447,7 @@ export function buildApprovalEmailHtml(
   const receiptsTable =
     data.receipts.length > 0
       ? `<table style="border-collapse:collapse;margin-bottom:16px;width:100%;font-size:13px">
-        <tr style="color:#555;text-align:left"><th style="${cellStyle}">Date</th><th style="${cellStyle}">Text</th><th style="${cellStyle}">Type</th><th style="${cellStyle}">Account</th><th style="${cellStyle};text-align:right">Amount</th></tr>
+        <tr style="color:#555;text-align:left"><th style="${cellStyle}">Date</th><th style="${cellStyle}">Text</th><th style="${cellStyle}">Type</th>${perReceipt ? `<th style="${cellStyle}">Project</th>` : ""}<th style="${cellStyle}">Account</th><th style="${cellStyle};text-align:right">Amount</th></tr>
         ${receiptRows}
       </table>${moreReceipts}`
       : "";
@@ -430,6 +474,7 @@ export function buildApprovalEmailHtml(
       <table style="border-collapse:collapse;margin-bottom:16px">
         <tr><td style="padding:2px 12px 2px 0;color:#555">Submitter</td><td>${escapeHtml(data.submitterName)}</td></tr>
         <tr><td style="padding:2px 12px 2px 0;color:#555">Department</td><td>${escapeHtml(data.departmentName)} — ${escapeHtml(data.campusName)}</td></tr>
+        ${sharedProject ? `<tr><td style="padding:2px 12px 2px 0;color:#555">Project</td><td>${escapeHtml(sharedProject)}</td></tr>` : ""}
         <tr><td style="padding:2px 12px 2px 0;color:#555">Amount</td><td>${escapeHtml(formatAmount(data.total, data.currency))}</td></tr>
         <tr><td style="padding:2px 12px 2px 0;color:#555">Reference</td><td>${escapeHtml(data.reimbursementNumber)}</td></tr>
       </table>

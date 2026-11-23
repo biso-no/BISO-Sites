@@ -8,6 +8,7 @@ interface ExpensesSettingsTabsProps {
   labels: {
     ai: string;
     approvers: string;
+    projects: string;
     types: string;
   };
   /**
@@ -25,6 +26,11 @@ const TABS = [
     key: "approvers" as const,
   },
   { globalOnly: true, href: "/expenses/settings/ai", key: "ai" as const },
+  {
+    globalOnly: true,
+    href: "/expenses/settings/projects",
+    key: "projects" as const,
+  },
 ];
 
 export function ExpensesSettingsTabs({

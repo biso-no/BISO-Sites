@@ -396,6 +396,32 @@ describe("ExpenseReport submit gating", () => {
     expect(container.textContent).toContain("composer.report.occasionLabel");
   });
 
+  it("opens a receipt that could not be read to enter its amount instead of submitting", async () => {
+    const onSelect = vi.fn();
+    const scrollIntoView = vi
+      .spyOn(HTMLElement.prototype, "scrollIntoView")
+      .mockImplementation(() => undefined);
+    const { container, onSubmit, submit } = await renderReport(
+      [
+        receipt({ costType: "travel", id: "r0", typeState: "chosen" }),
+        receipt({ amount: 0, id: "r1", scanFailed: true }),
+      ],
+      { onSelect }
+    );
+
+    expect(container.textContent).toContain("amount_missing");
+    expect(container.textContent).toContain(
+      "composer.report.submitHintAmounts"
+    );
+    await act(() => {
+      submit.click();
+    });
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(onSelect).toHaveBeenCalledWith("r1");
+    scrollIntoView.mockRestore();
+  });
+
   it("submits once every receipt has a type", async () => {
     const { container, onSubmit, submit } = await renderReport([
       receipt({ costType: "travel", typeState: "ai" }),

@@ -19,6 +19,7 @@ import {
   parseExpensePayload,
   receiptFileIds,
 } from "@/lib/expense-payload";
+import { withoutProjects } from "@/lib/expense-student-view";
 
 type DraftExpenseRow = Models.Row & ExpenseRowInput;
 
@@ -120,7 +121,7 @@ export async function POST(req: NextRequest) {
     }
 
     return applyCorsHeaders(
-      NextResponse.json({ success: true, draft }),
+      NextResponse.json({ success: true, draft: withoutProjects(draft) }),
       origin
     );
   } catch (error) {

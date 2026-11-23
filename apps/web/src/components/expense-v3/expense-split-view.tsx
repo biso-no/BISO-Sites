@@ -173,6 +173,47 @@ interface OcrData {
   vendor?: null | string;
 }
 
+/** What the batch checks read from a scan: the kind of document and the seller. */
+interface ScanLink {
+  id: string;
+  ocrData: Pick<OcrData, "documentType" | "vendor">;
+}
+
+/** A receipt a batch check may still link: read by its scan and not linked yet. */
+function isLinkable(receipt: Receipt | undefined): receipt is Receipt {
+  return Boolean(
+    receipt &&
+      receipt.status === "ready" &&
+      !receipt.scanFailed &&
+      !receipt.parentId &&
+      !receipt.bankStatementId
+  );
+}
+
+/**
+ * What a retried scan runs the batch checks on: its own result and the other
+ * receipts uploaded with it, as their scans read them. Receipts already linked
+ * stay out, so a retry never moves a link or an amount the batch set.
+ */
+function retryBatch(
+  retried: ScanLink,
+  batchIds: readonly string[],
+  receipts: Receipt[]
+): ScanLink[] {
+  if (!isLinkable(receipts.find((r) => r.id === retried.id))) {
+    return [];
+  }
+  const peers = batchIds
+    .filter((id) => id !== retried.id)
+    .map((id) => receipts.find((r) => r.id === id))
+    .filter(isLinkable)
+    .map((r) => ({
+      id: r.id,
+      ocrData: { documentType: r.documentType, vendor: r.vendor },
+    }));
+  return [retried, ...peers];
+}
+
 function normalizeVendor(name: string): string {
   return name
     .toLowerCase()
@@ -269,6 +310,56 @@ function buildReceiptFromOcr(
     possibleDuplicate: data.possibleDuplicate ?? false,
     ...typeFromOcr(data, typeOptions, true),
   };
+}
+
+/** What only the scan sets; a retry may update these. */
+const SCAN_ONLY_FIELDS = new Set([
+  "status",
+  "progress",
+  "documentType",
+  "receiptIssues",
+  "possibleDuplicate",
+]);
+const AMOUNT_FIELDS = new Set([
+  "amount",
+  "originalAmount",
+  "exchangeRate",
+  "currency",
+]);
+const TYPE_FIELDS = new Set([
+  "costType",
+  "typeState",
+  "aiCostType",
+  "aiConfidence",
+]);
+
+/**
+ * What a retried scan may fill in: only what the student has not filled in
+ * or chosen themselves.
+ */
+function fillEmptyFields(
+  updates: Partial<Receipt>,
+  current: Receipt | undefined
+): Partial<Receipt> {
+  if (!current) {
+    return updates;
+  }
+  const keepAmount = current.amount > 0;
+  const keepType = current.typeState === "chosen";
+  const entries = Object.entries(updates).filter(([key]) => {
+    if (SCAN_ONLY_FIELDS.has(key)) {
+      return true;
+    }
+    if (AMOUNT_FIELDS.has(key)) {
+      return !keepAmount;
+    }
+    if (TYPE_FIELDS.has(key)) {
+      return !keepType;
+    }
+    const value: unknown = current[key as keyof Receipt];
+    return value === undefined || value === null || value === "";
+  });
+  return Object.fromEntries(entries) as Partial<Receipt>;
 }
 
 interface AssignmentGateProps {
@@ -480,7 +571,7 @@ export function ExpenseSplitView({
   // starts, and a count of requests so only the latest answer is applied.
   const lastSummaryKeyRef = useRef("");
   const summaryRequestRef = useRef(0);
-  const skipNextSummaryRef = useRef(Boolean(initialDraft));
+  const skipNextSummaryRef = useRef(Boolean(initialDraft?.description?.trim()));
   const nearbyEvent = useNearbyEvent(
     store.selectedDepartmentId,
     store.receipts
@@ -596,7 +687,7 @@ export function ExpenseSplitView({
       return;
     }
 
-    skipNextSummaryRef.current = true;
+    skipNextSummaryRef.current = Boolean(initialDraft.description?.trim());
 
     const campus = campuses.find((item) => item.$id === initialDraft.campus);
     const department = campus?.departments?.find(
@@ -647,6 +738,83 @@ export function ExpenseSplitView({
     typeOptions,
   ]);
 
+  // The files of this session's receipts, so a failed scan can be retried.
+  const filesRef = useRef(new Map<string, File>());
+  // Each receipt's upload batch, so a retried scan gets the batch checks too.
+  const batchesRef = useRef(new Map<string, readonly string[]>());
+
+  // Reads an uploaded receipt. A scan that fails or times out leaves the
+  // receipt ready for manual entry instead of blocking it.
+  const scanReceipt = useCallback(
+    async (
+      id: string,
+      file: File,
+      isRetry = false
+    ): Promise<{ id: string; ocrData: OcrData } | null> => {
+      try {
+        // OCR — race against a 30s timeout so the receipt never hangs in "processing"
+        const ocrFormData = new FormData();
+        ocrFormData.append("file", file);
+        const { selectedDepartmentId } = useExpenseStore.getState();
+        if (selectedDepartmentId) {
+          ocrFormData.append("departmentId", selectedDepartmentId);
+        }
+
+        const ocrResult = await Promise.race([
+          apiClient.fetchFormData<{
+            success: boolean;
+            data: OcrData;
+          }>("/api/expenses/ocr", {
+            method: "POST",
+            body: ocrFormData,
+          }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("OCR timed out")), 30_000)
+          ),
+        ]);
+
+        if (!(ocrResult.success && ocrResult.data)) {
+          throw new Error("OCR processing returned no data");
+        }
+
+        // "Analyzing" phase (artificial delay for the Generative UI feel if it was too fast)
+        store.updateReceipt(id, { status: "analyzing", progress: 70 });
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+
+        const updates = buildReceiptFromOcr(
+          ocrResult.data,
+          file.name,
+          typeOptions
+        );
+        store.updateReceipt(id, {
+          ...(isRetry
+            ? fillEmptyFields(
+                updates,
+                useExpenseStore.getState().receipts.find((r) => r.id === id)
+              )
+            : updates),
+          scanFailed: false,
+        });
+        return { id, ocrData: ocrResult.data };
+      } catch (error) {
+        console.error(error);
+        store.updateReceipt(id, {
+          status: "ready",
+          progress: 100,
+          scanFailed: true,
+          // A failed retry changes nothing the student chose.
+          ...(useExpenseStore.getState().receipts.find((r) => r.id === id)
+            ?.typeState === "chosen"
+            ? {}
+            : typeFromOcr({}, typeOptions, false)),
+        });
+        toast.error(t("composer.toast.scanFailed"));
+        return null;
+      }
+    },
+    [store, t, typeOptions]
+  );
+
   // Process File Logic
   const processFile = useCallback(
     async (
@@ -669,6 +837,7 @@ export function ExpenseSplitView({
         currency: "NOK",
       };
 
+      filesRef.current.set(tempId, file);
       store.addReceipt(receipt);
 
       // Removed auto-selection and view switching to keep user in current context
@@ -708,40 +877,7 @@ export function ExpenseSplitView({
           return null;
         }
 
-        // 2. OCR — race against a 30s timeout so the receipt never hangs in "processing"
-        const ocrFormData = new FormData();
-        ocrFormData.append("file", file);
-
-        const ocrResult = await Promise.race([
-          apiClient.fetchFormData<{
-            success: boolean;
-            data: OcrData;
-          }>("/api/expenses/ocr", {
-            method: "POST",
-            body: ocrFormData,
-          }),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("OCR timed out")), 30_000)
-          ),
-        ]);
-
-        if (!(ocrResult.success && ocrResult.data)) {
-          throw new Error("OCR processing returned no data");
-        }
-
-        // 3. "Analyzing" Phase (Artificial delay for Generative UI feel if it was too fast)
-        store.updateReceipt(tempId, { status: "analyzing", progress: 70 });
-
-        // Simulate "thinking" time for the user to appreciate the UI
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-
-        const receiptUpdates = buildReceiptFromOcr(
-          ocrResult.data,
-          file.name,
-          typeOptions
-        );
-        store.updateReceipt(tempId, receiptUpdates);
-        return { id: tempId, ocrData: ocrResult.data };
+        return await scanReceipt(tempId, file);
       } catch (error) {
         console.error(error);
         store.updateReceipt(tempId, {
@@ -752,14 +888,12 @@ export function ExpenseSplitView({
         return null;
       }
     },
-    [store, ocrEnabled, t, typeOptions]
+    [store, ocrEnabled, scanReceipt, t, typeOptions]
   );
 
   const reconcileBatch = useCallback(
-    (results: Array<{ id: string; ocrData: OcrData } | null>) => {
-      const valid = results.filter(
-        (r): r is { id: string; ocrData: OcrData } => r !== null
-      );
+    (results: Array<ScanLink | null>, keepTypedAmount = false) => {
+      const valid = results.filter((r): r is ScanLink => r !== null);
 
       const statements = valid.filter(
         (r) => r.ocrData.documentType === "bank-statement"
@@ -787,6 +921,11 @@ export function ExpenseSplitView({
         if (!(stmtReceipt && parentReceipt)) {
           continue;
         }
+        // A retry may have linked these while the rest of the upload was
+        // still reading; never move a link.
+        if (stmtReceipt.parentId || parentReceipt.bankStatementId) {
+          continue;
+        }
 
         const nokAmount = Math.abs(stmtReceipt.amount);
 
@@ -794,7 +933,10 @@ export function ExpenseSplitView({
           bankStatementId: stmtReceipt.fileId,
           bankStatementName: stmtReceipt.fileName,
           bankStatementType: stmtReceipt.fileType,
-          ...(nokAmount > 0 && { amount: nokAmount }),
+          ...(nokAmount > 0 &&
+            !(keepTypedAmount && parentReceipt.amount > 0) && {
+              amount: nokAmount,
+            }),
         });
 
         store.updateReceipt(stmt.id, {
@@ -815,6 +957,34 @@ export function ExpenseSplitView({
     [store, t]
   );
 
+  const retryScan = useCallback(
+    async (receiptId: string): Promise<void> => {
+      const file = filesRef.current.get(receiptId);
+      if (!file) {
+        return;
+      }
+      store.updateReceipt(receiptId, {
+        status: "processing",
+        progress: 40,
+        scanFailed: false,
+      });
+      const result = await scanReceipt(receiptId, file, true);
+      if (!result) {
+        return;
+      }
+      // The batch checks skipped this receipt while it was unread.
+      reconcileBatch(
+        retryBatch(
+          result,
+          batchesRef.current.get(receiptId) ?? [],
+          useExpenseStore.getState().receipts
+        ),
+        true
+      );
+    },
+    [reconcileBatch, scanReceipt, store]
+  );
+
   const handleUpload = useCallback(
     (files: File[]) => {
       if (!(store.selectedCampusId && store.selectedDepartmentId)) {
@@ -828,6 +998,9 @@ export function ExpenseSplitView({
       }
       // Multi-file: assign IDs upfront so reconciliation can reference them
       const batchIds = files.map(() => uuid());
+      for (const id of batchIds) {
+        batchesRef.current.set(id, batchIds);
+      }
       Promise.all(files.map((file, i) => processFile(file, batchIds[i]))).then(
         reconcileBatch
       );
@@ -840,6 +1013,10 @@ export function ExpenseSplitView({
       t,
     ]
   );
+
+  // Only a receipt added in this session still has its file to scan again.
+  const getRetryScan = (receiptId: string) =>
+    filesRef.current.has(receiptId) ? () => retryScan(receiptId) : undefined;
 
   const hasReceiptsInProgress = () =>
     store.receipts.some((receipt) => receipt.status !== "ready");
@@ -1014,7 +1191,11 @@ export function ExpenseSplitView({
         )}
       >
         <ReceiptWallet
-          onRemove={store.removeReceipt}
+          onRemove={(id) => {
+            filesRef.current.delete(id);
+            batchesRef.current.delete(id);
+            store.removeReceipt(id);
+          }}
           onSelect={(id) => {
             store.setSelectedReceiptId(id);
             setMobileView("report");
@@ -1046,6 +1227,7 @@ export function ExpenseSplitView({
             </div>
             {store.receipts.find((r) => r.id === store.selectedReceiptId) && (
               <GenerativeReceiptPreview
+                getRetryScan={getRetryScan}
                 onUpdate={(updates) =>
                   store.updateReceipt(store.selectedReceiptId!, updates)
                 }
@@ -1071,6 +1253,7 @@ export function ExpenseSplitView({
                 suggestion={nearbyEvent.suggestion}
               />
             }
+            getRetryScan={getRetryScan}
             isGeneratingSummary={store.isGeneratingSummary}
             isSavingDraft={store.phase === "saving"}
             isSubmitting={store.phase === "submitting"}

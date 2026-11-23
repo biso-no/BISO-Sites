@@ -9,15 +9,23 @@ export interface RerunMiss {
   confidence: number;
   description: string | null;
   exampleId: string;
-  /** The slug that was booked. */
+  /** The slug the example expects: the booked one, or the one chosen so far. */
   expected: string;
   /** The slug the AI picks today, or null for none. */
   predicted: string | null;
   vendor: string | null;
 }
 
+export interface RerunScore {
+  checked: number;
+  hitRate: number | null;
+  hits: number;
+}
+
 export interface RerunCheckResult {
   checked: number;
+  /** Examples from booked reimbursements. */
+  confirmed: RerunScore;
   considered: number;
   /** Calls that errored or timed out; not part of the score. */
   failed: number;
@@ -25,6 +33,8 @@ export interface RerunCheckResult {
   hits: number;
   misses: RerunMiss[];
   stoppedEarly: boolean;
+  /** Examples whose reimbursement is not booked yet. */
+  unconfirmed: RerunScore;
 }
 
 /**

@@ -1,7 +1,11 @@
-import { ID, Query } from "@repo/api";
+import { Query } from "@repo/api";
 import type { createAdminClient } from "@repo/api/server";
 import type { ExpenseTypeExamples } from "@repo/api/types/appwrite";
 import type { CostTypeOption } from "@repo/shared/utils/expense-cost-types";
+import {
+  exampleTeaches,
+  normalizeVendor,
+} from "@repo/shared/utils/expense-examples";
 import type { TypeExample } from "./receipt-scan";
 
 type Db = Awaited<ReturnType<typeof createAdminClient>>["db"];
@@ -10,76 +14,102 @@ const MAX_EXAMPLES = 10;
 const MAX_VENDOR_EXAMPLES = 6;
 const VENDOR_FETCH_LIMIT = 20;
 const RECENT_FETCH_LIMIT = 100;
-const VENDOR_KEY_MAX = 120;
-const DESCRIPTION_MAX = 255;
 
-const COMBINING_MARKS = /[̀-ͯ]/g;
-const NON_WORD = /[^\p{L}\p{N}\s]/gu;
-const WHITESPACE = /\s+/g;
-const LEGAL_SUFFIX = /\s(?:as|asa|ab|ltd|inc)$/;
-const KEPT_LETTERS = new Set(["æ", "ø", "å"]);
+const MAX_KEYWORDS = 5;
+const MIN_KEYWORD_LENGTH = 3;
+const PREFIX_WORDS = 2;
+const KEYWORD = /\p{L}{3,}/gu;
+const WHITESPACE = /\s+/;
+const HAS_TYPE = Query.isNotNull("final_cost_type");
 
-function stripDiacritics(text: string): string {
-  let out = "";
-  for (const char of text) {
-    out += KEPT_LETTERS.has(char)
-      ? char
-      : char.normalize("NFD").replace(COMBINING_MARKS, "");
-  }
-  return out;
+/**
+ * Who chose the example's type: an approver or admin who changed it, or else
+ * the student (who picked it or kept the AI's pick). Rows from before
+ * `type_source` existed fall back to `source`.
+ */
+function typeChooser(row: ExpenseTypeExamples): TypeExample["source"] {
+  const origin = row.type_source ?? row.source;
+  return origin === "approver" || origin === "admin" ? origin : "student";
 }
 
-export function normalizeVendor(vendor: string | null | undefined): string {
-  if (!vendor) {
-    return "";
-  }
-  const cleaned = stripDiacritics(vendor.toLowerCase())
-    .replace(NON_WORD, " ")
-    .replace(WHITESPACE, " ")
-    .trim()
-    .replace(LEGAL_SUFFIX, "")
-    .trim();
-  return cleaned.slice(0, VENDOR_KEY_MAX);
-}
-
-function toExample(row: ExpenseTypeExamples): TypeExample | null {
-  if (!row.final_cost_type) {
+function toExample(
+  row: ExpenseTypeExamples,
+  departmentId?: string | null
+): TypeExample | null {
+  if (!(exampleTeaches(row) && row.final_cost_type)) {
     return null;
   }
   return {
+    confirmed: row.confirmed === true,
     description: row.description ?? "",
     finalType: row.final_cost_type,
-    source: row.source,
+    sameDepartment: Boolean(departmentId) && row.department_id === departmentId,
+    source: typeChooser(row),
     vendorKey: row.vendor_key ?? "",
   };
 }
 
-async function vendorExamples(
+interface Candidate {
+  example: TypeExample;
+  key: unknown;
+}
+
+/** Confirmed first, then an approver's or admin's type, then same department. */
+function rank(c: Candidate): number {
+  return (
+    (c.example.confirmed ? 4 : 0) +
+    (c.example.source === "student" ? 0 : 2) +
+    (c.example.sameDepartment ? 1 : 0)
+  );
+}
+
+function candidatesFrom(
+  rows: ExpenseTypeExamples[],
+  ctx: {
+    activeSlugs: Set<string>;
+    departmentId?: string | null;
+    excludeId?: string;
+  },
+  taken: Set<unknown>
+): Candidate[] {
+  const out: Candidate[] = [];
+  for (const row of rows) {
+    const key = row.$id ?? row;
+    if ((ctx.excludeId && row.$id === ctx.excludeId) || taken.has(key)) {
+      continue;
+    }
+    const example = toExample(row, ctx.departmentId);
+    if (example && ctx.activeSlugs.has(example.finalType)) {
+      out.push({ example, key });
+    }
+  }
+  // Array.sort is stable, so newest-first order holds within each rank.
+  return out.sort((a, b) => rank(b) - rank(a));
+}
+
+function keywordsOf(description: string | null | undefined): string[] {
+  const words = (description ?? "").match(KEYWORD) ?? [];
+  return [...new Set(words.map((w) => w.toLowerCase()))]
+    .filter((w) => w.length >= MIN_KEYWORD_LENGTH)
+    .slice(0, MAX_KEYWORDS);
+}
+
+async function fetchRows(
   db: Db,
-  vendorKey: string,
-  activeSlugs: Set<string>,
-  excludeId?: string
-): Promise<TypeExample[]> {
+  queries: string[]
+): Promise<ExpenseTypeExamples[]> {
   const { rows } = await db.listRows<ExpenseTypeExamples>(
     "app",
     "expense_type_examples",
     [
-      Query.equal("vendor_key", vendorKey),
+      ...queries,
+      // Own-text-only rows have no type to show; they'd only use up the slots.
+      HAS_TYPE,
       Query.orderDesc("$createdAt"),
       Query.limit(VENDOR_FETCH_LIMIT),
     ]
   );
-  const examples = rows
-    .filter((row) => !excludeId || row.$id !== excludeId)
-    .map(toExample)
-    .filter(
-      (e): e is TypeExample => e !== null && activeSlugs.has(e.finalType)
-    );
-  const weight = (e: TypeExample) => (e.source === "student" ? 1 : 0);
-  // Array.sort is stable, so newest-first order holds within each group.
-  return examples
-    .sort((a, b) => weight(a) - weight(b))
-    .slice(0, MAX_VENDOR_EXAMPLES);
+  return rows;
 }
 
 async function recentPerType(
@@ -87,12 +117,13 @@ async function recentPerType(
   activeSlugs: Set<string>,
   seen: Set<string>,
   room: number,
-  excludeId?: string
+  excludeId?: string,
+  departmentId?: string | null
 ): Promise<TypeExample[]> {
   const { rows } = await db.listRows<ExpenseTypeExamples>(
     "app",
     "expense_type_examples",
-    [Query.orderDesc("$createdAt"), Query.limit(RECENT_FETCH_LIMIT)]
+    [HAS_TYPE, Query.orderDesc("$createdAt"), Query.limit(RECENT_FETCH_LIMIT)]
   );
   const out: TypeExample[] = [];
   for (const row of rows) {
@@ -102,7 +133,7 @@ async function recentPerType(
     if (excludeId && row.$id === excludeId) {
       continue;
     }
-    const example = toExample(row);
+    const example = toExample(row, departmentId);
     if (
       example &&
       activeSlugs.has(example.finalType) &&
@@ -118,64 +149,81 @@ async function recentPerType(
 export async function selectExamples(
   db: Db,
   input: {
+    /** The department the receipt is booked for, when known. */
+    departmentId?: string | null;
+    /** The receipt's description, for keyword matches. */
+    description?: string | null;
     /** An example to leave out, so a re-run never sees the row it scores. */
     excludeId?: string;
     vendor: string | null;
     types: CostTypeOption[];
   }
 ): Promise<TypeExample[]> {
+  const matched: TypeExample[] = [];
+  const taken = new Set<unknown>();
   try {
-    const activeSlugs = new Set(input.types.map((t) => t.slug));
+    const ctx = {
+      activeSlugs: new Set(input.types.map((t) => t.slug)),
+      departmentId: input.departmentId,
+      excludeId: input.excludeId,
+    };
     const vendorKey = normalizeVendor(input.vendor);
-    const matched = vendorKey
-      ? await vendorExamples(db, vendorKey, activeSlugs, input.excludeId)
-      : [];
+    const prefix = vendorKey
+      ? vendorKey.split(WHITESPACE).slice(0, PREFIX_WORDS).join(" ")
+      : "";
+    const keywords = keywordsOf(input.description);
+    const groups: string[][] = [];
+    if (vendorKey) {
+      groups.push([Query.equal("vendor_key", vendorKey)]);
+      // A longer name finds shops that start the same way ("rema 1000
+      // majorstuen" → "rema 1000 …"); a short one finds the longer names
+      // that start with it ("rema 1000" → "rema 1000 majorstuen").
+      groups.push([
+        Query.startsWith(
+          "vendor_key",
+          prefix === vendorKey ? `${vendorKey} ` : prefix
+        ),
+      ]);
+    }
+    if (keywords.length > 0) {
+      groups.push([Query.search("description", keywords.join(" "))]);
+    }
+    let vendorRoom = MAX_VENDOR_EXAMPLES;
+    for (const group of groups) {
+      const room = Math.min(vendorRoom, MAX_EXAMPLES - matched.length);
+      if (room <= 0) {
+        break;
+      }
+      let rows: ExpenseTypeExamples[];
+      try {
+        rows = await fetchRows(db, group);
+      } catch (error) {
+        console.warn("[expense-examples] A search failed, skipping it:", error);
+        continue;
+      }
+      const picked = candidatesFrom(rows, ctx, taken).slice(0, room);
+      for (const c of picked) {
+        taken.add(c.key);
+        matched.push(c.example);
+      }
+      vendorRoom -= picked.length;
+    }
     const seen = new Set(matched.map((e) => e.finalType));
-    const filler = await recentPerType(
-      db,
-      activeSlugs,
-      seen,
-      MAX_EXAMPLES - matched.length,
-      input.excludeId
-    );
+    let filler: TypeExample[] = [];
+    try {
+      filler = await recentPerType(
+        db,
+        ctx.activeSlugs,
+        seen,
+        MAX_EXAMPLES - matched.length,
+        input.excludeId,
+        input.departmentId
+      );
+    } catch (error) {
+      console.warn("[expense-examples] The recent search failed:", error);
+    }
     return [...matched, ...filler];
   } catch {
-    return [];
-  }
-}
-
-export interface BookedExampleInput {
-  accountNumber: number;
-  aiConfidence: number | null;
-  aiCostType: string | null;
-  amount: number;
-  description: string;
-  finalCostType: string | null;
-  finalText: string | null;
-  source: "student" | "approver" | "admin";
-  vendor: string | null;
-}
-
-/** Anonymous by design: no submitter, name or expense id is ever stored. */
-export async function writeExamples(
-  db: Db,
-  rows: BookedExampleInput[]
-): Promise<void> {
-  for (const row of rows) {
-    try {
-      await db.createRow("app", "expense_type_examples", ID.unique(), {
-        account_number: row.accountNumber,
-        ai_confidence: row.aiConfidence,
-        ai_cost_type: row.aiCostType,
-        amount: row.amount,
-        description: row.description.slice(0, DESCRIPTION_MAX),
-        final_cost_type: row.finalCostType,
-        final_text: row.finalText,
-        source: row.source,
-        vendor_key: normalizeVendor(row.vendor),
-      });
-    } catch (error) {
-      console.error("Failed to write expense type example", error);
-    }
+    return matched;
   }
 }

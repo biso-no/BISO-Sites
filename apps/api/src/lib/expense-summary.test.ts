@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildExpenseSummaryPrompt,
+  capSummary,
   normalizeExpenseSummaryRequest,
 } from "./expense-summary";
 
@@ -251,5 +252,10 @@ describe("expense summary helpers", () => {
     expect(
       normalizeExpenseSummaryRequest({ descriptions: ["Pizza"] })?.receipts
     ).toEqual([{ description: "Pizza" }]);
+  });
+
+  it("the generated description is at most 800 characters", () => {
+    expect(capSummary("s".repeat(900))).toHaveLength(800);
+    expect(capSummary("  Short.  ")).toBe("Short.");
   });
 });

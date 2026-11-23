@@ -45,7 +45,6 @@ vi.mock("./pdf/expense-pdf", () => ({
   }),
 }));
 vi.mock("./receipt-scan", () => ({ findScan: vi.fn() }));
-vi.mock("./expense-examples", () => ({ writeExamples: vi.fn() }));
 vi.mock("./expense-approval-chain", () => ({
   assertApprovedExpenseChain: vi.fn(async () => undefined),
 }));
@@ -55,9 +54,14 @@ vi.mock("./receipt-date", async () => {
   return { ...actual, todayInOslo: oslo.todayInOslo };
 });
 
-import { postApprovedExpense, retryExpenseBooking } from "./expense-posting";
+import {
+  BookingUnrecordedError,
+  postApprovedExpense,
+  retryExpenseBooking,
+} from "./expense-posting";
 
 const ACTOR = { email: "it@biso.no", kind: "admin" as const, name: "IT" };
+const STATUS_WRITE_FAILED_NOTE = /^tx-1 \(status write failed/;
 
 const expense = {
   $id: "exp-1",
@@ -92,6 +96,29 @@ const eventActions = () =>
     .filter(([, table]) => table === "expense_events")
     .map(([, , , data]) => data.action);
 
+/** Every attempt to write a `booked` event, failed ones included. */
+const bookedTries = () =>
+  db.createRow.mock.calls.filter(
+    ([, table, , data]) =>
+      table === "expense_events" && data.action === "booked"
+  );
+const bookedNotes = () => bookedTries().map(([, , , data]) => data.note);
+
+const failSuccessWrites = () =>
+  db.updateRow.mockImplementation(
+    (_d: string, table: string, _id: string, data: { status?: string }) =>
+      table === "expense" && data.status === "success"
+        ? Promise.reject(new Error("write failed"))
+        : Promise.resolve({})
+  );
+const failBookedEvents = () =>
+  db.createRow.mockImplementation(
+    (_d: string, table: string, _id: string, data: { action?: string }) =>
+      table === "expense_events" && data.action === "booked"
+        ? Promise.reject(new Error("event write failed"))
+        : Promise.resolve({})
+  );
+
 beforeEach(() => {
   metrics.countMetric.mockReset();
   for (const fn of [
@@ -124,7 +151,7 @@ beforeEach(() => {
 });
 
 describe("retryExpenseBooking", () => {
-  it("refuses retry when a transaction id is stored", async () => {
+  it("finishes a failed expense that has a stored transaction id", async () => {
     db.getRow.mockResolvedValue({
       ...expense,
       ledger_transaction_id: "tx-77",
@@ -136,13 +163,11 @@ describe("retryExpenseBooking", () => {
       expenseId: "exp-1",
     });
 
-    expect(result).toEqual({
-      code: "already_booked",
-      error: "Already booked as tx-77.",
-      ok: false,
+    expect(result).toEqual({ ok: true, status: "success" });
+    expect(db.updateRow).toHaveBeenCalledWith("app", "expense", "exp-1", {
+      ledger_transaction_id: "tx-77",
+      status: "success",
     });
-    expect(db.updateRow).not.toHaveBeenCalled();
-    expect(db.createRow).not.toHaveBeenCalled();
     expect(finago.postExpenseTransaction).not.toHaveBeenCalled();
   });
 
@@ -332,6 +357,76 @@ describe("retry claim", () => {
     } finally {
       vi.useRealTimers();
     }
+    // The booked event is what lets a later retry finish instead of posting.
+    expect(bookedNotes()).toEqual([
+      expect.stringMatching(STATUS_WRITE_FAILED_NOTE),
+    ]);
+  });
+
+  it("still says status_write_failed when the booked event lands on a later try", async () => {
+    db.getRow.mockImplementation(rowsAfterReset);
+    db.incrementRowColumn
+      .mockResolvedValueOnce({ posting_lock: 2, status: "failed" })
+      .mockResolvedValue({ posting_lock: 1, status: "approved" });
+    failSuccessWrites();
+    db.createRow.mockImplementation(
+      (_d: string, table: string, _id: string, data: { action?: string }) => {
+        if (table === "expense_events" && data.action === "booked") {
+          const tries = bookedTries().length;
+          if (tries === 1) {
+            return Promise.reject(new Error("event write failed"));
+          }
+        }
+        return Promise.resolve({});
+      }
+    );
+
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    try {
+      const pending = retryExpenseBooking({ actor: ACTOR, expenseId: "exp-1" });
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(await pending).toMatchObject({
+        code: "status_write_failed",
+        ok: false,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(bookedTries()).toHaveLength(2);
+  });
+
+  it("says booking_unrecorded with the transaction id when neither the status nor the event can be saved", async () => {
+    db.getRow.mockImplementation(rowsAfterReset);
+    db.incrementRowColumn
+      .mockResolvedValueOnce({ posting_lock: 2, status: "failed" })
+      .mockResolvedValue({ posting_lock: 1, status: "approved" });
+    failSuccessWrites();
+    failBookedEvents();
+
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    let result: Awaited<ReturnType<typeof retryExpenseBooking>>;
+    try {
+      const pending = retryExpenseBooking({ actor: ACTOR, expenseId: "exp-1" });
+      await vi.advanceTimersByTimeAsync(10_000);
+      result = await pending;
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(result).toMatchObject({
+      code: "booking_unrecorded",
+      ok: false,
+      transactionId: "tx-1",
+    });
+    if (result.ok) {
+      throw new Error("expected a refusal");
+    }
+    expect(result.error).toContain("tx-1");
+    expect(result.error).toContain("Do not retry");
+    // Nothing tells the admin a retry is safe.
+    expect(result.error).not.toContain("nothing is booked twice");
+    expect(bookedTries()).toHaveLength(3);
+    expect(finago.postExpenseTransaction).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -491,15 +586,90 @@ describe("retry claim races", () => {
     expect(finago.postExpenseTransaction).toHaveBeenCalledTimes(2);
   });
 
-  it("refuses when a booked event exists and writes nothing", async () => {
-    fakeRow(failed);
+  const bookedEvents = (note: string) =>
     db.listRows.mockImplementation((_d: string, table: string) =>
       Promise.resolve({
-        rows:
-          table === "expense_events"
-            ? [{ action: "booked", note: "tx-55 (status write failed: x)" }]
-            : [],
+        rows: table === "expense_events" ? [{ action: "booked", note }] : [],
       })
+    );
+
+  it("finishes a failed expense whose booking is in Finago", async () => {
+    fakeRow(failed);
+    bookedEvents("tx-123 (status write failed: x)");
+
+    const result = await retryExpenseBooking({
+      actor: ACTOR,
+      expenseId: "exp-1",
+    });
+
+    expect(result).toEqual({ ok: true, status: "success" });
+    expect(db.updateRow).toHaveBeenCalledWith("app", "expense", "exp-1", {
+      ledger_transaction_id: "tx-123",
+      status: "success",
+    });
+    const edited = db.createRow.mock.calls.find(
+      ([, table, , data]) =>
+        table === "expense_events" && data.action === "edited"
+    )?.[3];
+    expect(edited).toMatchObject({
+      actor_email: "it@biso.no",
+      actor_kind: "admin",
+      after: "success",
+      before: "failed",
+      field: "status",
+    });
+    const query = db.listRows.mock.calls[0]?.[2] as string[];
+    expect(query.join(" ")).toContain("booked");
+  });
+
+  it("finishing a saved booking confirms its examples", async () => {
+    const withType = {
+      ...failed,
+      expenseAttachments: [
+        {
+          ...expense.expenseAttachments[0],
+          cost_type: "food",
+          type_source: "student",
+        },
+      ],
+    };
+    fakeRow(withType);
+    bookedEvents("tx-123 (status write failed: x)");
+
+    const result = await retryExpenseBooking({
+      actor: ACTOR,
+      expenseId: "exp-1",
+    });
+
+    expect(result).toEqual({ ok: true, status: "success" });
+    const created = db.createRow.mock.calls.find(
+      ([, table]) => table === "expense_type_examples"
+    );
+    expect(created?.[3]).toMatchObject({
+      account_number: 7140,
+      confirmed: true,
+      final_cost_type: "food",
+    });
+    expect(finago.postExpenseTransaction).not.toHaveBeenCalled();
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+  });
+
+  it("finishing succeeds even when confirming examples fails", async () => {
+    fakeRow({
+      ...failed,
+      expenseAttachments: [
+        {
+          ...expense.expenseAttachments[0],
+          cost_type: "food",
+          type_source: "student",
+        },
+      ],
+    });
+    bookedEvents("tx-123 (status write failed: x)");
+    db.createRow.mockImplementation((_d: string, table: string) =>
+      table === "expense_type_examples"
+        ? Promise.reject(new Error("appwrite down"))
+        : Promise.resolve({})
     );
 
     const result = await retryExpenseBooking({
@@ -507,16 +677,125 @@ describe("retry claim races", () => {
       expenseId: "exp-1",
     });
 
+    expect(result).toEqual({ ok: true, status: "success" });
+  });
+
+  it("finishing never posts again or takes the lock", async () => {
+    fakeRow(failed);
+    bookedEvents("tx-123 (status write failed: x)");
+
+    await retryExpenseBooking({ actor: ACTOR, expenseId: "exp-1" });
+
+    expect(finago.postExpenseTransaction).not.toHaveBeenCalled();
+    expect(finago.uploadDocument).not.toHaveBeenCalled();
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+  });
+
+  it("reports status_write_failed when finishing cannot save", async () => {
+    fakeRow(failed);
+    bookedEvents("tx-123 (status write failed: x)");
+    db.updateRow.mockRejectedValue(new Error("db down"));
+
+    const result = await retryExpenseBooking({
+      actor: ACTOR,
+      expenseId: "exp-1",
+    });
+
     expect(result).toEqual({
-      code: "already_booked",
-      error: "Already booked as tx-55.",
+      code: "status_write_failed",
+      error: "db down",
       ok: false,
     });
+    expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  it("still refuses a booked event without a readable id", async () => {
+    fakeRow(failed);
+    bookedEvents("");
+
+    const result = await retryExpenseBooking({
+      actor: ACTOR,
+      expenseId: "exp-1",
+    });
+
+    expect(result).toMatchObject({ code: "already_booked", ok: false });
     expect(db.incrementRowColumn).not.toHaveBeenCalled();
     expect(db.updateRow).not.toHaveBeenCalled();
     expect(db.createRow).not.toHaveBeenCalled();
-    const query = db.listRows.mock.calls[0]?.[2] as string[];
-    expect(query.join(" ")).toContain("booked");
+  });
+});
+
+describe("postApprovedExpense claims", () => {
+  const withRow = (row: object) =>
+    db.getRow.mockImplementation((_d: string, table: string) =>
+      Promise.resolve(
+        table === "user"
+          ? { email: "t@example.test", name: "Student" }
+          : { ...expense, ...row }
+      )
+    );
+
+  it("skips a fresh claim that has no marker without taking another lock", async () => {
+    withRow({ $updatedAt: new Date().toISOString(), posting_lock: 1 });
+
+    await expect(postApprovedExpense("exp-1")).resolves.toBe("skipped");
+
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+    expect(finago.postExpenseTransaction).not.toHaveBeenCalled();
+  });
+
+  it("marks a stale claim without a marker failed", async () => {
+    withRow({
+      $updatedAt: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
+      posting_lock: 1,
+    });
+
+    await expect(postApprovedExpense("exp-1")).rejects.toThrow(
+      "Stale posting claim"
+    );
+
+    expect(db.updateRow).toHaveBeenCalledWith("app", "expense", "exp-1", {
+      status: "failed",
+    });
+    expect(eventActions()).toContain("booking_failed");
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+    expect(finago.postExpenseTransaction).not.toHaveBeenCalled();
+  });
+
+  it("returns skipped without a marker or booking when the increment loses the race", async () => {
+    withRow({ posting_lock: 0 });
+    db.incrementRowColumn.mockResolvedValue({ posting_lock: 2 });
+
+    await expect(postApprovedExpense("exp-1")).resolves.toBe("skipped");
+
+    expect(db.updateRow).not.toHaveBeenCalled();
+    expect(finago.postExpenseTransaction).not.toHaveBeenCalled();
+  });
+
+  it("skips the run after a failed marker write without taking another lock", async () => {
+    withRow({ posting_lock: 0 });
+    db.incrementRowColumn.mockResolvedValue({ posting_lock: 1 });
+    db.updateRow.mockRejectedValueOnce(new Error("appwrite down"));
+
+    await expect(postApprovedExpense("exp-1")).rejects.toThrow("appwrite down");
+    expect(finago.postExpenseTransaction).not.toHaveBeenCalled();
+
+    db.incrementRowColumn.mockClear();
+    withRow({
+      $updatedAt: new Date().toISOString(),
+      ledger_transaction_id: null,
+      posting_lock: 1,
+    });
+
+    await expect(postApprovedExpense("exp-1")).resolves.toBe("skipped");
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+    expect(finago.postExpenseTransaction).not.toHaveBeenCalled();
+  });
+
+  it("returns posted after a booking", async () => {
+    withRow({ posting_lock: 0 });
+
+    await expect(postApprovedExpense("exp-1")).resolves.toBe("posted");
   });
 });
 
@@ -537,6 +816,26 @@ describe("postApprovedExpense hardening", () => {
     expect(db.incrementRowColumn).not.toHaveBeenCalled();
     expect(db.updateRow).not.toHaveBeenCalled();
     expect(finago.postExpenseTransaction).not.toHaveBeenCalled();
+  });
+
+  it("a booking it cannot record anywhere throws BookingUnrecordedError", async () => {
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    failSuccessWrites();
+    failBookedEvents();
+
+    const outcome = postApprovedExpense("exp-1", { sleep });
+
+    await expect(outcome).rejects.toBeInstanceOf(BookingUnrecordedError);
+    await expect(outcome).rejects.toMatchObject({ transactionId: "tx-1" });
+    // The event write backs off like the status write.
+    expect(sleep.mock.calls.map(([ms]) => ms)).toEqual([500, 2000, 500, 2000]);
+    expect(bookedTries()).toHaveLength(3);
+    expect(db.updateRow).not.toHaveBeenCalledWith(
+      "app",
+      "expense",
+      "exp-1",
+      expect.objectContaining({ status: "failed" })
+    );
   });
 
   it("success write waits between attempts", async () => {

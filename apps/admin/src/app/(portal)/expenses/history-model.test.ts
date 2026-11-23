@@ -94,6 +94,23 @@ describe("describeEvent booked and approver changes", () => {
 });
 
 describe("describeEvent", () => {
+  test("a flag from the background check shows its note", () => {
+    expect(
+      describeEvent(
+        event({
+          action: "ai_flagged",
+          actorKind: "ai",
+          after: "BBL 2027",
+          field: "project_not_created",
+          note: "The project for BBL 2027 is not in Finago yet",
+        })
+      )
+    ).toEqual({
+      key: "aiFlagged",
+      values: { note: "The project for BBL 2027 is not in Finago yet" },
+    });
+  });
+
   test("edited amount carries before and after", () => {
     expect(
       describeEvent(
@@ -107,6 +124,15 @@ describe("describeEvent", () => {
     ).toEqual({
       key: "edited.amount",
       values: { after: "250", before: "200" },
+    });
+  });
+
+  test("edited project", () => {
+    expect(
+      describeEvent(event({ after: "KD 2026", before: null, field: "project" }))
+    ).toEqual({
+      key: "edited.project",
+      values: { after: "KD 2026", before: "" },
     });
   });
 
@@ -199,6 +225,7 @@ describe("describeEvent", () => {
 
 describe("describeEvent with labels", () => {
   const labels: HistoryLabels = {
+    none: "ingen",
     reason: "Årsak",
     roles: {
       controller: "Controller",
@@ -262,6 +289,24 @@ describe("describeEvent with labels", () => {
         labels
       ).values.role
     ).toBe("the janitor");
+  });
+
+  test("a project set or cleared names the empty side", () => {
+    expect(
+      describeEvent(
+        event({ after: "KD 2026", before: null, field: "project" }),
+        labels
+      )
+    ).toEqual({
+      key: "edited.project",
+      values: { after: "KD 2026", before: "ingen" },
+    });
+    expect(
+      describeEvent(
+        event({ after: "", before: "KD 2026", field: "project" }),
+        labels
+      ).values
+    ).toEqual({ after: "ingen", before: "KD 2026" });
   });
 
   test("edited total has its own key", () => {

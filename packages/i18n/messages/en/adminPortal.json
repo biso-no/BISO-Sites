@@ -1429,7 +1429,8 @@
     "flags": {
       "hints": "{count, plural, one {# hint for the approver} other {# hints for the approver}}",
       "failed": "Booking failed",
-      "approverIssue": "No approver could be found"
+      "approverIssue": "No approver could be found",
+      "checking": "The AI is still checking this expense"
     },
     "none": "—",
     "empty": {
@@ -1469,10 +1470,13 @@
       "amount": "Amount",
       "type": "Type",
       "account": "Account",
+      "project": "Project",
       "ai": "AI note",
       "booked": "Booked",
       "supporting": "Supporting statement",
       "aiType": "AI: {type} ({confidence}%)",
+      "checkNote": "AI check: {reason}",
+      "checkingBadge": "Checking",
       "previewLabel": "Open receipt {name} in a new tab"
     },
     "steps": {
@@ -1531,7 +1535,15 @@
       "account_missing": "No account is set for this receipt type.",
       "app_type_replaced": "The app said \"{appType}\"; the AI chose \"{aiType}\".",
       "type_defaulted": "No type was chosen, so Other was used.",
-      "occasion_missing": "The occasion is missing."
+      "occasion_missing": "The occasion is missing.",
+      "type_unsure": "The AI was not sure which type this receipt is.",
+      "type_unsure_reason": "The AI was not sure which type this receipt is: {reason}",
+      "project_unsure": "The AI was not sure which project this belongs to.",
+      "project_unsure_reason": "The AI was not sure which project this belongs to: {reason}",
+      "project_missing": "No project was found for this expense.",
+      "project_not_created": "The project for {series} {year} has not been created yet.",
+      "ai_check_incomplete": "The AI check did not finish, so the AI has not looked at everything on this expense.",
+      "ai_check_disagrees": "The student chose a type the AI would not have picked. The AI suggests \"{aiType}\"."
     },
     "history": {
       "submitted": "Submitted the expense",
@@ -1541,6 +1553,7 @@
         "amount": "Changed amount from {before} to {after}",
         "total": "Changed total from {before} to {after}",
         "account_number": "Changed account from {before} to {after}",
+        "project": "Changed project from {before} to {after}",
         "cost_type": "Changed type from {before} to {after}",
         "cost_type_text": "Changed type text from \"{before}\" to \"{after}\"",
         "date": "Changed date from {before} to {after}",
@@ -1562,8 +1575,10 @@
       "bookingFailed": "Booking failed: {note}",
       "dateShifted": "Posting date moved from {from} to {to}. {note}",
       "bookingRetried": "Booking retried",
+      "aiFlagged": "AI check: {note}",
       "unknown": "Unknown event ({action})",
-      "reason": "Reason"
+      "reason": "Reason",
+      "noneValue": "none"
     },
     "edit": {
       "edit": "Edit",
@@ -1573,6 +1588,17 @@
       "chooseAccount": "Choose account",
       "searchAccount": "Search by number or name",
       "noAccountFound": "No matching account",
+      "project": "Project",
+      "chooseProject": "Choose project",
+      "searchProject": "Search by name",
+      "noProjectFound": "No matching project",
+      "noProject": "None",
+      "otherProjects": "Other projects",
+      "suggestedFor": "Suggested for {department}",
+      "applyProjectToAll": "Save only the project on all receipts",
+      "confirmClearAll": "Click again to remove the project from every receipt",
+      "projectPartlyApplied": "Project set on {changed} receipts; {failed} could not be saved. Try again.",
+      "projectAppliedToAll": "Project set on {count, plural, one {# receipt} other {# receipts}}",
       "save": "Save",
       "saved": "Saved",
       "saveError": "Could not save",
@@ -1580,7 +1606,8 @@
       "bankAccount": "Bank account",
       "bankHint": "11 digits. Spaces and dots are ignored.",
       "receiptDescription": "Change what is booked for this receipt. Each change is logged in the history.",
-      "bankDescription": "The account the student is paid to. The change is logged in the history."
+      "bankDescription": "The account the student is paid to. The change is logged in the history.",
+      "checking": "This reimbursement is being checked. You can edit it in a minute."
     },
     "eventTitleUnavailable": "Event (title unavailable)",
     "errors": {
@@ -1590,11 +1617,14 @@
       "invalid_date": "The date must be between 2000-01-01 and today.",
       "invalid_description": "The description must be 1 to 255 characters.",
       "invalid_type": "That expense type is not available.",
+      "invalid_project": "That project is not available.",
       "invalid_account": "That is not an active expense account.",
       "invalid_bank_account": "That is not a valid Norwegian bank account number. Check the digits.",
       "supporting_receipt": "A supporting statement only has a date and a description.",
       "failed": "Could not save. Try again.",
       "not_current_step": "This step is no longer waiting for a decision.",
+      "not_pending": "This reimbursement is no longer waiting for approval.",
+      "account_missing": "A receipt has no ledger account. Set the account before approving.",
       "reason_required": "Write a reason of up to 1,000 characters.",
       "invalid_email": "Use a @biso.no email address.",
       "already_decided": "This step was already decided differently. The page has been refreshed.",
@@ -1604,11 +1634,15 @@
       "posting_disabled": "Booking to Finago is switched off.",
       "api_failed": "The expense service did not respond as expected. Try again.",
       "in_progress": "This step is already being processed. Try again in a moment.",
+      "checking": "This reimbursement is still being checked. Try again in a minute.",
       "self_approver": "The student who submitted the expense cannot be its approver.",
       "same_approver": "That person is already the approver for this step.",
       "retry_in_progress": "Someone else is already retrying this booking.",
       "booking_failed": "The booking failed again.",
-      "status_write_failed": "Finago has the booking, but saving the status failed. Do not retry; contact IT."
+      "status_write_failed": "Finago has the booking, but saving the status failed. Don't book it again: once the reimbursement shows Booking failed (within about 15 minutes), Retry finishes saving it.",
+      "booking_unrecorded": "Finago has the booking ({transactionId}) but it could not be saved here. Do not retry; contact IT.",
+      "has_steps": "This reimbursement already has approval steps.",
+      "not_rebuildable": "Only a reimbursement left without an approval chain when it was submitted can have its approval chain rebuilt."
     },
     "decision": {
       "title": "Decision",
@@ -1631,7 +1665,13 @@
       "save": "Change and send",
       "changed": "Approver changed and notified",
       "changedNoNotice": "Approver changed, but the notice could not be sent. It is listed under approval issues.",
-      "directoryNotSaved": "The saved approver for future expenses could not be updated."
+      "directoryNotSaved": "The saved approver for future expenses could not be updated.",
+      "directorySkipped": "Changed for this reimbursement only. The general manager is set in Settings → Approvers."
+    },
+    "rebuild": {
+      "button": "Rebuild approval chain",
+      "done": "The approval chain was rebuilt.",
+      "noneFound": "No approver could be found. Set up the approvers first, then try again."
     },
     "retry": {
       "button": "Retry booking",
@@ -1681,12 +1721,16 @@
     "syncError": "Could not sync accounts",
     "tabApprovers": "Approvers",
     "tabAi": "AI",
+    "tabProjects": "Projects",
     "ai": {
       "description": "How often the AI's expense type was kept, and the own texts people keep typing instead.",
       "window30": "Last 30 days",
       "window90": "Last 90 days",
       "overall": "AI picks kept",
       "overallCount": "{kept} of {total} receipts",
+      "projectKept": "Projects set by the AI check that were kept",
+      "projectKeptError": "Could not load the project figure.",
+      "projectKeptCount": "{kept} of {total} receipts",
       "noData": "No receipts with an AI pick in this period.",
       "capped": "Based on the latest {count} receipts.",
       "perTypeTitle": "By type",
@@ -1703,23 +1747,26 @@
       "makeType": "Make this a type",
       "loadError": "Could not load the AI results",
       "rerunTitle": "Check against today's setup",
-      "rerunHint": "Runs the AI again on the latest {limit} booked receipts, with today's types and prompt, and counts how often it picks the type that was booked. Nothing is saved.",
+      "rerunHint": "Runs the AI again on the latest {limit} examples, with today's types and prompt, and counts how often it picks the expected type. Examples from booked reimbursements are scored apart from those not booked yet. Nothing is saved.",
       "rerunRun": "Run check",
       "rerunPending": "Running. This can take up to two minutes.",
-      "rerunHitRate": "Would pick the booked type",
+      "rerunHitRate": "Would pick the expected type",
+      "rerunConfirmed": "Booked examples",
+      "rerunUnconfirmed": "Not booked yet",
+      "rerunScoreCount": "{hits} of {checked}",
       "rerunChecked": "Checked {checked} of {considered}",
       "rerunStoppedEarly": "Stopped early to stay within the time limit. The rest were not checked.",
       "rerunMissesTitle": "Misses",
       "rerunNoMisses": "No misses.",
       "rerunVendor": "Vendor",
       "rerunDescription": "Description",
-      "rerunExpected": "Booked type",
+      "rerunExpected": "Expected type",
       "rerunPredicted": "AI's pick",
       "rerunConfidence": "Confidence",
       "rerunNoPick": "No pick",
       "rerunFailed": "Could not check {count}. They are not counted.",
       "rerunLowConfidence": "below {threshold} %",
-      "rerunUnscored": "The rest only have the student's own text, so there is no type to score."
+      "rerunUnscored": "The rest were left out: they have no type to compare, only the student's own text, a type nobody has confirmed, or no shop or description to go on."
     },
     "approvers": {
       "description": "Who approves expenses, per department and campus. Rows found by the AI show how sure it was; confirm or change them here. Changes are audited.",
@@ -1777,6 +1824,41 @@
         "admin": "Admin",
         "confirmed": "Confirmed"
       }
+    },
+    "projects": {
+      "description": "The projects synced from Finago. The event date is what the AI uses to work out which project a receipt belongs to. If you set one, it wins over every other source.",
+      "sync": "Sync projects from Finago",
+      "syncing": "Syncing…",
+      "syncDone": "Synced {count} projects.",
+      "syncPartial": "Partly synced ({count} projects). The daily run finishes it.",
+      "syncError": "Could not sync projects. Try again, or wait for the daily run.",
+      "syncBusy": "A sync is already running, or just started. Wait a few minutes and try again.",
+      "lastSynced": "Last full sync: {time}",
+      "neverSynced": "No full sync has finished yet.",
+      "department": "Department",
+      "allDepartments": "All departments",
+      "none": "No projects yet. Sync from Finago to fetch them.",
+      "noMatch": "No projects for this department.",
+      "year": "Year",
+      "usedBy": "Used by",
+      "noUsers": "No bookings yet",
+      "firstBooking": "First booking",
+      "lastBooking": "Last booking",
+      "peak": "Latest spending peak",
+      "eventDate": "Event date",
+      "inUse": "Date in use: {date} ({source})",
+      "noDateInUse": "No date in use yet. Set one, or wait for bookings.",
+      "sourceFinance": "set here",
+      "sourceWebsite": "event on the website",
+      "sourceName": "month in the project name",
+      "sourceBookings": "estimated from past bookings",
+      "save": "Save",
+      "clear": "Clear",
+      "saved": "Event date saved",
+      "cleared": "Event date cleared",
+      "saveError": "Could not save the event date",
+      "invalidDate": "That is not a real date.",
+      "loadError": "Could not load projects. Try again later."
     }
   },
   "shopAccounting": {

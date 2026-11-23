@@ -53,13 +53,27 @@ const graph = vi.hoisted(() => ({ getUser: vi.fn() }));
 vi.mock("./graph", () => ({ getGraphService: () => graph }));
 vi.mock("./expense-approver-resolution", () => resolution);
 vi.mock("@repo/shared/utils/expense-events", () => events);
+const examples = vi.hoisted(() => ({
+  deleteExamplesForExpense: vi.fn(),
+}));
+vi.mock("@repo/shared/utils/expense-examples", () => examples);
+const flags = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
+vi.mock("@repo/shared/utils/feature-flags-server", () => flags);
 
 import {
+  chainFailedIssueReason,
+  isRebuildIssue,
+} from "@repo/shared/utils/expense-approvers";
+import {
+  ApprovalChainFailedError,
   changeStepApprover,
   createApprovalChain,
   decideApproval,
   decideApprovalStep,
+  ensureApprovalChain,
   getApprovalContext,
+  rebuildApprovalChain,
+  resendApprovalNotification,
   stepLabel,
 } from "./expense-approval";
 
@@ -85,6 +99,7 @@ beforeEach(() => {
   }
   resolution.resolveExpenseApprovers.mockReset();
   events.recordExpenseEvents.mockReset();
+  flags.isFeatureEnabled.mockReset().mockResolvedValue(true);
   teams.ensureBotChatForUser.mockReset().mockResolvedValue(null);
   teams.sendProactiveCard.mockReset().mockResolvedValue(null);
   teams.sendApprovalEmail.mockReset().mockResolvedValue(undefined);
@@ -262,6 +277,101 @@ describe("approval chain", () => {
     // No history or issues for a submission that never stood.
     expect(events.recordExpenseEvents).not.toHaveBeenCalled();
     expect(issueRows()).toEqual([]);
+  });
+
+  it("a chain failure in the background keeps the expense pending and records an issue", async () => {
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [ISSUE],
+      steps: [
+        stepFor("finance", "fin@biso.no", 1),
+        stepFor("controller", "ctrl@biso.no", 2),
+      ],
+    });
+    teams.sendApprovalEmail.mockRejectedValue(new Error("mail down"));
+    db.deleteRow.mockResolvedValue({});
+    const logged = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    const failure = await createApprovalChain(CONTEXT, {
+      keepPendingOnFailure: true,
+      recordIssue: true,
+    }).catch((error: unknown) => error);
+
+    logged.mockRestore();
+    expect(failure).toBeInstanceOf(ApprovalChainFailedError);
+    // The steps are gone, so no link that went out still works.
+    expect(db.deleteRow).toHaveBeenCalledTimes(2);
+    expect(
+      db.updateRow.mock.calls.some(([, , , data]) => data.status === "draft")
+    ).toBe(false);
+    // One issue the IT queue can act on, and no resolution issues for a
+    // chain that never stood.
+    expect(issueRows()).toEqual([
+      {
+        campus_id: "1",
+        department: "Marketing",
+        expense_id: "expense-1",
+        reason: expect.stringContaining("Could not deliver"),
+        role_sought: "finance",
+        status: "open",
+      },
+    ]);
+    const [issue] = issueRows();
+    expect(isRebuildIssue(issue?.reason)).toBe(true);
+    expect(events.recordExpenseEvents).not.toHaveBeenCalled();
+  });
+
+  it("records an issue in the background when the approvers cannot be resolved", async () => {
+    resolution.resolveExpenseApprovers.mockRejectedValue(
+      new Error("Graph down")
+    );
+
+    await expect(
+      createApprovalChain(CONTEXT, {
+        keepPendingOnFailure: true,
+        recordIssue: true,
+      })
+    ).rejects.toBeInstanceOf(ApprovalChainFailedError);
+    expect(issueRows()).toEqual([
+      expect.objectContaining({
+        reason: expect.stringContaining("Graph down"),
+      }),
+    ]);
+  });
+
+  it("records no issue in the background when another run holds the chain", async () => {
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [ISSUE],
+      steps: [CONTROLLER_STEP],
+    });
+    db.createRow.mockRejectedValueOnce(
+      Object.assign(new Error("Row already exists"), { code: 409 })
+    );
+
+    await expect(
+      createApprovalChain(CONTEXT, {
+        keepPendingOnFailure: true,
+        recordIssue: true,
+      })
+    ).rejects.toMatchObject({ code: 409 });
+    expect(tablesWritten()).toEqual(["expense_approvals"]);
+  });
+
+  it("rethrows the failure when the background issue cannot be written", async () => {
+    resolution.resolveExpenseApprovers.mockRejectedValue(
+      new Error("Graph down")
+    );
+    db.createRow.mockRejectedValue(new Error("db down"));
+
+    // Not an ApprovalChainFailedError: nobody has been told, so the caller
+    // must not treat it as handled.
+    const failure = await createApprovalChain(CONTEXT, {
+      keepPendingOnFailure: true,
+      recordIssue: true,
+    }).catch((error: unknown) => error);
+    expect(failure).not.toBeInstanceOf(ApprovalChainFailedError);
+    expect(failure).toBeInstanceOf(Error);
   });
 
   it("rolls back when a later step row cannot be created", async () => {
@@ -637,6 +747,194 @@ describe("approval chain", () => {
   });
 });
 
+const RESEND_ISSUE_FOR_STEP_2 = /^Could not notify ctrl@biso\.no for step 2/;
+
+describe("ensureApprovalChain", () => {
+  const stepFor = (role: string, email: string, step: number) => ({
+    aadId: null,
+    directoryKey: `campus:1:${role}`,
+    email,
+    role,
+    source: "default",
+    step,
+  });
+  const TWO_STEPS = [
+    stepFor("finance", "fin@biso.no", 1),
+    stepFor("controller", "ctrl@biso.no", 2),
+  ];
+  const stepRow = (step: number, status = "pending") => ({
+    $id: `row-${step}`,
+    approver_email: step === 1 ? "fin@biso.no" : "ctrl@biso.no",
+    approver_role: step === 1 ? "finance" : "controller",
+    expense_id: "expense-1",
+    status,
+    step,
+  });
+  const SUBMITTED = {
+    $createdAt: "2026-11-19T10:00:00.000Z",
+    action: "submitted",
+  };
+  /** What an earlier, cut-off run left: these step rows and events. */
+  const leftBehind = (rows: object[], events: object[] = [SUBMITTED]) => {
+    db.listRows.mockImplementation(
+      (_db: string, table: string, queries: string[]) => {
+        if (table === "expense_events") {
+          const wanted = queries.find((query) => query.includes('"action"'));
+          const matching = events.filter(
+            (event) =>
+              wanted?.includes(`"${(event as { action: string }).action}"`) ??
+              false
+          );
+          return Promise.resolve({ rows: matching, total: matching.length });
+        }
+        return Promise.resolve({ rows, total: rows.length });
+      }
+    );
+    // Step 1 is taken: the earlier run's row holds the unique index.
+    db.createRow.mockRejectedValueOnce(
+      Object.assign(new Error("Row already exists"), { code: 409 })
+    );
+  };
+  const approvalRowsCreated = () =>
+    db.createRow.mock.calls
+      .filter(([, table]) => table === "expense_approvals")
+      .map(([, , , data]) => data.step);
+
+  beforeEach(() => {
+    db.deleteRow.mockResolvedValue({});
+    // The step row as it stands just before it is deleted.
+    db.getRow.mockImplementation((_db: string, _table: string, id: string) =>
+      Promise.resolve({
+        ...stepRow(id === "row-2" ? 2 : 1),
+        consumed_at: null,
+        decision_lock: 0,
+      })
+    );
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: TWO_STEPS,
+    });
+  });
+
+  it("builds and notifies the chain on a first run", async () => {
+    await ensureApprovalChain(CONTEXT);
+
+    expect(approvalRowsCreated()).toEqual([1, 2]);
+    expect(teams.sendApprovalEmail).toHaveBeenCalledTimes(1);
+    expect(db.deleteRow).not.toHaveBeenCalled();
+  });
+
+  it("a re-run after a cut-off before notifying builds one fresh chain and notifies", async () => {
+    leftBehind([stepRow(1), stepRow(2)]);
+
+    await ensureApprovalChain(CONTEXT);
+
+    expect(db.deleteRow.mock.calls.map(([, , id]) => id)).toEqual([
+      "row-1",
+      "row-2",
+    ]);
+    // The refused step 1, then the chain in full.
+    expect(approvalRowsCreated()).toEqual([1, 1, 2]);
+    expect(teams.sendApprovalEmail).toHaveBeenCalledTimes(1);
+    expect(
+      db.updateRow.mock.calls.some(([, , , data]) => data.status === "draft")
+    ).toBe(false);
+  });
+
+  it("a re-run after the chain was notified tells nobody again", async () => {
+    leftBehind(
+      [stepRow(1), stepRow(2)],
+      [
+        SUBMITTED,
+        { $createdAt: "2026-11-19T10:01:00.000Z", action: "notified" },
+      ]
+    );
+
+    await ensureApprovalChain(CONTEXT);
+
+    expect(teams.sendApprovalEmail).not.toHaveBeenCalled();
+    expect(db.deleteRow).not.toHaveBeenCalled();
+    expect(approvalRowsCreated()).toEqual([1]);
+  });
+
+  it("a chain cut off between its inserts is built again in full", async () => {
+    leftBehind([stepRow(1)]);
+
+    await ensureApprovalChain(CONTEXT);
+
+    expect(db.deleteRow.mock.calls.map(([, , id]) => id)).toEqual(["row-1"]);
+    expect(approvalRowsCreated()).toEqual([1, 1, 2]);
+    expect(teams.sendApprovalEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops deleting at a step an approver is deciding right now", async () => {
+    leftBehind([stepRow(1), stepRow(2)]);
+    db.getRow.mockImplementation((_db: string, _table: string, id: string) =>
+      Promise.resolve({
+        ...stepRow(id === "row-2" ? 2 : 1),
+        consumed_at: null,
+        decision_lock: id === "row-1" ? 1 : 0,
+      })
+    );
+
+    await ensureApprovalChain(CONTEXT);
+
+    expect(db.deleteRow).not.toHaveBeenCalled();
+    expect(teams.sendApprovalEmail).not.toHaveBeenCalled();
+    expect(approvalRowsCreated()).toEqual([1]);
+    const issues = db.createRow.mock.calls
+      .filter(([, table]) => table === "expense_approval_issues")
+      .map(([, , , data]) => data);
+    expect(issues).toEqual([
+      expect.objectContaining({
+        expense_id: "expense-1",
+        reason: expect.stringContaining("Could not notify fin@biso.no"),
+      }),
+    ]);
+  });
+
+  it("stops deleting at a step whose link was already used", async () => {
+    leftBehind([stepRow(1), stepRow(2)]);
+    db.getRow.mockImplementation((_db: string, _table: string, id: string) =>
+      Promise.resolve({
+        ...stepRow(id === "row-2" ? 2 : 1),
+        consumed_at: id === "row-2" ? "2026-11-19T10:02:00.000Z" : null,
+        decision_lock: 0,
+      })
+    );
+
+    await ensureApprovalChain(CONTEXT);
+
+    expect(db.deleteRow.mock.calls.map(([, , id]) => id)).toEqual(["row-1"]);
+    expect(teams.sendApprovalEmail).not.toHaveBeenCalled();
+    expect(
+      db.createRow.mock.calls.filter(
+        ([, table]) => table === "expense_approval_issues"
+      )
+    ).toHaveLength(1);
+  });
+
+  it("a decided step gets a resend issue instead of a new chain", async () => {
+    leftBehind([stepRow(1, "approved"), stepRow(2)]);
+
+    await ensureApprovalChain(CONTEXT);
+
+    expect(db.deleteRow).not.toHaveBeenCalled();
+    expect(teams.sendApprovalEmail).not.toHaveBeenCalled();
+    const issues = db.createRow.mock.calls
+      .filter(([, table]) => table === "expense_approval_issues")
+      .map(([, , , data]) => data);
+    expect(issues).toEqual([
+      expect.objectContaining({
+        expense_id: "expense-1",
+        reason: expect.stringMatching(RESEND_ISSUE_FOR_STEP_2),
+        role_sought: "controller",
+        status: "open",
+      }),
+    ]);
+  });
+});
+
 describe("notification history", () => {
   const STEP = {
     aadId: "aad-1",
@@ -765,6 +1063,7 @@ describe("decideApproval", () => {
       $id: "expense-1",
       $sequence: 42,
       campus: "1",
+      status: "pending",
       total: 100,
       userId: "user-1",
     });
@@ -959,8 +1258,8 @@ describe("decideApprovalStep", () => {
     });
 
     expect(result).toEqual({
-      code: "not_current_step",
-      error: "This step is not waiting for a decision.",
+      code: "not_pending",
+      error: "This reimbursement is no longer waiting for approval.",
       ok: false,
     });
     expect(db.incrementRowColumn).not.toHaveBeenCalled();
@@ -1193,11 +1492,92 @@ describe("token decision paths", () => {
     db.getRow.mockResolvedValue({
       $id: "expense-1",
       $sequence: 42,
+      status: "pending",
       userId: "user-1",
     });
     db.incrementRowColumn.mockResolvedValue({ decision_lock: 1 });
     db.decrementRowColumn.mockResolvedValue({});
   }
+
+  it("refuses a token decision when the expense is no longer pending", async () => {
+    setup(row());
+    db.getRow.mockResolvedValue({
+      $id: "expense-1",
+      $sequence: 42,
+      status: "rejected",
+      userId: "user-1",
+    });
+
+    expect(await decide("approved")).toEqual({
+      code: "not_pending",
+      error: "This reimbursement is no longer waiting for approval.",
+      ok: false,
+    });
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+  });
+
+  it("a rejection resolves the expense's open approval issues", async () => {
+    setup(row());
+    const baseList = db.listRows.getMockImplementation();
+    db.listRows.mockImplementation(
+      (dbId: string, table: string, queries: unknown[]) =>
+        table === "expense_approval_issues"
+          ? Promise.resolve({ rows: [{ $id: "issue-1" }, { $id: "issue-2" }] })
+          : baseList?.(dbId, table, queries)
+    );
+
+    await decide("rejected");
+
+    const issueCall = db.listRows.mock.calls.find(
+      ([, table]) => table === "expense_approval_issues"
+    );
+    expect(issueCall?.[2]).toEqual(
+      expect.arrayContaining([
+        Query.equal("expense_id", "expense-1"),
+        Query.equal("status", "open"),
+      ])
+    );
+    for (const id of ["issue-1", "issue-2"]) {
+      expect(db.updateRow).toHaveBeenCalledWith(
+        "app",
+        "expense_approval_issues",
+        id,
+        expect.objectContaining({
+          resolved_by: "system: expense rejected",
+          status: "resolved",
+        })
+      );
+    }
+  });
+
+  it("a rejection deletes the expense's examples, an approval does not", async () => {
+    setup(row());
+    await decide("rejected");
+    expect(examples.deleteExamplesForExpense).toHaveBeenCalledWith(
+      db,
+      "expense-1"
+    );
+
+    examples.deleteExamplesForExpense.mockClear();
+    setup(row());
+    await decide("approved");
+    expect(examples.deleteExamplesForExpense).not.toHaveBeenCalled();
+  });
+
+  it("healing a stuck expense to rejected deletes its examples", async () => {
+    const rejected = row({ status: "rejected" });
+    setup(rejected, [rejected]);
+
+    await decide("approved");
+
+    expect(db.updateRow).toHaveBeenCalledWith("app", "expense", "expense-1", {
+      status: "rejected",
+    });
+    expect(examples.deleteExamplesForExpense).toHaveBeenCalledWith(
+      db,
+      "expense-1"
+    );
+  });
 
   it("returns the expiry error and never claims an expired link", async () => {
     setup(row({ expires_at: new Date(Date.now() - 1000).toISOString() }));
@@ -1229,7 +1609,7 @@ describe("token decision paths", () => {
       Promise.resolve(
         table === "expense_approvals"
           ? row({ status: "approved" })
-          : { $id: "expense-1", $sequence: 42 }
+          : { $id: "expense-1", $sequence: 42, status: "pending" }
       )
     );
 
@@ -1307,7 +1687,11 @@ describe("token decisions history", () => {
             : [approval],
       })
     );
-    db.getRow.mockResolvedValue({ $id: "expense-1", $sequence: 42 });
+    db.getRow.mockResolvedValue({
+      $id: "expense-1",
+      $sequence: 42,
+      status: "pending",
+    });
     db.incrementRowColumn.mockResolvedValue({ decision_lock: 1 });
 
     await decideApproval({
@@ -1501,6 +1885,22 @@ describe("receipts without an account", () => {
     expect(db.updateRow).not.toHaveBeenCalled();
   });
 
+  it("an old link on a rejected expense answers not_pending, not the account", async () => {
+    setup([UNSET]);
+    const expense = await db.getRow("app", "expense", "expense-1");
+    db.getRow.mockResolvedValue({ ...expense, status: "rejected" });
+
+    const result = await decideApproval({
+      decidedBy: "Ctrl",
+      decision: "approved",
+      rawToken: RAW,
+      source: "web",
+    });
+
+    expect(result).toMatchObject({ code: "not_pending", ok: false });
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+  });
+
   it("still takes a rejection by link while a receipt has no account", async () => {
     setup([UNSET]);
 
@@ -1509,6 +1909,69 @@ describe("receipts without an account", () => {
       decision: "rejected",
       rawToken: RAW,
       source: "teams",
+    });
+
+    expect(result).toMatchObject({ decision: "rejected", ok: true });
+  });
+
+  async function setupAdminStep(attachments: object[]) {
+    setup(attachments);
+    const expense = await db.getRow("app", "expenses", "expense-1");
+    db.getRow.mockImplementation((_db: string, table: string) =>
+      Promise.resolve(table === "expense_approvals" ? STEP : expense)
+    );
+  }
+
+  const ADMIN_ACTOR = {
+    email: "admin@biso.no",
+    kind: "admin" as const,
+    name: "Admin",
+  };
+
+  it("admin approve refuses while a receipt has no account", async () => {
+    await setupAdminStep([UNSET, SET]);
+
+    const result = await decideApprovalStep({
+      actor: ADMIN_ACTOR,
+      approvalId: "approval-1",
+      decision: "approved",
+      onBehalf: false,
+    });
+
+    expect(result).toMatchObject({ code: "account_missing", ok: false });
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+  });
+
+  it("admin approve on a rejected expense answers not_pending, not the account", async () => {
+    await setupAdminStep([UNSET]);
+    const expense = await db.getRow("app", "expense", "expense-1");
+    db.getRow.mockImplementation((_db: string, table: string) =>
+      Promise.resolve(
+        table === "expense_approvals"
+          ? STEP
+          : { ...expense, status: "rejected" }
+      )
+    );
+
+    const result = await decideApprovalStep({
+      actor: ADMIN_ACTOR,
+      approvalId: "approval-1",
+      decision: "approved",
+      onBehalf: false,
+    });
+
+    expect(result).toMatchObject({ code: "not_pending", ok: false });
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+  });
+
+  it("admin reject still works while a receipt has no account", async () => {
+    await setupAdminStep([UNSET]);
+
+    const result = await decideApprovalStep({
+      actor: ADMIN_ACTOR,
+      approvalId: "approval-1",
+      decision: "rejected",
+      onBehalf: false,
     });
 
     expect(result).toMatchObject({ decision: "rejected", ok: true });
@@ -1594,6 +2057,7 @@ describe("changeStepApprover", () => {
     });
 
     expect(result).toEqual({ directorySaved: true, notified: true, ok: true });
+    expect(result).not.toHaveProperty("directorySkipped");
     const stepWrites = db.updateRow.mock.calls
       .filter(([, table]) => table === "expense_approvals")
       .map(([, , , data]) => data);
@@ -1865,6 +2329,40 @@ describe("changeStepApprover", () => {
     expect(db.createRow).not.toHaveBeenCalled();
   });
 
+  it("re-routing a general-manager step does not change the directory", async () => {
+    setup({
+      approval: {
+        approver_role: "national",
+        campus_id: "5",
+        directory_key: "campus:5:national",
+      },
+    });
+
+    const result = await changeStepApprover({
+      actor: ACTOR,
+      approvalId: "approval-1",
+      email: "new@biso.no",
+    });
+
+    expect(result).toEqual({
+      directorySaved: false,
+      directorySkipped: true,
+      notified: true,
+      ok: true,
+    });
+    const directoryWrites = [
+      ...db.createRow.mock.calls,
+      ...db.updateRow.mock.calls,
+    ].filter(([, table]) => table === "expense_approvers");
+    expect(directoryWrites).toEqual([]);
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "expense_approvals",
+      "approval-1",
+      expect.objectContaining({ approver_email: "new@biso.no" })
+    );
+  });
+
   it("reports directorySaved false when the directory write fails", async () => {
     setup();
     vi.spyOn(console, "error").mockImplementation(() => undefined);
@@ -2124,5 +2622,317 @@ describe("card data and card updates", () => {
     });
 
     expect(teams.updateProactiveCard).not.toHaveBeenCalled();
+  });
+});
+
+describe("resendApprovalNotification", () => {
+  it("resend refuses an expense that is not pending", async () => {
+    db.getRow.mockResolvedValue({ $id: "expense-1", status: "rejected" });
+
+    expect(await resendApprovalNotification("expense-1")).toEqual({
+      code: "not_pending",
+      error: "This reimbursement is no longer waiting for approval.",
+      ok: false,
+    });
+    expect(db.listRows).not.toHaveBeenCalled();
+    expect(teams.sendProactiveCard).not.toHaveBeenCalled();
+    expect(teams.sendApprovalEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe("rebuildApprovalChain", () => {
+  const ACTOR = { email: "boss@biso.no", kind: "admin" as const, name: "Boss" };
+  const expenseRow = (over: Record<string, unknown> = {}) => ({
+    $id: "expense-1",
+    $sequence: 42,
+    campus: "1",
+    campusRel: { name: "Oslo" },
+    department: "dept-1",
+    departmentRel: { Name: "Marketing" },
+    description: "Travel",
+    status: "pending",
+    submitter_is_controller: true,
+    submitter_is_financial_manager: false,
+    total: 100,
+    userId: "user-9",
+    ...over,
+  });
+  // What `createApprovalChain` records when no step resolves at submit.
+  const NO_APPROVER_ISSUE = {
+    $id: "issue-1",
+    expense_id: "expense-1",
+    reason:
+      "No approver could be resolved. The reimbursement is pending with no approval step.",
+    status: "open",
+  };
+  const loads = (
+    expense: object,
+    stepRows: object[] = [],
+    issueRows: object[] = [NO_APPROVER_ISSUE],
+    submittedRows: object[] = []
+  ) => {
+    db.getRow.mockImplementation(async (_db: string, table: string) =>
+      table === "user" ? { $id: "user-9", name: "Ada" } : expense
+    );
+    db.listRows.mockImplementation((_db: string, table: string) => {
+      let rows = stepRows;
+      if (table === "expense_approval_issues") {
+        rows = issueRows;
+      } else if (table === "expense_events") {
+        rows = submittedRows;
+      }
+      return Promise.resolve({ rows, total: rows.length });
+    });
+  };
+
+  it("rebuilds the chain of a pending expense with no steps", async () => {
+    loads(expenseRow());
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [
+        {
+          aadId: null,
+          directoryKey: "campus:1:finance",
+          email: "fin@biso.no",
+          role: "finance",
+          source: "default",
+          step: 1,
+        },
+      ],
+    });
+
+    expect(
+      await rebuildApprovalChain({ actor: ACTOR, expenseId: "expense-1" })
+    ).toEqual({ ok: true, stepsCreated: 1 });
+    expect(resolution.resolveExpenseApprovers).toHaveBeenCalledWith(
+      expect.objectContaining({
+        submitterIsController: true,
+        submitterIsFinancialManager: false,
+      }),
+      expect.anything()
+    );
+    expect(db.createRow).toHaveBeenCalledWith(
+      "app",
+      "expense_approvals",
+      expect.anything(),
+      expect.objectContaining({ approver_email: "fin@biso.no" })
+    );
+  });
+
+  it("a no-approver issue from an earlier email submission does not allow a rebuild", async () => {
+    loads(
+      expenseRow(),
+      [],
+      [{ ...NO_APPROVER_ISSUE, $createdAt: "2026-11-01T10:00:00.000Z" }],
+      [{ $createdAt: "2026-11-05T10:00:00.000Z", action: "submitted" }]
+    );
+    expect(
+      await rebuildApprovalChain({ actor: ACTOR, expenseId: "expense-1" })
+    ).toMatchObject({ ok: false, code: "not_rebuildable" });
+    expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  it("a no-approver issue from the latest submission allows a rebuild", async () => {
+    loads(
+      expenseRow(),
+      [],
+      [{ ...NO_APPROVER_ISSUE, $createdAt: "2026-11-05T10:00:01.000Z" }],
+      [{ $createdAt: "2026-11-05T10:00:00.000Z", action: "submitted" }]
+    );
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [FIN_STEP],
+    });
+    expect(
+      await rebuildApprovalChain({ actor: ACTOR, expenseId: "expense-1" })
+    ).toEqual({ ok: true, stepsCreated: 1 });
+  });
+
+  const FIN_STEP = {
+    aadId: null,
+    directoryKey: "campus:1:finance",
+    email: "fin@biso.no",
+    role: "finance",
+    source: "default",
+    step: 1,
+  };
+
+  it("logs the rebuild with the actor and the step count", async () => {
+    loads(expenseRow());
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [FIN_STEP],
+    });
+    await rebuildApprovalChain({ actor: ACTOR, expenseId: "expense-1" });
+    expect(events.recordExpenseEvents).toHaveBeenLastCalledWith(db, [
+      {
+        action: "edited",
+        actorEmail: "boss@biso.no",
+        actorKind: "admin",
+        actorName: "Boss",
+        expenseId: "expense-1",
+        field: "approval_chain",
+        note: "rebuilt in admin: 1 steps",
+      },
+    ]);
+  });
+
+  it("logs a rebuild that found no approver", async () => {
+    loads(expenseRow());
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [],
+    });
+    expect(
+      await rebuildApprovalChain({ actor: ACTOR, expenseId: "expense-1" })
+    ).toEqual({ ok: true, stepsCreated: 0 });
+    expect(events.recordExpenseEvents).toHaveBeenLastCalledWith(db, [
+      expect.objectContaining({
+        action: "edited",
+        actorName: "Boss",
+        field: "approval_chain",
+        note: "rebuilt in admin: no approver found",
+      }),
+    ]);
+  });
+
+  it("keeps the expense pending when the rebuild fails", async () => {
+    loads(expenseRow());
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [FIN_STEP],
+    });
+    teams.sendApprovalEmail.mockRejectedValue(new Error("mail down"));
+    db.deleteRow.mockResolvedValue({});
+    const errorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    const result = await rebuildApprovalChain({
+      actor: ACTOR,
+      expenseId: "expense-1",
+    });
+
+    errorSpy.mockRestore();
+    expect(result).toMatchObject({ code: "failed", ok: false });
+    expect(db.deleteRow).toHaveBeenCalledTimes(1);
+    expect(
+      db.updateRow.mock.calls.some(([, , , data]) => data.status === "draft")
+    ).toBe(false);
+    expect(events.recordExpenseEvents).not.toHaveBeenCalled();
+  });
+
+  it("reports has_steps when a racing rebuild holds the claim", async () => {
+    loads(expenseRow());
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [FIN_STEP],
+    });
+    db.createRow.mockRejectedValueOnce(
+      Object.assign(new Error("exists"), { code: 409 })
+    );
+    expect(
+      await rebuildApprovalChain({ actor: ACTOR, expenseId: "expense-1" })
+    ).toMatchObject({ code: "has_steps", ok: false });
+  });
+
+  it("refuses when steps exist", async () => {
+    loads(expenseRow(), [{ $id: "s1" }]);
+
+    expect(
+      await rebuildApprovalChain({ actor: ACTOR, expenseId: "expense-1" })
+    ).toMatchObject({ code: "has_steps", ok: false });
+    expect(resolution.resolveExpenseApprovers).not.toHaveBeenCalled();
+  });
+
+  it("refuses an expense that went to accounting by email", async () => {
+    // The email path sets `pending` with no steps and records no issue.
+    loads(expenseRow(), [], []);
+
+    expect(
+      await rebuildApprovalChain({ actor: ACTOR, expenseId: "expense-1" })
+    ).toMatchObject({ code: "not_rebuildable", ok: false });
+    expect(resolution.resolveExpenseApprovers).not.toHaveBeenCalled();
+    expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  it("rebuilds a chain that failed after the background check", async () => {
+    loads(
+      expenseRow(),
+      [],
+      [
+        {
+          ...NO_APPROVER_ISSUE,
+          $createdAt: "2026-11-05T10:00:05.000Z",
+          reason: chainFailedIssueReason("mail down"),
+        },
+      ],
+      [{ $createdAt: "2026-11-05T10:00:00.000Z", action: "submitted" }]
+    );
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [FIN_STEP],
+    });
+
+    expect(
+      await rebuildApprovalChain({ actor: ACTOR, expenseId: "expense-1" })
+    ).toEqual({ ok: true, stepsCreated: 1 });
+  });
+
+  it("refuses when the only issues are about something else", async () => {
+    loads(
+      expenseRow(),
+      [],
+      [
+        {
+          ...NO_APPROVER_ISSUE,
+          reason: "Could not notify ctrl@biso.no for step 1 (mail down).",
+        },
+      ]
+    );
+
+    expect(
+      await rebuildApprovalChain({ actor: ACTOR, expenseId: "expense-1" })
+    ).toMatchObject({ code: "not_rebuildable", ok: false });
+    expect(resolution.resolveExpenseApprovers).not.toHaveBeenCalled();
+  });
+
+  it("rebuilds when the no-approver issue was already resolved", async () => {
+    loads(expenseRow(), [], [{ ...NO_APPROVER_ISSUE, status: "resolved" }]);
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [FIN_STEP],
+    });
+
+    expect(
+      await rebuildApprovalChain({ actor: ACTOR, expenseId: "expense-1" })
+    ).toEqual({ ok: true, stepsCreated: 1 });
+  });
+
+  it("refuses while direct booking is off", async () => {
+    loads(expenseRow());
+    flags.isFeatureEnabled.mockResolvedValue(false);
+
+    expect(
+      await rebuildApprovalChain({ actor: ACTOR, expenseId: "expense-1" })
+    ).toMatchObject({ code: "posting_disabled", ok: false });
+    expect(flags.isFeatureEnabled).toHaveBeenCalledWith(
+      "expenses_ledger_posting"
+    );
+    expect(resolution.resolveExpenseApprovers).not.toHaveBeenCalled();
+    expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  it("refuses a rejected expense", async () => {
+    loads(expenseRow({ status: "rejected" }));
+
+    expect(
+      await rebuildApprovalChain({ actor: ACTOR, expenseId: "expense-1" })
+    ).toEqual({
+      code: "not_pending",
+      error: "This reimbursement is no longer waiting for approval.",
+      ok: false,
+    });
+    expect(db.listRows).not.toHaveBeenCalled();
   });
 });

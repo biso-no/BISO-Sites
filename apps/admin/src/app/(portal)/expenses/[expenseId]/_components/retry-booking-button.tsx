@@ -28,9 +28,15 @@ export function RetryBookingButton({ expenseId }: { expenseId: string }) {
   const retryErrorMessage = (result: {
     error: ExpenseActionError;
     message?: string;
+    transactionId?: string;
   }): string => {
     if (result.error === "booking_failed" && result.message) {
       return `${t("failedAgain")} ${result.message}`;
+    }
+    if (result.error === "booking_unrecorded") {
+      return te("errors.booking_unrecorded", {
+        transactionId: result.transactionId ?? "?",
+      });
     }
     // An unanswered call may still have booked: say so, not "Try again".
     return result.error === "api_failed"
@@ -43,7 +49,14 @@ export function RetryBookingButton({ expenseId }: { expenseId: string }) {
       const result = await retryExpenseBooking({ expenseId });
       setOpen(false);
       if ("error" in result) {
-        toast.error(retryErrorMessage(result));
+        // The unrecorded-booking message carries the transaction number IT
+        // needs, so it stays until closed.
+        toast.error(
+          retryErrorMessage(result),
+          result.error === "booking_unrecorded"
+            ? { closeButton: true, duration: Number.POSITIVE_INFINITY }
+            : undefined
+        );
       } else if (result.data.status === "success") {
         toast.success(t("booked"));
       } else if (result.data.status === "failed") {

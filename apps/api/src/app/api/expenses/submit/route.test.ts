@@ -1,4 +1,4 @@
-import { ExpensesStatus } from "@repo/api/types/appwrite";
+import { ExpensesCheckState, ExpensesStatus } from "@repo/api/types/appwrite";
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -18,12 +18,8 @@ const account = vi.hoisted(() => ({
   get: vi.fn(),
 }));
 
-const messaging = vi.hoisted(() => ({
-  createEmail: vi.fn(),
-}));
-
 const storage = vi.hoisted(() => ({
-  createFile: vi.fn(),
+  getFileDownload: vi.fn(),
 }));
 
 const metrics = vi.hoisted(() => ({ countMetric: vi.fn() }));
@@ -34,37 +30,44 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 vi.mock("@repo/api/server", () => ({
-  createAdminClient: vi.fn(async () => ({ db: adminDb, messaging, storage })),
+  createAdminClient: vi.fn(async () => ({ db: adminDb, storage })),
 }));
 
 vi.mock("@repo/shared/utils/feature-flags-server", () => ({
-  isFeatureEnabled: vi.fn(
-    async (key: string) => key !== "expenses_ledger_posting"
-  ),
+  isFeatureEnabled: vi.fn(async () => true),
 }));
 
-vi.mock("@/lib/expense-approval", () => ({
-  createApprovalChain: vi.fn(async () => undefined),
+const check = vi.hoisted(() => ({ runExpenseCheck: vi.fn() }));
+vi.mock("@/lib/expense-check/run", () => check);
+
+const scheduled = vi.hoisted(() => ({
+  tasks: [] as (() => Promise<void>)[],
 }));
-
-const enrichment = vi.hoisted(() => {
-  class OccasionRequiredError extends Error {}
-  return { enrichSubmission: vi.fn(), OccasionRequiredError };
-});
-
-vi.mock("@/lib/expense-submission", () => enrichment);
-
-vi.mock("@/lib/pdf/expense-pdf", () => ({
-  generateExpensePdf: vi.fn(async () => new Uint8Array([1, 2, 3])),
-}));
-
-vi.mock("@repo/api/file", () => ({
-  InputFile: {
-    fromBuffer: vi.fn(() => ({ file: "pdf" })),
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  after: (task: () => Promise<void>) => {
+    scheduled.tasks.push(task);
   },
 }));
 
-import { createApprovalChain } from "@/lib/expense-approval";
+const runScheduled = async () => {
+  for (const task of scheduled.tasks) {
+    await task();
+  }
+};
+
+const preparation = vi.hoisted(() => {
+  class OccasionRequiredError extends Error {}
+  class SubmissionTakenError extends Error {}
+  return {
+    OccasionRequiredError,
+    prepareSubmission: vi.fn(),
+    SubmissionTakenError,
+  };
+});
+
+vi.mock("@/lib/expense-submission", () => preparation);
+
 import { POST } from "./route";
 
 const PROFILE = {
@@ -109,6 +112,20 @@ function submitRequest(body: Record<string, unknown>) {
   }) as never;
 }
 
+const PENDING_EXPENSE = { ...SAVED_EXPENSE, status: ExpensesStatus.PENDING };
+
+/** The write that submits: the student sees `pending`, the check is queued. */
+const SUBMITTED_WRITE = {
+  check_state: ExpensesCheckState.QUEUED,
+  status: ExpensesStatus.PENDING,
+};
+
+function submittedWrites() {
+  return adminDb.updateRow.mock.calls.filter(
+    ([, table, , data]) => table === "expense" && data.status === "pending"
+  );
+}
+
 describe("expense submit route", () => {
   beforeEach(() => {
     account.get.mockReset();
@@ -118,42 +135,189 @@ describe("expense submit route", () => {
     sessionDb.createRow.mockReset();
     sessionDb.getRow.mockReset();
     sessionDb.updateRow.mockReset();
-    messaging.createEmail.mockReset();
-    storage.createFile.mockReset();
 
     account.get.mockResolvedValue({ $id: "submitter-1" });
-    vi.mocked(isFeatureEnabled).mockImplementation(
-      async (key: string) => key !== "expenses_ledger_posting"
-    );
-    vi.mocked(createApprovalChain).mockClear();
+    vi.mocked(isFeatureEnabled).mockResolvedValue(true);
+    scheduled.tasks.length = 0;
     metrics.countMetric.mockClear();
-    enrichment.enrichSubmission.mockReset();
-    enrichment.enrichSubmission.mockResolvedValue(undefined);
-    // The profile, then the saved draft (read before and after enrichment).
+    check.runExpenseCheck.mockReset();
+    check.runExpenseCheck.mockResolvedValue("done");
+    preparation.prepareSubmission.mockReset();
+    preparation.prepareSubmission.mockResolvedValue(undefined);
+    // The profile, the saved draft it prepares, then the submitted expense.
     sessionDb.getRow
       .mockResolvedValueOnce(PROFILE)
-      .mockResolvedValue(SAVED_EXPENSE);
+      .mockResolvedValueOnce(SAVED_EXPENSE)
+      .mockResolvedValue(PENDING_EXPENSE);
     adminDb.createRow.mockResolvedValue({ $id: "expense-1" });
     adminDb.updateRow.mockResolvedValue({});
-    storage.createFile.mockResolvedValue({ $id: "pdf-1" });
-    messaging.createEmail.mockResolvedValue({});
     sessionDb.updateRow.mockResolvedValue({});
-    vi.stubEnv("INVOICE_USER_ID", "invoice-user");
   });
 
   afterEach(() => {
-    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it("submit schedules one check", async () => {
+    const response = await POST(submitRequest(SUBMIT_BODY));
+
+    expect(response.status).toBe(200);
+    // The answer goes out before the check starts.
+    expect(check.runExpenseCheck).not.toHaveBeenCalled();
+    expect(scheduled.tasks).toHaveLength(1);
+    await runScheduled();
+    expect(check.runExpenseCheck).toHaveBeenCalledTimes(1);
+    expect(check.runExpenseCheck).toHaveBeenCalledWith("expense-1");
+  });
+
+  it("a check that throws is logged after the answer", async () => {
+    check.runExpenseCheck.mockRejectedValue(new Error("db down"));
+    const logged = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    const response = await POST(submitRequest(SUBMIT_BODY));
+    await runScheduled();
+
+    expect(response.status).toBe(200);
+    expect(logged).toHaveBeenCalledWith(
+      expect.stringContaining("expense-1"),
+      expect.any(Error)
+    );
+  });
+
+  it("marks the expense pending and queues its check once it is prepared", async () => {
+    const response = await POST(submitRequest(SUBMIT_BODY));
+
+    expect(response.status).toBe(200);
+    expect(submittedWrites()).toEqual([
+      ["app", "expense", "expense-1", SUBMITTED_WRITE],
+    ]);
+    const submittedAt =
+      adminDb.updateRow.mock.invocationCallOrder[
+        adminDb.updateRow.mock.calls.findIndex(
+          ([, , , data]) => data.status === "pending"
+        )
+      ] ?? 0;
+    expect(
+      preparation.prepareSubmission.mock.invocationCallOrder[0]
+    ).toBeLessThan(submittedAt);
+    // The answer is read after the write, so the student sees `pending`.
+    expect(sessionDb.getRow.mock.invocationCallOrder.at(-1)).toBeGreaterThan(
+      submittedAt
+    );
+    // Nobody is notified from the request any more.
+    expect(sessionDb.updateRow).not.toHaveBeenCalled();
+  });
+
+  it("the Flutter submit response is unchanged", async () => {
+    const response = await POST(submitRequest(SUBMIT_BODY));
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    // ExpenseSubmitResult reads success, fetchedExpense and reimbursementNumber.
+    expect(Object.keys(body).sort()).toEqual([
+      "fetchedExpense",
+      "reimbursementNumber",
+      "success",
+    ]);
+    expect(body.success).toBe(true);
+    expect(body.reimbursementNumber).toBe("10042");
+    expect(body.fetchedExpense).toMatchObject({
+      $id: "expense-1",
+      status: "pending",
+      total: 100,
+    });
+  });
+
+  it("occasion is still required at submit", async () => {
+    preparation.prepareSubmission.mockRejectedValueOnce(
+      new preparation.OccasionRequiredError("Occasion is required")
+    );
+
+    const response = await POST(submitRequest(SUBMIT_BODY));
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Occasion is required",
+      // The draft saved before the check, so the client can update it.
+      expenseId: "expense-1",
+      field: "occasion",
+      success: false,
+    });
+    expect(adminDb.createRow).toHaveBeenCalledTimes(1);
+    expect(submittedWrites()).toEqual([]);
+    expect(scheduled.tasks).toHaveLength(0);
+  });
+
+  it("answers 409 when another submit took the draft while this one prepared", async () => {
+    preparation.prepareSubmission.mockRejectedValueOnce(
+      new preparation.SubmissionTakenError(
+        "This expense is already being submitted."
+      )
+    );
+
+    const response = await POST(submitRequest(SUBMIT_BODY));
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: "This expense is already being submitted.",
+      success: false,
+    });
+    expect(submittedWrites()).toEqual([]);
+    expect(scheduled.tasks).toHaveLength(0);
+  });
+
+  it("schedules the check before reading the answer, so a failed read can't lose it", async () => {
+    sessionDb.getRow.mockReset();
+    sessionDb.getRow
+      .mockResolvedValueOnce(PROFILE)
+      .mockResolvedValueOnce(SAVED_EXPENSE)
+      .mockRejectedValueOnce(new Error("db down"));
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const response = await POST(submitRequest(SUBMIT_BODY));
+
+    expect(response.status).toBe(500);
+    expect(submittedWrites()).toHaveLength(1);
+    expect(scheduled.tasks).toHaveLength(1);
+    await runScheduled();
+    expect(check.runExpenseCheck).toHaveBeenCalledWith("expense-1");
+  });
+
+  it("a submit that fails before it is pending schedules no check", async () => {
+    preparation.prepareSubmission.mockRejectedValueOnce(new Error("db down"));
+    const logged = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    const response = await POST(submitRequest(SUBMIT_BODY));
+
+    expect(response.status).toBe(500);
+    expect(submittedWrites()).toEqual([]);
+    expect(scheduled.tasks).toHaveLength(0);
+    expect(logged).toHaveBeenCalled();
+  });
+
+  it("refuses a draft that was already submitted", async () => {
+    adminDb.getRow.mockResolvedValue({
+      $id: "expense-1",
+      status: ExpensesStatus.PENDING,
+      userId: "submitter-1",
+    });
+
+    const response = await POST(
+      submitRequest({ ...SUBMIT_BODY, expenseId: "expense-1" })
+    );
+
+    expect(response.status).toBe(409);
+    expect(preparation.prepareSubmission).not.toHaveBeenCalled();
+    expect(adminDb.updateRow).not.toHaveBeenCalled();
+    expect(scheduled.tasks).toHaveLength(0);
   });
 
   it("creates submitted expense rows through the admin client with submitter permissions", async () => {
-    const response = await POST(
-      submitRequest({
-        bank_account: "1234.56.78901",
-        campus: "1",
-        department: "dept-1",
-        total: 100,
-      })
-    );
+    const response = await POST(submitRequest(SUBMIT_BODY));
 
     expect(response.status).toBe(200);
     expect(metrics.countMetric).toHaveBeenCalledWith("expense.submitted");
@@ -179,13 +343,7 @@ describe("expense submit route", () => {
     });
 
     const response = await POST(
-      submitRequest({
-        bank_account: "1234.56.78901",
-        campus: "1",
-        department: "dept-1",
-        expenseId: "expense-1",
-        total: 100,
-      })
+      submitRequest({ ...SUBMIT_BODY, expenseId: "expense-1" })
     );
 
     expect(response.status).toBe(200);
@@ -240,10 +398,10 @@ describe("expense submit route", () => {
       ],
       occasion: "Board meeting",
     });
-    // Enrichment decides from the merged payload, not the app's default slug.
-    const [, , enrichedPayload] =
-      enrichment.enrichSubmission.mock.calls[0] ?? [];
-    expect(enrichedPayload).toMatchObject({
+    // The submit decides from the merged payload, not the app's default slug.
+    const [, , preparedPayload] =
+      preparation.prepareSubmission.mock.calls[0] ?? [];
+    expect(preparedPayload).toMatchObject({
       expenseAttachments: [
         expect.objectContaining({ cost_type: "", cost_type_text: "Flowers" }),
       ],
@@ -259,90 +417,11 @@ describe("expense submit route", () => {
     });
 
     const response = await POST(
-      submitRequest({
-        bank_account: "1234.56.78901",
-        campus: "1",
-        department: "dept-1",
-        expenseId: "expense-1",
-        total: 100,
-      })
+      submitRequest({ ...SUBMIT_BODY, expenseId: "expense-1" })
     );
 
     expect(response.status).toBe(403);
     expect(adminDb.updateRow).not.toHaveBeenCalled();
-  });
-
-  it("marks a legacy-flow submission pending through the admin client", async () => {
-    const response = await POST(
-      submitRequest({
-        bank_account: "1234.56.78901",
-        campus: "1",
-        department: "dept-1",
-        total: 100,
-      })
-    );
-
-    expect(response.status).toBe(200);
-    expect(adminDb.updateRow).toHaveBeenCalledWith(
-      "app",
-      "expense",
-      "expense-1",
-      { status: ExpensesStatus.PENDING }
-    );
-    expect(sessionDb.updateRow).not.toHaveBeenCalled();
-    expect(messaging.createEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ html: true, users: ["submitter-1"] })
-    );
-    expect(messaging.createEmail).toHaveBeenCalledWith(
-      expect.objectContaining({
-        attachments: ["expenses:pdf-1"],
-        html: true,
-        users: ["invoice-user"],
-      })
-    );
-  });
-
-  it("fails before emailing anyone when INVOICE_USER_ID is unset", async () => {
-    vi.stubEnv("INVOICE_USER_ID", "");
-
-    const response = await POST(
-      submitRequest({
-        bank_account: "1234.56.78901",
-        campus: "1",
-        department: "dept-1",
-        total: 100,
-      })
-    );
-
-    expect(response.status).toBe(500);
-    expect(storage.createFile).not.toHaveBeenCalled();
-    expect(messaging.createEmail).not.toHaveBeenCalled();
-    expect(adminDb.updateRow).not.toHaveBeenCalled();
-  });
-
-  it("answers 409 when a concurrent submit already created the approval chain", async () => {
-    vi.mocked(isFeatureEnabled)
-      .mockResolvedValueOnce(true)
-      .mockResolvedValueOnce(true);
-    vi.mocked(createApprovalChain).mockRejectedValueOnce(
-      Object.assign(new Error("Row already exists"), { code: 409 })
-    );
-
-    const response = await POST(
-      submitRequest({
-        bank_account: "1234.56.78901",
-        campus: "1",
-        department: "dept-1",
-        total: 100,
-      })
-    );
-
-    expect(response.status).toBe(409);
-    await expect(response.json()).resolves.toEqual({
-      success: false,
-      error: "This expense is already being submitted.",
-    });
-    expect(messaging.createEmail).not.toHaveBeenCalled();
   });
 
   it("answers 401 when the session is rejected by Appwrite", async () => {
@@ -378,14 +457,7 @@ describe("expense submit route", () => {
       Object.assign(new Error("Row not found"), { code: 404 })
     );
 
-    const response = await POST(
-      submitRequest({
-        bank_account: "1234.56.78901",
-        campus: "1",
-        department: "dept-1",
-        total: 100,
-      })
-    );
+    const response = await POST(submitRequest(SUBMIT_BODY));
 
     expect(response.status).toBe(404);
   });
@@ -394,15 +466,9 @@ describe("expense submit route", () => {
     adminDb.createRow.mockRejectedValue(
       Object.assign(new Error("secret internals"), { code: 503 })
     );
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    const response = await POST(
-      submitRequest({
-        bank_account: "1234.56.78901",
-        campus: "1",
-        department: "dept-1",
-        total: 100,
-      })
-    );
+    const response = await POST(submitRequest(SUBMIT_BODY));
 
     expect(response.status).toBe(500);
     expect(metrics.countMetric).not.toHaveBeenCalled();
@@ -428,14 +494,7 @@ describe("expense submit route", () => {
         total: 100,
       });
 
-    const response = await POST(
-      submitRequest({
-        bank_account: "1234.56.78901",
-        campus: "1",
-        department: "dept-1",
-        total: 100,
-      })
-    );
+    const response = await POST(submitRequest(SUBMIT_BODY));
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({
@@ -444,20 +503,12 @@ describe("expense submit route", () => {
     });
     expect(adminDb.createRow).not.toHaveBeenCalled();
   });
-  it("reads the occasion and event with the expense it enriches", async () => {
-    vi.mocked(isFeatureEnabled)
-      .mockResolvedValueOnce(true)
-      .mockResolvedValueOnce(true);
-    sessionDb.getRow.mockReset();
-    sessionDb.getRow
-      .mockResolvedValueOnce(PROFILE)
-      .mockResolvedValueOnce(SAVED_EXPENSE)
-      .mockResolvedValueOnce(SAVED_EXPENSE);
 
+  it("reads the occasion and event with the expense it prepares", async () => {
     const response = await POST(submitRequest(SUBMIT_BODY));
 
     expect(response.status).toBe(200);
-    // The enrichment read is the second getRow; without these columns a new
+    // The submit's read is the second getRow; without these columns a new
     // client that omits the occasion would lose the stored one.
     const [, , , select] = sessionDb.getRow.mock.calls[1] ?? [];
     for (const column of ["occasion", "event_id"]) {
@@ -465,48 +516,21 @@ describe("expense submit route", () => {
     }
   });
 
-  it("calls enrichSubmission before the approval chain", async () => {
-    vi.mocked(isFeatureEnabled)
-      .mockResolvedValueOnce(true)
-      .mockResolvedValueOnce(true);
-    sessionDb.getRow.mockReset();
-    sessionDb.getRow
-      .mockResolvedValueOnce(PROFILE)
-      .mockResolvedValueOnce(SAVED_EXPENSE)
-      .mockResolvedValueOnce({ ...SAVED_EXPENSE, description: "Enriched" });
-
+  it("prepares the saved draft with the student's name", async () => {
     const response = await POST(
       submitRequest({ ...SUBMIT_BODY, occasion: "Board meeting" })
     );
 
     expect(response.status).toBe(200);
-    expect(enrichment.enrichSubmission).toHaveBeenCalledWith(
+    expect(preparation.prepareSubmission).toHaveBeenCalledWith(
       expect.objectContaining({ db: adminDb, storage }),
       expect.objectContaining({ $id: "expense-1", description: "Travel" }),
       expect.objectContaining({ occasion: "Board meeting", total: 100 }),
       "Ada Lovelace"
     );
-    const enrichedAt =
-      enrichment.enrichSubmission.mock.invocationCallOrder[0] ?? 0;
-    expect(enrichedAt).toBeLessThan(
-      vi.mocked(createApprovalChain).mock.invocationCallOrder[0] ?? 0
-    );
-    // The approval chain sees the expense as stored after enrichment.
-    expect(sessionDb.getRow).toHaveBeenCalledTimes(3);
-    expect(sessionDb.getRow.mock.invocationCallOrder[2] ?? 0).toBeGreaterThan(
-      enrichedAt
-    );
-    expect(createApprovalChain).toHaveBeenCalledWith(
-      expect.objectContaining({
-        description: "Enriched",
-        expenseId: "expense-1",
-      })
-    );
   });
 
   it("treats a missing controller flag as false", async () => {
-    vi.mocked(isFeatureEnabled).mockResolvedValue(true);
-
     // Drift Campus Oslo offers the controller switch, so a missing flag is
     // what decides here.
     await POST(submitRequest({ ...SUBMIT_BODY, department: "1" }));
@@ -515,19 +539,15 @@ describe("expense submit route", () => {
       "app",
       "expense",
       expect.any(String),
-      expect.objectContaining({ submitter_is_controller: false }),
-      expect.anything()
-    );
-    expect(createApprovalChain).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        submitterIsController: false,
-        submitterIsFinancialManager: false,
-      })
+        submitter_is_controller: false,
+        submitter_is_financial_manager: false,
+      }),
+      expect.anything()
     );
   });
 
-  it("routes a web draft's controller switch to the president when an old app submits it", async () => {
-    vi.mocked(isFeatureEnabled).mockResolvedValue(true);
+  it("keeps a web draft's controller switch when an old app submits it", async () => {
     // Saved on the web with the switch on, on Ledelsen Oslo.
     adminDb.getRow.mockResolvedValue({
       $id: "expense-1",
@@ -553,25 +573,19 @@ describe("expense submit route", () => {
     expect(response.status).toBe(200);
     const [, , , select] = adminDb.getRow.mock.calls[0] ?? [];
     expect(select?.[0]).toContain("submitter_is_controller");
+    // Stored on the expense, where the check reads it to route the chain to
+    // the president, never the controller who submitted it.
     const saved = adminDb.updateRow.mock.calls.find(
       ([, table]) => table === "expense"
     )?.[3];
     expect(saved).toMatchObject({ submitter_is_controller: true });
     // The history note is written from the same merged payload.
-    const [, , enrichedPayload] =
-      enrichment.enrichSubmission.mock.calls[0] ?? [];
-    expect(enrichedPayload).toMatchObject({ submitter_is_controller: true });
-    // The president, never the controller who submitted it.
-    expect(createApprovalChain).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        submitterIsController: true,
-        submitterIsFinancialManager: false,
-      })
-    );
+    const [, , preparedPayload] =
+      preparation.prepareSubmission.mock.calls[0] ?? [];
+    expect(preparedPayload).toMatchObject({ submitter_is_controller: true });
   });
 
   it("drops a web draft's controller flag when the department changed", async () => {
-    vi.mocked(isFeatureEnabled).mockResolvedValue(true);
     // Saved on the web with the switch on, on Ledelsen Oslo (department 2).
     adminDb.getRow.mockResolvedValue({
       $id: "expense-1",
@@ -586,22 +600,17 @@ describe("expense submit route", () => {
     // An old app moves it to Drift Campus Oslo (department 1), which also
     // offers the controller switch, and sends no flag.
     const response = await POST(
-      submitRequest({
-        ...SUBMIT_BODY,
-        department: "1",
-        expenseId: "expense-1",
-      })
+      submitRequest({ ...SUBMIT_BODY, department: "1", expenseId: "expense-1" })
     );
 
     expect(response.status).toBe(200);
-    expect(createApprovalChain).toHaveBeenLastCalledWith(
-      expect.objectContaining({ submitterIsController: false })
-    );
+    const saved = adminDb.updateRow.mock.calls.find(
+      ([, table]) => table === "expense"
+    )?.[3];
+    expect(saved).toMatchObject({ submitter_is_controller: false });
   });
 
-  it("stores and routes the financial-manager flag on Ledelsen Oslo as false", async () => {
-    vi.mocked(isFeatureEnabled).mockResolvedValue(true);
-
+  it("stores the financial-manager flag on Ledelsen Oslo as false", async () => {
     await POST(
       submitRequest({
         ...SUBMIT_BODY,
@@ -620,17 +629,9 @@ describe("expense submit route", () => {
       }),
       expect.anything()
     );
-    expect(createApprovalChain).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        submitterIsController: false,
-        submitterIsFinancialManager: false,
-      })
-    );
   });
 
-  it("stores and routes the controller flag on an ordinary Oslo department as false", async () => {
-    vi.mocked(isFeatureEnabled).mockResolvedValue(true);
-
+  it("stores the controller flag on an ordinary Oslo department as false", async () => {
     await POST(
       submitRequest({
         ...SUBMIT_BODY,
@@ -649,17 +650,9 @@ describe("expense submit route", () => {
       }),
       expect.anything()
     );
-    expect(createApprovalChain).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        submitterIsController: false,
-        submitterIsFinancialManager: false,
-      })
-    );
   });
 
-  it("routes a declared controller switch the department offers", async () => {
-    vi.mocked(isFeatureEnabled).mockResolvedValue(true);
-
+  it("stores a declared controller switch the department offers", async () => {
     await POST(
       submitRequest({
         ...SUBMIT_BODY,
@@ -667,14 +660,17 @@ describe("expense submit route", () => {
         submitter_is_controller: true,
       })
     );
-    expect(createApprovalChain).toHaveBeenLastCalledWith(
-      expect.objectContaining({ submitterIsController: true })
+
+    expect(adminDb.createRow).toHaveBeenCalledWith(
+      "app",
+      "expense",
+      expect.any(String),
+      expect.objectContaining({ submitter_is_controller: true }),
+      expect.anything()
     );
   });
 
   it("stores a switch the department does not offer as false", async () => {
-    vi.mocked(isFeatureEnabled).mockResolvedValue(true);
-
     await POST(
       submitRequest({
         ...SUBMIT_BODY,
@@ -694,38 +690,12 @@ describe("expense submit route", () => {
       }),
       expect.anything()
     );
-    expect(createApprovalChain).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        submitterIsController: false,
-        submitterIsFinancialManager: false,
-      })
-    );
-  });
-
-  it("answers 400 with the occasion field when a type asks for one", async () => {
-    enrichment.enrichSubmission.mockRejectedValueOnce(
-      new enrichment.OccasionRequiredError("Occasion is required")
-    );
-
-    const response = await POST(submitRequest(SUBMIT_BODY));
-
-    expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toEqual({
-      error: "Occasion is required",
-      // The draft saved before the check, so the client can update it.
-      expenseId: "expense-1",
-      field: "occasion",
-      success: false,
-    });
-    expect(adminDb.createRow).toHaveBeenCalledTimes(1);
-    expect(createApprovalChain).not.toHaveBeenCalled();
-    expect(messaging.createEmail).not.toHaveBeenCalled();
   });
 
   it("never returns account numbers to the student", async () => {
     sessionDb.getRow.mockReset();
     sessionDb.getRow.mockResolvedValueOnce(PROFILE).mockResolvedValue({
-      ...SAVED_EXPENSE,
+      ...PENDING_EXPENSE,
       expenseAttachments: [
         {
           $id: "att-1",
@@ -733,6 +703,10 @@ describe("expense submit route", () => {
           account_source: "ai_freeform",
           amount: 100,
           cost_type: "social",
+          project_confidence: 0.9,
+          project_id: "p1",
+          project_name: "Fadderuke 2026",
+          project_source: "ai",
           tax_code: 1,
           url: "file-1",
         },
@@ -750,6 +724,10 @@ describe("expense submit route", () => {
         account_source: null,
         amount: 100,
         cost_type: "social",
+        project_confidence: null,
+        project_id: null,
+        project_name: null,
+        project_source: null,
         tax_code: null,
         url: "file-1",
       },

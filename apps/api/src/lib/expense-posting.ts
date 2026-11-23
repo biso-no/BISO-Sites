@@ -27,7 +27,6 @@ import {
 } from "@repo/connectors/24sevenoffice";
 import { countMetric } from "@repo/observability/metrics";
 import {
-  AI_TYPE_CONFIDENCE_THRESHOLD,
   type CostTypeOption,
   DEFAULT_COST_TYPE_SLUG,
   resolveReceiptAccount,
@@ -35,16 +34,16 @@ import {
 import {
   type ExpenseEventInput,
   recordExpenseEvents,
+  writeExpenseEvent,
 } from "@repo/shared/utils/expense-events";
+import { syncExamplesForExpense } from "@repo/shared/utils/expense-examples";
 import { reimbursementNumber } from "@repo/shared/utils/reimbursement-number";
 import { PDFDocument } from "pdf-lib";
 import type { ApprovalActor } from "./expense-approval";
 import { assertApprovedExpenseChain } from "./expense-approval-chain";
-import { type BookedExampleInput, writeExamples } from "./expense-examples";
 import { loadAllCostTypes } from "./expense-types";
 import { generateExpensePdf } from "./pdf/expense-pdf";
 import { receiptDateInOslo, todayInOslo } from "./receipt-date";
-import { findScan } from "./receipt-scan";
 
 const EXPENSES_BUCKET = "expenses";
 
@@ -124,6 +123,7 @@ function buildReceiptLines(
         taxCode: att.tax_code ?? 0,
         comment: att.description ?? undefined,
         ref: att.$id,
+        projectId: att.project_id,
         date: bookingDateFor(att),
       });
       continue;
@@ -149,6 +149,7 @@ function buildReceiptLines(
       taxCode: resolved.taxCode,
       comment: att.description ?? undefined,
       ref: att.$id,
+      projectId: att.project_id,
       date: bookingDateFor(att),
     });
   }
@@ -318,47 +319,99 @@ export class BookingStatusWriteError extends Error {
   }
 }
 
+/**
+ * Finago accepted the booking, but neither the `success` status nor the
+ * `booked` history row could be saved, so nothing here shows Finago has it. A
+ * retry would post it again: the admin must not retry, and IT records the
+ * transaction by hand.
+ */
+export class BookingUnrecordedError extends Error {
+  readonly transactionId: string;
+
+  constructor(transactionId: string, cause: string) {
+    super(
+      `Finago has the booking (${transactionId}) but it could not be saved here. Do not retry; contact IT. (${cause})`
+    );
+    this.name = "BookingUnrecordedError";
+    this.transactionId = transactionId;
+  }
+}
+
 const defaultSleep: Sleep = (ms) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Runs a write that must land, retrying with the success-write backoff.
+ * Returns null once it lands, or the last error.
+ */
+async function writeWithRetries(
+  write: () => Promise<unknown>,
+  sleep: Sleep
+): Promise<unknown> {
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt <= SUCCESS_WRITE_EXTRA_ATTEMPTS; attempt++) {
+    if (attempt > 0) {
+      await sleep(SUCCESS_WRITE_BACKOFF_MS[attempt - 1] ?? 0);
+    }
+    try {
+      await write();
+      return null;
+    } catch (error) {
+      lastError = error ?? new Error("write failed");
+    }
+  }
+  return lastError;
+}
+
 // Finago has accepted the transaction, so the only job left is to record that.
 // A failed write is retried; if it keeps failing the row stays `posting` (never
-// `failed`, never reposted) and the stale-lease reaper surfaces it later.
+// `failed`, never reposted) and the stale-lease reaper surfaces it later. The
+// `booked` event is then what lets a retry finish instead of posting again, so
+// it is written with the same retries and its failure is never swallowed.
 async function writeSuccess(
   db: AdminDb,
   expenseId: string,
   transactionId: string,
   sleep: Sleep
 ): Promise<void> {
-  let lastError: unknown;
-  for (let attempt = 0; attempt <= SUCCESS_WRITE_EXTRA_ATTEMPTS; attempt++) {
-    if (attempt > 0) {
-      await sleep(SUCCESS_WRITE_BACKOFF_MS[attempt - 1] ?? 0);
-    }
-    try {
-      await db.updateRow("app", "expense", expenseId, {
+  const statusError = await writeWithRetries(
+    () =>
+      db.updateRow<Expenses>("app", "expense", expenseId, {
         ledger_transaction_id: transactionId,
         status: ExpensesStatus.SUCCESS,
-      });
-      return;
-    } catch (error) {
-      lastError = error;
-    }
+      }),
+    sleep
+  );
+  if (statusError === null) {
+    return;
   }
-  const message =
-    lastError instanceof Error ? lastError.message : String(lastError);
+  const message = errorText(statusError);
   console.error(
     `[expense-posting] expense ${expenseId} was booked as transaction ${transactionId} but the status write failed:`,
-    lastError
+    statusError
   );
-  await recordExpenseEvents(db, [
-    {
-      expenseId,
-      actorKind: "system",
-      action: "booked",
-      note: `${transactionId} (status write failed: ${message})`,
-    },
-  ]);
+  const eventError = await writeWithRetries(
+    () =>
+      writeExpenseEvent(db, {
+        expenseId,
+        actorKind: "system",
+        action: "booked",
+        // The transaction id stays the first word: a retry reads it there.
+        note: `${transactionId} (status write failed: ${message})`,
+      }),
+    sleep
+  );
+  if (eventError !== null) {
+    console.error(
+      `[expense-posting] BOOKING UNRECORDED: expense ${expenseId} is booked in Finago as transaction ${transactionId}, but neither its status nor its booked event could be saved. Do not retry it; record ${transactionId} on the expense by hand.`,
+      eventError
+    );
+    throw new BookingUnrecordedError(transactionId, message);
+  }
   throw new BookingStatusWriteError(message);
 }
 
@@ -401,72 +454,29 @@ async function recordBooking(
   ]);
 }
 
-function exampleSource(
-  accountSource: ExpenseAttachments["account_source"]
-): BookedExampleInput["source"] {
-  if (accountSource === "approver" || accountSource === "admin") {
-    return accountSource;
-  }
-  return "student";
-}
-
-/**
- * Whether a booked receipt may teach later classifications. An old app sends
- * its default type unasked, so its type counts only when the AI was sure of
- * the same one.
- */
-function teachesType(att: ExpenseAttachments): boolean {
-  if (att.type_source !== "legacy_app") {
-    return true;
-  }
-  return (
-    !!att.cost_type &&
-    att.ai_cost_type === att.cost_type &&
-    (att.ai_confidence ?? 0) >= AI_TYPE_CONFIDENCE_THRESHOLD
-  );
-}
-
-// One anonymous example per posted receipt, so later classifications learn from
-// what actually got booked. Never stores a submitter, name or expense id, and
-// never the student's own description: examples go into other students' prompts.
-async function writeBookedExamples(
-  db: AdminDb,
-  attachments: ExpenseAttachments[],
-  lines: ExpenseReceiptLine[]
-): Promise<void> {
-  const rows: BookedExampleInput[] = [];
-  for (const line of lines) {
-    const att = attachments.find((a) => a.$id === line.ref);
-    if (!(att?.file_hash && teachesType(att))) {
-      continue;
-    }
-    const scan = await findScan(db, att.file_hash);
-    rows.push({
-      accountNumber: Number(line.accountNumber),
-      aiConfidence: att.ai_confidence ?? null,
-      aiCostType: att.ai_cost_type ?? null,
-      amount: line.amount,
-      description: scan?.receipt.description ?? "",
-      finalCostType: att.cost_type || null,
-      finalText: att.cost_type_text ?? null,
-      source: exampleSource(att.account_source),
-      vendor: scan?.receipt.vendor ?? null,
-    });
-  }
-  await writeExamples(db, rows);
-}
-
-async function writeBookedExamplesSafely(
+// Confirms what the AI learned from this expense now that it is booked. The
+// account is the one each receipt was actually posted on. Best-effort: Finago
+// has the booking, so nothing here may fail it (the sync logs its own errors).
+async function confirmBookedExamples(
   db: AdminDb,
   expenseId: string,
-  attachments: ExpenseAttachments[],
-  lines: ExpenseReceiptLine[]
+  lines?: ExpenseReceiptLine[]
 ): Promise<void> {
+  const accountByAttachment = lines
+    ? new Map(
+        lines.flatMap((line): [string, number][] =>
+          line.ref ? [[line.ref, Number(line.accountNumber)]] : []
+        )
+      )
+    : undefined;
   try {
-    await writeBookedExamples(db, attachments, lines);
+    await syncExamplesForExpense(db, expenseId, {
+      accountByAttachment,
+      confirmed: true,
+    });
   } catch (error) {
     console.error(
-      `[expense-posting] could not write examples for ${expenseId}:`,
+      `[expense-posting] could not confirm examples for ${expenseId}:`,
       error
     );
   }
@@ -482,13 +492,21 @@ async function shouldSkipClaimedExpense(
     $id: string;
     $updatedAt: string;
     ledger_transaction_id?: string | null;
+    posting_lock?: number | null;
   }
 ): Promise<boolean> {
   const expenseId = expense.$id;
-  if (!expense.ledger_transaction_id) {
+  // A lock taken without a marker is a claim whose marker write failed or whose
+  // run died in between: Finago was never called, but it ages like a marker claim.
+  const claimedWithoutMarker =
+    !expense.ledger_transaction_id && (expense.posting_lock ?? 0) > 0;
+  if (!(expense.ledger_transaction_id || claimedWithoutMarker)) {
     return false;
   }
-  if (expense.ledger_transaction_id !== POSTING_CLAIM_MARKER) {
+  if (
+    expense.ledger_transaction_id &&
+    expense.ledger_transaction_id !== POSTING_CLAIM_MARKER
+  ) {
     return true; // a real 24SO transaction id — already posted.
   }
   // A "posting" marker means a run claimed this row. While the claim is fresh,
@@ -631,7 +649,8 @@ export async function buildAndPostLedgerTransaction(
     receipts,
     campusId: expense.campus,
     customerId: payee.customerId,
-    departmentDimensionValue: expense.departmentRel?.Id ?? null,
+    departmentDimensionValue:
+      expense.departmentRel?.Id ?? expense.department ?? null,
     periods,
     today,
   });
@@ -674,12 +693,7 @@ async function postClaimedExpense(
     transactionId: posted.transactionId,
   });
 
-  await writeBookedExamplesSafely(
-    db,
-    expenseId,
-    expense.expenseAttachments ?? [],
-    receipts
-  );
+  await confirmBookedExamples(db, expenseId, receipts);
 }
 
 /**
@@ -692,7 +706,7 @@ async function postClaimedExpense(
 export async function postApprovedExpense(
   expenseId: string,
   options: { sleep?: Sleep } = {}
-): Promise<void> {
+): Promise<"posted" | "skipped"> {
   const sleep = options.sleep ?? defaultSleep;
   const { db, storage } = await createAdminClient();
 
@@ -701,10 +715,10 @@ export async function postApprovedExpense(
   // A stale listing may name an expense that has moved on (retried, booked,
   // failed): only an approved expense is claimed.
   if (expense.status !== ExpensesStatus.APPROVED) {
-    return;
+    return "skipped";
   }
   if (await shouldSkipClaimedExpense(db, expense)) {
-    return;
+    return "skipped";
   }
 
   try {
@@ -734,7 +748,7 @@ export async function postApprovedExpense(
     value: 1,
   });
   if ((claimed.posting_lock ?? 0) !== 1) {
-    return; // lost the race — another run claimed first
+    return "skipped"; // lost the race — another run claimed first
   }
 
   // Mark the slow phase on `ledger_transaction_id` too, so the cheap early check
@@ -744,6 +758,7 @@ export async function postApprovedExpense(
   });
 
   await postClaimedExpense(db, storage, expense, sleep);
+  return "posted";
 }
 
 export type RetryErrorCode =
@@ -751,36 +766,135 @@ export type RetryErrorCode =
   | "not_failed"
   | "retry_in_progress"
   | "booking_failed"
-  | "status_write_failed";
+  | "status_write_failed"
+  | "booking_unrecorded";
 
 type RetryResult =
   | { ok: true; status: string }
-  | { ok: false; error: string; code: RetryErrorCode };
+  | {
+      ok: false;
+      error: string;
+      code: RetryErrorCode;
+      /** Finago's transaction, for a booking that could not be saved here. */
+      transactionId?: string;
+    };
+
+/** The refusal for a posting that threw after the retry claimed the row. */
+function postingFailure(error: unknown): RetryResult {
+  if (error instanceof BookingUnrecordedError) {
+    return {
+      ok: false,
+      code: "booking_unrecorded",
+      error: error.message,
+      transactionId: error.transactionId,
+    };
+  }
+  return {
+    ok: false,
+    code:
+      error instanceof BookingStatusWriteError
+        ? "status_write_failed"
+        : "booking_failed",
+    error: errorText(error),
+  };
+}
 
 const NOTE_TRANSACTION_ID = /^\S+/;
 
-/** The transaction id of an earlier `booked` event, or null when there is none. */
-async function bookedTransactionId(
+async function findBookedEvent(
   db: AdminDb,
   expenseId: string
-): Promise<string | null> {
+): Promise<ExpenseEvents | undefined> {
   const { rows } = await db.listRows<ExpenseEvents>("app", "expense_events", [
     Query.equal("expense_id", expenseId),
     Query.equal("action", "booked"),
     Query.limit(1),
   ]);
-  const event = rows[0];
-  if (!event) {
-    return null;
+  return rows[0];
+}
+
+/** The transaction id of an earlier `booked` event, or null when unreadable. */
+async function bookedTransactionId(
+  db: AdminDb,
+  expenseId: string
+): Promise<string | null> {
+  const event = await findBookedEvent(db, expenseId);
+  return event?.note?.match(NOTE_TRANSACTION_ID)?.[0] ?? null;
+}
+
+// Finago already has the booking: save what it accepted and never post again.
+// Touches neither `posting_lock` nor the booked dates. Confirms the examples
+// from the stored accounts: there are no posted lines on this path.
+async function finishBookedExpense(
+  db: AdminDb,
+  expenseId: string,
+  transactionId: string,
+  actor: ApprovalActor
+): Promise<void> {
+  try {
+    await db.updateRow("app", "expense", expenseId, {
+      ledger_transaction_id: transactionId,
+      status: ExpensesStatus.SUCCESS,
+    });
+  } catch (error) {
+    throw new BookingStatusWriteError(
+      error instanceof Error ? error.message : String(error)
+    );
   }
-  return event.note?.match(NOTE_TRANSACTION_ID)?.[0] ?? "an earlier booking";
+  await recordExpenseEvents(db, [
+    {
+      expenseId,
+      actorKind: actor.kind,
+      actorEmail: actor.email,
+      actorName: actor.name,
+      action: "edited",
+      field: "status",
+      before: ExpensesStatus.FAILED,
+      after: ExpensesStatus.SUCCESS,
+      note: `finished saving the booking ${transactionId} from admin`,
+    },
+  ]);
+  await confirmBookedExamples(db, expenseId);
+}
+
+// Null when Finago has no booking for this expense, so a retry may post.
+async function finishIfBooked(
+  db: AdminDb,
+  expense: Expenses,
+  actor: ApprovalActor
+): Promise<RetryResult | null> {
+  const expenseId = expense.$id;
+  const stored = expense.ledger_transaction_id;
+  const hasStored = Boolean(stored) && stored !== POSTING_CLAIM_MARKER;
+  const booked = hasStored ? stored : await bookedTransactionId(db, expenseId);
+  if (booked) {
+    try {
+      await finishBookedExpense(db, expenseId, booked, actor);
+    } catch (error) {
+      return {
+        ok: false,
+        code: "status_write_failed",
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+    return { ok: true, status: ExpensesStatus.SUCCESS };
+  }
+  if (await findBookedEvent(db, expenseId)) {
+    return {
+      ok: false,
+      code: "already_booked",
+      error: "Already booked as an earlier booking.",
+    };
+  }
+  return null;
 }
 
 /**
  * Re-runs the booking of a failed expense, after a person has checked Finago.
- * Refuses when the expense is not failed, has a stored transaction id, or has a
- * `booked` history event (Finago already has it, e.g. after a failed status
- * write that the stale-lease reaper later turned `failed`). Overlapping retries
+ * Refuses when the expense is not failed. When it has a stored transaction id or
+ * a `booked` history event with a readable id (Finago already has it, e.g. after
+ * a failed status write that the stale-lease reaper later turned `failed`), it
+ * only saves `success` and never posts again. Overlapping retries
  * are serialized by an atomic `posting_lock` increment: only the one that takes
  * the next value while the row is still `failed` goes on. The lock is never
  * reset, and the fresh `posting` marker keeps the scheduled run away; a crash is
@@ -800,21 +914,9 @@ export async function retryExpenseBooking(params: {
       error: "Only failed bookings can be retried.",
     };
   }
-  const stored = expense.ledger_transaction_id;
-  if (stored && stored !== POSTING_CLAIM_MARKER) {
-    return {
-      ok: false,
-      code: "already_booked",
-      error: `Already booked as ${stored}.`,
-    };
-  }
-  const booked = await bookedTransactionId(db, expenseId);
-  if (booked) {
-    return {
-      ok: false,
-      code: "already_booked",
-      error: `Already booked as ${booked}.`,
-    };
+  const alreadyBooked = await finishIfBooked(db, expense, actor);
+  if (alreadyBooked) {
+    return alreadyBooked;
   }
   try {
     await assertApprovedExpenseChain(db, expenseId);
@@ -877,14 +979,7 @@ export async function retryExpenseBooking(params: {
   try {
     await postClaimedExpense(db, storage, expense, defaultSleep);
   } catch (error) {
-    return {
-      ok: false,
-      code:
-        error instanceof BookingStatusWriteError
-          ? "status_write_failed"
-          : "booking_failed",
-      error: error instanceof Error ? error.message : String(error),
-    };
+    return postingFailure(error);
   }
   const after = await db.getRow<Expenses>("app", "expense", expenseId, [
     Query.select(["$id", "status"]),

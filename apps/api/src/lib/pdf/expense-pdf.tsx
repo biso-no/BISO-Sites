@@ -9,11 +9,18 @@ import {
   Text,
   View,
 } from "@react-pdf/renderer";
+import { pdfColumns } from "./expense-pdf-columns";
 
 interface ExpenseAttachment {
+  /** Account label such as "7140 Reise"; empty or absent when none. */
+  account?: string;
   amount: number;
   date: string;
   description: string;
+  /** Project name; empty or absent when none. */
+  project?: string;
+  /** Type name, or the student's own text. */
+  type?: string;
 }
 
 interface ExpenseTemplateData {
@@ -22,8 +29,14 @@ interface ExpenseTemplateData {
   bankAccount: string;
   campusAndUnit: string;
   email: string;
+  /** The event the expense belongs to; the row is left out when empty. */
+  event?: string;
+  /** What the AI check found, in plain words; the row is left out when none. */
+  flags?: string[];
   invoiceDate: string;
   name: string;
+  /** The occasion; the row is left out when empty. */
+  occasion?: string;
   phone: string;
   purpose: string;
   reimbursementNumber: string;
@@ -128,19 +141,37 @@ const styles = StyleSheet.create({
     borderColor: "#000",
   },
   colDescription: {
-    width: "50%",
+    width: "26%",
     padding: 6,
     borderRightWidth: 1,
     borderRightColor: "#000",
   },
   colDate: {
-    width: "25%",
+    width: "11%",
+    padding: 6,
+    borderRightWidth: 1,
+    borderRightColor: "#000",
+  },
+  colType: {
+    width: "17%",
+    padding: 6,
+    borderRightWidth: 1,
+    borderRightColor: "#000",
+  },
+  colAccount: {
+    width: "15%",
+    padding: 6,
+    borderRightWidth: 1,
+    borderRightColor: "#000",
+  },
+  colProject: {
+    width: "16%",
     padding: 6,
     borderRightWidth: 1,
     borderRightColor: "#000",
   },
   colAmount: {
-    width: "25%",
+    width: "15%",
     padding: 6,
     textAlign: "right",
   },
@@ -159,13 +190,13 @@ const styles = StyleSheet.create({
     borderColor: "#000",
   },
   totalLabel: {
-    width: "50%",
+    width: "70%",
     padding: 6,
     borderRightWidth: 1,
     borderRightColor: "#000",
   },
   totalLabelText: {
-    width: "25%",
+    width: "15%",
     padding: 6,
     borderRightWidth: 1,
     borderRightColor: "#000",
@@ -174,7 +205,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   totalAmount: {
-    width: "25%",
+    width: "15%",
     padding: 6,
     textAlign: "right",
     fontFamily: "Helvetica-Bold",
@@ -197,6 +228,12 @@ function getLogoBase64(): string {
 
 function ExpensePdfDocument({ data }: { data: ExpenseTemplateData }) {
   const logoBase64 = getLogoBase64();
+  const { showDetails, widths } = pdfColumns(data.attachments);
+  const detailRows = [
+    { label: "Anledning:", value: data.occasion?.trim() ?? "" },
+    { label: "Arrangement:", value: data.event?.trim() ?? "" },
+    { label: "Merknader:", value: (data.flags ?? []).join("\n") },
+  ].filter((row) => row.value);
 
   return (
     <Document>
@@ -251,35 +288,88 @@ function ExpensePdfDocument({ data }: { data: ExpenseTemplateData }) {
               <Text style={styles.detailsLabel}>Enhet/økonomiansvarlig:</Text>
               <Text style={styles.detailsValue}>{data.campusAndUnit}</Text>
             </View>
-            <View style={styles.detailsRowLast}>
+            <View
+              style={
+                detailRows.length === 0
+                  ? styles.detailsRowLast
+                  : styles.detailsRow
+              }
+            >
               <Text style={styles.detailsLabel}>Formål:</Text>
               <Text style={styles.purposeValue}>{data.purpose}</Text>
             </View>
+            {detailRows.map((row, index) => (
+              <View
+                key={row.label}
+                style={
+                  index === detailRows.length - 1
+                    ? styles.detailsRowLast
+                    : styles.detailsRow
+                }
+              >
+                <Text style={styles.detailsLabel}>{row.label}</Text>
+                <Text style={styles.detailsValue}>{row.value}</Text>
+              </View>
+            ))}
           </View>
 
           {/* Expenses Table */}
           <View style={styles.expensesTable}>
             <View style={styles.tableHeader}>
-              <View style={styles.colDescription}>
+              <View
+                style={[styles.colDescription, { width: widths.description }]}
+              >
                 <Text style={styles.headerText}>Beskrivelse</Text>
               </View>
-              <View style={styles.colDate}>
+              <View style={[styles.colDate, { width: widths.date }]}>
                 <Text style={styles.headerText}>Dato</Text>
               </View>
-              <View style={styles.colAmount}>
+              {showDetails && (
+                <>
+                  <View style={[styles.colType, { width: widths.type }]}>
+                    <Text style={styles.headerText}>Type</Text>
+                  </View>
+                  <View style={[styles.colAccount, { width: widths.account }]}>
+                    <Text style={styles.headerText}>Konto</Text>
+                  </View>
+                  <View style={[styles.colProject, { width: widths.project }]}>
+                    <Text style={styles.headerText}>Prosjekt</Text>
+                  </View>
+                </>
+              )}
+              <View style={[styles.colAmount, { width: widths.amount }]}>
                 <Text style={styles.headerText}>Beløp</Text>
               </View>
             </View>
 
             {data.attachments.map((att, index) => (
               <View key={`att-${index}`} style={styles.tableRow}>
-                <View style={styles.colDescription}>
+                <View
+                  style={[styles.colDescription, { width: widths.description }]}
+                >
                   <Text style={styles.cellText}>{att.description}</Text>
                 </View>
-                <View style={styles.colDate}>
+                <View style={[styles.colDate, { width: widths.date }]}>
                   <Text style={styles.cellText}>{att.date}</Text>
                 </View>
-                <View style={styles.colAmount}>
+                {showDetails && (
+                  <>
+                    <View style={[styles.colType, { width: widths.type }]}>
+                      <Text style={styles.cellText}>{att.type ?? ""}</Text>
+                    </View>
+                    <View
+                      style={[styles.colAccount, { width: widths.account }]}
+                    >
+                      <Text style={styles.cellText}>{att.account ?? ""}</Text>
+                    </View>
+                    <View
+                      style={[styles.colProject, { width: widths.project }]}
+                    >
+                      <Text style={styles.cellText}>{att.project ?? ""}</Text>
+                    </View>
+                  </>
+                )}
+                <View style={[styles.colAmount, { width: widths.amount }]}>
                   <Text style={styles.cellText}>
                     {formatCurrency(att.amount)}
                   </Text>
@@ -289,18 +379,26 @@ function ExpensePdfDocument({ data }: { data: ExpenseTemplateData }) {
 
             {/* Subtotal */}
             <View style={styles.totalRow}>
-              <View style={styles.totalLabel} />
-              <Text style={styles.totalLabelText}>SUBTOTAL</Text>
-              <Text style={styles.totalAmount}>
+              <View style={[styles.totalLabel, { width: widths.totalBlank }]} />
+              <Text
+                style={[styles.totalLabelText, { width: widths.totalLabel }]}
+              >
+                SUBTOTAL
+              </Text>
+              <Text style={[styles.totalAmount, { width: widths.totalAmount }]}>
                 {formatCurrency(data.subtotal)}
               </Text>
             </View>
 
             {/* Total */}
             <View style={styles.totalRow}>
-              <View style={styles.totalLabel} />
-              <Text style={styles.totalLabelText}>TOTALT</Text>
-              <Text style={styles.totalAmount}>
+              <View style={[styles.totalLabel, { width: widths.totalBlank }]} />
+              <Text
+                style={[styles.totalLabelText, { width: widths.totalLabel }]}
+              >
+                TOTALT
+              </Text>
+              <Text style={[styles.totalAmount, { width: widths.totalAmount }]}>
                 {formatCurrency(data.total)}
               </Text>
             </View>

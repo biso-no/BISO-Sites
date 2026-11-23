@@ -15,13 +15,17 @@ import { useTranslations } from "next-intl";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { changeExpenseApprover } from "../actions";
+import { changeApproverNoteKey } from "./change-approver-note";
 
 /** Sends the current step to another @biso.no approver. */
 export function ChangeApproverDialog({
   approvalId,
+  approverRole,
   expenseId,
 }: {
   approvalId: string;
+  /** The step's `approver_role`; decides whether the saved approver changes too. */
+  approverRole: string;
   expenseId: string;
 }) {
   const t = useTranslations("adminPortal.expenses.changeApprover");
@@ -48,7 +52,9 @@ export function ChangeApproverDialog({
       } else {
         toast.warning(t("changedNoNotice"));
       }
-      if (!result.data.directorySaved) {
+      if (result.data.directorySkipped) {
+        toast.info(t("directorySkipped"));
+      } else if (!result.data.directorySaved) {
         toast.warning(t("directoryNotSaved"));
       }
       setOpen(false);
@@ -81,7 +87,9 @@ export function ChangeApproverDialog({
           type="email"
           value={email}
         />
-        <p className="text-[12px] opacity-70">{t("directoryNote")}</p>
+        <p className="text-[12px] opacity-70">
+          {t(changeApproverNoteKey(approverRole))}
+        </p>
         <DialogFooter>
           <Button
             disabled={pending || email.trim() === ""}

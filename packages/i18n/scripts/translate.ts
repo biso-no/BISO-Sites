@@ -16,10 +16,10 @@
  *   --file=name  Translate only a specific file (e.g., --file=admin.json)
  */
 
-import { fastModel } from "@repo/ai/models";
-import { generateObject } from "ai";
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { fastModel } from "@repo/ai/models";
+import { generateObject } from "ai";
 
 // Configuration
 const SOURCE_LANG = "en";

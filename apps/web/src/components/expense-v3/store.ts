@@ -45,6 +45,8 @@ export interface Receipt {
   progress: number;
   purchaseContext?: string;
   receiptIssues?: ReceiptIssueCode[];
+  /** The scan failed or timed out; the student fills the details in. */
+  scanFailed?: boolean;
   status: ReceiptStatus;
   typeState?: TypeState;
   vendor?: string; // Explicitly track vendor
@@ -243,6 +245,8 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => ({
       const changed =
         state.selectedCampusId !== data.campusId ||
         state.selectedDepartmentId !== data.departmentId;
+      const departmentChanged =
+        state.selectedDepartmentId !== data.departmentId;
       return {
         selectedCampusId: data.campusId,
         selectedCampusName: data.campusName,
@@ -251,6 +255,8 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => ({
         ...(changed
           ? { submitterIsController: false, submitterIsFinancialManager: false }
           : {}),
+        // An event belongs to the department it was matched for.
+        ...(departmentChanged ? { eventId: null, eventName: "" } : {}),
       };
     }),
 
@@ -270,6 +276,7 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => ({
       state.selectedCampusId !== "" &&
       state.selectedDepartmentId !== "" &&
       state.profile.bank_account !== undefined &&
+      !gaps.amountsMissing &&
       !gaps.typesMissing &&
       !gaps.occasionMissing
     );

@@ -3,21 +3,27 @@
 import { cn } from "@repo/ui/lib/utils";
 import { AlertTriangle } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { focusRingClass } from "./form-styles";
 import { receiptNotices } from "./receipt-types";
 import type { Receipt } from "./store";
 
 /**
  * The receipt check's findings and the duplicate catch, as plain notices.
- * They never block submission; the approver sees them as hints too.
+ * They never block submission; the approver sees them as hints too. The one
+ * exception is a receipt that could not be read and has no amount yet: it
+ * asks for the amount, and submit waits for it.
  */
 export function ReceiptNotices({
   className,
   compact = false,
+  onRetry,
   receipt,
 }: {
   className?: string;
   /** One small line per notice, for the overview row. */
   compact?: boolean;
+  /** Reads the receipt again; given only when the file is still at hand. */
+  onRetry?: () => void;
   receipt: Receipt;
 }) {
   const t = useTranslations("expenses.composer.receiptNotices");
@@ -45,7 +51,22 @@ export function ReceiptNotices({
               compact ? "mt-px size-3" : "mt-0.5 size-3.5"
             )}
           />
-          <span className="min-w-0">{t(notice)}</span>
+          <span className="min-w-0">
+            {t(notice)}
+            {notice === "scan_failed" && onRetry ? (
+              <button
+                className={cn(
+                  "ml-2 font-semibold underline underline-offset-2",
+                  focusRingClass
+                )}
+                data-row-control=""
+                onClick={onRetry}
+                type="button"
+              >
+                {t("retry")}
+              </button>
+            ) : null}
+          </span>
         </li>
       ))}
     </ul>

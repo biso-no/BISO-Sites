@@ -64,6 +64,7 @@
     "backToReport": "Back to report",
     "toast": {
       "receiptFailed": "Failed to process receipt",
+      "scanFailed": "Couldn't read the receipt — fill in the details yourself.",
       "statementLinked": "Bank statement linked to {name}",
       "statementLinkedFallback": "receipt",
       "selectBeforeUpload": "Select campus and department before uploading receipts",
@@ -120,6 +121,7 @@
       "occasionPlaceholder": "E.g. board meeting, six board members",
       "occasionError": "Answer this before you submit",
       "occasionSuggested": "Suggested from your receipts. Check it and change it if needed.",
+      "submitHintAmounts": "Enter the amount of every receipt we couldn't read",
       "submitHintTypes": "Choose a type for every receipt",
       "submitHintOccasion": "Fill in the occasion and who it was for",
       "eventLabel": "Event",
@@ -204,7 +206,10 @@
       "missing_seller": "No seller on the receipt",
       "missing_date": "No date on the receipt",
       "missing_total": "No total on the receipt",
-      "possible_duplicate": "Looks like a receipt already submitted"
+      "possible_duplicate": "Looks like a receipt already submitted",
+      "scan_failed": "We couldn't read this receipt. Fill in the details yourself, or try again.",
+      "amount_missing": "Enter the amount from the receipt. If this is a bank statement for another receipt, remove it and attach it to that receipt.",
+      "retry": "Try again"
     }
   }
 }

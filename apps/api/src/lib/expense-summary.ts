@@ -1,3 +1,4 @@
+import { EXPENSE_DESCRIPTION_MAX } from "@repo/shared/utils/expense-cost-types";
 import { z } from "zod";
 
 const WHITESPACE_RUN = /\s+/g;
@@ -15,6 +16,11 @@ function promptText(
 ): string | null {
   const text = (value ?? "").replace(WHITESPACE_RUN, " ").trim().slice(0, max);
   return text || null;
+}
+
+/** The generated description must fit the expense's description column. */
+export function capSummary(summary: string): string {
+  return summary.trim().slice(0, EXPENSE_DESCRIPTION_MAX);
 }
 
 const SummaryAssignmentSchema = z.object({

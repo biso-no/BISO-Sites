@@ -15,6 +15,11 @@ import {
   type ExpenseEventInput,
   recordExpenseEvents,
 } from "@repo/shared/utils/expense-events";
+import {
+  type ExamplesDb,
+  readExampleScan,
+  syncExample,
+} from "@repo/shared/utils/expense-examples";
 import { revalidatePath } from "next/cache";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 import {
@@ -22,6 +27,7 @@ import {
   type ExpenseViewer,
   expensePermissions,
   maskBankAccount,
+  needsRebuildEvidence,
 } from "@/lib/expense-access";
 import { getExpenseViewer } from "@/lib/expense-viewer";
 import { callExpensesApi } from "@/lib/expenses-api";
@@ -31,8 +37,16 @@ import {
   type ExpenseActionError,
   type ExpenseActionResult,
 } from "../action-result";
+import { isChecking } from "../check-model";
+import { loadRebuildEvidence } from "../expenses-data";
 import { loadReceiptEditOptions } from "./edit-options";
-import { planReceiptEdit, type ReceiptChanges, round2 } from "./receipt-edit";
+import {
+  planReceiptEdit,
+  type ReceiptChanges,
+  type ReceiptEditContext,
+  type ReceiptEditEvent,
+  round2,
+} from "./receipt-edit";
 
 const MAX_ROWS = 500;
 const NON_DIGITS = /\D/g;
@@ -76,6 +90,8 @@ async function loadForEdit(expenseId: string): Promise<Loaded | null> {
         "bank_account",
         "submitter_is_financial_manager",
         "submitter_is_controller",
+        "department",
+        "check_state",
         "expenseAttachments.*",
       ]),
     ]),
@@ -84,6 +100,13 @@ async function loadForEdit(expenseId: string): Promise<Loaded | null> {
       Query.limit(MAX_ROWS),
     ]),
   ]);
+  const rebuild = needsRebuildEvidence(
+    viewer,
+    expense.status,
+    steps.rows.length
+  )
+    ? await loadRebuildEvidence(db, expenseId)
+    : undefined;
   const permissions = expensePermissions(
     viewer,
     {
@@ -93,7 +116,8 @@ async function loadForEdit(expenseId: string): Promise<Loaded | null> {
       submitter_is_financial_manager: expense.submitter_is_financial_manager,
       userId: expense.userId,
     },
-    steps.rows
+    steps.rows,
+    rebuild
   );
   return { db, expense, permissions, steps: steps.rows, viewer };
 }
@@ -118,7 +142,52 @@ function actorOf(loaded: Loaded): {
   };
 }
 
-/** Corrects one receipt of an expense. Each change is logged in the history. */
+/** Keeps the receipt's learning example in step with an edit; never fails the edit. */
+async function refreshExample(
+  db: Loaded["db"],
+  expense: Expenses,
+  saved: ExpenseAttachments
+): Promise<void> {
+  try {
+    const examplesDb = db as unknown as ExamplesDb;
+    await syncExample(examplesDb, {
+      attachment: saved,
+      departmentId: expense.department || null,
+      scan: saved.file_hash
+        ? await readExampleScan(examplesDb, saved.file_hash)
+        : null,
+    });
+  } catch (error) {
+    console.error("[expense-edit] example sync failed", error);
+  }
+}
+
+async function editContext(loaded: Loaded): Promise<ReceiptEditContext> {
+  const options = await loadReceiptEditOptions(
+    loaded.db,
+    loaded.expense.department || null
+  );
+  return {
+    accounts: new Map(
+      options.accounts.map((a) => [
+        a.accountNumber,
+        { active: true, taxCode: a.taxCode },
+      ])
+    ),
+    projects: new Map(
+      options.projects.map((p) => [p.projectId, { active: true, name: p.name }])
+    ),
+    source: loaded.permissions.decideAs === "approver" ? "approver" : "admin",
+    today: todayInOslo(),
+    types: options.types,
+  };
+}
+
+/**
+ * Corrects one receipt of an expense. Each change is logged in the history.
+ * Refused while the background check works on the expense: its fixed steps
+ * write the receipts' types and accounts, and would overwrite the edit.
+ */
 export async function updateExpenseReceipt(input: {
   attachmentId: string;
   changes: ReceiptChanges;
@@ -129,6 +198,9 @@ export async function updateExpenseReceipt(input: {
     if (!loaded?.permissions.canEdit) {
       return { error: "forbidden" };
     }
+    if (isChecking(loaded.expense.check_state)) {
+      return { error: "checking" };
+    }
     const { db, expense } = loaded;
     const attachments: ExpenseAttachments[] = expense.expenseAttachments ?? [];
     const current = attachments.find((a) => a.$id === input.attachmentId);
@@ -136,18 +208,11 @@ export async function updateExpenseReceipt(input: {
       return { error: "not_found" };
     }
 
-    const options = await loadReceiptEditOptions(db);
-    const plan = planReceiptEdit(current, input.changes, {
-      accounts: new Map(
-        options.accounts.map((a) => [
-          a.accountNumber,
-          { active: true, taxCode: a.taxCode },
-        ])
-      ),
-      source: loaded.permissions.decideAs === "approver" ? "approver" : "admin",
-      today: todayInOslo(),
-      types: options.types,
-    });
+    const plan = planReceiptEdit(
+      current,
+      input.changes,
+      await editContext(loaded)
+    );
     if ("error" in plan) {
       return plan;
     }
@@ -170,17 +235,20 @@ export async function updateExpenseReceipt(input: {
     if (plan.patch.amount !== undefined) {
       // From the stored rows, not the copy loaded above: another edit may
       // have landed in between.
-      const fresh = await db.listRows<ExpenseAttachments>(
-        "app",
-        "expense_attachments",
-        [
-          Query.equal("expense_id", expense.$id),
-          Query.select(["amount"]),
-          Query.limit(MAX_ROWS),
-        ]
-      );
+      // Read through the relation: older receipts are linked only by the
+      // expense's expenseAttachments, not by an expense_id column value.
+      const fresh = await db.getRow<Expenses>("app", "expense", expense.$id, [
+        Query.select([
+          "$id",
+          "expenseAttachments.$id",
+          "expenseAttachments.amount",
+        ]),
+      ]);
       total = round2(
-        fresh.rows.reduce((sum, row) => sum + Math.max(row.amount ?? 0, 0), 0)
+        (fresh.expenseAttachments ?? []).reduce(
+          (sum, row) => sum + Math.max(row.amount ?? 0, 0),
+          0
+        )
       );
       await db.updateRow("app", "expense", expense.$id, { total });
       events.push({
@@ -194,8 +262,88 @@ export async function updateExpenseReceipt(input: {
     }
 
     await recordExpenseEvents(db, events);
+    await refreshExample(db, expense, { ...current, ...plan.patch });
     revalidatePath(`/expenses/${expense.$id}`);
     return { data: { total } };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+/**
+ * Sets (or clears) the Finago project on every receipt of an expense that has
+ * an amount. Supporting statements are skipped. One history entry per receipt
+ * that actually changed; nothing is written if the project is refused, or
+ * while the background check works on the expense.
+ */
+export async function applyProjectToAllReceipts(
+  expenseId: string,
+  projectId: string | null
+): Promise<ExpenseActionResult<{ changed: number; failed: number }>> {
+  try {
+    const loaded = await loadForEdit(expenseId);
+    if (!loaded?.permissions.canEdit) {
+      return { error: "forbidden" };
+    }
+    if (isChecking(loaded.expense.check_state)) {
+      return { error: "checking" };
+    }
+    const { db, expense } = loaded;
+    const ctx = await editContext(loaded);
+    const planned: {
+      current: ExpenseAttachments;
+      events: ReceiptEditEvent[];
+      patch: Partial<ExpenseAttachments>;
+    }[] = [];
+    for (const current of expense.expenseAttachments ?? []) {
+      // Statements are never booked; booked receipts are already in Finago.
+      if ((current.amount ?? 0) <= 0 || current.booked_date) {
+        continue;
+      }
+      const plan = planReceiptEdit(current, { projectId }, ctx);
+      if ("error" in plan) {
+        return plan;
+      }
+      if (plan.events.length > 0) {
+        planned.push({ current, ...plan });
+      }
+    }
+    if (planned.length === 0) {
+      return { data: { changed: 0, failed: 0 } };
+    }
+
+    // The expense may have been decided since it was loaded.
+    const fresh = await db.getRow<Expenses>("app", "expense", expense.$id, [
+      Query.select(["$id", "status"]),
+    ]);
+    if (fresh.status !== expense.status) {
+      return { error: "not_pending" };
+    }
+
+    const actor = actorOf(loaded);
+    let changed = 0;
+    try {
+      for (const { current, events, patch } of planned) {
+        await db.updateRow("app", "expense_attachments", current.$id, patch);
+        // Row and history together, so a later failure leaves no unlogged change.
+        await recordExpenseEvents(
+          db,
+          events.map((event) => ({
+            ...event,
+            action: "edited" as const,
+            attachmentId: current.$id,
+            expenseId: expense.$id,
+            ...actor,
+          }))
+        );
+        changed += 1;
+        await refreshExample(db, expense, { ...current, ...patch });
+      }
+    } catch (error) {
+      console.error("[expense-edit] bulk project stopped", error);
+    }
+    revalidatePath(`/expenses/${expense.$id}`);
+    return { data: { changed, failed: planned.length - changed } };
   } catch (error) {
     return failure(error);
   }
@@ -259,16 +407,21 @@ function apiActorOf(loaded: Loaded): ApiActor {
 /** Maps an api refusal by its stable code; only an unexpected one is logged. */
 function apiFailure(
   scope: string,
-  failed: { code?: string; error: string }
-): { error: ExpenseActionError; message?: string } {
+  failed: { code?: string; error: string; transactionId?: string }
+): { error: ExpenseActionError; message?: string; transactionId?: string } {
   const code = apiErrorCode(failed.code);
-  if (code === "api_failed") {
+  if (code === "api_failed" || code === "booking_unrecorded") {
     console.error(`[${scope}]`, failed.error);
   }
   // Finago's own words are what a person needs after a failed booking.
-  return code === "booking_failed"
-    ? { error: code, message: failed.error }
-    : { error: code };
+  if (code === "booking_failed") {
+    return { error: code, message: failed.error };
+  }
+  // IT records a booking nobody could save by its transaction id.
+  if (code === "booking_unrecorded" && failed.transactionId) {
+    return { error: code, transactionId: failed.transactionId };
+  }
+  return { error: code };
 }
 
 function revalidateExpense(expenseId: string): void {
@@ -331,7 +484,11 @@ export async function changeExpenseApprover(input: {
   email: string;
   expenseId: string;
 }): Promise<
-  ExpenseActionResult<{ directorySaved: boolean; notified: boolean }>
+  ExpenseActionResult<{
+    directorySaved: boolean;
+    directorySkipped: boolean;
+    notified: boolean;
+  }>
 > {
   try {
     const loaded = await loadForEdit(input.expenseId);
@@ -347,7 +504,11 @@ export async function changeExpenseApprover(input: {
     }
 
     const response = await callExpensesApi<{
-      result: { directorySaved: boolean; notified: boolean };
+      result: {
+        directorySaved: boolean;
+        directorySkipped?: boolean;
+        notified: boolean;
+      };
     }>("/api/expenses/admin/change-approver", {
       actor: apiActorOf(loaded),
       approvalId: input.approvalId,
@@ -357,8 +518,14 @@ export async function changeExpenseApprover(input: {
       return apiFailure("expense-change-approver", response);
     }
     revalidateExpense(input.expenseId);
-    const { directorySaved, notified } = response.data.result;
-    return { data: { directorySaved, notified } };
+    const { directorySaved, directorySkipped, notified } = response.data.result;
+    return {
+      data: {
+        directorySaved,
+        directorySkipped: directorySkipped === true,
+        notified,
+      },
+    };
   } catch (error) {
     return failure(error);
   }
@@ -384,6 +551,32 @@ export async function retryExpenseBooking(input: {
     }
     revalidateExpense(input.expenseId);
     return { data: { status: response.data.result.status } };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+/** Builds the approval chain again for a pending expense that has no steps. Global admins only. */
+export async function rebuildExpenseChain(
+  expenseId: string
+): Promise<ExpenseActionResult<{ stepsCreated: number }>> {
+  try {
+    const loaded = await loadForEdit(expenseId);
+    if (!(loaded?.viewer.isGlobalAdmin && loaded.permissions.canRebuildChain)) {
+      return { error: "forbidden" };
+    }
+
+    const response = await callExpensesApi<{
+      result: { stepsCreated: number };
+    }>("/api/expenses/admin/rebuild-chain", {
+      actor: apiActorOf(loaded),
+      expenseId,
+    });
+    if (!response.ok) {
+      return apiFailure("expense-rebuild-chain", response);
+    }
+    revalidateExpense(expenseId);
+    return { data: { stepsCreated: response.data.result.stepsCreated } };
   } catch (error) {
     return failure(error);
   }

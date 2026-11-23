@@ -112,8 +112,11 @@ const receipt = {
   vendor: "Dominos",
 };
 
-function uploadRequest(purpose?: string) {
+function uploadRequest(purpose?: string, departmentId?: string) {
   const form = new FormData();
+  if (departmentId) {
+    form.append("departmentId", departmentId);
+  }
   form.append("file", new File(["bytes"], "r.png", { type: "image/png" }));
   const query = purpose ? `?purpose=${purpose}` : "";
   return new Request(`https://api.example/api/expenses/ocr${query}`, {
@@ -193,6 +196,22 @@ describe("expenses/ocr scan", () => {
       expect.objectContaining({ amount: 1300, date: "2026-11-01" })
     );
     expect(mocks.createRow).toHaveBeenCalledTimes(1);
+  });
+
+  it("passes the optional departmentId and description to the example search", async () => {
+    await POST(uploadRequest(undefined, "dept-1"));
+    expect(mocks.selectExamples).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ departmentId: "dept-1", description: "Pizza" })
+    );
+  });
+
+  it("works without a departmentId", async () => {
+    await POST(uploadRequest());
+    expect(mocks.selectExamples).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ departmentId: null })
+    );
   });
 
   it("keeps the legacy category field", async () => {

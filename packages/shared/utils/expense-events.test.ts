@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { recordExpenseEvents } from "./expense-events";
+import { recordExpenseEvents, writeExpenseEvent } from "./expense-events";
 
 describe("recordExpenseEvents", () => {
   it("writes each event with snake_case columns", async () => {
@@ -54,5 +54,34 @@ describe("recordExpenseEvents", () => {
     expect(db.createRow).toHaveBeenCalledTimes(2);
     expect(errorSpy).toHaveBeenCalled();
     errorSpy.mockRestore();
+  });
+});
+
+describe("writeExpenseEvent", () => {
+  it("writes the event like recordExpenseEvents", async () => {
+    const db = { createRow: vi.fn().mockResolvedValue({}) };
+    await writeExpenseEvent(db, {
+      expenseId: "e1",
+      actorKind: "system",
+      action: "booked",
+      note: "tx-1",
+    });
+    expect(db.createRow).toHaveBeenCalledWith(
+      "app",
+      "expense_events",
+      expect.any(String),
+      expect.objectContaining({ action: "booked", expense_id: "e1" })
+    );
+  });
+
+  it("throws when the write fails, so a caller can tell", async () => {
+    const db = { createRow: vi.fn().mockRejectedValue(new Error("down")) };
+    await expect(
+      writeExpenseEvent(db, {
+        expenseId: "e1",
+        actorKind: "system",
+        action: "booked",
+      })
+    ).rejects.toThrow("down");
   });
 });

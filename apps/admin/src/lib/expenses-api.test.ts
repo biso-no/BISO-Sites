@@ -54,6 +54,26 @@ describe("callExpensesApi", () => {
     });
   });
 
+  test("keeps the transaction id of a booking it could not record", async () => {
+    fetchMock.mockResolvedValue(
+      Response.json(
+        {
+          code: "booking_unrecorded",
+          error: "Finago has the booking (tx-9)",
+          transactionId: "tx-9",
+        },
+        { status: 400 }
+      )
+    );
+
+    expect(await callExpensesApi("/x", {})).toEqual({
+      code: "booking_unrecorded",
+      error: "Finago has the booking (tx-9)",
+      ok: false,
+      transactionId: "tx-9",
+    });
+  });
+
   test("falls back to the status text when the body is not JSON", async () => {
     fetchMock.mockResolvedValue(
       new Response("<html>", { status: 502, statusText: "Bad Gateway" })

@@ -10,38 +10,56 @@ export type ExpenseActionError =
   | "invalid_description"
   | "invalid_type"
   | "invalid_account"
+  | "invalid_project"
   | "invalid_bank_account"
   | "supporting_receipt"
   | "not_current_step"
+  | "not_pending"
+  | "account_missing"
   | "reason_required"
   | "invalid_email"
   | "already_decided"
   | "already_booked"
   | "not_failed"
+  | "has_steps"
+  | "not_rebuildable"
   | "posting_disabled"
   | "in_progress"
+  /** The background check is still working on the expense; edit in a minute. */
+  | "checking"
   | "self_approver"
   | "same_approver"
   | "retry_in_progress"
   | "booking_failed"
   | "status_write_failed"
+  | "booking_unrecorded"
   | "api_failed"
   | "failed";
 
 /** The result of an expense edit action. */
 export type ExpenseActionResult<T> =
   | { data: T }
-  | { error: ExpenseActionError; message?: string };
+  | {
+      error: ExpenseActionError;
+      message?: string;
+      /** Finago's transaction, for `booking_unrecorded`. */
+      transactionId?: string;
+    };
 
 const API_CODES: Record<string, ExpenseActionError> = {
+  account_missing: "account_missing",
   ai_disabled: "ai_disabled",
   already_booked: "already_booked",
   booking_failed: "booking_failed",
+  booking_unrecorded: "booking_unrecorded",
+  has_steps: "has_steps",
   in_progress: "in_progress",
   invalid_email: "invalid_email",
   not_current_step: "not_current_step",
   not_failed: "not_failed",
   not_found: "not_found",
+  not_pending: "not_pending",
+  not_rebuildable: "not_rebuildable",
   posting_disabled: "posting_disabled",
   retry_in_progress: "retry_in_progress",
   same_approver: "same_approver",
