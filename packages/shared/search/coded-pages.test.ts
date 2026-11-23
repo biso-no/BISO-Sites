@@ -15,14 +15,20 @@ describe("coded pages", () => {
   it("carries the keywords people type", () => {
     const keywords = (path: string, locale: "no" | "en") =>
       CODED_PAGES.find((p) => p.path === path)?.text[locale].keywords;
-    expect(keywords("/varsling", "no")).toContain("varsling");
-    expect(keywords("/varsling", "en")).toContain("whistleblowing");
+    expect(keywords("/safety", "no")).toContain("varsling");
+    expect(keywords("/safety", "en")).toContain("whistleblowing");
     expect(keywords("/membership", "no")).toContain("medlemskap");
     expect(keywords("/membership", "en")).toContain("membership");
     expect(keywords("/documents", "no")).toContain("vedtekter");
     expect(keywords("/documents", "en")).toContain("statutes");
     expect(keywords("/okonomisk-stotte", "no")).toContain("støtte");
     expect(keywords("/okonomisk-stotte", "en")).toContain("funding");
+  });
+
+  it("has no entry for pages that only redirect", () => {
+    expect(
+      CODED_PAGES.some((p) => p.path === "/varsling" || p.path === "/policies")
+    ).toBe(false);
   });
 
   it("builds row ids from paths", () => {

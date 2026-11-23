@@ -48,13 +48,27 @@ export const CODED_PAGES: readonly CodedPage[] = [
         title: "Om BISO",
         description:
           "Alt du trenger å vite om studentforeningen: hvem vi er, hva vi gjør og hvordan vi er organisert.",
-        keywords: ["om oss", "om biso", "hvem er vi", "studentforening"],
+        keywords: [
+          "rusmiddelpolicy",
+          "ruspolicy",
+          "om oss",
+          "om biso",
+          "hvem er vi",
+          "studentforening",
+        ],
       },
       en: {
         title: "About BISO",
         description:
           "Everything you need to know about the student union: who we are, what we do and how we are organised.",
-        keywords: ["about us", "about biso", "who we are", "student union"],
+        keywords: [
+          "drugs policy",
+          "drug policy",
+          "about us",
+          "about biso",
+          "who we are",
+          "student union",
+        ],
       },
     },
   },
@@ -751,66 +765,6 @@ export const CODED_PAGES: readonly CodedPage[] = [
           "returns",
           "payment",
           "delivery",
-        ],
-      },
-    },
-  },
-  {
-    path: "/varsling",
-    text: {
-      no: {
-        title: "Varsling",
-        description:
-          "Varsle om kritikkverdige forhold eller meld fra om en bekymring i BISO.",
-        keywords: [
-          "varsling",
-          "varsle",
-          "kritikkverdige forhold",
-          "bekymring",
-          "melde fra",
-          "trakassering",
-        ],
-      },
-      en: {
-        title: "Whistleblowing",
-        description: "Report a serious concern or wrongdoing in BISO.",
-        keywords: [
-          "whistleblowing",
-          "whistleblower",
-          "report",
-          "concern",
-          "wrongdoing",
-          "varsling",
-        ],
-      },
-    },
-  },
-  {
-    path: "/policies",
-    text: {
-      no: {
-        title: "Retningslinjer og policyer",
-        description:
-          "BISOs retningslinjer, blant annet rusmiddel- og alkoholpolicyen.",
-        keywords: [
-          "policy",
-          "policyer",
-          "retningslinjer",
-          "rusmiddelpolicy",
-          "alkoholpolicy",
-          "regler",
-        ],
-      },
-      en: {
-        title: "Policies",
-        description: "BISO's policies, including the drugs and alcohol policy.",
-        keywords: [
-          "policy",
-          "policies",
-          "guidelines",
-          "drugs policy",
-          "alcohol policy",
-          "rules",
         ],
       },
     },
