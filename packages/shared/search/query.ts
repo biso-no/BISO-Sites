@@ -13,14 +13,15 @@ import {
 import {
   QUICK_GROUP_SIZE,
   SEARCH_PAGE_MAX,
-  SEARCH_PAGE_SIZE,
   type SearchRequest,
 } from "./params";
 import {
   emptyCounts,
   type GroupCounts,
   groupOf,
+  groupOfKnown,
   SEARCH_GROUPS,
+  SEARCH_PAGE_SIZE,
   type SearchGroup,
   type SearchHit,
   type SearchResponse,
@@ -63,6 +64,9 @@ const RETRIEVE: (keyof SearchEntry)[] = [
 ];
 
 const CROP_LENGTH = 24;
+
+/** How much better another campus's top hit must score to take the best card. */
+export const BEST_OTHER_CAMPUS_MARGIN = 0.1;
 
 function list(values: string[]): string {
   return values.map((v) => JSON.stringify(v)).join(", ");
@@ -120,6 +124,7 @@ export function toHit(hit: Hit<SearchEntry>, locale: SearchLocale): SearchHit {
     member_price: hit.member_price,
     price: hit.price,
     published_at: hit.published_at,
+    row_id: hit.row_id,
     starts_at: hit.starts_at,
     text_locale: hit.text_locale,
   };
@@ -145,11 +150,30 @@ function makeQuery(
   };
 }
 
+/** A query that only counts or totals: no hits to highlight or crop. */
+function leanQuery(
+  indexName: string,
+  req: SearchRequest,
+  filter: string[],
+  extra: Partial<MultiSearchQuery>
+): MultiSearchQuery {
+  return {
+    indexUid: indexName,
+    q: req.q,
+    filter,
+    attributesToRetrieve: [],
+    ...extra,
+  };
+}
+
 function toCounts(result: Result | undefined): GroupCounts {
   const counts = emptyCounts();
   const distribution = result?.facetDistribution?.type ?? {};
   for (const [type, n] of Object.entries(distribution)) {
-    counts[groupOf(type as SearchEntry["type"])] += n;
+    const group = groupOfKnown(type);
+    if (group) {
+      counts[group] += n;
+    }
   }
   return counts;
 }
@@ -178,10 +202,27 @@ function countsQuery(
   req: SearchRequest,
   now: Date
 ): MultiSearchQuery {
-  return makeQuery(indexName, req, scopeFilters(req, now), {
+  return leanQuery(indexName, req, scopeFilters(req, now), {
     limit: 0,
     facets: ["type"],
   });
+}
+
+/** The campus-first best hit, unless another campus's is clearly more relevant. */
+function pickBest(
+  mine: Hit<SearchEntry> | undefined,
+  rest: Hit<SearchEntry> | undefined
+): Hit<SearchEntry> | undefined {
+  if (!(mine && rest)) {
+    return mine ?? rest;
+  }
+  const mineScore = mine._rankingScore;
+  const restScore = rest._rankingScore;
+  const restClearlyBetter =
+    mineScore !== undefined &&
+    restScore !== undefined &&
+    restScore - mineScore >= BEST_OTHER_CAMPUS_MARGIN;
+  return restClearlyBetter ? rest : mine;
 }
 
 async function runQuick(
@@ -200,7 +241,9 @@ async function runQuick(
 
   const queries: MultiSearchQuery[] = [countsQuery(indexName, req, now)];
   for (const scope of scopes) {
-    queries.push(makeQuery(indexName, req, scope, { limit: 1 }));
+    queries.push(
+      makeQuery(indexName, req, scope, { limit: 1, showRankingScore: true })
+    );
     for (const group of SEARCH_GROUPS) {
       queries.push(
         makeQuery(indexName, req, [...scope, groupFilter(group)], {
@@ -223,7 +266,7 @@ async function runQuick(
     };
   });
 
-  const bestHit = scoped.map((s) => s.best[0]).find((h) => h !== undefined);
+  const bestHit = pickBest(scoped[0]?.best[0], scoped[1]?.best[0]);
   const groups = {} as Record<SearchGroup, SearchHit[]>;
   SEARCH_GROUPS.forEach((group, gi) => {
     groups[group] = scoped
@@ -270,14 +313,14 @@ async function runPage(
         hitsPerPage: SEARCH_PAGE_SIZE,
         page: req.page,
       }),
-      makeQuery(indexName, req, restFilter, { hitsPerPage: 1, page: 1 })
+      leanQuery(indexName, req, restFilter, { hitsPerPage: 0, page: 1 })
     );
     const [counts, mine, rest] = await runner.multiSearch(queries);
     const mineTotal = mine?.totalHits ?? 0;
     const restTotal = rest?.totalHits ?? 0;
     const hits = [...(mine?.hits ?? [])];
-    if (hits.length < SEARCH_PAGE_SIZE && restTotal > 0) {
-      const start = (req.page - 1) * SEARCH_PAGE_SIZE;
+    const start = (req.page - 1) * SEARCH_PAGE_SIZE;
+    if (hits.length < SEARCH_PAGE_SIZE && start - mineTotal < restTotal) {
       const [more] = await runner.multiSearch([
         makeQuery(indexName, req, restFilter, {
           offset: Math.max(0, start - mineTotal),
@@ -316,11 +359,11 @@ function pageResponse(
     locale: req.locale,
     group: req.group,
     page: req.page,
-    pageSize: SEARCH_PAGE_SIZE,
+    page_size: SEARCH_PAGE_SIZE,
     counts,
     hits: hits.map((h) => toHit(h, req.locale)),
     total,
-    totalPages: Math.min(Math.ceil(total / SEARCH_PAGE_SIZE), SEARCH_PAGE_MAX),
+    total_pages: Math.min(Math.ceil(total / SEARCH_PAGE_SIZE), SEARCH_PAGE_MAX),
   };
 }
 

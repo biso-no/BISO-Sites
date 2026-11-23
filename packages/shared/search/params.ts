@@ -2,7 +2,6 @@ import { SEARCH_GROUPS, type SearchGroup } from "./response";
 import type { SearchLocale } from "./types";
 
 export const SEARCH_QUERY_MAX = 100;
-export const SEARCH_PAGE_SIZE = 20;
 export const QUICK_GROUP_SIZE = 2;
 export const SEARCH_PAGE_MAX = 50;
 
@@ -26,7 +25,7 @@ function parsePage(raw: string | null): number {
     return 1;
   }
   const n = Number.parseInt(value, 10);
-  if (!Number.isFinite(n) || n < 1) {
+  if (n < 1) {
     return 1;
   }
   return Math.min(n, SEARCH_PAGE_MAX);
@@ -38,10 +37,9 @@ function parseGroup(raw: string | null): SearchGroup | null {
 
 /** Never throws: malformed parameters fall back to defaults. */
 export function parseSearchParams(params: URLSearchParams): SearchRequest {
-  const q = (params.get("q") ?? "")
-    .replace(WHITESPACE, " ")
-    .trim()
+  const q = Array.from((params.get("q") ?? "").replace(WHITESPACE, " ").trim())
     .slice(0, SEARCH_QUERY_MAX)
+    .join("")
     .trim();
   const campusRaw = params.get("campus");
   const onlyRaw = params.get("only_campus");

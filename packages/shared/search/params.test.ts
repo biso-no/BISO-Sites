@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { parseSearchParams } from "./params";
 import { groupOf, typesOf } from "./response";
 
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])/;
+
 const p = (s: string) => parseSearchParams(new URLSearchParams(s));
 
 describe("parseSearchParams", () => {
@@ -19,6 +21,13 @@ describe("parseSearchParams", () => {
 
   it("caps q at 100 characters", () => {
     expect(p(`q=${"a".repeat(5000)}`).q.length).toBe(100);
+  });
+
+  it("caps q by code points without splitting a surrogate pair", () => {
+    const { q } = p(`q=${encodeURIComponent(`${"a".repeat(99)}\u{1F600}b`)}`);
+    expect(Array.from(q)).toHaveLength(100);
+    expect(q).not.toMatch(LONE_SURROGATE);
+    expect(q.endsWith("\u{1F600}")).toBe(true);
   });
 
   it("reads every parameter", () => {

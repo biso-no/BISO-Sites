@@ -11,11 +11,31 @@ export const SEARCH_GROUPS = [
 
 export type SearchGroup = (typeof SEARCH_GROUPS)[number];
 
+export const SEARCH_PAGE_SIZE = 20;
+
 const PAGE_GROUP_TYPES: readonly SearchType[] = ["page", "document", "coded"];
+
+const GROUP_OF_TYPE: Record<SearchType, SearchGroup> = {
+  event: "event",
+  news: "news",
+  job: "job",
+  product: "product",
+  unit: "unit",
+  page: "page",
+  document: "page",
+  coded: "page",
+};
 
 /** page, document and coded entries all show under the "page" group. */
 export function groupOf(type: SearchType): SearchGroup {
-  return PAGE_GROUP_TYPES.includes(type) ? "page" : (type as SearchGroup);
+  return GROUP_OF_TYPE[type];
+}
+
+/** The group of a type string from the index, or null when it is unknown. */
+export function groupOfKnown(type: string): SearchGroup | null {
+  return Object.hasOwn(GROUP_OF_TYPE, type)
+    ? GROUP_OF_TYPE[type as SearchType]
+    : null;
 }
 
 export function typesOf(group: SearchGroup): SearchType[] {
@@ -45,6 +65,7 @@ export interface SearchHit {
   member_price: number | null;
   price: number | null;
   published_at: number | null;
+  row_id: string;
   snippet: Segment[];
   starts_at: number | null;
   text_locale: SearchLocale;
@@ -72,14 +93,48 @@ export interface PageSearchResponse {
   locale: SearchLocale;
   mode: "page";
   page: number;
-  pageSize: number;
+  page_size: number;
   query: string;
   total: number;
-  totalPages: number;
+  total_pages: number;
 }
 
 export type SearchResponse = QuickSearchResponse | PageSearchResponse;
 
 export function emptyCounts(): GroupCounts {
   return { event: 0, news: 0, job: 0, product: 0, page: 0, unit: 0 };
+}
+
+export function emptyQuickResponse(
+  query: string,
+  locale: SearchLocale
+): QuickSearchResponse {
+  return {
+    best: null,
+    counts: emptyCounts(),
+    groups: { event: [], news: [], job: [], product: [], page: [], unit: [] },
+    locale,
+    mode: "quick",
+    query,
+    total: 0,
+  };
+}
+
+export function emptyPageResponse(
+  query: string,
+  locale: SearchLocale,
+  group: SearchGroup | null
+): PageSearchResponse {
+  return {
+    counts: emptyCounts(),
+    group,
+    hits: [],
+    locale,
+    mode: "page",
+    page: 1,
+    page_size: SEARCH_PAGE_SIZE,
+    query,
+    total: 0,
+    total_pages: 0,
+  };
 }

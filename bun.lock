@@ -87,6 +87,7 @@
         "@sentry/nextjs": "catalog:",
         "ai": "catalog:",
         "botbuilder": "catalog:",
+        "meilisearch": "catalog:",
         "next": "catalog:",
         "pdf-lib": "catalog:",
         "react": "catalog:",

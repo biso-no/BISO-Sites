@@ -5,7 +5,13 @@ import type {
 } from "meilisearch";
 import { describe, expect, it } from "vitest";
 import type { SearchRequest } from "./params";
-import { baseFilter, runSearch, type SearchRunner, toHit } from "./query";
+import {
+  BEST_OTHER_CAMPUS_MARGIN,
+  baseFilter,
+  runSearch,
+  type SearchRunner,
+  toHit,
+} from "./query";
 import type { SearchEntry, SearchType } from "./types";
 
 const MINE_OR_ALL = /^(2|all)$/;
@@ -85,7 +91,7 @@ function matches(e: SearchEntry, filter: string): boolean {
   return Number(actual) >= Number(cm[3]);
 }
 
-function fake(entries: SearchEntry[]) {
+function fake(entries: SearchEntry[], scores: Record<string, number> = {}) {
   const calls: MultiSearchQuery[][] = [];
   const runner: SearchRunner & { calls: MultiSearchQuery[][] } = {
     calls,
@@ -99,6 +105,9 @@ function fake(entries: SearchEntry[]) {
           const toH = (e: SearchEntry) =>
             ({
               ...e,
+              ...(q.showRankingScore && scores[e.id] !== undefined
+                ? { _rankingScore: scores[e.id] }
+                : {}),
               _formatted: { title: e.title, summary: e.summary, body: "" },
             }) as Hit<SearchEntry>;
           const res: Record<string, unknown> = {
@@ -126,7 +135,7 @@ function fake(entries: SearchEntry[]) {
             res.totalHits = filtered.length;
             res.page = page;
             res.hitsPerPage = size;
-            res.totalPages = Math.ceil(filtered.length / size);
+            res.totalPages = size === 0 ? 0 : Math.ceil(filtered.length / size);
           }
           return res as unknown as MeiliResponse<SearchEntry>;
         })
@@ -203,6 +212,12 @@ describe("toHit", () => {
       "All campuses"
     );
     expect(toHit(hitWith({ campus_id: "2" }), "en").campus_name).toBe("Bergen");
+  });
+
+  it("carries the row id", () => {
+    expect(
+      toHit(hitWith({ id: "event_r1_no", row_id: "r1" }), "no").row_id
+    ).toBe("r1");
   });
 
   it("maps the group", () => {
@@ -301,6 +316,46 @@ describe("runSearch quick", () => {
   });
 });
 
+describe("quick best card by relevance", () => {
+  const entries = [
+    entry({ id: "m1", campus_id: "2" }),
+    entry({ id: "m2", campus_id: "2" }),
+    entry({ id: "r1", campus_id: "1" }),
+  ];
+  const quick = (scores: Record<string, number>) =>
+    runSearch(fake(entries, scores), "i", req({ campus: "2" }), NOW);
+
+  it("exports a 0.1 margin", () => {
+    expect(BEST_OTHER_CAMPUS_MARGIN).toBe(0.1);
+  });
+
+  it("lets a clearly better other-campus hit win", async () => {
+    const r = await quick({ m1: 0.6, r1: 0.95 });
+    if (r.mode !== "quick") {
+      throw new Error("mode");
+    }
+    expect(r.best?.id).toBe("r1");
+    expect(r.groups.event.map((h) => h.id)).toEqual(["m1", "m2"]);
+  });
+
+  it("keeps campus first when the gain is small", async () => {
+    const r = await quick({ m1: 0.9, r1: 0.95 });
+    if (r.mode !== "quick") {
+      throw new Error("mode");
+    }
+    expect(r.best?.id).toBe("m1");
+    expect(r.groups.event.map((h) => h.id)).toEqual(["m2", "r1"]);
+  });
+
+  it("asks for ranking scores on the best queries only", async () => {
+    const f = fake(entries);
+    await runSearch(f, "i", req({ campus: "2" }), NOW);
+    const scored = f.calls[0].filter((q) => q.showRankingScore);
+    expect(scored).toHaveLength(2);
+    expect(scored.every((q) => q.limit === 1)).toBe(true);
+  });
+});
+
 describe("runSearch page", () => {
   const mine = many("event", 25, "2", "m");
   const rest = many("event", 30, "1", "r");
@@ -325,8 +380,8 @@ describe("runSearch page", () => {
     ]);
     expect(pg3.hits.map((h) => h.id)).toEqual(restIds.slice(15, 30));
     expect(pg2.total).toBe(55);
-    expect(pg2.totalPages).toBe(3);
-    expect(pg2.pageSize).toBe(20);
+    expect(pg2.total_pages).toBe(3);
+    expect(pg2.page_size).toBe(20);
     expect(f2.calls).toHaveLength(2);
   });
 
@@ -334,6 +389,30 @@ describe("runSearch page", () => {
     const f = fake([...mine, ...rest]);
     await runSearch(f, "i", pageReq(1), NOW);
     expect(f.calls).toHaveLength(1);
+  });
+
+  it("skips the second call for a page past the end", async () => {
+    const f = fake([...mine, ...rest]);
+    const r = await runSearch(f, "i", pageReq(4), NOW);
+    if (r.mode !== "page") {
+      throw new Error("mode");
+    }
+    expect(f.calls).toHaveLength(1);
+    expect(r.hits).toEqual([]);
+  });
+
+  it("probes with an exact total and no hit, without highlighting", async () => {
+    const f = fake([...mine, ...rest]);
+    await runSearch(f, "i", pageReq(1), NOW);
+    const [counts, minePart, probe] = f.calls[0];
+    expect(probe.hitsPerPage).toBe(0);
+    expect(probe.page).toBe(1);
+    for (const q of [counts, probe]) {
+      expect(q.attributesToHighlight).toBeUndefined();
+      expect(q.attributesToCrop).toBeUndefined();
+      expect(q.attributesToRetrieve).toEqual([]);
+    }
+    expect(minePart.attributesToHighlight).toContain("body");
   });
 
   it("applies the group filter to results, not to counts", async () => {
@@ -374,6 +453,31 @@ describe("runSearch page", () => {
   });
 });
 
+describe("counts", () => {
+  it("ignores unknown types", async () => {
+    const f = fake([]);
+    const original = f.multiSearch.bind(f);
+    f.multiSearch = async (queries) => {
+      const results = await original(queries);
+      results[0] = {
+        ...results[0],
+        facetDistribution: { type: { event: 2, benefit: 5 } },
+      } as unknown as (typeof results)[number];
+      return results;
+    };
+    const r = await runSearch(f, "i", req(), NOW);
+    expect(r.counts).toEqual({
+      event: 2,
+      news: 0,
+      job: 0,
+      product: 0,
+      page: 0,
+      unit: 0,
+    });
+    expect(r.total).toBe(2);
+  });
+});
+
 describe("query shape and edges", () => {
   it("highlights and crops the body, and filters every query", async () => {
     const inEn = (e: SearchEntry): SearchEntry => ({ ...e, locale: "en" });
@@ -393,8 +497,11 @@ describe("query shape and edges", () => {
     for (const q of all.flat()) {
       expect(q.filter).toContain('locale = "en"');
       expect(q.filter).toContain("visible_until >= 1795435200");
-      expect(q.attributesToHighlight).toContain("body");
-      expect(q.attributesToCrop).toContain("body");
+      const isResultQuery = q.limit !== 0 && q.hitsPerPage !== 0;
+      if (isResultQuery) {
+        expect(q.attributesToHighlight).toContain("body");
+        expect(q.attributesToCrop).toContain("body");
+      }
     }
   });
 
@@ -419,6 +526,6 @@ describe("query shape and edges", () => {
       throw new Error("mode");
     }
     expect(r.total).toBe(1100);
-    expect(r.totalPages).toBe(50);
+    expect(r.total_pages).toBe(50);
   });
 });

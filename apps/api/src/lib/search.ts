@@ -1,11 +1,16 @@
 import { createSearchClient } from "@repo/shared/search/client";
 import type { SearchRunner } from "@repo/shared/search/query";
 import { searchIndexName } from "@repo/shared/search/settings";
+import type { SearchEntry } from "@repo/shared/search/types";
+import type { MultiSearchParams } from "meilisearch";
 
 interface ConfiguredSearch {
   indexName: string;
   runner: SearchRunner;
 }
+
+/** Milliseconds before a Meilisearch request is abandoned (no default exists). */
+export const SEARCH_TIMEOUT_MS = 4000;
 
 let cached: { key: string; value: ConfiguredSearch } | null = null;
 
@@ -23,17 +28,22 @@ export function searchRunnerFromEnv(
     return null;
   }
   const indexName = searchIndexName(env);
-  const key = `${host}|${apiKey}|${indexName}`;
+  const key = `${host}|${apiKey}|${indexName}|${SEARCH_TIMEOUT_MS}`;
   if (cached?.key === key) {
     return cached.value;
   }
-  const client = createSearchClient(host, apiKey);
+  const client = createSearchClient(host, apiKey, {
+    timeout: SEARCH_TIMEOUT_MS,
+  });
   const value: ConfiguredSearch = {
     indexName,
     runner: {
       multiSearch: async (queries) => {
-        const { results } = await client.multiSearch({ queries });
-        return results as never;
+        const { results } = await client.multiSearch<
+          MultiSearchParams,
+          SearchEntry
+        >({ queries });
+        return results;
       },
     },
   };

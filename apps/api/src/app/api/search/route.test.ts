@@ -1,3 +1,4 @@
+import { MeilisearchApiError, MeilisearchRequestError } from "meilisearch";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const multiSearch = vi.hoisted(() => vi.fn());
@@ -14,6 +15,8 @@ vi.mock("@/lib/search", () => ({
 }));
 
 import { GET, OPTIONS } from "./route";
+
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])/;
 
 function request(query = "", headers: Record<string, string> = {}) {
   return new Request(`https://api.biso.no/api/search${query}`, {
@@ -34,7 +37,7 @@ describe("GET /api/search", () => {
       mode: "page",
       hits: [],
       total: 0,
-      totalPages: 0,
+      total_pages: 0,
       page: 1,
     });
     const quick = await (await GET(request("?q="))).json();
@@ -55,13 +58,16 @@ describe("GET /api/search", () => {
     expect(multiSearch).toHaveBeenCalled();
   });
 
-  it("answers 502 without logging the query when Meilisearch fails", async () => {
+  it("answers 502 with the error code and status, never the query", async () => {
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => undefined);
     multiSearch.mockRejectedValueOnce(
-      Object.assign(new Error("connect ECONNREFUSED winter"), {
-        code: "ECONNREFUSED",
+      new MeilisearchApiError(new Response(null, { status: 403 }), {
+        message: "key rejected for winter",
+        code: "invalid_api_key",
+        type: "auth",
+        link: "https://docs",
       })
     );
     const bad = await GET(request("?q=winter"));
@@ -70,8 +76,52 @@ describe("GET /api/search", () => {
       error: "Search is unavailable",
       code: "UPSTREAM_ERROR",
     });
-    expect(consoleError.mock.calls.flat().join(" ")).not.toContain("winter");
+    const logged = consoleError.mock.calls.flat().join(" ");
+    expect(logged).toContain("MeilisearchApiError");
+    expect(logged).toContain("code=invalid_api_key");
+    expect(logged).toContain("status=403");
+    expect(logged).not.toContain("winter");
     consoleError.mockRestore();
+  });
+
+  it("logs the network error code of a request failure", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const network = new TypeError("fetch failed", {
+      cause: Object.assign(new Error("connect winter"), {
+        code: "ECONNREFUSED",
+      }),
+    });
+    multiSearch.mockRejectedValueOnce(
+      new MeilisearchRequestError(
+        "https://search.example/multi-search",
+        network
+      )
+    );
+    expect((await GET(request("?q=winter"))).status).toBe(502);
+    const logged = consoleError.mock.calls.flat().join(" ");
+    expect(logged).toContain("MeilisearchRequestError");
+    expect(logged).toContain("cause_code=ECONNREFUSED");
+    expect(logged).not.toContain("winter");
+    consoleError.mockRestore();
+  });
+
+  it("answers 200 for malformed parameters", async () => {
+    const response = await GET(
+      request("?q=winter&page=abc&type=foo&locale=de&campus=9&mode=page")
+    );
+    expect(response.status).toBe(200);
+    expect(multiSearch).toHaveBeenCalled();
+  });
+
+  it("answers 200 and never splits a surrogate pair in q", async () => {
+    const q = encodeURIComponent(`${"a".repeat(99)}\u{1F600}b`);
+    const response = await GET(request(`?q=${q}`));
+    expect(response.status).toBe(200);
+    const sent = multiSearch.mock.calls[0][0][0].q as string;
+    expect(Array.from(sent)).toHaveLength(100);
+    expect(sent).not.toMatch(LONE_SURROGATE);
   });
 
   it("answers 503 when search is not configured", async () => {

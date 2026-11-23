@@ -1,12 +1,8 @@
-import {
-  parseSearchParams,
-  SEARCH_PAGE_SIZE,
-} from "@repo/shared/search/params";
+import { parseSearchParams } from "@repo/shared/search/params";
 import { runSearch } from "@repo/shared/search/query";
 import {
-  emptyCounts,
-  SEARCH_GROUPS,
-  type SearchResponse,
+  emptyPageResponse,
+  emptyQuickResponse,
 } from "@repo/shared/search/response";
 import { type NextRequest, NextResponse } from "next/server";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
@@ -20,39 +16,32 @@ function json(body: unknown, origin: string | null, status = 200) {
   return applyCorsHeaders(response, origin);
 }
 
-function emptyResponse(
-  req: ReturnType<typeof parseSearchParams>
-): SearchResponse {
-  if (req.mode === "page") {
-    return {
-      counts: emptyCounts(),
-      group: req.group,
-      hits: [],
-      locale: req.locale,
-      mode: "page",
-      page: 1,
-      pageSize: SEARCH_PAGE_SIZE,
-      query: req.q,
-      total: 0,
-      totalPages: 0,
-    };
-  }
-  const groups = Object.fromEntries(SEARCH_GROUPS.map((g) => [g, []]));
-  return {
-    best: null,
-    counts: emptyCounts(),
-    groups: groups as never,
-    locale: req.locale,
-    mode: "quick",
-    query: req.q,
-    total: 0,
-  };
-}
+/**
+ * Meilisearch error fields worth logging: name, API error code, HTTP status
+ * and the network error code. Never the message or the query.
+ *
+ * Never pass the error object itself to Sentry `captureException` or log it
+ * whole: a timeout error's `cause.requestInit.body` contains the query.
+ */
 
-/** Error name and code only. The message can echo the query. */
 function errorSummary(error: unknown): string {
-  const { name, code } = (error ?? {}) as { name?: unknown; code?: unknown };
-  return `name=${String(name ?? "")} code=${String(code ?? "")}`;
+  const e = (error ?? {}) as {
+    name?: unknown;
+    cause?: { code?: unknown; cause?: { code?: unknown } };
+    response?: { status?: unknown };
+  };
+  const parts = [`name=${String(e.name ?? "")}`];
+  const fields = [
+    ["code", e.cause?.code],
+    ["status", e.response?.status],
+    ["cause_code", e.cause?.cause?.code],
+  ] as const;
+  for (const [label, value] of fields) {
+    if (typeof value === "string" || typeof value === "number") {
+      parts.push(`${label}=${value}`);
+    }
+  }
+  return parts.join(" ");
 }
 
 /**
@@ -64,7 +53,12 @@ export async function GET(req: NextRequest) {
   const request = parseSearchParams(new URL(req.url).searchParams);
 
   if (!request.q) {
-    return json(emptyResponse(request), origin);
+    return json(
+      request.mode === "page"
+        ? emptyPageResponse(request.q, request.locale, request.group)
+        : emptyQuickResponse(request.q, request.locale),
+      origin
+    );
   }
 
   const search = searchRunnerFromEnv();
