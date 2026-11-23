@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   type KeyboardEvent,
+  type RefObject,
   useCallback,
   useEffect,
   useMemo,
@@ -36,6 +37,11 @@ type Layout = "panel" | "sheet";
 
 export interface QuickSearchProps {
   campusId: string | null;
+  /**
+   * The header's focus proxy: an eager input the phone trigger focuses inside
+   * the tap, so iOS raises the keyboard before this code has loaded.
+   */
+  focusProxyRef?: RefObject<HTMLInputElement | null>;
   layout: Layout;
   locale: "no" | "en";
   onClose: () => void;
@@ -78,6 +84,7 @@ function stepThrough(
  */
 export default function QuickSearch({
   campusId,
+  focusProxyRef,
   layout,
   locale,
   onClose,
@@ -110,9 +117,16 @@ export default function QuickSearch({
     onCloseRef.current = onClose;
   }, [onClose]);
 
+  // Take over from the focus proxy: keep what was typed into it while this
+  // code loaded, then move focus (and the phone keyboard with it) here.
   useEffect(() => {
+    const proxy = focusProxyRef?.current;
+    if (proxy?.value) {
+      setQuery(proxy.value);
+      proxy.value = "";
+    }
     inputRef.current?.focus();
-  }, []);
+  }, [focusProxyRef, setQuery]);
 
   useEffect(() => {
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {

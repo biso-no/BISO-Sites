@@ -115,6 +115,26 @@ describe("useSearchShortcut", () => {
     expect(onOpen).not.toHaveBeenCalled();
   });
 
+  it("ignores the keys inside an open menu or listbox", () => {
+    for (const role of ["menu", "listbox"]) {
+      const layer = document.createElement("div");
+      layer.setAttribute("role", role);
+      const item = document.createElement("div");
+      item.tabIndex = -1;
+      layer.append(item);
+      document.body.append(layer);
+      press(item, { key: "/" });
+      press(item, { key: "k", ctrlKey: true });
+    }
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it("survives a keydown with no key, as Chrome's autofill sends", () => {
+    // Autofill dispatches plain `Event`s named keydown: `key` is undefined.
+    document.body.dispatchEvent(new Event("keydown", { bubbles: true }));
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
   it("ignores a key another handler already took", () => {
     const stopper = document.createElement("div");
     document.body.append(stopper);

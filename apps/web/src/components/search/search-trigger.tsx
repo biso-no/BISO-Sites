@@ -16,6 +16,11 @@ export interface SearchTriggerProps {
   controls: string;
   expanded: boolean;
   onOpen: () => void;
+  /**
+   * Called when the trigger is about to be used (pointer over it, keyboard
+   * focus, a touch), so the quick search can load before the click.
+   */
+  onPrefetch?: () => void;
   triggerRef: Ref<HTMLButtonElement>;
 }
 
@@ -24,6 +29,7 @@ export function SearchTrigger({
   controls,
   expanded,
   onOpen,
+  onPrefetch,
   triggerRef,
 }: SearchTriggerProps) {
   const t = useTranslations("search");
@@ -35,6 +41,9 @@ export function SearchTrigger({
       aria-label={t("open")}
       className="relative shrink-0 rounded-biso-md p-2 text-ink transition-colors hover:text-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
       onClick={onOpen}
+      onFocus={onPrefetch}
+      onPointerEnter={onPrefetch}
+      onTouchStart={onPrefetch}
       ref={triggerRef}
       type="button"
     >

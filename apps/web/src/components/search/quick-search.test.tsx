@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import type { QuickSearchResponse } from "@repo/shared/search/response";
-import { act, createElement } from "react";
+import { act, createElement, type RefObject } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { searchHit, winterBest, winterResponse } from "@/test/search-fixtures";
@@ -62,6 +62,7 @@ let onClose = vi.fn();
 async function render(
   props: Partial<{
     campusId: string | null;
+    focusProxyRef: RefObject<HTMLInputElement | null>;
     layout: "panel" | "sheet";
   }> = {}
 ) {
@@ -300,6 +301,32 @@ describe("QuickSearch (panel)", () => {
 });
 
 describe("QuickSearch (sheet)", () => {
+  it("takes over what was typed into the header's focus proxy", async () => {
+    // The proxy held the phone keyboard while this code loaded.
+    const proxy = document.createElement("input");
+    document.body.append(proxy);
+    proxy.focus();
+    proxy.value = "wint";
+    fetchSearch.mockResolvedValue(winterResponse);
+    await render({ focusProxyRef: { current: proxy }, layout: "sheet" });
+    expect(input()?.value).toBe("wint");
+    expect(proxy.value).toBe("");
+    expect(document.activeElement).toBe(input());
+    await settle();
+    expect(fetchSearch).toHaveBeenCalledWith(
+      expect.objectContaining({ q: "wint" }),
+      expect.anything()
+    );
+  });
+
+  it("opens empty when nothing was typed into the proxy", async () => {
+    const proxy = document.createElement("input");
+    document.body.append(proxy);
+    await render({ focusProxyRef: { current: proxy }, layout: "sheet" });
+    expect(input()?.value).toBe("");
+    expect(document.activeElement).toBe(input());
+  });
+
   it("fills the screen on navy and locks the page behind it", async () => {
     await render({ layout: "sheet" });
     const sheet = document.querySelector('[role="dialog"]');

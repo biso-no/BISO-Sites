@@ -12,6 +12,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useCampus } from "@/components/context/campus";
 import { useUserMembership } from "@/components/context/membership-provider";
 import { LocaleSwitcher } from "@/components/locale-switcher";
+import { SearchErrorBoundary } from "@/components/search/search-error-boundary";
 import {
   SEARCH_PANEL_ID,
   SEARCH_SHEET_ID,
@@ -114,6 +115,23 @@ const QuickSearch = dynamic(() => import("@/components/search/quick-search"), {
   ssr: false,
 });
 
+let quickSearchRequested = false;
+
+/**
+ * Starts loading the quick search when a trigger is about to be used (pointer
+ * over it, keyboard focus, a touch), so most first opens do not wait for it.
+ * Once per page load; a failed request may be retried by the next trigger.
+ */
+function prefetchQuickSearch(): void {
+  if (quickSearchRequested) {
+    return;
+  }
+  quickSearchRequested = true;
+  import("@/components/search/quick-search").catch(() => {
+    quickSearchRequested = false;
+  });
+}
+
 export function NavigationV2({
   account = null,
   featured = EMPTY_FEATURED,
@@ -152,6 +170,7 @@ export function NavigationV2({
   const searchOpen = searchLayout !== null;
   const panelTriggerRef = useRef<HTMLButtonElement>(null);
   const sheetTriggerRef = useRef<HTMLButtonElement>(null);
+  const focusProxyRef = useRef<HTMLInputElement>(null);
   const lastSearchLayoutRef = useRef<SearchLayout | null>(null);
   const returnFocusRef = useRef(false);
 
@@ -163,6 +182,13 @@ export function NavigationV2({
     },
     [closeNow]
   );
+  const openSheetSearch = useCallback(() => {
+    // iOS raises the keyboard only for a focus inside the tap, and the quick
+    // search arrives after it. Focus the proxy now; the quick search takes
+    // focus (and anything typed meanwhile) from it when it mounts.
+    focusProxyRef.current?.focus({ preventScroll: true });
+    openSearch("sheet");
+  }, [openSearch]);
   const openSearchForViewport = useCallback(() => {
     openSearch(
       window.matchMedia(DESKTOP_MEDIA_QUERY).matches ? "panel" : "sheet"
@@ -177,6 +203,14 @@ export function NavigationV2({
   const closeSearchFromInside = useCallback(
     () => closeSearch(true),
     [closeSearch]
+  );
+  const closeSearchAfterFailure = useCallback(
+    () => closeSearch(false),
+    [closeSearch]
+  );
+  const readProxyQuery = useCallback(
+    () => focusProxyRef.current?.value ?? "",
+    []
   );
 
   // A mega panel opening closes search (opening search closed the panels
@@ -404,6 +438,7 @@ export function NavigationV2({
               controls={SEARCH_PANEL_ID}
               expanded={searchLayout === "panel"}
               onOpen={() => openSearch("panel")}
+              onPrefetch={prefetchQuickSearch}
               triggerRef={panelTriggerRef}
             />
             <CartButton
@@ -431,7 +466,8 @@ export function NavigationV2({
             <SearchTrigger
               controls={SEARCH_SHEET_ID}
               expanded={searchLayout === "sheet"}
-              onOpen={() => openSearch("sheet")}
+              onOpen={openSheetSearch}
+              onPrefetch={prefetchQuickSearch}
               triggerRef={sheetTriggerRef}
             />
             <CartButton
@@ -477,13 +513,31 @@ export function NavigationV2({
         </MegaPanel>
       )}
 
+      {/* Focus proxy for the phone keyboard (see `openSheetSearch`). Editable
+          and in the viewport, with a 16px font so iOS does not zoom; outside
+          the regions that go inert while search is open. */}
+      <input
+        aria-hidden="true"
+        autoComplete="off"
+        className="pointer-events-none fixed top-0 left-0 size-px text-base opacity-0"
+        inputMode="search"
+        ref={focusProxyRef}
+        tabIndex={-1}
+      />
+
       {searchLayout && (
-        <QuickSearch
-          campusId={activeCampusId}
-          layout={searchLayout}
-          locale={locale === "en" ? "en" : "no"}
-          onClose={closeSearchFromInside}
-        />
+        <SearchErrorBoundary
+          onClose={closeSearchAfterFailure}
+          readQuery={readProxyQuery}
+        >
+          <QuickSearch
+            campusId={activeCampusId}
+            focusProxyRef={focusProxyRef}
+            layout={searchLayout}
+            locale={locale === "en" ? "en" : "no"}
+            onClose={closeSearchFromInside}
+          />
+        </SearchErrorBoundary>
       )}
 
       {isMobileOpen && (

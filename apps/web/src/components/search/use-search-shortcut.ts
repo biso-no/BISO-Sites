@@ -17,32 +17,34 @@ function isTypingTarget(target: EventTarget | null): boolean {
   );
 }
 
-/** True when the key press comes from inside an open dialog (the cart, a form). */
-function isInsideDialog(target: EventTarget | null): boolean {
-  return (
-    target instanceof Element &&
-    target.closest('[role="dialog"], [role="alertdialog"]') !== null
-  );
+/** Open layers that own the keyboard: dialogs (the cart, a form) and menus. */
+const OVERLAY_SELECTOR =
+  '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]';
+
+/** True when the key press comes from inside an open dialog, menu or listbox. */
+function isInsideOverlay(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest(OVERLAY_SELECTOR) !== null;
 }
 
 /**
  * `/` and Ctrl/Cmd+K open search. `/` may carry Shift, because a Norwegian
  * keyboard types it as Shift+7; any other modifier means some other shortcut.
  * Ctrl/Cmd+K takes no other modifier. Both stay out of the way while the
- * visitor types in a field or works in a dialog, or when another handler
- * already took the key.
+ * visitor types in a field or works in a dialog or menu, or when another
+ * handler already took the key.
  */
 function isSearchShortcut(event: KeyboardEvent): boolean {
   if (event.defaultPrevented || event.isComposing) {
     return false;
   }
-  if (isTypingTarget(event.target) || isInsideDialog(event.target)) {
+  if (isTypingTarget(event.target) || isInsideOverlay(event.target)) {
     return false;
   }
   if (event.key === "/") {
     return !(event.altKey || event.ctrlKey || event.metaKey);
   }
-  if (event.key.toLowerCase() === "k") {
+  // Chrome's autofill dispatches keydown events with no `key` at all.
+  if (event.key?.toLowerCase() === "k") {
     return (
       (event.ctrlKey || event.metaKey) && !(event.altKey || event.shiftKey)
     );

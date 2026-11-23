@@ -23,6 +23,8 @@ const shell = read("../layout/site-shell.tsx");
 
 /** A `/campus/<slug>` template literal in the source. */
 const CAMPUS_LANDING_TEMPLATE = /`\/campus\/\$\{/;
+/** The `className` of a JSX tag. */
+const PROXY_CLASS_NAME = /className="([^"]*)"/;
 /** A search trigger somewhere before a cart button. */
 const TRIGGER_BEFORE_CART = /<SearchTrigger[\s\S]*<CartButton/;
 /** Static imports of the quick search or the modules only it needs. */
@@ -171,6 +173,51 @@ describe("site search in the header", () => {
     // Opening search closes any panel.
     const openSearch = v2.slice(v2.indexOf("const openSearch ="));
     expect(openSearch.slice(0, 300)).toContain("closeNow()");
+  });
+
+  it("raises the phone keyboard on the first open", () => {
+    // iOS raises the keyboard only for a focus inside the tap. The quick
+    // search arrives after the tap, so the sheet trigger focuses an eager,
+    // editable proxy first and the quick search takes focus from it.
+    const refAt = v2.indexOf("ref={focusProxyRef}");
+    const proxyTag = v2.slice(
+      v2.lastIndexOf("<input", refAt),
+      v2.indexOf("/>", refAt)
+    );
+    const proxyClasses = PROXY_CLASS_NAME.exec(proxyTag)?.[1].split(" ") ?? [];
+    expect(proxyTag).toContain('aria-hidden="true"');
+    expect(proxyTag).toContain("tabIndex={-1}");
+    expect(proxyClasses).toContain("text-base"); // 16px: iOS does not zoom
+    expect(proxyClasses).toContain("fixed");
+    // It must stay focusable: not read-only, disabled, hidden or invisible.
+    expect(proxyTag).not.toContain("readOnly");
+    expect(proxyTag).not.toContain("disabled");
+    expect(proxyClasses).not.toContain("hidden");
+    expect(proxyClasses).not.toContain("invisible");
+
+    const openSheet = v2.slice(v2.indexOf("const openSheetSearch ="));
+    const focusAt = openSheet.indexOf(
+      "focusProxyRef.current?.focus({ preventScroll: true })"
+    );
+    expect(focusAt).toBeGreaterThan(-1);
+    expect(focusAt).toBeLessThan(openSheet.indexOf('openSearch("sheet")'));
+    expect(mobileCluster).toContain("onOpen={openSheetSearch}");
+    expect(v2).toContain("focusProxyRef={focusProxyRef}");
+  });
+
+  it("survives a quick search that fails to load", () => {
+    // A rejected chunk would otherwise reach the global error page.
+    const block = v2.slice(v2.indexOf("{searchLayout && ("));
+    expect(block.indexOf("<SearchErrorBoundary")).toBeGreaterThan(-1);
+    expect(block.indexOf("<SearchErrorBoundary")).toBeLessThan(
+      block.indexOf("<QuickSearch")
+    );
+  });
+
+  it("warms the quick search only when a trigger is about to be used", () => {
+    expect(v2.split("onPrefetch={prefetchQuickSearch}")).toHaveLength(3);
+    // Defined once and never called from render.
+    expect(v2.split("prefetchQuickSearch(")).toHaveLength(2);
   });
 
   it("keeps the header solid while search is open", () => {
