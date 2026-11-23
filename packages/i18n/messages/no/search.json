@@ -42,7 +42,10 @@
     "onlyCampus": "Bare {campus}",
     "previous": "Forrige",
     "next": "Neste",
-    "pageOf": "Side {page} av {total}"
+    "pageOf": "Side {page} av {total}",
+    "all": "Alle",
+    "filterLabel": "Filtrer treff etter type",
+    "pagination": "Sider med søketreff"
   },
   "meta": {
     "membersFrom": "Medlemmer fra {price}",

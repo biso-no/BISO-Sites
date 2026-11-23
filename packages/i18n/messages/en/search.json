@@ -42,7 +42,10 @@
     "onlyCampus": "Only {campus}",
     "previous": "Previous",
     "next": "Next",
-    "pageOf": "Page {page} of {total}"
+    "pageOf": "Page {page} of {total}",
+    "all": "All",
+    "filterLabel": "Filter results by type",
+    "pagination": "Search results pages"
   },
   "meta": {
     "membersFrom": "Members from {price}",

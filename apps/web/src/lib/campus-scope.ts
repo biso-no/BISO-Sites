@@ -153,6 +153,7 @@ export const CAMPUS_SCOPED_PATHS = [
   "/events",
   "/jobs",
   "/news",
+  "/search",
   "/shop",
   "/students",
   "/units",
