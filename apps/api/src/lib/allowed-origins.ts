@@ -3,6 +3,7 @@ const PRODUCTION_ORIGINS = [
   "https://web.biso.no",
   "https://public.biso.no",
   "https://biso.no",
+  "https://www.biso.no",
 ] as const;
 
 const DEVELOPMENT_ORIGINS = [
