@@ -393,6 +393,7 @@
         "@repo/api": "workspace:*",
         "@repo/connectors": "workspace:*",
         "@repo/observability": "workspace:*",
+        "meilisearch": "catalog:",
         "node-appwrite": "catalog:",
         "passkit-generator": "^3.6.0",
         "server-only": "catalog:",
@@ -641,6 +642,7 @@
     "lodash": "^4.18.1",
     "lowlight": "^3.3.0",
     "lucide-react": "^0.544.0",
+    "meilisearch": "^0.63.0",
     "mermaid": "^11.14.0",
     "motion": "^12.38.0",
     "next": "16.3.0",
@@ -2707,6 +2709,8 @@
     "media-played-ranges-mixin": ["media-played-ranges-mixin@0.1.0", "", {}, "sha512-zTsvkleu5sAyTsPVxDI+KUbCwy/lXwHgOPi3ER9S3lhtAWhGTQH6qxvfrVMym1cvoLU36SPbVr6Qe8Zxyc0WpA=="],
 
     "media-tracks": ["media-tracks@0.3.5", "", {}, "sha512-l54rkKXlLBt3ob3zOLWHcnjvwUmX5bNEZ70igyapOZZC9imzqBmq1oz8p2roiV04KhjblFIi2hetLPF1oYVLRA=="],
+
+    "meilisearch": ["meilisearch@0.63.0", "", {}, "sha512-gpVdo4dpoma7MMVN4vbfZrWZWp1vIyKWRDKNJsHvB+z6+ykc3E210yb2lvbsTrRTNSM1hfq3vmXu4DRO00IDkA=="],
 
     "member-roster-sync": ["member-roster-sync@workspace:functions/member-roster-sync"],
 
