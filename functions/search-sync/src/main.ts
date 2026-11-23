@@ -19,9 +19,10 @@ import { handleRequest } from "./handler";
 import { runReindex } from "./reindex";
 import { reportResponse } from "./report";
 import { adoptRuntimeApiKey } from "./runtime-key";
+import { settleDelayMs, settleFor } from "./settle";
 import { appwriteSource, departmentNames } from "./source";
 import type { SyncDeps } from "./sync";
-import { meiliWriter } from "./writer";
+import { siteWriters } from "./writer";
 
 const HTTP_BAD_REQUEST = 400;
 const HTTP_SERVER_ERROR = 500;
@@ -62,18 +63,20 @@ async function handle(
       process.env.MEILISEARCH_HOST,
       process.env.MEILISEARCH_ADMIN_KEY
     );
+    const writers = siteWriters(search, searchIndexName());
     const deps: SyncDeps = {
       log: (message) => log(`${LOG_TAG} ${message}`),
       now: () => new Date(),
       // The name cache lives for this execution only.
       source: appwriteSource(db, { departmentName: departmentNames(db) }),
-      writer: meiliWriter(search, searchIndexName()),
+      writer: writers.event,
     };
     const result = await handleRequest({
       deps,
-      reindex: () => runReindex(deps),
+      reindex: () => runReindex({ ...deps, writer: writers.reindex }),
       req,
       secret: process.env.CRON_SECRET,
+      settle: settleFor(settleDelayMs(process.env.SYNC_SETTLE_MS)),
     });
     reportResponse(reporter, result.status);
     if (result.status >= HTTP_BAD_REQUEST) {

@@ -3,7 +3,7 @@ import { baseEntry } from "@repo/shared/search/entries/common";
 import { SEARCH_INDEX_SETTINGS } from "@repo/shared/search/settings";
 import type { SearchEntry } from "@repo/shared/search/types";
 import { type Meilisearch, MeilisearchApiError } from "meilisearch";
-import { meiliWriter } from "./writer";
+import { meiliWriter, siteWriters } from "./writer";
 
 const FAILED_BAD_FILTER = /Meilisearch task 7 failed: bad filter/;
 const FAILED_CANCELED = /Meilisearch task 7 failed: canceled/;
@@ -98,6 +98,14 @@ describe("meiliWriter", () => {
         timeout: 10_000,
       },
     ]);
+  });
+
+  it("gives the reindex 120 s per task and row events 10 s", async () => {
+    const { calls, client } = fakeClient();
+    const writers = siteWriters(client, "site_content");
+    await writers.reindex.upsert([entry("no")]);
+    await writers.event.upsert([entry("no")]);
+    expect(calls.map((c) => c.timeout)).toEqual([120_000, 10_000]);
   });
 
   it("skips an empty upsert", async () => {

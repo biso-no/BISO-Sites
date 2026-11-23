@@ -77,7 +77,9 @@ async function loadPage(
  * `startedAt`, then everything older is deleted. Entries that row events
  * write while this runs are stamped later, so the sweep leaves them alone.
  * Items removed or made non-public while events were off disappear with the
- * sweep.
+ * sweep. A failed read or write throws before the sweep, and a run that found
+ * no items at all (coded pages aside) refuses to sweep: an empty read, such
+ * as a missing scope, must not empty the index.
  */
 export async function runReindex(deps: SyncDeps): Promise<ReindexResult> {
   const startedAt = Date.now();
@@ -97,6 +99,13 @@ export async function runReindex(deps: SyncDeps): Promise<ReindexResult> {
       byType[type] += entries.length;
     }
     deps.log(`reindex ${type}: ${byType[type]} entries`);
+  }
+
+  const items = TYPES.reduce((sum, type) => sum + byType[type], 0);
+  if (items === 0) {
+    throw new Error(
+      "Reindex found no entries in any table; refusing to sweep the index"
+    );
   }
 
   const coded = codedPageEntries(ctx, await deps.source.servableProjectPaths());

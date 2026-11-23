@@ -49,6 +49,7 @@ const writer: IndexWriter = {
 
 interface InputOptions extends RequestLike {
   reindex?: () => Promise<Record<string, unknown>>;
+  settle?: () => Promise<void>;
   source?: Source;
 }
 
@@ -58,7 +59,7 @@ const eventHeaders = {
 };
 
 function input(options: InputOptions = {}) {
-  const { reindex, source, ...req } = options;
+  const { reindex, settle, source, ...req } = options;
   const deps: SyncDeps = {
     log: () => undefined,
     now: () => new Date("2026-11-23T12:00:00Z"),
@@ -68,6 +69,7 @@ function input(options: InputOptions = {}) {
   return {
     deps,
     reindex: reindex ?? (() => Promise.resolve({ ok: true })),
+    settle: settle ?? (() => Promise.resolve()),
     req: {
       bodyText: req.bodyText ?? JSON.stringify({ $id: "e1" }),
       headers: req.headers ?? eventHeaders,
@@ -117,6 +119,51 @@ describe("handleRequest", () => {
       body: { deleted: 0, ok: true, upserted: 2 },
       status: 200,
     });
+  });
+
+  it("waits for related writes to settle before reading a row event", async () => {
+    const order: string[] = [];
+    const result = await handleRequest(
+      input({
+        settle: () => {
+          order.push("settle");
+          return Promise.resolve();
+        },
+        source: {
+          ...quietSource,
+          load: (...args) => {
+            order.push("load");
+            return quietSource.load(...args);
+          },
+        },
+      })
+    );
+    expect(result.status).toBe(200);
+    expect(order).toEqual(["settle", "load"]);
+  });
+
+  it("does not wait for the reindex or an ignored event", async () => {
+    let waits = 0;
+    const settle = () => {
+      waits += 1;
+      return Promise.resolve();
+    };
+    await handleRequest(
+      input({
+        headers: { "x-appwrite-trigger": "http", "x-cron-secret": SECRET },
+        settle,
+      })
+    );
+    await handleRequest(
+      input({
+        headers: {
+          "x-appwrite-event": "tablesdb.app.tables.orders.rows.o1.create",
+          "x-appwrite-trigger": "event",
+        },
+        settle,
+      })
+    );
+    expect(waits).toBe(0);
   });
 
   it("answers 500 when loading fails", async () => {

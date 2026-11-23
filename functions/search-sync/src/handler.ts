@@ -19,6 +19,8 @@ export interface HandlerInput {
   reindex: () => Promise<Record<string, unknown>>;
   req: RequestLike;
   secret: string | undefined;
+  /** The pause a row event takes before it reads (`settle.ts`). */
+  settle: () => Promise<void>;
 }
 
 const OK_STATUS = 200;
@@ -80,6 +82,9 @@ async function route(input: HandlerInput): Promise<HandlerResult> {
       status: OK_STATUS,
     };
   }
+  // Let the rest of the save land first; the reindex and ignored events
+  // read nothing that a save is still writing.
+  await input.settle();
   const counts = await syncTargets(deps, resolution.targets);
   return { body: { ok: true, ...counts }, status: OK_STATUS };
 }

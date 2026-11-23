@@ -22,6 +22,8 @@ export interface IndexWriter {
 }
 
 const DEFAULT_TIMEOUT_MS = 10_000;
+/** A reindex batch of 500 entries can queue behind others; give it longer. */
+const REINDEX_TIMEOUT_MS = 120_000;
 const PRIMARY_KEY = "id";
 const HTTP_NOT_FOUND = 404;
 
@@ -87,5 +89,19 @@ export function meiliWriter(
       }
       await settle(index.addDocuments(entries, { primaryKey: PRIMARY_KEY }));
     },
+  };
+}
+
+/**
+ * The function's two writers: row events wait 10 s per task, the reindex
+ * 120 s (its batches are large and the sweep can take a while).
+ */
+export function siteWriters(
+  client: Meilisearch,
+  indexName: string
+): { event: IndexWriter; reindex: IndexWriter } {
+  return {
+    event: meiliWriter(client, indexName),
+    reindex: meiliWriter(client, indexName, { timeoutMs: REINDEX_TIMEOUT_MS }),
   };
 }

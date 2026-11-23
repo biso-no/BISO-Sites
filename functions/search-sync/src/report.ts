@@ -7,8 +7,9 @@ const HTTP_BAD_REQUEST = 400;
 /**
  * Report a handled response to Sentry. Only the status is named: the body can
  * carry content titles and ids, which stay in the function logs. 401 and 403
- * are skipped: the function has a public domain, so scanners trigger them, and
- * a real secret mismatch shows up as a failed reindex call on the caller.
+ * are skipped: the reindex is run by hand from the Console (the function
+ * needs no domain), so a wrong secret shows in that execution's response
+ * straight away, and if a domain is ever added, scanners would trigger them.
  */
 export function reportResponse(reporter: Reporter, status: number): void {
   if (status === HTTP_UNAUTHORIZED || status === HTTP_FORBIDDEN) {

@@ -11,6 +11,7 @@ import type { SyncDeps } from "./sync";
 import type { IndexWriter } from "./writer";
 
 const NOW = new Date("2026-11-23T12:00:00Z");
+const REFUSED = /refusing to sweep/;
 
 interface FakeWriter extends IndexWriter {
   settingsApplied: boolean;
@@ -111,8 +112,8 @@ describe("runReindex", () => {
 
   it("skips a project's coded hub in the locales its page serves", async () => {
     const { deps, writer } = setup({
-      entriesPer: 0,
-      ids: {},
+      entriesPer: 2,
+      ids: { event: [["e1"]] },
       servable: {
         "/projects/fadderullan": ["no", "en"],
         "/projects/winter-games": ["no"],
@@ -136,10 +137,33 @@ describe("runReindex", () => {
     });
     const original = writer.upsert;
     writer.upsert = (entries) => {
-      batches.push(entries.length);
+      if (entries[0]?.type === "event") {
+        batches.push(entries.length);
+      }
       return original(entries);
     };
     await runReindex(deps);
-    expect(batches.every((n) => n <= 500)).toBe(true);
+    expect(batches).toEqual([500, 100]);
+  });
+
+  it("does not sweep when a load fails", async () => {
+    const { deps, writer } = setup({ entriesPer: 2, ids: { event: [["e1"]] } });
+    deps.source.load = () => Promise.reject(new Error("appwrite down"));
+    await expect(runReindex(deps)).rejects.toThrow("appwrite down");
+    expect(writer.sweptBefore).toBeNull();
+  });
+
+  it("does not sweep when an upsert fails", async () => {
+    const { deps, writer } = setup({ entriesPer: 2, ids: { event: [["e1"]] } });
+    writer.upsert = () => Promise.reject(new Error("task failed"));
+    await expect(runReindex(deps)).rejects.toThrow("task failed");
+    expect(writer.sweptBefore).toBeNull();
+  });
+
+  it("refuses to sweep when every listing came back empty", async () => {
+    // An empty read (wrong database, missing scope) must not wipe the index.
+    const { deps, writer } = setup({ entriesPer: 2, ids: {} });
+    await expect(runReindex(deps)).rejects.toThrow(REFUSED);
+    expect(writer.sweptBefore).toBeNull();
   });
 });
