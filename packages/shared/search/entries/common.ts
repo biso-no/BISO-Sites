@@ -72,7 +72,10 @@ interface BaseInput {
 }
 
 /** The fields every entry shares, with every optional field defaulted. */
-export function baseEntry(input: BaseInput, ctx: MapContext): SearchEntry {
+export function baseEntry(
+  input: BaseInput,
+  ctx: Pick<MapContext, "syncedAt">
+): SearchEntry {
   return {
     id: searchEntryId(input.type, input.rowId, input.locale),
     type: input.type,
