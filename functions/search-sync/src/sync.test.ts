@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { codedRowId } from "@repo/shared/search/coded-pages";
 import { baseEntry, type MapContext } from "@repo/shared/search/entries/common";
 import type { SearchEntry, SearchType } from "@repo/shared/search/types";
 import type { ItemTarget, SyncTarget } from "./resolve";
@@ -7,6 +8,7 @@ import { type SyncDeps, syncTargets } from "./sync";
 import type { IndexWriter } from "./writer";
 
 const NOW = new Date("2026-11-23T12:00:00Z");
+const WINTER_GAMES_ROW = codedRowId("/projects/winter-games");
 
 function entry(
   type: SearchType,
@@ -150,7 +152,7 @@ describe("syncTargets", () => {
     });
     await syncTargets(deps, [{ id: "p2", type: "page" }]);
     expect(writer.upserted).toEqual([pageEntry]);
-    expect(writer.deleted).toContainEqual(["coded", "projects-winter-games"]);
+    expect(writer.deleted).toContainEqual(["coded", WINTER_GAMES_ROW]);
   });
 
   it("restores the coded entry when the project page is not servable", async () => {
@@ -189,15 +191,15 @@ describe("syncTargets", () => {
     expect(source.loadCalls).toEqual([]);
     expect(writer.deleted).toEqual([]);
     expect(writer.upserted.map((e) => [e.type, e.row_id, e.locale])).toEqual([
-      ["coded", "projects-winter-games", "no"],
-      ["coded", "projects-winter-games", "en"],
+      ["coded", WINTER_GAMES_ROW, "no"],
+      ["coded", WINTER_GAMES_ROW, "en"],
     ]);
   });
 
   it("removes a hub's coded entry while a servable page owns it", async () => {
     const { deps, writer } = setup({ servable: ["/projects/winter-games"] });
     await syncTargets(deps, [{ id: "winter-games", type: "project-path" }]);
-    expect(writer.deleted).toEqual([["coded", "projects-winter-games"]]);
+    expect(writer.deleted).toEqual([["coded", WINTER_GAMES_ROW]]);
     expect(writer.upserted).toEqual([]);
   });
 

@@ -1,6 +1,7 @@
 import { baseEntry, type MapContext } from "./entries/common";
 import {
   ALL_CAMPUSES,
+  escapeIdPart,
   SEARCH_LOCALES,
   type SearchEntry,
   type SearchLocale,
@@ -771,10 +772,12 @@ export const CODED_PAGES: readonly CodedPage[] = [
   },
 ];
 
-/** "/" → "home", "/campus/bergen" → "campus-bergen". */
+/**
+ * The row id of a coded page: its path with the entry id escape, so two paths
+ * never share an id. "/" → "-2f-", "/campus/bergen" → "-2f-campus-2f-bergen".
+ */
 export function codedRowId(path: string): string {
-  const id = path.replace(/^\/+|\/+$/g, "").replace(/\//g, "-");
-  return id === "" ? "home" : id;
+  return escapeIdPart(path);
 }
 
 /**

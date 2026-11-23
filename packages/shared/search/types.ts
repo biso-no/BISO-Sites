@@ -57,24 +57,29 @@ export interface SearchEntry {
 }
 
 /**
- * Deterministic Meilisearch document id. "-" is the escape character: every
+ * A string as Meilisearch id characters. "-" is the escape character: every
  * character outside [A-Za-z0-9_] (including "-" itself) is encoded as
- * `-<hex>-`, so distinct row ids never collide.
+ * `-<hex>-`, so distinct inputs never give the same output.
  */
-export function searchEntryId(
-  type: SearchType,
-  rowId: string,
-  locale: SearchLocale
-): string {
+export function escapeIdPart(value: string): string {
   let encoded = "";
-  for (const char of rowId) {
+  for (const char of value) {
     if (SAFE_ID_CHAR.test(char)) {
       encoded += char;
     } else {
       encoded += `-${(char.codePointAt(0) ?? 0).toString(16)}-`;
     }
   }
-  return `${type}_${encoded}_${locale}`;
+  return encoded;
+}
+
+/** Deterministic Meilisearch document id; distinct row ids never collide. */
+export function searchEntryId(
+  type: SearchType,
+  rowId: string,
+  locale: SearchLocale
+): string {
+  return `${type}_${escapeIdPart(rowId)}_${locale}`;
 }
 
 export function campusBucket(campusId: string | null | undefined): string {

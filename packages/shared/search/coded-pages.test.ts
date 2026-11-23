@@ -31,9 +31,18 @@ describe("coded pages", () => {
     ).toBe(false);
   });
 
-  it("builds row ids from paths", () => {
-    expect(codedRowId("/")).toBe("home");
-    expect(codedRowId("/campus/bergen")).toBe("campus-bergen");
+  it("builds row ids from paths with the entry id escape", () => {
+    expect(codedRowId("/")).toBe("-2f-");
+    expect(codedRowId("/campus/bergen")).toBe("-2f-campus-2f-bergen");
+    expect(codedRowId("/okonomisk-stotte")).toBe("-2f-okonomisk-2d-stotte");
+  });
+
+  it("never gives two paths the same row id", () => {
+    // Paths that a plain "/" → "-" mapping would merge.
+    const lookalikes = ["/campus/bergen", "/campus-bergen", "/", "/home"];
+    expect(new Set(lookalikes.map(codedRowId)).size).toBe(lookalikes.length);
+    const ids = CODED_PAGES.map((p) => codedRowId(p.path));
+    expect(new Set(ids).size).toBe(CODED_PAGES.length);
   });
 
   it("drops skipped paths", () => {

@@ -103,14 +103,12 @@ describe("meiliWriter", () => {
   it("deletes an item by type and row id", async () => {
     const { calls, client } = fakeClient();
     await meiliWriter(client, "site_test", { timeoutMs: 500 }).deleteItem(
-      "coded",
-      "projects-winter-games"
+      "page",
+      "p1"
     );
     expect(calls).toEqual([
       {
-        args: [
-          { filter: 'type = "coded" AND row_id = "projects-winter-games"' },
-        ],
+        args: [{ filter: 'type = "page" AND row_id = "p1"' }],
         index: "site_test",
         method: "deleteDocuments",
         timeout: 500,
