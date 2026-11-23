@@ -30,7 +30,8 @@
   },
   "error": {
     "title": "Search is unavailable",
-    "body": "We could not reach search right now. Try again in a moment."
+    "body": "We could not reach search right now. Try again in a moment.",
+    "link": "Go to the search page"
   },
   "hints": { "move": "Move", "open": "Open", "close": "Close" },
   "resultsCount": "{count, plural, =0 {No results} one {# result} other {# results}}",

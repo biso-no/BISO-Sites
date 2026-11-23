@@ -49,32 +49,82 @@ export function searchUrl(input: SearchQueryInput, base = apiBase()): string {
   return `${base.replace(TRAILING_SLASHES, "")}/api/search?${params.toString()}`;
 }
 
+interface TimedSignal {
+  release: () => void;
+  signal: AbortSignal;
+}
+
+/**
+ * The caller's signal and a timeout as one signal. `AbortSignal.any` is
+ * missing before Safari 17.4 (and `AbortSignal.timeout` before 16), so older
+ * iPhones get a local controller that follows the caller's abort and a timer.
+ * `release` clears the timer and the listener once the request is done.
+ */
+function timedSignal(
+  caller: AbortSignal | undefined,
+  timeoutMs: number
+): TimedSignal {
+  if (
+    typeof AbortSignal.any === "function" &&
+    typeof AbortSignal.timeout === "function"
+  ) {
+    const timeout = AbortSignal.timeout(timeoutMs);
+    return {
+      signal: caller ? AbortSignal.any([caller, timeout]) : timeout,
+      release: () => undefined,
+    };
+  }
+  const controller = new AbortController();
+  const followCaller = () => controller.abort(caller?.reason);
+  const timer = setTimeout(
+    () =>
+      controller.abort(new DOMException("Search timed out", "TimeoutError")),
+    timeoutMs
+  );
+  if (caller?.aborted) {
+    followCaller();
+  } else {
+    caller?.addEventListener("abort", followCaller, { once: true });
+  }
+  return {
+    signal: controller.signal,
+    release: () => {
+      clearTimeout(timer);
+      caller?.removeEventListener("abort", followCaller);
+    },
+  };
+}
+
 export async function fetchSearch<M extends "quick" | "page">(
   input: SearchQueryInput & { mode: M },
   init: { signal?: AbortSignal; timeoutMs?: number } = {}
 ): Promise<M extends "quick" ? QuickSearchResponse : PageSearchResponse> {
-  const timeout = AbortSignal.timeout(init.timeoutMs ?? DEFAULT_TIMEOUT_MS);
-  const signal = init.signal
-    ? AbortSignal.any([init.signal, timeout])
-    : timeout;
-  let response: Response;
+  const { signal, release } = timedSignal(
+    init.signal,
+    init.timeoutMs ?? DEFAULT_TIMEOUT_MS
+  );
   try {
-    response = await fetch(searchUrl(input), { credentials: "omit", signal });
-  } catch (error) {
-    // A caller-initiated abort is not an outage; let it through unchanged.
-    if (init.signal?.aborted) {
-      throw error;
+    let response: Response;
+    try {
+      response = await fetch(searchUrl(input), { credentials: "omit", signal });
+    } catch (error) {
+      // A caller-initiated abort is not an outage; let it through unchanged.
+      if (init.signal?.aborted) {
+        throw error;
+      }
+      throw new SearchUnavailableError();
     }
-    throw new SearchUnavailableError();
-  }
-  if (!response.ok) {
-    throw new SearchUnavailableError(`Search returned ${response.status}`);
-  }
-  try {
-    return (await response.json()) as M extends "quick"
-      ? QuickSearchResponse
-      : PageSearchResponse;
-  } catch {
-    throw new SearchUnavailableError("Search returned invalid data");
+    if (!response.ok) {
+      throw new SearchUnavailableError(`Search returned ${response.status}`);
+    }
+    try {
+      return (await response.json()) as M extends "quick"
+        ? QuickSearchResponse
+        : PageSearchResponse;
+    } catch {
+      throw new SearchUnavailableError("Search returned invalid data");
+    }
+  } finally {
+    release();
   }
 }

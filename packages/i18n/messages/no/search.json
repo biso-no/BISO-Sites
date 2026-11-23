@@ -30,7 +30,8 @@
   },
   "error": {
     "title": "Søket er utilgjengelig",
-    "body": "Vi kom ikke i kontakt med søket akkurat nå. Prøv igjen om litt."
+    "body": "Vi kom ikke i kontakt med søket akkurat nå. Prøv igjen om litt.",
+    "link": "Gå til søkesiden"
   },
   "hints": { "move": "Flytt", "open": "Åpne", "close": "Lukk" },
   "resultsCount": "{count, plural, =0 {Ingen treff} one {# treff} other {# treff}}",

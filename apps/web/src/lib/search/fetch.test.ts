@@ -70,3 +70,96 @@ describe("fetchSearch", () => {
     expect(init.credentials).toBe("omit");
   });
 });
+
+/** A fetch that never answers on its own and rejects when its signal aborts. */
+function hangingFetch() {
+  return vi.fn(
+    (_url: string, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        const signal = init?.signal;
+        signal?.addEventListener("abort", () => reject(signal.reason), {
+          once: true,
+        });
+      })
+  );
+}
+
+const nativeAny = AbortSignal.any;
+
+describe.each([
+  ["AbortSignal.any available", false],
+  ["AbortSignal.any missing (Safari < 17.4)", true],
+])("fetchSearch aborts with %s", (_label, removeAny) => {
+  afterEach(() => {
+    AbortSignal.any = nativeAny;
+    vi.useRealTimers();
+  });
+
+  const setup = () => {
+    if (removeAny) {
+      Reflect.deleteProperty(AbortSignal, "any");
+    }
+  };
+
+  it("rethrows the caller's own abort unchanged", async () => {
+    setup();
+    vi.stubGlobal("fetch", hangingFetch());
+    const controller = new AbortController();
+    const pending = fetchSearch(
+      { q: "x", locale: "no", mode: "quick" },
+      { signal: controller.signal, timeoutMs: 10_000 }
+    );
+    controller.abort();
+    const error = await pending.catch((caught: unknown) => caught);
+    expect(error).not.toBeInstanceOf(SearchUnavailableError);
+    expect((error as Error).name).toBe("AbortError");
+  });
+
+  it("turns a timeout into SearchUnavailableError", async () => {
+    setup();
+    vi.stubGlobal("fetch", hangingFetch());
+    const controller = new AbortController();
+    await expect(
+      fetchSearch(
+        { q: "x", locale: "no", mode: "quick" },
+        { signal: controller.signal, timeoutMs: 20 }
+      )
+    ).rejects.toBeInstanceOf(SearchUnavailableError);
+    expect(controller.signal.aborted).toBe(false);
+  });
+
+  it("still answers when the caller passes no signal", async () => {
+    setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ mode: "quick" }))
+    );
+    await expect(
+      fetchSearch({ q: "x", locale: "no", mode: "quick" })
+    ).resolves.toEqual({ mode: "quick" });
+  });
+});
+
+describe("fetchSearch without AbortSignal.any", () => {
+  afterEach(() => {
+    AbortSignal.any = nativeAny;
+    vi.useRealTimers();
+  });
+
+  it("clears its timer and caller listener once the answer is in", async () => {
+    Reflect.deleteProperty(AbortSignal, "any");
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ mode: "quick" }))
+    );
+    const controller = new AbortController();
+    const remove = vi.spyOn(controller.signal, "removeEventListener");
+    await fetchSearch(
+      { q: "x", locale: "no", mode: "quick" },
+      { signal: controller.signal }
+    );
+    expect(vi.getTimerCount()).toBe(0);
+    expect(remove).toHaveBeenCalledWith("abort", expect.any(Function));
+  });
+});
