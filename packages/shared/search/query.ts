@@ -320,7 +320,11 @@ async function runPage(
     const restTotal = rest?.totalHits ?? 0;
     const hits = [...(mine?.hits ?? [])];
     const start = (req.page - 1) * SEARCH_PAGE_SIZE;
-    if (hits.length < SEARCH_PAGE_SIZE && start - mineTotal < restTotal) {
+    if (
+      restTotal > 0 &&
+      hits.length < SEARCH_PAGE_SIZE &&
+      start - mineTotal < restTotal
+    ) {
       const [more] = await runner.multiSearch([
         makeQuery(indexName, req, restFilter, {
           offset: Math.max(0, start - mineTotal),

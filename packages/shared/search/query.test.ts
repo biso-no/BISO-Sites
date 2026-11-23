@@ -391,6 +391,18 @@ describe("runSearch page", () => {
     expect(f.calls).toHaveLength(1);
   });
 
+  it("makes one call when other campuses have no matches", async () => {
+    const f = fake(many("event", 5, "2", "m"));
+    const r = await runSearch(f, "i", pageReq(1), NOW);
+    if (r.mode !== "page") {
+      throw new Error("mode");
+    }
+    expect(f.calls).toHaveLength(1);
+    expect(r.hits.map((h) => h.id)).toEqual(
+      many("event", 5, "2", "m").map((e) => e.id)
+    );
+  });
+
   it("skips the second call for a page past the end", async () => {
     const f = fake([...mine, ...rest]);
     const r = await runSearch(f, "i", pageReq(4), NOW);
