@@ -1,3 +1,5 @@
+import type { Settings } from "meilisearch";
+
 export const SEARCH_INDEX_DEFAULT = "site_content";
 
 export function searchIndexName(
@@ -6,7 +8,8 @@ export function searchIndexName(
   return env.MEILISEARCH_INDEX || SEARCH_INDEX_DEFAULT;
 }
 
-export const SEARCH_INDEX_SETTINGS = {
+/** Applied by the reindex; typed so a misspelled setting fails to compile. */
+export const SEARCH_INDEX_SETTINGS: Settings = {
   searchableAttributes: [
     "title",
     "keywords",
