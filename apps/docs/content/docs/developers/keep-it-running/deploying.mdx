@@ -17,7 +17,7 @@ covers:
   - .github/workflows/**
 ---
 
-Read this before you ship a change to production, and again when a deploy goes wrong. It covers how the four web apps and the three Appwrite functions are built and deployed today, how the BISO app reaches the stores, and what to check afterwards. Deploys are manual, nothing in GitHub checks your code, and there is no staging environment, so run the checks on this page yourself.
+Read this before you ship a change to production, and again when a deploy goes wrong. It covers how the four web apps and the four Appwrite functions are built and deployed today, how the BISO app reaches the stores, and what to check afterwards. Deploys are manual, nothing in GitHub checks your code, and there is no staging environment, so run the checks on this page yourself.
 
 ## How deploys work today
 
@@ -25,7 +25,7 @@ Read this before you ship a change to production, and again when a deploy goes w
 - Pushing to `main` doesn't deploy them. Nobody knows why yet. A GitHub deploy workflow is planned.
 - Nothing in GitHub builds, tests, lints or type-checks the apps. The two workflows in `.github/workflows/` are a Claude PR review and a docs coverage check that only warns. Dependabot (`.github/dependabot.yml`) opens pull requests that update dependencies each week, and the Claude review skips those.
 - There is no staging environment. A deploy goes straight to `biso.no`, `admin.biso.no` or `api.biso.no`.
-- The three functions are deployed from the console too, each with its own settings.
+- The four functions are deployed from the console too, each with its own settings.
 - The BISO app ships differently: Android from CI, iOS by hand.
 
 | Part | Build | How it's deployed | Live at |
@@ -37,6 +37,7 @@ Read this before you ship a change to production, and again when a deploy goes w
 | scheduled-dispatch | `bun install`, no build step | Appwrite console, Git integration | Appwrite function |
 | content-notifier | A `bun build` bundle | Appwrite console | Appwrite function |
 | member-roster-sync | A `bun build` bundle | Appwrite console | Appwrite function |
+| search-sync | A `bun build` bundle | Appwrite console | Appwrite function |
 | Android app | GitHub Actions in BISO-Flutter | Each push to `main` goes to Google Play's internal track | Google Play |
 | iOS app | `flutter build ipa --release` on a Mac | Uploaded by hand | App Store |
 
@@ -133,9 +134,9 @@ A Site keeps its earlier deployments, and one of them is the active one. To roll
 
 ## Deploy a function
 
-The three functions live in `functions/`. Each one's README lists its console settings. The console is the source of truth. The repo keeps a copy of only scheduled-dispatch's settings, in `packages/api/appwrite.config.json`.
+The four functions live in `functions/`. Each one's README lists its console settings. The console is the source of truth. The repo keeps a copy of only scheduled-dispatch's settings, in `packages/api/appwrite.config.json`.
 
-Redeploy a function when you change its folder. content-notifier and member-roster-sync also bundle shared packages when they're built, so redeploy them after changes to `packages/api` or `packages/shared`, and member-roster-sync after changes to `packages/connectors` as well. scheduled-dispatch uses no shared packages, but all three load the Sentry reporter from `packages/observability/src/functions/reporter.ts`, so redeploy all three after a change to it.
+Redeploy a function when you change its folder. content-notifier, member-roster-sync and search-sync also bundle shared packages when they're built, so redeploy them after changes to `packages/api` or `packages/shared`, and member-roster-sync after changes to `packages/connectors` as well. scheduled-dispatch uses no shared packages, but all four load the Sentry reporter from `packages/observability/src/functions/reporter.ts`, so redeploy all four after a change to it.
 
 Never set `APPWRITE_*` variables on a function. Appwrite passes each run its own key, scoped to the function's settings.
 
@@ -212,6 +213,10 @@ Its README also lists the settings under "Console setup (not in code)" and doesn
 The admin needs `MEMBER_ROSTER_FUNCTION_ID` set to this function's id, and the admin's API key needs the `executions.read` and `executions.write` scopes.
 
 After a deploy, open the admin's members page (`/members`) and press **Oppdater nå** (Refresh now). After a couple of minutes the status line says **Sist oppdatert** (Last refreshed) with the new time.
+
+### search-sync
+
+Keeps the site-search index in Meilisearch in step with the database: row events on the indexed tables update it within seconds, and a reindex run by hand from the console rebuilds it. Its README, `functions/search-sync/README.md`, lists the console settings, the event triggers, how to run the reindex and the go-live order. Add the event triggers only after the first reindex. Redeploy it and run the reindex after changing `CODED_PAGES` in `packages/shared/search/coded-pages.ts`.
 
 ## Why pushing to main doesn't deploy
 

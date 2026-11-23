@@ -12,7 +12,7 @@ covers:
   - packages/ai/src/models.ts
 ---
 
-This page is the map of the platform. Read it before you change anything, and come back to it when something breaks and you need to know what depends on what. Almost everything runs on one rented server: Appwrite holds the data and also runs the web apps and the three functions.
+This page is the map of the platform. Read it before you change anything, and come back to it when something breaks and you need to know what depends on what. Almost everything runs on one rented server: Appwrite holds the data and also runs the web apps and the four functions.
 
 ## The system
 
@@ -27,7 +27,7 @@ This page is the map of the platform. Read it before you change anything, and co
       api["api<br/>api.biso.no"]
       docs["docs<br/>docs.biso.no"]
       data[("Database, sign-in,<br/>files, push and email")]
-      fns["Functions<br/>scheduled-dispatch<br/>content-notifier<br/>member-roster-sync"]
+      fns["Functions<br/>scheduled-dispatch<br/>content-notifier<br/>member-roster-sync<br/>search-sync"]
     end
     infisical["Infisical<br/>developer credentials"]
   end
@@ -60,6 +60,7 @@ To keep it readable, the diagram leaves out these calls:
 
 - The admin calls the API, and asks the website to refresh its cache after some saves.
 - scheduled-dispatch also calls the website, the admin and content-notifier.
+- search-sync writes to the Meilisearch server that holds the site-search index.
 - Browsers call the API directly from some expense pages.
 - Appwrite itself calls Firebase to send push, and BI and Microsoft for sign-in.
 - The docs read private details from Infisical and the signed-in reader from Appwrite, and send the assistant's questions to Anthropic.
@@ -78,9 +79,10 @@ To keep it readable, the diagram leaves out these calls:
 | scheduled-dispatch | Every 5 minutes, calls the apps' background endpoints, such as order reconciliation, scheduled announcements and data clean-up. | Appwrite Function | `functions/scheduled-dispatch` |
 | content-notifier | Sends the automatic push when an event, news item or job goes live. | Appwrite Function | `functions/content-notifier` |
 | member-roster-sync | Every night, rebuilds the member list on the admin's members page from 24SevenOffice. | Appwrite Function | `functions/member-roster-sync` |
+| search-sync | Keeps the site-search index in Meilisearch in step with the database on every row change, and rebuilds it when run by hand. See `functions/search-sync/README.md`. | Appwrite Function | `functions/search-sync` |
 | Shared packages | Code the apps share, such as Appwrite access, the page editor, UI, outside services, payments, AI and translations. | Built into each app | `packages/*` |
 | BISO app | The iOS and Android app. It talks to Appwrite directly and to `api.biso.no`. | App Store and Google Play | The BISO-Flutter repo |
-| Sentry | Collects errors, slow requests, scheduled-job check-ins and uptime checks from the four apps and the three functions, and emails the owner. Non-profit plan, EU region. | Sentry's own service | `packages/observability`, and each app's Sentry files. See [Monitoring and health](/developers/keep-it-running/monitoring-and-health#sentry). |
+| Sentry | Collects errors, slow requests, scheduled-job check-ins and uptime checks from the four apps and the four functions, and emails the owner. Non-profit plan, EU region. | Sentry's own service | `packages/observability`, and each app's Sentry files. See [Monitoring and health](/developers/keep-it-running/monitoring-and-health#sentry). |
 | Better Stack | Sends an alert when the site can't be reached. Free plan. | Better Stack's own service | Not in the repo |
 | Umami | Visitor analytics for the website and the admin. The admin's analytics page reads it. | Self-hosted | Umami itself isn't in the repo. The admin's client is in `apps/admin/src/lib/umami`. |
 
@@ -107,4 +109,4 @@ To keep it readable, the diagram leaves out these calls:
 
 ## How code gets to production
 
-The owner deploys each app by hand in the Appwrite console. Pushing to `main` doesn't deploy the apps, and no GitHub workflow builds or tests them. A deploy workflow is planned. Only scheduled-dispatch's README says it deploys through the console's Git integration. The other two functions' READMEs don't say how their code reaches Appwrite. Check each function's deployment settings in the console before you push function code. [Deploying](/developers/keep-it-running/deploying#deploy-a-function) has the details. The BISO app is different: in the BISO-Flutter repo, each push to `main` builds Android and uploads it to Google Play's internal track, and iOS is built by hand with `flutter build ipa --release`.
+The owner deploys each app by hand in the Appwrite console. Pushing to `main` doesn't deploy the apps, and no GitHub workflow builds or tests them. A deploy workflow is planned. Only scheduled-dispatch's README says it deploys through the console's Git integration. The other three functions' READMEs don't say how their code reaches Appwrite. Check each function's deployment settings in the console before you push function code. [Deploying](/developers/keep-it-running/deploying#deploy-a-function) has the details. The BISO app is different: in the BISO-Flutter repo, each push to `main` builds Android and uploads it to Google Play's internal track, and iOS is built by hand with `flutter build ipa --release`.

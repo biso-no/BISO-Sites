@@ -34,7 +34,7 @@ covers:
   - packages/ui/components/replay-consent-bar.tsx
 ---
 
-Use this page to find out whether the platform is healthy, and where to look when it isn't. Sentry is the first place to look: it collects errors, slow requests, scheduled-job check-ins and uptime checks for the four apps and the three functions, and emails the owner about outages, failed scheduled jobs and new errors that aren't minor. Better Stack still checks that the site can be reached. The health endpoints, the logs in the Appwrite console and the admin's operations page are the fallback when Sentry itself has nothing. Some things still alert nobody, so read [What isn't monitored](#what-isnt-monitored) before you trust a quiet inbox.
+Use this page to find out whether the platform is healthy, and where to look when it isn't. Sentry is the first place to look: it collects errors, slow requests, scheduled-job check-ins and uptime checks for the four apps and the four functions, and emails the owner about outages, failed scheduled jobs and new errors that aren't minor. Better Stack still checks that the site can be reached. The health endpoints, the logs in the Appwrite console and the admin's operations page are the fallback when Sentry itself has nothing. Some things still alert nobody, so read [What isn't monitored](#what-isnt-monitored) before you trust a quiet inbox.
 
 ## Sentry
 
@@ -54,13 +54,13 @@ There is one project per deploy unit, so an issue's id shows where it came from.
 | `biso-admin` | The admin: the same as the website, plus the test error from the operations page. |
 | `biso-api` | The api: server errors and traces, the Appwrite call timings, payment, order and expense counts, and the AI calls it makes. |
 | `biso-docs` | These docs: errors and page loads for staff and developers, and the docs assistant's AI calls. |
-| `biso-functions` | The three Appwrite functions: errors, and the cron monitors for the scheduled jobs. |
+| `biso-functions` | The four Appwrite functions: errors, and the cron monitors for the scheduled jobs. |
 
 The older `appwrite` and `react-native` projects are leftovers. Ignore them, with one exception: `appwrite` still runs an uptime check called "BISO API" every 10 minutes. It duplicates the api check and the owner plans to delete it. An unused `biso-app` project also exists, because the BISO app doesn't report to Sentry.
 
 ### What is sent
 
-- **Errors.** Every unhandled error in the apps' server code and in the browser, and the errors the three functions report themselves. Each has a readable stack trace (source maps are uploaded when the app is built) and the release it came from. A release is named `biso-<app>@<first 12 characters of the commit>`.
+- **Errors.** Every unhandled error in the apps' server code and in the browser, and the errors the four functions report themselves. Each has a readable stack trace (source maps are uploaded when the app is built) and the release it came from. A release is named `biso-<app>@<first 12 characters of the commit>`.
 - **Request traces.** One trace for each server request. Server traces are kept in full on every app. Browser page loads are kept for 25% of visits on the website and docs and for every visit on the admin. A trace shows where a slow request spent its time, including each call to Appwrite.
 - **Browser profiles.** On the website and the admin, 10% of the traced page loads also send a profile of what the browser's JavaScript was doing. It works only in Chromium browsers, and it needs the `Document-Policy: js-profiling` header that the two apps' `next.config.ts` set.
 - **The browser tunnel.** The website's and the admin's browser code doesn't call Sentry directly. It posts to its own Site at `POST /api/relay`, which forwards to Sentry, so ad-blockers don't drop the reports. The route answers `403` for an event that belongs to another DSN and `413` for a body over 10 MB. Docs posts to Sentry directly. A proxy or firewall in front of a Site must allow `POST /api/relay`, or the browser reports are lost.

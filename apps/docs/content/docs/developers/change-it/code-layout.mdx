@@ -17,7 +17,7 @@ covers:
   - packages/editor/src/blocks/text/rich-confinement.test.ts
 ---
 
-Read this to find your way around the repo before you change anything, and come back to it when a Turbo task behaves oddly. BISO-Sites is one Bun workspace with four Next.js apps, twelve shared packages and three Appwrite functions. Turbo runs their scripts. The BISO app lives in a separate repo, BISO-Flutter.
+Read this to find your way around the repo before you change anything, and come back to it when a Turbo task behaves oddly. BISO-Sites is one Bun workspace with four Next.js apps, twelve shared packages and four Appwrite functions. Turbo runs their scripts. The BISO app lives in a separate repo, BISO-Flutter.
 
 ## The workspace
 
@@ -55,7 +55,7 @@ The table in the root `CLAUDE.md` leaves out `@repo/observability`, `@repo/tours
 
 ### Functions
 
-`functions/` holds the three Appwrite Functions: `scheduled-dispatch`, `content-notifier` and `member-roster-sync`. [Scheduled jobs](/developers/keep-it-running/scheduled-jobs) says what each one does.
+`functions/` holds the four Appwrite Functions: `scheduled-dispatch`, `content-notifier`, `member-roster-sync` and `search-sync`. [Scheduled jobs](/developers/keep-it-running/scheduled-jobs) says what the first three do. `search-sync` keeps the site-search index in Meilisearch in step with the database. `functions/search-sync/README.md` explains it.
 
 ### How the apps use the packages
 
