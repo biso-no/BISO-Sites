@@ -11,6 +11,7 @@ import type {
   NewGroup,
   ParsedPerson,
   PlacementRule,
+  PlacementTarget,
 } from "./plan-import";
 
 /** One person from the file, with the participant they already are (if any). */
@@ -145,6 +146,18 @@ function createGroup(board: Board, group: NewGroup): string {
   return group.key;
 }
 
+function targetOf(subject: PlanSubject): PlacementTarget {
+  const participantId = subject.participant?.$id;
+  return participantId ? { participantId } : subject.person;
+}
+
+function isMember(board: Board, subject: PlanSubject, key: string): boolean {
+  const participantId = subject.participant?.$id;
+  return participantId
+    ? (board.memberOf.get(participantId)?.has(key) ?? false)
+    : false;
+}
+
 /** Places a subject; someone already in that group is not placed again. */
 function place(
   board: Board,
@@ -160,15 +173,10 @@ function place(
     board.roomOf.set(subject, key);
   }
   target.campuses.add(subject.campusId);
-  const participantId = subject.participant?.$id;
-  if (participantId && board.memberOf.get(participantId)?.has(key)) {
+  if (isMember(board, subject, key)) {
     return;
   }
-  board.placements.push({
-    person: participantId ? { participantId } : subject.person,
-    groupKey: key,
-    rule,
-  });
+  board.placements.push({ person: targetOf(subject), groupKey: key, rule });
   target.count += 1;
 }
 
@@ -217,6 +225,7 @@ function placeByColumn(
         campusId: null,
         capacity: null,
         bookingRowNumber: null,
+        booker: null,
       });
     place(board, subject, key, "group_column");
   }
@@ -225,8 +234,40 @@ function placeByColumn(
 // ---------------------------------------------------------------------------
 // "Each row is a room booking" (Payment 1)
 
-/** A room this participant already booked (re-import of a file without references). */
-function roomBookedBy(board: Board, subject: PlanSubject): string | null {
+/** One booking: the person's own row, or an extra one from a duplicate row. */
+interface Booking {
+  campusId: string | null;
+  roomSize: number | null;
+  rowNumber: number;
+  ticketRef: string | null;
+}
+
+function bookingsOf(subject: PlanSubject): Booking[] {
+  const { person } = subject;
+  const extra = (person.extraBookings ?? []).map((booking) => ({
+    ...booking,
+    campusId: booking.campusId ?? subject.campusId,
+  }));
+  return [
+    {
+      campusId: subject.campusId,
+      roomSize: person.roomSize,
+      rowNumber: person.rowNumber,
+      ticketRef: person.ticketRef,
+    },
+    ...extra,
+  ];
+}
+
+/**
+ * A room this participant booked that no other booking in this plan has
+ * taken (re-import of a file without references).
+ */
+function roomBookedBy(
+  board: Board,
+  subject: PlanSubject,
+  taken: Set<string>
+): string | null {
   const participantId = subject.participant?.$id;
   if (!participantId) {
     return null;
@@ -234,7 +275,8 @@ function roomBookedBy(board: Board, subject: PlanSubject): string | null {
   for (const group of board.groups.values()) {
     if (
       group.kind === "room" &&
-      group.row?.booking_participant_id === participantId
+      group.row?.booking_participant_id === participantId &&
+      !taken.has(group.key)
     ) {
       return group.key;
     }
@@ -243,34 +285,72 @@ function roomBookedBy(board: Board, subject: PlanSubject): string | null {
 }
 
 /** Row numbers shift between files: never take a row key someone else's room holds. */
-function freeRowKey(board: Board, rowNumber: number): string {
+function freeRowKey(
+  board: Board,
+  taken: Set<string>,
+  rowNumber: number
+): string {
   const base = bookingKey(`row${rowNumber}`);
   let key = base;
   let suffix = 2;
-  while (board.groups.has(key)) {
+  while (board.groups.has(key) || taken.has(key)) {
     key = `${base}-${suffix}`;
     suffix += 1;
   }
   return key;
 }
 
-function placeBookings(board: Board, subjects: PlanSubject[]): void {
-  for (const subject of subjects) {
-    const { person } = subject;
-    const key = person.ticketRef
-      ? bookingKey(person.ticketRef)
-      : (roomBookedBy(board, subject) ?? freeRowKey(board, person.rowNumber));
+/**
+ * One room per booking, created when it doesn't exist. References are claimed
+ * first so a booking without one only reuses a room no other booking claims.
+ */
+function bookingRooms(
+  board: Board,
+  subject: PlanSubject,
+  taken: Set<string>
+): string[] {
+  const bookings = bookingsOf(subject);
+  const refKeys = bookings.map((booking) =>
+    booking.ticketRef ? bookingKey(booking.ticketRef) : null
+  );
+  for (const key of refKeys) {
+    if (key) {
+      taken.add(key);
+    }
+  }
+  return bookings.map((booking, index) => {
+    const key =
+      refKeys[index] ??
+      roomBookedBy(board, subject, taken) ??
+      freeRowKey(board, taken, booking.rowNumber);
+    taken.add(key);
     if (!board.groups.has(key)) {
       createGroup(board, {
         key,
         kind: "room",
-        name: fullName(person),
-        campusId: subject.campusId,
-        capacity: person.roomSize,
-        bookingRowNumber: person.rowNumber,
+        name: fullName(subject.person),
+        campusId: booking.campusId,
+        capacity: booking.roomSize,
+        bookingRowNumber: booking.rowNumber,
+        booker: targetOf(subject),
       });
     }
-    place(board, subject, key, "booking");
+    return key;
+  });
+}
+
+/**
+ * The buyer fills a place in the booked room they are already in, else in
+ * their first booking's room. Their other rooms are all open places.
+ */
+function placeBookings(board: Board, subjects: PlanSubject[]): void {
+  const taken = new Set<string>();
+  for (const subject of subjects) {
+    const keys = bookingRooms(board, subject, taken);
+    const home = keys.find((key) => isMember(board, subject, key)) ?? keys[0];
+    if (home) {
+      place(board, subject, home, "booking");
+    }
   }
 }
 

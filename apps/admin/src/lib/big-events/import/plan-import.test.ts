@@ -488,6 +488,7 @@ describe("planImport: room bookings", () => {
       campusId: "2",
       capacity: 4,
       bookingRowNumber: 4,
+      booker: result.create[0],
     });
     expect(result.placements[0]).toEqual({
       person: result.create[0],
@@ -496,6 +497,115 @@ describe("planImport: room bookings", () => {
     });
     expect(result.overfullRooms).toEqual([]);
     expect(result.unplaced).toEqual([]);
+  });
+
+  test("a buyer with two bookings gets two rooms", () => {
+    const result = plan(
+      tickster(OLA_ROW, [
+        "Ola",
+        "Nordmann",
+        "ola@gmail.com",
+        "91234567",
+        "A-2",
+        "1 x Bergen - BISO - 2-Person",
+      ]),
+      TICKSTER_HEADER_ROW,
+      TICKSTER_MAPPING,
+      BOOKINGS
+    );
+    const [ola] = result.create;
+    // One person, two rooms.
+    expect(result.create).toHaveLength(1);
+    expect(result.duplicatesInFile).toBe(1);
+    expect(ola?.ticketRef).toBe("A-1");
+    expect(ola?.roomSize).toBe(4);
+    expect(result.newGroups).toEqual([
+      {
+        key: "booking:A-1",
+        kind: "room",
+        name: "Ola Nordmann",
+        campusId: "2",
+        capacity: 4,
+        bookingRowNumber: 4,
+        booker: ola,
+      },
+      {
+        key: "booking:A-2",
+        kind: "room",
+        name: "Ola Nordmann",
+        campusId: "2",
+        capacity: 2,
+        bookingRowNumber: 5,
+        booker: ola,
+      },
+    ]);
+    // Ola fills one place in the first room; the second room is all open places.
+    expect(result.placements).toEqual([
+      { person: ola, groupKey: "booking:A-1", rule: "booking" },
+    ]);
+    expect(result.overfullRooms).toEqual([]);
+  });
+
+  test("re-import keeps both of a buyer's rooms", () => {
+    const secondRoom = group("g-ola-2", {
+      name: "Ola Nordmann",
+      source_key: "booking:A-2",
+      capacity: 2,
+      booking_participant_id: "p-ola",
+      campus_id: "2",
+    });
+    const existing = { ...WITH_OLA_ROOM, groups: [OLA_ROOM, secondRoom] };
+    const secondRow = [
+      "Ola",
+      "Nordmann",
+      "ola@gmail.com",
+      "91234567",
+      "A-2",
+      "1 x Bergen - BISO - 2-Person",
+    ];
+    for (const rows of [
+      tickster(OLA_ROW, secondRow),
+      tickster(secondRow, OLA_ROW),
+    ]) {
+      const result = plan(
+        rows,
+        TICKSTER_HEADER_ROW,
+        TICKSTER_MAPPING,
+        BOOKINGS,
+        existing
+      );
+      expect(result.newGroups).toEqual([]);
+      // Ola stays in the room he is in, even when the rows come in another order.
+      expect(result.placements).toEqual([]);
+      expect(result.update).toHaveLength(1);
+    }
+  });
+
+  test("a buyer's second booking without a reference gets its own room", () => {
+    const rowRoom = group("g-row", {
+      source_key: "booking:row4",
+      capacity: 4,
+      booking_participant_id: "p-ola",
+    });
+    const result = plan(
+      tickster(
+        ["Ola", "Nordmann", "ola@gmail.com", "", "", "Bergen 4-Person"],
+        ["Ola", "Nordmann", "ola@gmail.com", "", "", "Bergen 2-Person"]
+      ),
+      TICKSTER_HEADER_ROW,
+      TICKSTER_MAPPING,
+      BOOKINGS,
+      {
+        participants: [{ ...OLA, ticket_ref: null }],
+        groups: [rowRoom],
+        members: [member("g-row", "p-ola")],
+      }
+    );
+    expect(result.newGroups).toHaveLength(1);
+    expect(result.newGroups[0]?.key).toBe("booking:row5");
+    expect(result.newGroups[0]?.capacity).toBe(2);
+    expect(result.newGroups[0]?.booker).toEqual({ participantId: "p-ola" });
+    expect(result.placements).toEqual([]);
   });
 
   test("reuses an existing room on re-import", () => {
@@ -601,6 +711,25 @@ describe("planImport: placing into existing rooms", () => {
     ]);
   });
 
+  test("buyer contact with two rooms leaves the traveller unplaced", () => {
+    const secondRoom = group("g-ola-2", {
+      source_key: "booking:A-2",
+      capacity: 2,
+      booking_participant_id: "p-ola",
+    });
+    const result = plan(
+      sheet(["Kari Nordmann", "ola@gmail.com", "92345678", "C-3", ""]),
+      0,
+      SHEET_MAPPING,
+      NO_OPTIONS,
+      { ...WITH_OLA_ROOM, groups: [OLA_ROOM, secondRoom] }
+    );
+    // Ola booked two rooms: his email cannot say which one Kari is in.
+    expect(result.placements).toEqual([]);
+    expect(result.unplaced).toEqual(result.create);
+    expect(result.unplaced).toHaveLength(1);
+  });
+
   test("leaves unknown travellers unplaced", () => {
     const result = plan(
       sheet(["Per Hansen", "per@gmail.com", "93456789", "Z-9", ""]),
@@ -702,6 +831,7 @@ describe("planImport: group column", () => {
         campusId: null,
         capacity: null,
         bookingRowNumber: null,
+        booker: null,
       },
       {
         key: "col:bus:buss 2",
@@ -710,6 +840,7 @@ describe("planImport: group column", () => {
         campusId: null,
         capacity: null,
         bookingRowNumber: null,
+        booker: null,
       },
     ]);
     expect(result.placements.map((placement) => placement.groupKey)).toEqual([

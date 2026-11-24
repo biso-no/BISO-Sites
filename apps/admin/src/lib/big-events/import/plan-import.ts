@@ -29,9 +29,19 @@ export interface ImportOptions {
   roomBookings: boolean;
 }
 
+/** A further room this person booked on another row of a room booking file. */
+export interface ExtraBooking {
+  campusId: string | null;
+  roomSize: number | null;
+  rowNumber: number;
+  ticketRef: string | null;
+}
+
 export interface ParsedPerson {
   campusId: string | null;
   email: string | null;
+  /** Room booking files only: bookings on this person's duplicate rows. */
+  extraBookings?: ExtraBooking[];
   firstName: string;
   groupValue: string | null;
   lastName: string | null;
@@ -58,7 +68,9 @@ export type PlacementRule =
 export type PlacementTarget = ParsedPerson | { participantId: string };
 
 export interface NewGroup {
-  /** The row whose person booked this room (becomes `booking_participant_id`). */
+  /** Who booked this room (becomes `booking_participant_id`); null for column groups. */
+  booker: PlacementTarget | null;
+  /** The spreadsheet row of the booking. */
   bookingRowNumber: number | null;
   campusId: string | null;
   capacity: number | null;
@@ -193,23 +205,68 @@ function readPerson(
   };
 }
 
-const FILLABLE_FIELDS = [
+const PERSON_FIELDS = [
   "email",
   "phone",
   "campusId",
+  "groupValue",
+] as const satisfies readonly (keyof ParsedPerson)[];
+const BOOKING_FIELDS = [
   "ticketRef",
   "ticketCategory",
   "roomSize",
-  "groupValue",
 ] as const satisfies readonly (keyof ParsedPerson)[];
 
 /** A duplicate row fills what the first row left empty; the name never changes. */
-function fillEmptyFields(target: ParsedPerson, source: ParsedPerson): void {
-  for (const field of FILLABLE_FIELDS) {
+function fillEmptyFields(
+  target: ParsedPerson,
+  source: ParsedPerson,
+  fields: readonly (
+    | (typeof PERSON_FIELDS)[number]
+    | (typeof BOOKING_FIELDS)[number]
+  )[]
+): void {
+  for (const field of fields) {
     if (target[field] === null && source[field] !== null) {
       Object.assign(target, { [field]: source[field] });
     }
   }
+}
+
+/** A booking is its ticket reference, or its row when it has none. */
+function bookingId(booking: {
+  rowNumber: number;
+  ticketRef: string | null;
+}): string {
+  return booking.ticketRef ?? `row:${booking.rowNumber}`;
+}
+
+/**
+ * Collapses a duplicate row into the first. In a room booking file a row with
+ * another booking keeps that booking as an extra room for the same person
+ * instead of filling the first row's booking fields.
+ */
+function mergeDuplicate(
+  first: ParsedPerson,
+  duplicate: ParsedPerson,
+  roomBookings: boolean
+): void {
+  const id = bookingId(duplicate);
+  const known =
+    bookingId(first) === id ||
+    (first.extraBookings ?? []).some((booking) => bookingId(booking) === id);
+  if (!roomBookings || known) {
+    fillEmptyFields(first, duplicate, [...PERSON_FIELDS, ...BOOKING_FIELDS]);
+    return;
+  }
+  fillEmptyFields(first, duplicate, PERSON_FIELDS);
+  first.extraBookings = first.extraBookings ?? [];
+  first.extraBookings.push({
+    campusId: duplicate.campusId,
+    roomSize: duplicate.roomSize,
+    rowNumber: duplicate.rowNumber,
+    ticketRef: duplicate.ticketRef,
+  });
 }
 
 function isBlankRow(row: string[]): boolean {
@@ -232,6 +289,9 @@ export function parsePeople(
   const skipped: SkippedRow[] = [];
   const byName = new Map<string, ParsedPerson[]>();
   let duplicatesInFile = 0;
+  // Ruling R2: a mapped group column switches "each row is a room booking" off.
+  const roomBookings =
+    options.roomBookings && !mapping.columns.includes("group");
 
   for (const [offset, row] of rows.slice(headerRow + 1).entries()) {
     if (isBlankRow(row)) {
@@ -251,7 +311,7 @@ export function parsePeople(
     const sameName = byName.get(key) ?? [];
     const first = sameName.find((person) => sameIdentity(person, result));
     if (first) {
-      fillEmptyFields(first, result);
+      mergeDuplicate(first, result, roomBookings);
       duplicatesInFile += 1;
       continue;
     }
