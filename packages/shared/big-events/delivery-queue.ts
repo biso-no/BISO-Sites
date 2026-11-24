@@ -61,10 +61,15 @@ export interface EnqueueConnectInput {
   participants: BigEventParticipantRow[];
 }
 
-/** `queued`: people put in a new email; `addresses`: new emails (one per address). */
+/**
+ * `queued`: people put in a new email; `addresses`: new emails (one per
+ * address); `waiting`: people left out because an email of the same kind to
+ * their address is already waiting to be sent.
+ */
 export interface EnqueueConnectResult {
   addresses: number;
   queued: number;
+  waiting: number;
 }
 
 export interface ProcessDeps {
@@ -192,7 +197,7 @@ export async function enqueueConnectEmails(
 ): Promise<EnqueueConnectResult> {
   const groups = groupByAddress(input.bigEventId, input.participants);
   if (groups.size === 0) {
-    return { addresses: 0, queued: 0 };
+    return { addresses: 0, queued: 0, waiting: 0 };
   }
 
   const open = await listAll<BigEventDeliveryRow>(db, DELIVERIES, [
@@ -210,8 +215,10 @@ export async function enqueueConnectEmails(
 
   let addresses = 0;
   let queued = 0;
+  let alreadyWaiting = 0;
   for (const [key, group] of groups) {
     const ids = group.ids.filter((id) => !waiting.has(`${key} ${id}`));
+    alreadyWaiting += group.ids.length - ids.length;
     if (ids.length === 0) {
       continue;
     }
@@ -228,7 +235,7 @@ export async function enqueueConnectEmails(
     addresses += 1;
     queued += ids.length;
   }
-  return { addresses, queued };
+  return { addresses, queued, waiting: alreadyWaiting };
 }
 
 /**

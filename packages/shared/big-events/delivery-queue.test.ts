@@ -327,7 +327,7 @@ describe("enqueueConnectEmails", () => {
       participants: people,
     });
 
-    expect(result).toEqual({ addresses: 2, queued: 3 });
+    expect(result).toEqual({ addresses: 2, queued: 3, waiting: 0 });
     const rows = db.rows<BigEventDeliveryRow>(D);
     expect(rows).toHaveLength(2);
     expect(rows[0]).toMatchObject({
@@ -358,7 +358,7 @@ describe("enqueueConnectEmails", () => {
       participants: people,
     });
 
-    expect(result).toEqual({ addresses: 1, queued: 1 });
+    expect(result).toEqual({ addresses: 1, queued: 1, waiting: 0 });
     expect(db.rows<BigEventDeliveryRow>(D)[0]?.participant_ids).toEqual(["p3"]);
   });
 
@@ -376,7 +376,8 @@ describe("enqueueConnectEmails", () => {
       input
     );
 
-    expect(again).toEqual({ addresses: 0, queued: 0 });
+    // Nothing new, and the caller can say why: the email is already waiting.
+    expect(again).toEqual({ addresses: 0, queued: 0, waiting: 1 });
     expect(db.rows(D)).toHaveLength(1);
   });
 
@@ -395,7 +396,7 @@ describe("enqueueConnectEmails", () => {
       participants: [ola, kari],
     });
 
-    expect(again).toEqual({ addresses: 1, queued: 1 });
+    expect(again).toEqual({ addresses: 1, queued: 1, waiting: 1 });
     expect(
       db.rows<BigEventDeliveryRow>(D).map((row) => row.participant_ids)
     ).toEqual([["p1"], ["p2"]]);
@@ -417,7 +418,7 @@ describe("enqueueConnectEmails", () => {
     });
     await processDeliveries(deps(), RUN);
 
-    expect(again).toEqual({ addresses: 1, queued: 1 });
+    expect(again).toEqual({ addresses: 1, queued: 1, waiting: 0 });
     expect(sentTo()).toEqual(["p1@example.com"]);
   });
 
@@ -440,7 +441,7 @@ describe("enqueueConnectEmails", () => {
       participants: people.slice(0, 2),
     });
 
-    expect(help).toEqual({ addresses: 0, queued: 0 });
+    expect(help).toEqual({ addresses: 0, queued: 0, waiting: 2 });
     expect(db.rows(D)).toHaveLength(2);
   });
 });

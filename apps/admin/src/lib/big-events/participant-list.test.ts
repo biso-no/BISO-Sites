@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
   ALL_CAMPUSES,
+  connectEmailCount,
   filterParticipants,
+  isConnectTarget,
   NO_CAMPUS,
   type ParticipantFilters,
   type ParticipantListItem,
@@ -99,5 +101,35 @@ describe("uniqueEmails", () => {
     expect(
       uniqueEmails([ola, item({ ticket_email: "ola@example.com" })])
     ).toEqual(["OLA@example.com"]);
+  });
+});
+
+describe("connect send targets (R37)", () => {
+  const fresh = item({ ticket_email: "a@x.no" });
+  const emailed = item({
+    connect_sent_at: "2026-12-03T09:00:00.000+00:00",
+    ticket_email: "b@x.no",
+  });
+  const connected = item({ ticket_email: "c@x.no", user_id: "u1" });
+  const noEmail = item({});
+
+  test("new reaches only people never emailed; all reaches everyone not connected", () => {
+    const rows = [fresh, emailed, connected, noEmail];
+    expect(rows.filter((row) => isConnectTarget(row, "new"))).toEqual([fresh]);
+    expect(rows.filter((row) => isConnectTarget(row, "all"))).toEqual([
+      fresh,
+      emailed,
+    ]);
+  });
+
+  test("one email per address, whatever its casing", () => {
+    expect(
+      connectEmailCount([
+        item({ ticket_email: "Family@x.no" }),
+        item({ ticket_email: "family@x.no " }),
+        item({ ticket_email: "ola@x.no" }),
+        item({}),
+      ])
+    ).toBe(2);
   });
 });

@@ -3,12 +3,12 @@
 import { Copy, Download, Mail, Search, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useTransition } from "react";
+import { type ReactNode, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
+  type ConnectSendMode,
   type ParticipantFilters,
   type ParticipantListItem,
-  type PileFilter,
   uniqueEmails,
 } from "@/lib/big-events/participant-list";
 import {
@@ -21,6 +21,10 @@ import {
   PortalSelect,
 } from "../../../../_components/portal-fields";
 import { STUDIO } from "../../../../_components/studio";
+import {
+  type ConnectSendReach,
+  SendConnectDialog,
+} from "./send-connect-dialog";
 
 /** Hands the CSV to the browser; the BOM lets Excel read æ, ø and å. */
 function saveCsvFile(csv: string, fileName: string): void {
@@ -42,6 +46,8 @@ interface ParticipantToolbarProps {
   canSendConnect: boolean;
   /** People connected to an account, whose membership can be checked. */
   connectedCount: number;
+  /** Who each toolbar send reaches (ruling R37). */
+  connectReach: Record<ConnectSendMode, ConnectSendReach>;
   filters: ParticipantFilters;
   hasRooms: boolean;
   /** A send is running; the button waits so a double click can't queue twice. */
@@ -50,12 +56,11 @@ interface ParticipantToolbarProps {
     key: K,
     value: ParticipantFilters[K]
   ) => void;
-  onSendConnect: () => void;
-  /** People who are not connected and have a ticket email. */
-  sendableCount: number;
+  /** Called once the organizer has confirmed the send. */
+  onSendConnect: (mode: ConnectSendMode) => void;
   /** Only when the caller can see more than one campus. */
   showCampusFilter: boolean;
-  /** The rows the filters leave, for "Copy emails". */
+  /** The rows the filters leave, for "Copy emails" and the download. */
   visibleRows: ParticipantListItem[];
   withoutRoom: number;
 }
@@ -67,12 +72,12 @@ export function ParticipantToolbar({
   campusFilterOptions,
   canSendConnect,
   connectedCount,
+  connectReach,
   filters,
   hasRooms,
   isSending,
   onFilterChange,
   onSendConnect,
-  sendableCount,
   showCampusFilter,
   visibleRows,
   withoutRoom,
@@ -83,6 +88,9 @@ export function ParticipantToolbar({
   const router = useRouter();
   const [isChecking, startCheck] = useTransition();
   const [isExporting, startExport] = useTransition();
+  const [confirmMode, setConfirmMode] = useState<ConnectSendMode | null>(null);
+  // The second send only means something once someone has had an email.
+  const someoneEmailed = connectReach.all.people > connectReach.new.people;
 
   function runMembershipCheck() {
     if (connectedCount === 0) {
@@ -120,10 +128,11 @@ export function ParticipantToolbar({
   }
 
   function downloadCsv() {
-    const pile: PileFilter = filters.pile;
+    const { pile } = filters;
     startExport(async () => {
       try {
-        const csv = await exportParticipantsCsv(bigEventId, pile, {
+        // The people shown: the same filters, applied again on the server.
+        const csv = await exportParticipantsCsv(bigEventId, filters, {
           campus: t("csv.campus"),
           email: t("csv.email"),
           firstName: t("csv.firstName"),
@@ -188,14 +197,24 @@ export function ParticipantToolbar({
       <div className="flex flex-wrap items-center gap-2">
         {actions}
         <PortalButton
-          disabled={!canSendConnect || sendableCount === 0}
+          disabled={!canSendConnect || connectReach.new.people === 0}
           loading={isSending}
-          onClick={onSendConnect}
+          onClick={() => setConfirmMode("new")}
           title={canSendConnect ? undefined : tConnect("publishFirst")}
         >
           {isSending ? null : <Mail aria-hidden size={16} />}
-          {tConnect("sendAll", { count: sendableCount })}
+          {tConnect("sendNew", { count: connectReach.new.people })}
         </PortalButton>
+        {someoneEmailed && (
+          <PortalButton
+            disabled={!canSendConnect || isSending}
+            onClick={() => setConfirmMode("all")}
+            title={canSendConnect ? undefined : tConnect("publishFirst")}
+            variant="ghost"
+          >
+            {tConnect("sendEveryone", { count: connectReach.all.people })}
+          </PortalButton>
+        )}
         {canSendConnect ? null : (
           <p className="w-full text-xs" style={{ color: STUDIO.ink4 }}>
             {tConnect("publishFirst")}
@@ -222,6 +241,19 @@ export function ParticipantToolbar({
           {t("downloadCsv")}
         </PortalButton>
       </div>
+      <SendConnectDialog
+        mode={confirmMode}
+        onConfirm={(mode) => {
+          setConfirmMode(null);
+          onSendConnect(mode);
+        }}
+        onOpenChange={(open) => {
+          if (!open) {
+            setConfirmMode(null);
+          }
+        }}
+        reach={connectReach}
+      />
     </div>
   );
 }

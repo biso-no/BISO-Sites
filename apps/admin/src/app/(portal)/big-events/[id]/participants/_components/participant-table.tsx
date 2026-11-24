@@ -21,8 +21,10 @@ import {
 } from "@/lib/big-events/participant-form";
 import {
   ALL_CAMPUSES,
-  canSendConnectEmail,
+  type ConnectSendMode,
+  connectEmailCount,
   filterParticipants,
+  isConnectTarget,
   NO_CAMPUS,
   type ParticipantFilters,
   type ParticipantList,
@@ -166,10 +168,13 @@ export function ParticipantTable({
         : option
     ),
   ];
-  const sendableCount = useMemo(
-    () => list.rows.filter(canSendConnectEmail).length,
-    [list.rows]
-  );
+  const connectReach = useMemo(() => {
+    const reach = (mode: ConnectSendMode) => {
+      const targets = list.rows.filter((row) => isConnectTarget(row, mode));
+      return { emails: connectEmailCount(targets), people: targets.length };
+    };
+    return { all: reach("all"), new: reach("new") };
+  }, [list.rows]);
   const connectedCount = list.counts.push + list.counts.app_no_push;
 
   const setFilter = <K extends keyof ParticipantFilters>(
@@ -198,18 +203,24 @@ export function ParticipantTable({
     });
   }
 
-  /** Queues the connect email for one person, or for everyone when no row is given. */
-  function sendConnect(row?: ParticipantListItem) {
+  /**
+   * Queues the connect email for one person, or for the toolbar send's people
+   * when no row is given. The toast counts emails, one per address.
+   */
+  function sendConnect(row?: ParticipantListItem, mode?: ConnectSendMode) {
     startSend(async () => {
       try {
         const result = await sendConnectEmails(
           bigEventId,
-          row ? [row.$id] : undefined
+          row ? [row.$id] : undefined,
+          mode
         );
-        if (result.queued === 0) {
-          toast.info(tConnect("nothingToSend"));
+        if (result.addresses > 0) {
+          toast.success(tConnect("queued", { count: result.addresses }));
+        } else if (result.waiting > 0) {
+          toast.info(tConnect("alreadyWaiting"));
         } else {
-          toast.success(tConnect("queued", { count: result.queued }));
+          toast.info(tConnect("nothingToSend"));
         }
         router.refresh();
       } catch {
@@ -300,12 +311,12 @@ export function ParticipantTable({
         campusFilterOptions={campusFilterOptions}
         canSendConnect={isPublished}
         connectedCount={connectedCount}
+        connectReach={connectReach}
         filters={filters}
         hasRooms={list.hasRooms}
         isSending={isSending}
         onFilterChange={setFilter}
-        onSendConnect={() => sendConnect()}
-        sendableCount={sendableCount}
+        onSendConnect={(mode) => sendConnect(undefined, mode)}
         showCampusFilter={campusOptions.length > 1}
         visibleRows={visibleRows}
         withoutRoom={withoutRoom}

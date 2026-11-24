@@ -3,7 +3,10 @@
 import { ID, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
-import { enqueueConnectEmails } from "@repo/shared/big-events/delivery-queue";
+import {
+  type EnqueueConnectResult,
+  enqueueConnectEmails,
+} from "@repo/shared/big-events/delivery-queue";
 import { CLEARED_CONNECT_LINK } from "@repo/shared/big-events/linking";
 import { BIG_EVENT_TABLES } from "@repo/shared/big-events/tables";
 import type {
@@ -30,10 +33,13 @@ import {
   participantFormSchema,
 } from "@/lib/big-events/participant-form";
 import {
+  CONNECT_SEND_MODES,
+  type ConnectSendMode,
+  filterParticipants,
+  type ParticipantFilters,
   type ParticipantList,
   type ParticipantListItem,
   type ParticipantSuggestion,
-  type PileFilter,
   sortParticipants,
   toParticipantListItem,
 } from "@/lib/big-events/participant-list";
@@ -57,7 +63,14 @@ const MEMBERSHIP_CONCURRENCY = 4;
 const DELETE_CONCURRENCY = 8;
 
 const participantIdsSchema = z.array(z.string().min(1).max(36));
-const pileSchema = z.enum(["all", ...REACH_PILES]);
+const sendModeSchema = z.enum(CONNECT_SEND_MODES);
+/** The list's filters, as the toolbar holds them. They only ever narrow. */
+const filtersSchema = z.object({
+  campus: z.string().max(36),
+  noRoom: z.boolean(),
+  pile: z.enum(["all", ...REACH_PILES]),
+  search: z.string().max(200),
+});
 const csvHeadersSchema = z.object({
   campus: z.string().max(100),
   email: z.string().max(100),
@@ -422,33 +435,37 @@ export async function checkMemberships(
   return { checked, invalid };
 }
 
-/** One pile (or everyone) as CSV: first name, last name, email, phone, campus, room. */
+/**
+ * The people the list shows with these filters, as CSV: first name, last
+ * name, email, phone, campus, room. Only ever the people the caller may see.
+ */
 export async function exportParticipantsCsv(
   bigEventId: string,
-  pile: PileFilter,
+  filters: ParticipantFilters,
   headers: ParticipantCsvHeaders
 ): Promise<string> {
-  const chosenPile = pileSchema.parse(pile);
+  const shown = filtersSchema.parse(filters);
   const columnTitles = csvHeadersSchema.parse(headers);
   const { access } = await requireBigEvent(bigEventId);
   const { db } = await createAdminClient();
   const { rows } = await loadParticipantList(db, bigEventId, access);
-  const chosen =
-    chosenPile === "all" ? rows : rows.filter((row) => row.pile === chosenPile);
-  return participantsToCsv(chosen, columnTitles);
+  return participantsToCsv(filterParticipants(rows, shown), columnTitles);
 }
 
 /**
  * Queues the connect email for unlinked people with a ticket email, then asks
- * the api to start sending. Without `participantIds` that is everyone the
- * caller can see; with ids, each must be on this big event and visible.
+ * the api to start sending. With ids, each must be on this big event and
+ * visible. Without, it is the people the caller can see who were never sent
+ * one (`new`, ruling R37), or all of them, emailed before or not (`all`).
  */
 export async function sendConnectEmails(
   bigEventId: string,
-  participantIds?: string[]
-): Promise<{ addresses: number; queued: number }> {
+  participantIds?: string[],
+  mode: ConnectSendMode = "new"
+): Promise<EnqueueConnectResult> {
   const ctx = await requireAuth();
   const ids = participantIds && participantIdsSchema.parse(participantIds);
+  const sendMode = sendModeSchema.parse(mode);
   const { access, event } = await requireBigEvent(bigEventId);
   if (event.status !== "published") {
     throw new Error(
@@ -477,6 +494,7 @@ export async function sendConnectEmails(
       ...visibleParticipants(bigEventId, access),
       Query.isNull("user_id"),
       Query.isNotNull("ticket_email"),
+      ...(sendMode === "new" ? [Query.isNull("connect_sent_at")] : []),
     ]);
   }
   const result = await enqueueConnectEmails(db, {
@@ -487,8 +505,10 @@ export async function sendConnectEmails(
   await logAuditEvent(ctx, "big_event.connect_emails.send", {
     payload: {
       addresses: result.addresses,
+      mode: ids ? null : sendMode,
       queued: result.queued,
       requested: ids?.length ?? null,
+      waiting: result.waiting,
     },
     resourceId: bigEventId,
     resourceType: "big_event",

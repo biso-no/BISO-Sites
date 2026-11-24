@@ -85,7 +85,7 @@
       "copyEmails": "Kopier e-postadresser",
       "copyEmailsHelp": "Kopierer e-postadressene til personene som vises nedenfor.",
       "downloadCsv": "Last ned CSV",
-      "downloadCsvHelp": "Laster ned personene i listen du har valgt over, som et regneark.",
+      "downloadCsvHelp": "Laster ned personene som vises, som et regneark.",
       "columns": {
         "name": "Navn",
         "campus": "Campus",
@@ -330,10 +330,16 @@
       }
     },
     "connect": {
-      "sendAll": "Send koblings-e-post ({count})",
+      "sendNew": "Send koblings-e-post ({count})",
+      "sendEveryone": "Send på nytt til alle som ikke er tilkoblet ({count})",
       "sendAgain": "Send på nytt",
       "publishFirst": "Publiser det store arrangementet før du sender koblings-e-post",
+      "confirmTitle": "{emails, plural, one {Sende # e-post?} other {Sende # e-poster?}}",
+      "confirmNew": "{people, plural, one {Går til # person som ikke er tilkoblet og ikke har fått koblings-e-post ennå.} other {Går til # personer som ikke er tilkoblet og ikke har fått koblings-e-post ennå.}} Personer som deler adresse, får én e-post sammen.",
+      "confirmEveryone": "{people, plural, one {Går til # person som ikke er tilkoblet, selv om personen allerede har fått koblings-e-post.} other {Går til # personer som ikke er tilkoblet, også de som allerede har fått koblings-e-post.}} Personer som deler adresse, får én e-post sammen.",
+      "confirm": "Send",
       "queued": "{count, plural, one {# e-post lagt i kø} other {# e-poster lagt i kø}}",
+      "alreadyWaiting": "Venter allerede på å bli sendt",
       "nothingToSend": "Ingen å sende til",
       "failed": "Kunne ikke legge e-postene i kø. Prøv igjen."
     },

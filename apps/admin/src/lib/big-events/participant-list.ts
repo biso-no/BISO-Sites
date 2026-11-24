@@ -46,6 +46,36 @@ export function canSendConnectEmail(
   return !row.user_id && Boolean(row.ticket_email);
 }
 
+/**
+ * Who a toolbar send reaches (ruling R37): `new` is everyone a connect email
+ * can reach who has never had one; `all` is everyone it can reach, emailed
+ * before or not.
+ */
+export const CONNECT_SEND_MODES = ["new", "all"] as const;
+export type ConnectSendMode = (typeof CONNECT_SEND_MODES)[number];
+
+export function isConnectTarget(
+  row: Pick<
+    ParticipantListItem,
+    "connect_sent_at" | "ticket_email" | "user_id"
+  >,
+  mode: ConnectSendMode
+): boolean {
+  return canSendConnectEmail(row) && (mode === "all" || !row.connect_sent_at);
+}
+
+/** The emails a send goes out as: one per ticket address. */
+export function connectEmailCount(
+  rows: Pick<ParticipantListItem, "ticket_email">[]
+): number {
+  return new Set(
+    rows.flatMap((row) => {
+      const address = row.ticket_email?.trim().toLowerCase();
+      return address ? [address] : [];
+    })
+  ).size;
+}
+
 /** Copies only the columns the tab may see; never spread a whole row into the browser. */
 export function toParticipantListItem(
   row: BigEventParticipantRow,

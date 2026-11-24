@@ -85,7 +85,7 @@
       "copyEmails": "Copy emails",
       "copyEmailsHelp": "Copies the email addresses of the people shown below.",
       "downloadCsv": "Download CSV",
-      "downloadCsvHelp": "Downloads the people in the list you picked above as a spreadsheet.",
+      "downloadCsvHelp": "Downloads the people shown as a spreadsheet.",
       "columns": {
         "name": "Name",
         "campus": "Campus",
@@ -330,10 +330,16 @@
       }
     },
     "connect": {
-      "sendAll": "Send connect emails ({count})",
+      "sendNew": "Send connect emails ({count})",
+      "sendEveryone": "Send again to everyone not connected ({count})",
       "sendAgain": "Send again",
       "publishFirst": "Publish the big event before sending connect emails",
+      "confirmTitle": "{emails, plural, one {Send # email?} other {Send # emails?}}",
+      "confirmNew": "{people, plural, one {Goes to # person who isn't connected and hasn't had a connect email yet.} other {Goes to # people who aren't connected and haven't had a connect email yet.}} People who share an address get one email together.",
+      "confirmEveryone": "{people, plural, one {Goes to # person who isn't connected, even if they already had a connect email.} other {Goes to # people who aren't connected, also those who already had a connect email.}} People who share an address get one email together.",
+      "confirm": "Send",
       "queued": "{count, plural, one {Queued # email} other {Queued # emails}}",
+      "alreadyWaiting": "Already waiting to be sent",
       "nothingToSend": "Nobody to send to",
       "failed": "Couldn't queue the emails. Try again."
     },

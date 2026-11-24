@@ -10,6 +10,7 @@ import {
 import { Query } from "@repo/api";
 import type { UserAuthContext } from "@/lib/authorization";
 import type { ParticipantFormValues } from "@/lib/big-events/participant-form";
+import type { ParticipantFilters } from "@/lib/big-events/participant-list";
 
 mock.module("server-only", () => ({}));
 
@@ -158,6 +159,13 @@ const formValues: ParticipantFormValues = {
   last_name: "Nordmann",
   phone: "",
   ticket_email: "",
+};
+
+const allRows: ParticipantFilters = {
+  campus: "all",
+  noRoom: false,
+  pile: "all",
+  search: "",
 };
 
 const csvHeaders = {
@@ -555,7 +563,7 @@ describe("exportParticipantsCsv", () => {
       big_events: () => rows([bigEventRow()]),
     });
 
-    const csv = await exportParticipantsCsv("b1", "all", csvHeaders);
+    const csv = await exportParticipantsCsv("b1", allRows, csvHeaders);
 
     expect(csv.split("\n")).toEqual([
       "First name,Last name,Email,Phone,Campus,Room",
@@ -573,11 +581,67 @@ describe("exportParticipantsCsv", () => {
       big_events: () => rows([bigEventRow()]),
     });
 
-    const csv = await exportParticipantsCsv("b1", "email", csvHeaders);
+    const csv = await exportParticipantsCsv(
+      "b1",
+      { ...allRows, pile: "email" },
+      csvHeaders
+    );
 
     expect(csv.split("\n")).toHaveLength(2);
     expect(csv).toContain("Kari");
     expect(csv).not.toContain("Ola");
+  });
+
+  test("exports exactly the people the filters show", async () => {
+    routeListRows({
+      big_event_group_members: () =>
+        rows([{ $id: "m1", group_id: "g1", participant_id: "p3" }]),
+      big_event_groups: () => rows([{ $id: "g1", name: "Rom 1" }]),
+      big_event_participants: () =>
+        rows([
+          participantRow({ $id: "p1", campus_id: "1", first_name: "Kari" }),
+          participantRow({ $id: "p2", first_name: "Karianne" }),
+          participantRow({ $id: "p3", first_name: "Karoline" }),
+          participantRow({
+            $id: "p4",
+            first_name: "Ola",
+            ticket_email: "ola@example.com",
+          }),
+        ]),
+      big_events: () => rows([bigEventRow()]),
+    });
+
+    const csv = await exportParticipantsCsv(
+      "b1",
+      { campus: "2", noRoom: true, pile: "email", search: " KARI " },
+      csvHeaders
+    );
+
+    // Kari is on another campus, Karoline has a room, Ola doesn't match.
+    expect(csv.split("\n").slice(1)).toEqual([
+      "Karianne,Nordmann,kari@example.com,,Bergen,",
+    ]);
+  });
+
+  test("filters never widen what a campus admin may export", async () => {
+    currentCtx = campusAdminOf("2");
+    routeListRows({
+      big_event_participants: () => rows([participantRow()]),
+      big_events: () => rows([bigEventRow()]),
+    });
+
+    await exportParticipantsCsv("b1", { ...allRows, campus: "1" }, csvHeaders);
+
+    expect(queriesFor("big_event_participants")[0]).toContain(
+      Query.equal("campus_id", ["2"])
+    );
+    await expect(
+      exportParticipantsCsv(
+        "b1",
+        { ...allRows, search: "x".repeat(500) },
+        csvHeaders
+      )
+    ).rejects.toThrow();
   });
 });
 
@@ -639,7 +703,7 @@ describe("sendConnectEmails", () => {
 
     const result = await sendConnectEmails("b1");
 
-    expect(result).toEqual({ addresses: 2, queued: 2 });
+    expect(result).toEqual({ addresses: 2, queued: 2, waiting: 0 });
     const [queries] = queriesFor("big_event_participants");
     expect(queries).toContain(Query.equal("campus_id", ["2"]));
     expect(queries).toContain(Query.isNull("user_id"));
@@ -648,9 +712,73 @@ describe("sendConnectEmails", () => {
       currentCtx,
       "big_event.connect_emails.send",
       expect.objectContaining({
-        payload: { addresses: 2, queued: 2, requested: null },
+        payload: {
+          addresses: 2,
+          mode: "new",
+          queued: 2,
+          requested: null,
+          waiting: 0,
+        },
       })
     );
+  });
+
+  test("by default sends only to people never emailed (R37)", async () => {
+    route([participantRow({ $id: "p1", ticket_email: "a@example.com" })]);
+
+    await sendConnectEmails("b1");
+
+    expect(queriesFor("big_event_participants")[0]).toContain(
+      Query.isNull("connect_sent_at")
+    );
+  });
+
+  test("everyone mode includes people already emailed (R37)", async () => {
+    route([
+      participantRow({ $id: "p1", ticket_email: "a@example.com" }),
+      participantRow({
+        $id: "p2",
+        connect_sent_at: "2026-12-01T09:00:00.000+00:00",
+        ticket_email: "b@example.com",
+      }),
+    ]);
+
+    const result = await sendConnectEmails("b1", undefined, "all");
+
+    expect(result).toEqual({ addresses: 2, queued: 2, waiting: 0 });
+    const [queries] = queriesFor("big_event_participants");
+    expect(queries).not.toContain(Query.isNull("connect_sent_at"));
+    expect(queries).toContain(Query.isNull("user_id"));
+  });
+
+  test("refuses an unknown send mode", async () => {
+    route([participantRow()]);
+    await expect(
+      sendConnectEmails("b1", undefined, "everyone" as never)
+    ).rejects.toThrow();
+    expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  test("says when everyone is already waiting for an email", async () => {
+    routeListRows({
+      big_event_deliveries: () =>
+        rows([
+          {
+            $id: "d1",
+            kind: "connect",
+            participant_ids: ["p1"],
+            status: "pending",
+            to_address: "kari@example.com",
+          },
+        ]),
+      big_event_participants: () => rows([participantRow()]),
+      big_events: () => rows([bigEventRow({ status: "published" })]),
+    });
+
+    const result = await sendConnectEmails("b1");
+
+    expect(result).toEqual({ addresses: 0, queued: 0, waiting: 1 });
+    expect(db.createRow).not.toHaveBeenCalled();
   });
 
   test("send again refuses a person outside your campus", async () => {
