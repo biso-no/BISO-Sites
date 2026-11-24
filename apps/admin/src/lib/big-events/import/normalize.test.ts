@@ -4,6 +4,7 @@ import {
   normalizeName,
   normalizePhone,
   parseCampus,
+  parseRoomCount,
   parseRoomSize,
   splitFullName,
 } from "./normalize";
@@ -50,6 +51,19 @@ describe("parseCampus", () => {
     expect(parseCampus("BISO")).toBeNull();
     expect(parseCampus("National")).toBeNull();
     expect(parseCampus(null)).toBeNull();
+  });
+});
+
+describe("parseRoomCount", () => {
+  test("reads the leading quantity of a ticket category", () => {
+    expect(parseRoomCount("2 x Bergen - BISO - 4-Person")).toBe(2);
+    expect(parseRoomCount("1 x Bergen - BISO - 4-Person")).toBe(1);
+    expect(parseRoomCount("3x Oslo - Dobbeltrom")).toBe(3);
+  });
+  test("is one room when there is no quantity", () => {
+    expect(parseRoomCount("Bergen - BISO - 4-Person")).toBe(1);
+    expect(parseRoomCount("0 x Bergen")).toBe(1);
+    expect(parseRoomCount(null)).toBe(1);
   });
 });
 

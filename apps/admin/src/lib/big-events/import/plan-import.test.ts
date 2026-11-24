@@ -7,6 +7,8 @@ import type {
 import {
   type ImportMapping,
   type ImportOptions,
+  type ImportPlan,
+  type PlacementTarget,
   parsePeople,
   planImport,
   sameIdentity,
@@ -153,6 +155,44 @@ function plan(
     groups: existing.groups ?? [],
     members: existing.members ?? [],
   });
+}
+
+/**
+ * What saving a plan made from an empty list would write: participants,
+ * groups and memberships, so the same file can be planned again.
+ */
+function asExisting(result: ImportPlan): Required<Existing> {
+  const idOf = (target: PlacementTarget) =>
+    "participantId" in target
+      ? target.participantId
+      : `p-row${target.rowNumber}`;
+  return {
+    participants: result.create.map((person) =>
+      participant(`p-row${person.rowNumber}`, {
+        first_name: person.firstName,
+        last_name: person.lastName,
+        ticket_email: person.email,
+        phone: person.phone,
+        campus_id: person.campusId,
+        ticket_ref: person.ticketRef,
+        ticket_category: person.ticketCategory,
+        room_size: person.roomSize,
+      })
+    ),
+    groups: result.newGroups.map((created) =>
+      group(`g-${created.key}`, {
+        kind: created.kind,
+        name: created.name,
+        campus_id: created.campusId,
+        capacity: created.capacity,
+        source_key: created.key,
+        booking_participant_id: created.booker ? idOf(created.booker) : null,
+      })
+    ),
+    members: result.placements.map((placement) =>
+      member(`g-${placement.groupKey}`, idOf(placement.person))
+    ),
+  };
 }
 
 const OLA_ROW = [
@@ -656,6 +696,205 @@ describe("planImport: room bookings", () => {
   });
 });
 
+describe("planImport: booked rooms", () => {
+  test("re-import never moves a buyer the organizers moved", () => {
+    // Ola booked A-1, but the organizers moved him into Kari's room.
+    const kariRoom = group("g-kari", {
+      source_key: "booking:K-1",
+      capacity: 2,
+    });
+    const result = plan(
+      tickster(OLA_ROW),
+      TICKSTER_HEADER_ROW,
+      TICKSTER_MAPPING,
+      BOOKINGS,
+      {
+        participants: [OLA],
+        groups: [OLA_ROOM, kariRoom],
+        members: [member("g-kari", "p-ola")],
+      }
+    );
+    expect(result.newGroups).toEqual([]);
+    expect(result.placements).toEqual([]);
+  });
+
+  test("two rooms on one row give two rooms", () => {
+    const result = plan(
+      tickster([
+        "Ola",
+        "Nordmann",
+        "ola@gmail.com",
+        "91234567",
+        "A-1",
+        "2 x Bergen - BISO - 4-Person",
+      ]),
+      TICKSTER_HEADER_ROW,
+      TICKSTER_MAPPING,
+      BOOKINGS
+    );
+    const [ola] = result.create;
+    const room = {
+      kind: "room" as const,
+      name: "Ola Nordmann",
+      campusId: "2",
+      capacity: 4,
+      bookingRowNumber: 4,
+      booker: ola,
+    };
+    expect(result.newGroups).toEqual([
+      { ...room, key: "booking:A-1" },
+      { ...room, key: "booking:A-1#2" },
+    ]);
+    // Ola takes one place; the second room is all open places.
+    expect(result.placements).toEqual([
+      { person: ola, groupKey: "booking:A-1", rule: "booking" },
+    ]);
+  });
+
+  test("one order with two room types gives two rooms", () => {
+    const result = plan(
+      tickster(OLA_ROW, [
+        "Ola",
+        "Nordmann",
+        "ola@gmail.com",
+        "91234567",
+        "A-1",
+        "1 x Bergen - BISO - 2-Person",
+      ]),
+      TICKSTER_HEADER_ROW,
+      TICKSTER_MAPPING,
+      BOOKINGS
+    );
+    const [ola] = result.create;
+    expect(result.create).toHaveLength(1);
+    // Further rooms of an order are numbered by room type, so the keys do
+    // not depend on the order of the rows.
+    const rooms = Object.fromEntries(
+      result.newGroups.map((room) => [
+        room.key,
+        [room.capacity, room.bookingRowNumber, room.booker],
+      ])
+    );
+    expect(rooms).toEqual({
+      "booking:A-1": [2, 5, ola],
+      "booking:A-1#2": [4, 4, ola],
+    });
+    // Ola takes a place in the room on his first row.
+    expect(result.placements).toEqual([
+      { person: ola, groupKey: "booking:A-1#2", rule: "booking" },
+    ]);
+  });
+
+  test("re-import reuses every room of a multi-room order", () => {
+    const rows = [
+      [
+        "Ola",
+        "Nordmann",
+        "ola@gmail.com",
+        "91234567",
+        "A-1",
+        "2 x Bergen - BISO - 4-Person",
+      ],
+      [
+        "Ola",
+        "Nordmann",
+        "ola@gmail.com",
+        "91234567",
+        "A-1",
+        "1 x Bergen - BISO - 2-Person",
+      ],
+      [
+        "Kari",
+        "Nordmann",
+        "kari@gmail.com",
+        "",
+        "",
+        "2 x Oslo - BISO - Dobbeltrom",
+      ],
+    ];
+    const first = plan(
+      tickster(...rows),
+      TICKSTER_HEADER_ROW,
+      TICKSTER_MAPPING,
+      BOOKINGS
+    );
+    expect(first.newGroups).toHaveLength(5);
+    const saved = asExisting(first);
+    for (const again of [rows, [...rows].reverse()]) {
+      const result = plan(
+        tickster(...again),
+        TICKSTER_HEADER_ROW,
+        TICKSTER_MAPPING,
+        BOOKINGS,
+        saved
+      );
+      expect(result.create).toEqual([]);
+      expect(result.newGroups).toEqual([]);
+      expect(result.placements).toEqual([]);
+    }
+  });
+
+  test("planning the same Payment 1 file twice changes nothing", () => {
+    const rows = tickster(
+      OLA_ROW,
+      [
+        "Kari",
+        "Nordmann",
+        "ola@gmail.com",
+        "92345678",
+        "A-2",
+        "2 x Oslo - BISO - 2-Person",
+      ],
+      [
+        "Per",
+        "Hansen",
+        "per@gmail.com",
+        "",
+        "A-3",
+        "1 x Trondheim - BISO - 3-Person",
+      ],
+      [
+        "Per",
+        "Hansen",
+        "per@gmail.com",
+        "",
+        "A-3",
+        "1 x Trondheim - BISO - Enkeltrom",
+      ],
+      ["Liv", "Berg", "", "93456789", "", "1 x Bergen - BISO - Dobbeltrom"],
+      OLA_ROW,
+      ["", "", "", "", "Totalt", "7"]
+    );
+    const first = plan(rows, TICKSTER_HEADER_ROW, TICKSTER_MAPPING, BOOKINGS);
+    expect(first.create).toHaveLength(4);
+    expect(first.newGroups.map((room) => room.key)).toEqual([
+      "booking:A-1",
+      "booking:A-2",
+      "booking:A-2#2",
+      "booking:A-3",
+      "booking:A-3#2",
+      "booking:row8",
+    ]);
+    expect(first.placements).toHaveLength(4);
+
+    const again = plan(
+      rows,
+      TICKSTER_HEADER_ROW,
+      TICKSTER_MAPPING,
+      BOOKINGS,
+      asExisting(first)
+    );
+    expect(again.create).toEqual([]);
+    expect(again.update).toHaveLength(4);
+    expect(again.update.every((u) => Object.keys(u.changes).length === 0)).toBe(
+      true
+    );
+    expect(again.newGroups).toEqual([]);
+    expect(again.placements).toEqual([]);
+    expect(again.missingFromFile).toEqual([]);
+  });
+});
+
 describe("planImport: placing into existing rooms", () => {
   test("places a Payment 2 traveller by order number", () => {
     // Payment 2 order B-7 covers Ola (already in his room) and Kari.
@@ -783,6 +1022,34 @@ describe("planImport: placing into existing rooms", () => {
 });
 
 describe("planImport: group column", () => {
+  test("a mapped but empty group column still disables room bookings", () => {
+    const withBus: ImportMapping = {
+      columns: [...TICKSTER_MAPPING.columns, "group"],
+    };
+    const result = plan(
+      tickster(
+        [...OLA_ROW, ""],
+        [
+          "Ola",
+          "Nordmann",
+          "ola@gmail.com",
+          "91234567",
+          "A-2",
+          "1 x Bergen - BISO - 2-Person",
+          "",
+        ]
+      ),
+      TICKSTER_HEADER_ROW,
+      withBus,
+      { ...BOOKINGS, groupKind: "bus" }
+    );
+    expect(result.newGroups).toEqual([]);
+    expect(result.placements).toEqual([]);
+    // A bus file says nothing about rooms.
+    expect(result.unplaced).toEqual([]);
+    expect(result.duplicatesInFile).toBe(1);
+  });
+
   test("a room column holding a Payment 1 order number fills that booking's room", () => {
     const result = plan(
       sheet(["Kari Nordmann", "kari@gmail.com", "92345678", "B-7", "A-1"]),

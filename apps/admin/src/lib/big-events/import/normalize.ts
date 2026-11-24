@@ -5,6 +5,7 @@ export { normalizePhone } from "@repo/shared/big-events/phone";
 const WHITESPACE = /\s+/g;
 const CAMPUS_PATTERN = /\b(oslo|bergen|trondheim|stavanger)\b/i;
 const ROOM_SIZE_PATTERN = /\b(\d+)\s*-?\s*(?:person|pers\b|personsrom)/i;
+const ROOM_COUNT_PATTERN = /^\s*(\d+)\s*[x×]\s/i;
 const SINGLE_ROOM_PATTERN = /\benkeltrom\b/i;
 const DOUBLE_ROOM_PATTERN = /\bdobbeltrom\b/i;
 const CAMPUS_KEYS: Record<string, string> = {
@@ -53,6 +54,13 @@ export function parseRoomSize(text: string | null | undefined): number | null {
   }
   const match = ROOM_SIZE_PATTERN.exec(text);
   return match ? Number(match[1]) : null;
+}
+
+/** How many rooms a ticket line is for: the leading "N x" (`2 x Bergen - BISO - 4-Person` → 2), else 1. */
+export function parseRoomCount(text: string | null | undefined): number {
+  const match = text ? ROOM_COUNT_PATTERN.exec(text) : null;
+  const count = match ? Number(match[1]) : 1;
+  return count >= 1 ? count : 1;
 }
 
 export function normalizeEmail(raw: string | null | undefined): string | null {

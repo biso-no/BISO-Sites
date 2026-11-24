@@ -34,6 +34,7 @@ export interface ExtraBooking {
   campusId: string | null;
   roomSize: number | null;
   rowNumber: number;
+  ticketCategory: string | null;
   ticketRef: string | null;
 }
 
@@ -233,12 +234,18 @@ function fillEmptyFields(
   }
 }
 
-/** A booking is its ticket reference, or its row when it has none. */
+/**
+ * A booking is its ticket reference and room type (one order can hold several
+ * room types), or its row when it has no reference.
+ */
 function bookingId(booking: {
   rowNumber: number;
+  ticketCategory: string | null;
   ticketRef: string | null;
 }): string {
-  return booking.ticketRef ?? `row:${booking.rowNumber}`;
+  return booking.ticketRef
+    ? `${booking.ticketRef}|${normalizeName(booking.ticketCategory ?? "")}`
+    : `row:${booking.rowNumber}`;
 }
 
 /**
@@ -265,6 +272,7 @@ function mergeDuplicate(
     campusId: duplicate.campusId,
     roomSize: duplicate.roomSize,
     rowNumber: duplicate.rowNumber,
+    ticketCategory: duplicate.ticketCategory,
     ticketRef: duplicate.ticketRef,
   });
 }
@@ -277,21 +285,27 @@ function isBlankRow(row: string[]): boolean {
  * Reads the data rows below `headerRow` (0-based) into people. Rows without a
  * first name or without any way to reach the person are skipped; rows for the
  * same person (by `sameIdentity`) collapse into the first one. Fully blank
- * rows are ignored.
+ * rows are ignored. `groupColumn` says whether a group column is mapped, even
+ * when all its cells are empty.
  */
 export function parsePeople(
   rows: string[][],
   headerRow: number,
   mapping: ImportMapping,
   options: ImportOptions
-): { people: ParsedPerson[]; skipped: SkippedRow[]; duplicatesInFile: number } {
+): {
+  people: ParsedPerson[];
+  skipped: SkippedRow[];
+  duplicatesInFile: number;
+  groupColumn: boolean;
+} {
   const people: ParsedPerson[] = [];
   const skipped: SkippedRow[] = [];
   const byName = new Map<string, ParsedPerson[]>();
   let duplicatesInFile = 0;
   // Ruling R2: a mapped group column switches "each row is a room booking" off.
-  const roomBookings =
-    options.roomBookings && !mapping.columns.includes("group");
+  const groupColumn = mapping.columns.includes("group");
+  const roomBookings = options.roomBookings && !groupColumn;
 
   for (const [offset, row] of rows.slice(headerRow + 1).entries()) {
     if (isBlankRow(row)) {
@@ -319,7 +333,7 @@ export function parsePeople(
     byName.set(key, sameName);
     people.push(result);
   }
-  return { people, skipped, duplicatesInFile };
+  return { people, skipped, duplicatesInFile, groupColumn };
 }
 
 // ---------------------------------------------------------------------------
@@ -462,6 +476,8 @@ export function planImport(input: {
   people: ParsedPerson[];
   skipped: SkippedRow[];
   duplicatesInFile: number;
+  /** From `parsePeople`: a group column is mapped. */
+  groupColumn: boolean;
   options: ImportOptions;
   existing: BigEventParticipantRow[];
   groups: BigEventGroupRow[];
@@ -490,6 +506,7 @@ export function planImport(input: {
 
   const rooms = planRooms({
     subjects: pairs,
+    groupColumn: input.groupColumn,
     options,
     existing,
     groups: input.groups,

@@ -4,7 +4,12 @@ import type {
   BigEventGroupRow,
   BigEventParticipantRow,
 } from "@repo/shared/big-events/types";
-import { normalizeEmail, normalizeName, normalizePhone } from "./normalize";
+import {
+  normalizeEmail,
+  normalizeName,
+  normalizePhone,
+  parseRoomCount,
+} from "./normalize";
 import type {
   ImportOptions,
   ImportPlan,
@@ -237,26 +242,84 @@ function placeByColumn(
 /** One booking: the person's own row, or an extra one from a duplicate row. */
 interface Booking {
   campusId: string | null;
+  /** Normalized ticket category: one order can hold several room types. */
+  category: string;
+  /** Rooms booked on this line (`2 x … 4-Person` → 2). */
+  count: number;
   roomSize: number | null;
   rowNumber: number;
+  subject: PlanSubject;
   ticketRef: string | null;
+}
+
+function toBooking(
+  subject: PlanSubject,
+  line: {
+    campusId: string | null;
+    roomSize: number | null;
+    rowNumber: number;
+    ticketCategory: string | null;
+    ticketRef: string | null;
+  }
+): Booking {
+  return {
+    campusId: line.campusId ?? subject.campusId,
+    category: normalizeName(line.ticketCategory ?? ""),
+    count: parseRoomCount(line.ticketCategory),
+    roomSize: line.roomSize,
+    rowNumber: line.rowNumber,
+    subject,
+    ticketRef: line.ticketRef,
+  };
 }
 
 function bookingsOf(subject: PlanSubject): Booking[] {
   const { person } = subject;
-  const extra = (person.extraBookings ?? []).map((booking) => ({
-    ...booking,
-    campusId: booking.campusId ?? subject.campusId,
-  }));
   return [
-    {
-      campusId: subject.campusId,
-      roomSize: person.roomSize,
-      rowNumber: person.rowNumber,
-      ticketRef: person.ticketRef,
-    },
-    ...extra,
+    toBooking(subject, { ...person, campusId: subject.campusId }),
+    ...(person.extraBookings ?? []).map((extra) => toBooking(subject, extra)),
   ];
+}
+
+function refBookingId(booking: Booking): string {
+  return `${booking.ticketRef}|${booking.category}`;
+}
+
+/**
+ * Keys for every room booked under a reference. The first room of an order
+ * is `booking:<ref>`, further ones `booking:<ref>#2`, `#3`… numbered by room
+ * type then row, so a re-import of the same file finds the same rooms.
+ */
+function refRoomKeys(bookings: Booking[]): Map<string, string[]> {
+  const byRef = new Map<string, Map<string, Booking>>();
+  for (const booking of bookings) {
+    if (booking.ticketRef) {
+      const sameRef = byRef.get(booking.ticketRef) ?? new Map();
+      if (!sameRef.has(refBookingId(booking))) {
+        sameRef.set(refBookingId(booking), booking);
+      }
+      byRef.set(booking.ticketRef, sameRef);
+    }
+  }
+  const keys = new Map<string, string[]>();
+  for (const [ref, sameRef] of byRef) {
+    const ordered = [...sameRef.values()].sort(
+      (a, b) =>
+        a.category.localeCompare(b.category) || a.rowNumber - b.rowNumber
+    );
+    let index = 0;
+    for (const booking of ordered) {
+      const roomKeys: string[] = [];
+      for (let room = 0; room < booking.count; room += 1) {
+        index += 1;
+        roomKeys.push(
+          index === 1 ? bookingKey(ref) : `${bookingKey(ref)}#${index}`
+        );
+      }
+      keys.set(refBookingId(booking), roomKeys);
+    }
+  }
+  return keys;
 }
 
 /**
@@ -300,56 +363,66 @@ function freeRowKey(
   return key;
 }
 
-/**
- * One room per booking, created when it doesn't exist. References are claimed
- * first so a booking without one only reuses a room no other booking claims.
- */
-function bookingRooms(
+/** Keys for a booking without a reference: the buyer's unclaimed rooms first. */
+function rowRoomKeys(
   board: Board,
-  subject: PlanSubject,
+  booking: Booking,
   taken: Set<string>
 ): string[] {
-  const bookings = bookingsOf(subject);
-  const refKeys = bookings.map((booking) =>
-    booking.ticketRef ? bookingKey(booking.ticketRef) : null
-  );
-  for (const key of refKeys) {
-    if (key) {
-      taken.add(key);
-    }
-  }
-  return bookings.map((booking, index) => {
+  const keys: string[] = [];
+  for (let room = 0; room < booking.count; room += 1) {
     const key =
-      refKeys[index] ??
-      roomBookedBy(board, subject, taken) ??
+      roomBookedBy(board, booking.subject, taken) ??
       freeRowKey(board, taken, booking.rowNumber);
     taken.add(key);
+    keys.push(key);
+  }
+  return keys;
+}
+
+function ensureBookingRooms(
+  board: Board,
+  booking: Booking,
+  keys: string[]
+): void {
+  for (const key of keys) {
     if (!board.groups.has(key)) {
       createGroup(board, {
         key,
         kind: "room",
-        name: fullName(subject.person),
+        name: fullName(booking.subject.person),
         campusId: booking.campusId,
         capacity: booking.roomSize,
         bookingRowNumber: booking.rowNumber,
-        booker: targetOf(subject),
+        booker: targetOf(booking.subject),
       });
     }
-    return key;
-  });
+  }
 }
 
 /**
- * The buyer fills a place in the booked room they are already in, else in
- * their first booking's room. Their other rooms are all open places.
+ * One room per booked room, created when it doesn't exist. The buyer takes a
+ * place in the first room of their own row unless they are already in a room
+ * (organizers may have moved them); every other room is all open places.
  */
 function placeBookings(board: Board, subjects: PlanSubject[]): void {
-  const taken = new Set<string>();
-  for (const subject of subjects) {
-    const keys = bookingRooms(board, subject, taken);
-    const home = keys.find((key) => isMember(board, subject, key)) ?? keys[0];
-    if (home) {
-      place(board, subject, home, "booking");
+  const bookings = subjects.flatMap(bookingsOf);
+  const refKeys = refRoomKeys(bookings);
+  const taken = new Set([...refKeys.values()].flat());
+  const firstRoom = new Map<PlanSubject, string>();
+  for (const booking of bookings) {
+    const keys = booking.ticketRef
+      ? (refKeys.get(refBookingId(booking)) ?? [])
+      : rowRoomKeys(board, booking, taken);
+    ensureBookingRooms(board, booking, keys);
+    const [first] = keys;
+    if (first && !firstRoom.has(booking.subject)) {
+      firstRoom.set(booking.subject, first);
+    }
+  }
+  for (const [subject, room] of firstRoom) {
+    if (!board.roomOf.has(subject)) {
+      place(board, subject, room, "booking");
     }
   }
 }
@@ -493,6 +566,8 @@ function overfullRooms(board: Board): string[] {
  */
 export function planRooms(input: {
   subjects: PlanSubject[];
+  /** A group column is mapped (decided once, from the mapping). */
+  groupColumn: boolean;
   options: ImportOptions;
   existing: BigEventParticipantRow[];
   groups: BigEventGroupRow[];
@@ -505,17 +580,15 @@ export function planRooms(input: {
   const board = buildBoard(input.groups, input.members);
   markExistingRooms(board, subjects);
 
-  // Ruling R2: parsePeople fills groupValue only when a group column is mapped.
-  const hasGroupColumn = subjects.some(
-    (subject) => subject.person.groupValue !== null
-  );
+  // Ruling R2: a mapped group column switches room bookings off, even when
+  // every cell is empty; without a kind it means rooms.
   const kind = options.groupKind ?? "room";
-  if (hasGroupColumn) {
+  if (input.groupColumn) {
     placeByColumn(board, subjects, kind);
   } else if (options.roomBookings) {
     placeBookings(board, subjects);
   }
-  const aboutRooms = !hasGroupColumn || kind === "room";
+  const aboutRooms = !input.groupColumn || kind === "room";
   const unplaced = aboutRooms
     ? placeIntoExistingRooms(board, subjects, input.existing)
     : [];
