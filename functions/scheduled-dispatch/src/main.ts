@@ -45,6 +45,9 @@
  *                               (defaults to a 300s timeout — the route's cap)
  *   RECRUITMENT_RETENTION_CLEANUP_URL
  *                               e.g. https://api.biso.no/api/cron/cleanup-recruitment
+ *   BIG_EVENT_DELIVERIES_URL    e.g. https://api.biso.no/api/cron/big-event-deliveries
+ *                               (defaults to a 60s timeout — the route's cap)
+ *   BIG_EVENTS_CLEANUP_URL      e.g. https://api.biso.no/api/cron/cleanup-big-events
  *   CRON_TIMEOUT_MS             default per-request timeout (default 30000)
  *   <NAME>_TIMEOUT_MS           per-target timeout override, e.g.
  *                               EXPENSES_POST_PENDING_URL_TIMEOUT_MS
@@ -119,6 +122,8 @@ const TARGET_ENV_VARS = [
   "FINAGO_PROJECTS_SYNC_URL",
   "EXPENSE_CHECK_BACKSTOP_URL",
   "RECRUITMENT_RETENTION_CLEANUP_URL",
+  "BIG_EVENT_DELIVERIES_URL",
+  "BIG_EVENTS_CLEANUP_URL",
 ] as const;
 
 type TargetName = (typeof TARGET_ENV_VARS)[number];
@@ -137,6 +142,7 @@ const TARGET_TIMEOUT_DEFAULTS: Partial<Record<TargetName, number>> = {
   EXPENSE_CHECK_BACKSTOP_URL: 300_000,
   FINAGO_PROJECTS_SYNC_URL: 300_000,
   ORDERS_RECONCILE_URL: 300_000,
+  BIG_EVENT_DELIVERIES_URL: 60_000,
 };
 
 type LogFn = (...messages: unknown[]) => void;

@@ -24,6 +24,8 @@ It currently drives:
 | `FINAGO_PROJECTS_SYNC_URL` (optional) | syncs Finago projects, two years of booking history and each department's project share | `apps/api` → `POST /api/cron/sync-finago-projects` |
 | `EXPENSE_CHECK_BACKSTOP_URL` (optional) | finishes reimbursement checks the background run lost, so their approvers are still told | `apps/api` → `POST /api/cron/expense-check-backstop` |
 | `RECRUITMENT_RETENTION_CLEANUP_URL` (optional) | deletes job applications (with their resume, answers and interviews) and candidate profiles whose `data_retention_until` (180-day retention) has passed | `apps/api` → `POST /api/cron/cleanup-recruitment` |
+| `BIG_EVENT_DELIVERIES_URL` (optional) | sends queued big-event connect emails at a throttled rate, queues reminders, and re-runs itself while mail is still due | `apps/api` → `POST /api/cron/big-event-deliveries` |
+| `BIG_EVENTS_CLEANUP_URL` (optional) | deletes participants, group memberships and email deliveries 30 days after a big event ends | `apps/api` → `POST /api/cron/cleanup-big-events` |
 
 Only configured URLs are pinged; leave the optional ones unset to skip them. The
 `*/5 * * * *` schedule (every 5 min) keeps announcements punctual and clears the
@@ -45,7 +47,8 @@ Set these on the function in the Appwrite console (**Settings → Variables**) �
   `ORDERS_RECONCILE_URL`, `TURNOVER_RETENTION_STOP_URL`,
   `JOBS_PUBLISH_SCHEDULED_URL`, `MEMBER_PASS_CLEANUP_URL`,
   `FINAGO_PROJECTS_SYNC_URL`, `EXPENSE_CHECK_BACKSTOP_URL`,
-  `RECRUITMENT_RETENTION_CLEANUP_URL` — optional.
+  `RECRUITMENT_RETENTION_CLEANUP_URL`, `BIG_EVENT_DELIVERIES_URL`,
+  `BIG_EVENTS_CLEANUP_URL` — optional.
 - `SENTRY_DSN` — optional; the biso-functions DSN. Without it nothing is sent.
   With it, failures are reported as Sentry errors (tag `function_name:
   scheduled-dispatch`) and the run checks in to cron monitors: `scheduled-dispatch`
