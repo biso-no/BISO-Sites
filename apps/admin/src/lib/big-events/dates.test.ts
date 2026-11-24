@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   formatBigEventDates,
+  formatOsloShortDay,
   joinOsloDateTime,
   splitOsloDateTime,
 } from "./dates";
@@ -61,5 +62,15 @@ describe("formatBigEventDates", () => {
         "en"
       )
     ).toBe("24. Jan 2027");
+  });
+});
+
+describe("formatOsloShortDay", () => {
+  test("shows day and month in each language, on the Oslo day", () => {
+    expect(formatOsloShortDay("2026-12-02T23:30:00.000Z", "en")).toBe("3 Dec");
+    expect(formatOsloShortDay("2026-12-03T09:00:00.000+00:00", "no")).toBe(
+      "3. des."
+    );
+    expect(formatOsloShortDay("not a date", "en")).toBe("");
   });
 });

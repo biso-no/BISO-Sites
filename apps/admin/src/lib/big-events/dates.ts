@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 
 const DAY_FORMAT = "d. MMM yyyy";
+const SHORT_DAY_FORMAT = { en: "d MMM", no: "d. MMM" } as const;
 const OSLO_DAY = /^(\d{4})-(\d{2})-(\d{2})/;
 
 /** A stored instant → the Oslo date (`YYYY-MM-DD`) and time (`HH:mm`) for the form inputs. */
@@ -25,7 +26,11 @@ export function joinOsloDateTime(date: string, time: string): string {
   return osloWallClockToIso(`${date}T${time}`) ?? "";
 }
 
-function formatOsloDay(iso: string, locale: string): string | null {
+function formatOsloDay(
+  iso: string,
+  locale: string,
+  pattern: string = DAY_FORMAT
+): string | null {
   const match = OSLO_DAY.exec(isoToOsloWallClock(iso));
   if (!match) {
     return null;
@@ -37,9 +42,15 @@ function formatOsloDay(iso: string, locale: string): string | null {
     number,
   ];
   // Built from the Oslo calendar day, so the server's own zone can't shift it.
-  return format(new Date(year, month - 1, day), DAY_FORMAT, {
+  return format(new Date(year, month - 1, day), pattern, {
     locale: locale === "no" ? nb : undefined,
   });
+}
+
+/** `3 Dec` / `3. des.`: the Oslo day of a stored instant, or `""` when unreadable. */
+export function formatOsloShortDay(iso: string, locale: string): string {
+  const pattern = locale === "no" ? SHORT_DAY_FORMAT.no : SHORT_DAY_FORMAT.en;
+  return formatOsloDay(iso, locale, pattern) ?? "";
 }
 
 /** `24. jan. 2027 – 27. jan. 2027`, or a single day when both fall on it. */

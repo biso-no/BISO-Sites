@@ -6,6 +6,7 @@ import type { Departments } from "@repo/api/types/appwrite";
 import { BIG_EVENT_TABLES } from "@repo/shared/big-events/tables";
 import type { BigEventRow } from "@repo/shared/big-events/types";
 import { revalidatePath } from "next/cache";
+import { cache } from "react";
 import { requireAuth, type UserAuthContext } from "@/lib/authorization";
 import {
   type BigEventAccess,
@@ -167,13 +168,18 @@ export async function listBigEvents(): Promise<BigEventListItem[]> {
   );
 }
 
+/** One read per request: the `[id]` layout and its tab page both ask. */
+const loadBigEventOncePerRequest = cache(async (id: string) => {
+  const ctx = await requireAuth();
+  const { db } = await createAdminClient();
+  return await loadBigEvent(db, ctx, id);
+});
+
 /** The big event and the caller's access, or null. Call first in every big event action. */
 export async function getBigEvent(
   id: string
 ): Promise<{ event: BigEventRow; access: GrantedAccess } | null> {
-  const ctx = await requireAuth();
-  const { db } = await createAdminClient();
-  return await loadBigEvent(db, ctx, id);
+  return await loadBigEventOncePerRequest(id);
 }
 
 export async function createBigEvent(

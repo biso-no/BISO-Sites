@@ -64,9 +64,104 @@
       "participants": "Deltakere",
       "settings": "Innstillinger"
     },
-    "participantsSoon": {
-      "title": "Deltakerne kommer hit snart",
-      "description": "Snart kan du hente inn billettlisten og se alle som kommer."
+    "participants": {
+      "reach": {
+        "label": "Hvem du når",
+        "all": "Alle",
+        "push": "I appen med varsler",
+        "app_no_push": "I appen uten varsler",
+        "email": "Ikke i appen ennå",
+        "help": "De som har appen med varsler, får et pushvarsel. Alle andre får en e-post."
+      },
+      "noCampus": "{count, plural, one {# person mangler} other {# personer mangler}} campus. Bare globale administratorer og styret ser dem til noen setter campus.",
+      "search": "Søk etter navn eller e-post",
+      "campusFilter": "Campus",
+      "allCampuses": "Alle campus",
+      "noCampusOption": "Uten campus",
+      "notInRoom": "Ikke på rom ennå ({count})",
+      "addPerson": "Legg til person",
+      "checkMemberships": "Sjekk medlemskap",
+      "checkMembershipsHelp": "Sjekker medlemskapet til alle som er koblet til en konto.",
+      "copyEmails": "Kopier e-postadresser",
+      "copyEmailsHelp": "Kopierer e-postadressene til personene som vises nedenfor.",
+      "downloadCsv": "Last ned CSV",
+      "downloadCsvHelp": "Laster ned personene i listen du har valgt over, som et regneark.",
+      "columns": {
+        "name": "Navn",
+        "campus": "Campus",
+        "room": "Rom",
+        "status": "Status",
+        "membership": "Medlemskap",
+        "actions": "Handlinger"
+      },
+      "roomName": "Rom · {name}",
+      "noRoom": "Ikke på rom",
+      "status": {
+        "connected": "Tilkoblet",
+        "connectSent": "Tilkoblingse-post sendt {date}",
+        "notConnected": "Ikke tilkoblet"
+      },
+      "noValidMembership": "Mangler gyldig medlemskap",
+      "rowMenu": "Flere valg for {name}",
+      "edit": "Rediger",
+      "remove": "Fjern",
+      "empty": {
+        "title": "Ingen på listen ennå",
+        "description": "Legg til folk én og én med Legg til person."
+      },
+      "noMatches": "Ingen passer med det du har valgt.",
+      "showing": "Viser {shown} av {total}",
+      "copied": "{count, plural, one {Kopierte # e-postadresse} other {Kopierte # e-postadresser}}",
+      "nothingToCopy": "Det er ingen e-postadresser i denne listen.",
+      "copyFailed": "Kunne ikke kopiere. Nettleseren kan ha blokkert det.",
+      "csvFileName": "deltakere",
+      "csvFailed": "Kunne ikke lage filen. Prøv igjen.",
+      "csv": {
+        "firstName": "Fornavn",
+        "lastName": "Etternavn",
+        "email": "E-post",
+        "phone": "Telefon",
+        "campus": "Campus",
+        "room": "Rom"
+      },
+      "memberships": {
+        "done": "Sjekket {checked} medlemskap. {invalid, plural, =0 {Alle er gyldige.} one {# er ikke gyldig.} other {# er ikke gyldige.}}",
+        "partial": "Noen kunne ikke sjekkes nå. Prøv igjen senere.",
+        "noneConnected": "Ingen er tilkoblet ennå, så det er ingen medlemskap å sjekke.",
+        "failed": "Kunne ikke sjekke medlemskap. Prøv igjen."
+      },
+      "dialog": {
+        "addTitle": "Legg til person",
+        "addDescription": "For noen som ikke står på billettlisten.",
+        "editTitle": "Rediger {name}",
+        "editDescription": "Endringer her påvirker ikke kontoen til personen.",
+        "firstName": "Fornavn",
+        "lastName": "Etternavn",
+        "email": "E-post",
+        "emailHelp": "Adressen på billetten. Tilkoblingse-posten sendes hit.",
+        "phone": "Telefon",
+        "campus": "Campus",
+        "noCampus": "Uten campus",
+        "add": "Legg til",
+        "save": "Lagre",
+        "added": "{name} er lagt til",
+        "saved": "Endringene er lagret",
+        "saveFailed": "Kunne ikke lagre. Sjekk nettforbindelsen og prøv igjen.",
+        "errors": {
+          "first_name": "Skriv et fornavn på opptil 100 tegn.",
+          "last_name": "Etternavnet kan ha opptil 100 tegn.",
+          "ticket_email": "Sjekk e-postadressen.",
+          "phone": "Sjekk telefonnummeret.",
+          "campus_id": "Velg campus."
+        }
+      },
+      "removeDialog": {
+        "title": "Fjerne {name}?",
+        "description": "Personen tas av listen for dette arrangementet og ut av rom, busser og grupper. Kontoen endres ikke.",
+        "confirm": "Fjern",
+        "removed": "{name} er fjernet",
+        "failed": "Kunne ikke fjerne. Prøv igjen."
+      }
     },
     "newPage": {
       "title": "Nytt stort arrangement",

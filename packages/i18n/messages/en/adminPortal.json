@@ -64,9 +64,104 @@
       "participants": "Participants",
       "settings": "Settings"
     },
-    "participantsSoon": {
-      "title": "Participants arrive here soon",
-      "description": "Soon you can bring in the ticket list and see everyone who is coming."
+    "participants": {
+      "reach": {
+        "label": "Who you can reach",
+        "all": "Everyone",
+        "push": "In the app with notifications",
+        "app_no_push": "In the app without notifications",
+        "email": "Not in the app yet",
+        "help": "People in the app with notifications get a push. Everyone else gets an email."
+      },
+      "noCampus": "{count, plural, one {# person has} other {# people have}} no campus. Only global admins and the board can see them until someone sets a campus.",
+      "search": "Search by name or email",
+      "campusFilter": "Campus",
+      "allCampuses": "All campuses",
+      "noCampusOption": "No campus",
+      "notInRoom": "Not in a room yet ({count})",
+      "addPerson": "Add person",
+      "checkMemberships": "Check memberships",
+      "checkMembershipsHelp": "Looks up the membership of everyone who is connected to an account.",
+      "copyEmails": "Copy emails",
+      "copyEmailsHelp": "Copies the email addresses of the people shown below.",
+      "downloadCsv": "Download CSV",
+      "downloadCsvHelp": "Downloads the people in the list you picked above as a spreadsheet.",
+      "columns": {
+        "name": "Name",
+        "campus": "Campus",
+        "room": "Room",
+        "status": "Status",
+        "membership": "Membership",
+        "actions": "Actions"
+      },
+      "roomName": "Room · {name}",
+      "noRoom": "Not in a room",
+      "status": {
+        "connected": "Connected",
+        "connectSent": "Connect email sent {date}",
+        "notConnected": "Not connected"
+      },
+      "noValidMembership": "No valid membership",
+      "rowMenu": "More for {name}",
+      "edit": "Edit",
+      "remove": "Remove",
+      "empty": {
+        "title": "No one on the list yet",
+        "description": "Add people one at a time with Add person."
+      },
+      "noMatches": "No one matches what you picked.",
+      "showing": "Showing {shown} of {total}",
+      "copied": "{count, plural, one {Copied # email address} other {Copied # email addresses}}",
+      "nothingToCopy": "There are no email addresses in this list.",
+      "copyFailed": "Couldn't copy. Your browser may have blocked it.",
+      "csvFileName": "participants",
+      "csvFailed": "Couldn't make the file. Try again.",
+      "csv": {
+        "firstName": "First name",
+        "lastName": "Last name",
+        "email": "Email",
+        "phone": "Phone",
+        "campus": "Campus",
+        "room": "Room"
+      },
+      "memberships": {
+        "done": "{checked, plural, one {Checked # membership} other {Checked # memberships}}. {invalid, plural, =0 {All are valid.} one {# isn't valid.} other {# aren't valid.}}",
+        "partial": "Some couldn't be checked right now. Try again later.",
+        "noneConnected": "No one is connected yet, so there are no memberships to check.",
+        "failed": "Couldn't check memberships. Try again."
+      },
+      "dialog": {
+        "addTitle": "Add person",
+        "addDescription": "For someone who isn't on the ticket list.",
+        "editTitle": "Edit {name}",
+        "editDescription": "Changes here don't affect the person's account.",
+        "firstName": "First name",
+        "lastName": "Last name",
+        "email": "Email",
+        "emailHelp": "The address on the ticket. The connect email goes here.",
+        "phone": "Phone",
+        "campus": "Campus",
+        "noCampus": "No campus",
+        "add": "Add",
+        "save": "Save",
+        "added": "{name} was added",
+        "saved": "Changes saved",
+        "saveFailed": "Couldn't save. Check your connection and try again.",
+        "errors": {
+          "first_name": "Write a first name of up to 100 characters.",
+          "last_name": "Keep the last name to 100 characters.",
+          "ticket_email": "Check the email address.",
+          "phone": "Check the phone number.",
+          "campus_id": "Choose a campus."
+        }
+      },
+      "removeDialog": {
+        "title": "Remove {name}?",
+        "description": "They are taken off this big event's list and out of their room, buses and groups. Their account isn't changed.",
+        "confirm": "Remove",
+        "removed": "{name} was removed",
+        "failed": "Couldn't remove. Try again."
+      }
     },
     "newPage": {
       "title": "New big event",
