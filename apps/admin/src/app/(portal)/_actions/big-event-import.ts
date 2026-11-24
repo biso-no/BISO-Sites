@@ -3,6 +3,7 @@
 import { ID, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import {
+  CLEARED_CONNECT_LINK,
   findBiLinkedAccountsByEmail,
   linkParticipant,
 } from "@repo/shared/big-events/linking";
@@ -414,7 +415,12 @@ function updateParticipants(
   return settleWrites(
     prepared.plan.update,
     async ({ changes, participantId }) => {
-      const columns = { ...changes, last_import_id: importId };
+      // A new ticket email kills the old connect link (ruling R36).
+      const columns = {
+        ...changes,
+        ...("ticket_email" in changes ? CLEARED_CONNECT_LINK : {}),
+        last_import_id: importId,
+      };
       await db.updateRow(DATABASE_ID, PARTICIPANTS, participantId, columns);
       return {
         changed: Object.keys(changes).length > 0,

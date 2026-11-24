@@ -284,10 +284,25 @@ describe("linking by hand", () => {
     expect(stored("p1")?.user_id).toBeNull();
   });
 
-  test("unlinking clears the link", async () => {
-    seed([participant({ link_method: "manual", user_id: "u1" })], [account()]);
+  test("unlinking clears the link and kills the old connect link", async () => {
+    seed(
+      [
+        participant({
+          connect_nonce: "nonce",
+          connect_token_hash: "hash",
+          link_method: "manual",
+          user_id: "u1",
+        }),
+      ],
+      [account()]
+    );
     await unlinkParticipantAction("p1");
-    expect(stored("p1")).toMatchObject({ link_method: null, user_id: null });
+    expect(stored("p1")).toMatchObject({
+      connect_nonce: null,
+      connect_token_hash: null,
+      link_method: null,
+      user_id: null,
+    });
   });
 });
 

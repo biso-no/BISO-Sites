@@ -296,6 +296,49 @@ describe("applyImport", () => {
     expect(byName(people, "Ola")?.user_id ?? null).toBeNull();
   });
 
+  test("a new ticket email from the file kills the old connect link (R36)", async () => {
+    seed({
+      [PARTICIPANTS]: [
+        participantRow({
+          connect_nonce: "n-kari",
+          connect_token_hash: "h-kari",
+        }),
+        participantRow({
+          $id: "p2",
+          connect_nonce: "n-ola",
+          connect_token_hash: "h-ola",
+          first_name: "Ola",
+          last_name: "Hansen",
+          phone: "+4792345678",
+          ticket_email: "ola@example.com",
+        }),
+      ],
+    });
+    const form = pasteForm([
+      ["Navn", "Etternavn", "E-post", "Mobilnr"],
+      ["Kari", "Nordmann", "kari.new@example.com", "91234567"],
+      ["Ola", "Hansen", "ola@example.com", "92345678"],
+    ]);
+
+    await applyImport(
+      "b1",
+      form,
+      mappingFor("first_name", "last_name", "email", "phone"),
+      PLAIN
+    );
+
+    const people = fake.rows(PARTICIPANTS);
+    expect(byName(people, "Kari")).toMatchObject({
+      connect_nonce: null,
+      connect_token_hash: null,
+      ticket_email: "kari.new@example.com",
+    });
+    expect(byName(people, "Ola")).toMatchObject({
+      connect_nonce: "n-ola",
+      connect_token_hash: "h-ola",
+    });
+  });
+
   test("an email on several tickets links none of them", async () => {
     seed({
       user: [{ $id: "u-kari", email: "kari@bi.no", student_id: "1234567" }],

@@ -222,9 +222,11 @@ describe("linkParticipant", () => {
 });
 
 describe("unlinkParticipant", () => {
-  it("clears the link and the old account's membership", async () => {
+  it("clears the link, the old account's membership and the old connect link", async () => {
     seed([
       participant({
+        connect_nonce: "nonce",
+        connect_token_hash: "hash",
         link_method: "manual",
         linked_at: now.toISOString(),
         membership_checked_at: now.toISOString(),
@@ -238,6 +240,10 @@ describe("unlinkParticipant", () => {
       "big_event_participants",
       "p1",
       {
+        // The link in emails already sent stops working (ruling R36); the
+        // next send makes a new one.
+        connect_nonce: null,
+        connect_token_hash: null,
         link_method: null,
         linked_at: null,
         membership_checked_at: null,

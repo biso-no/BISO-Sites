@@ -32,6 +32,17 @@ interface AccountRow extends Models.Row {
   student_id: string | null;
 }
 
+/**
+ * Clears a participant's connect link: the link in every email already sent
+ * stops working, and the next connect email makes a new one (ruling R36).
+ * Written on unlink and whenever the ticket email changes, so an old link
+ * can't connect the ticket to whoever had the old address.
+ */
+export const CLEARED_CONNECT_LINK = {
+  connect_nonce: null,
+  connect_token_hash: null,
+} as const;
+
 const DATABASE_ID = "app";
 const USER_TABLE = "user";
 /** Appwrite accepts at most 100 values in one `Query.equal`. */
@@ -148,7 +159,10 @@ export async function linkParticipant(
   return { ok: true };
 }
 
-/** Removes the link; the old account's membership check no longer applies. */
+/**
+ * Removes the link; the old account's membership check no longer applies,
+ * and the old connect link stops working.
+ */
 export async function unlinkParticipant(
   db: LinkingDb,
   participantId: string
@@ -158,6 +172,7 @@ export async function unlinkParticipant(
     BIG_EVENT_TABLES.participants,
     participantId,
     {
+      ...CLEARED_CONNECT_LINK,
       link_method: null,
       linked_at: null,
       membership_checked_at: null,

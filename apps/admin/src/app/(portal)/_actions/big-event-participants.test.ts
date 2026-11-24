@@ -416,6 +416,46 @@ describe("addParticipant and updateParticipant", () => {
   });
 });
 
+describe("updateParticipant and the connect link (R36)", () => {
+  function updatedColumns(): Record<string, unknown> {
+    return db.updateRow.mock.calls[0]?.[3] as Record<string, unknown>;
+  }
+
+  test("a new ticket email kills the old connect link", async () => {
+    routeListRows({
+      big_event_participants: () => rows([participantRow()]),
+      big_events: () => rows([bigEventRow()]),
+    });
+
+    await updateParticipant("p1", {
+      ...formValues,
+      ticket_email: "kari.new@example.com",
+    });
+
+    expect(updatedColumns()).toMatchObject({
+      connect_nonce: null,
+      connect_token_hash: null,
+      ticket_email: "kari.new@example.com",
+    });
+  });
+
+  test("the same email, in other casing, keeps the link", async () => {
+    routeListRows({
+      big_event_participants: () => rows([participantRow()]),
+      big_events: () => rows([bigEventRow()]),
+    });
+
+    await updateParticipant("p1", {
+      ...formValues,
+      first_name: "Kari Anne",
+      ticket_email: " Kari@Example.com ",
+    });
+
+    expect(updatedColumns()).not.toHaveProperty("connect_nonce");
+    expect(updatedColumns()).not.toHaveProperty("connect_token_hash");
+  });
+});
+
 describe("removeParticipants", () => {
   test("remove deletes the person's group memberships", async () => {
     routeListRows({

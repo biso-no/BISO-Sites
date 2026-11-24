@@ -4,6 +4,7 @@ import { ID, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
 import { enqueueConnectEmails } from "@repo/shared/big-events/delivery-queue";
+import { CLEARED_CONNECT_LINK } from "@repo/shared/big-events/linking";
 import { BIG_EVENT_TABLES } from "@repo/shared/big-events/tables";
 import type {
   BigEventGroupMemberRow,
@@ -20,6 +21,7 @@ import {
   canSeeParticipant,
   participantCampusFilter,
 } from "@/lib/big-events/access";
+import { normalizeEmail } from "@/lib/big-events/import/normalize";
 import { kickDeliveries } from "@/lib/big-events/kick-deliveries";
 import { listAllRows, listRowsByIds } from "@/lib/big-events/list-rows";
 import {
@@ -276,7 +278,14 @@ export async function updateParticipant(
     throw new Error("You can only change people from your own campus");
   }
   const columns = participantColumns(data);
-  await db.updateRow(DATABASE_ID, PARTICIPANTS, id, columns);
+  // A new address kills the old connect link (ruling R36): a pending email to
+  // the old address is skipped, and the next send makes a new link.
+  const emailChanged =
+    normalizeEmail(participant.ticket_email) !== columns.ticket_email;
+  await db.updateRow(DATABASE_ID, PARTICIPANTS, id, {
+    ...columns,
+    ...(emailChanged ? CLEARED_CONNECT_LINK : {}),
+  });
   await logAuditEvent(ctx, "big_event.participant.update", {
     payload: {
       big_event_id: participant.big_event_id,
