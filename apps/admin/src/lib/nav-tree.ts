@@ -18,6 +18,7 @@ import {
   ListChecks,
   type LucideIcon,
   Megaphone,
+  Mountain,
   Newspaper,
   Receipt,
   Settings,
@@ -68,6 +69,7 @@ export const NAV_TREE: NavNode[] = [
       leaf("pages", "portal.pages", "/pages", Layers),
       leaf("news", "portal.news", "/news", Newspaper),
       leaf("events", "portal.events", "/events", Calendar),
+      leaf("bigEvents", "portal.bigEvents", "/big-events", Mountain),
       leaf("jobs", "portal.jobs", "/jobs", Briefcase),
       leaf(
         "communications",

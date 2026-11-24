@@ -5,6 +5,7 @@
     "departments": "Departments",
     "jobs": "Jobs",
     "events": "Events",
+    "bigEvents": "Big events",
     "shop": "Products",
     "expenses": "Expenses",
     "expensesList": "Expenses",
@@ -32,6 +33,9 @@
     "organization": "Organization",
     "system": "System",
     "submissions": "Form Submissions"
+  },
+  "bigEvents": {
+    "title": "Big events"
   },
   "sidebar": {
     "studioHint": "Studio hint",

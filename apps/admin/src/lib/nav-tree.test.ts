@@ -82,6 +82,7 @@ describe("filterNavTree", () => {
       "pages",
       "news",
       "events",
+      "bigEvents",
     ]);
   });
 

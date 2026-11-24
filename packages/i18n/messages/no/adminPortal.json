@@ -5,6 +5,7 @@
     "departments": "Avdelinger",
     "jobs": "Stillinger",
     "events": "Arrangementer",
+    "bigEvents": "Store arrangementer",
     "shop": "Produkter",
     "expenses": "Utlegg",
     "expensesList": "Utlegg",
@@ -32,6 +33,9 @@
     "organization": "Organisasjon",
     "system": "System",
     "submissions": "Skjemainnsendinger"
+  },
+  "bigEvents": {
+    "title": "Store arrangementer"
   },
   "sidebar": {
     "studioHint": "Studiohint",
