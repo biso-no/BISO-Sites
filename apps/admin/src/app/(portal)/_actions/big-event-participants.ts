@@ -3,6 +3,7 @@
 import { ID, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
+import { enqueueConnectEmails } from "@repo/shared/big-events/delivery-queue";
 import { BIG_EVENT_TABLES } from "@repo/shared/big-events/tables";
 import type {
   BigEventGroupMemberRow,
@@ -19,6 +20,7 @@ import {
   canSeeParticipant,
   participantCampusFilter,
 } from "@/lib/big-events/access";
+import { kickDeliveries } from "@/lib/big-events/kick-deliveries";
 import { listAllRows, listRowsByIds } from "@/lib/big-events/list-rows";
 import {
   type ParticipantFormValues,
@@ -425,4 +427,64 @@ export async function exportParticipantsCsv(
   const chosen =
     chosenPile === "all" ? rows : rows.filter((row) => row.pile === chosenPile);
   return participantsToCsv(chosen, columnTitles);
+}
+
+/**
+ * Queues the connect email for unlinked people with a ticket email, then asks
+ * the api to start sending. Without `participantIds` that is everyone the
+ * caller can see; with ids, each must be on this big event and visible.
+ */
+export async function sendConnectEmails(
+  bigEventId: string,
+  participantIds?: string[]
+): Promise<{ addresses: number; queued: number }> {
+  const ctx = await requireAuth();
+  const ids = participantIds && participantIdsSchema.parse(participantIds);
+  const { access, event } = await requireBigEvent(bigEventId);
+  if (event.status !== "published") {
+    throw new Error(
+      "Publish the big event before sending connect emails / Publiser det store arrangementet før du sender koblings-e-post"
+    );
+  }
+  const { db } = await createAdminClient();
+  let participants: BigEventParticipantRow[];
+  if (ids) {
+    participants = await listRowsByIds<BigEventParticipantRow>(
+      db,
+      PARTICIPANTS,
+      "$id",
+      ids,
+      [Query.equal("big_event_id", [bigEventId])]
+    );
+    const found = new Set(participants.map((row) => row.$id));
+    const allowed =
+      ids.every((id) => found.has(id)) &&
+      participants.every((row) => canSeeParticipant(access, row));
+    if (!allowed) {
+      throw new Error("You can only email people from your own campus");
+    }
+  } else {
+    participants = await listAllRows<BigEventParticipantRow>(db, PARTICIPANTS, [
+      ...visibleParticipants(bigEventId, access),
+      Query.isNull("user_id"),
+      Query.isNotNull("ticket_email"),
+    ]);
+  }
+  const result = await enqueueConnectEmails(db, {
+    bigEventId,
+    kind: "connect",
+    participants,
+  });
+  await logAuditEvent(ctx, "big_event.connect_emails.send", {
+    payload: {
+      addresses: result.addresses,
+      queued: result.queued,
+      requested: ids?.length ?? null,
+    },
+    resourceId: bigEventId,
+    resourceType: "big_event",
+  });
+  kickDeliveries();
+  revalidateBigEvent(bigEventId);
+  return result;
 }

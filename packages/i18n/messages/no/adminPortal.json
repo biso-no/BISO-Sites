@@ -328,6 +328,14 @@
         "failed": "Noen rader ble ikke lagret. Last inn listen på nytt og sjekk den før du importerer igjen."
       }
     },
+    "connect": {
+      "sendAll": "Send koblings-e-post ({count})",
+      "sendAgain": "Send på nytt",
+      "publishFirst": "Publiser det store arrangementet før du sender koblings-e-post",
+      "queued": "{count, plural, one {# e-post lagt i kø} other {# e-poster lagt i kø}}",
+      "nothingToSend": "Ingen å sende til",
+      "failed": "Kunne ikke legge e-postene i kø. Prøv igjen."
+    },
     "link": {
       "linkAccount": "Koble til konto",
       "unlink": "Koble fra konto",

@@ -1,4 +1,12 @@
-import { beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
+import {
+  afterAll,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  spyOn,
+  test,
+} from "bun:test";
 import { Query } from "@repo/api";
 import type { UserAuthContext } from "@/lib/authorization";
 import type { ParticipantFormValues } from "@/lib/big-events/participant-form";
@@ -90,6 +98,7 @@ const {
   exportParticipantsCsv,
   listParticipants,
   removeParticipants,
+  sendConnectEmails,
   updateParticipant,
 } = await import("./big-event-participants");
 
@@ -529,5 +538,108 @@ describe("exportParticipantsCsv", () => {
     expect(csv.split("\n")).toHaveLength(2);
     expect(csv).toContain("Kari");
     expect(csv).not.toContain("Ola");
+  });
+});
+
+function restoreEnv(name: string, value: string | undefined): void {
+  if (value === undefined) {
+    Reflect.deleteProperty(process.env, name);
+  } else {
+    process.env[name] = value;
+  }
+}
+
+describe("sendConnectEmails", () => {
+  const fetchMock = mock(async (..._args: unknown[]) => new Response(null));
+  const realFetch = globalThis.fetch;
+  const savedEnv = {
+    api: process.env.NEXT_PUBLIC_API_BASE_URL,
+    secret: process.env.CRON_SECRET,
+  };
+
+  beforeEach(() => {
+    fetchMock.mockClear();
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    process.env.NEXT_PUBLIC_API_BASE_URL = "https://api.example.test";
+    process.env.CRON_SECRET = "secret";
+  });
+
+  afterAll(() => {
+    globalThis.fetch = realFetch;
+    restoreEnv("NEXT_PUBLIC_API_BASE_URL", savedEnv.api);
+    restoreEnv("CRON_SECRET", savedEnv.secret);
+  });
+
+  function route(
+    participants: Record<string, unknown>[],
+    status = "published"
+  ) {
+    routeListRows({
+      big_event_deliveries: () => rows([]),
+      big_event_participants: () => rows(participants),
+      big_events: () => rows([bigEventRow({ status })]),
+    });
+  }
+
+  test("refuses while the big event is a draft", async () => {
+    route([participantRow()], "draft");
+    await expect(sendConnectEmails("b1")).rejects.toThrow(
+      "Publish the big event"
+    );
+    expect(db.createRow).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("queues only visible unlinked people", async () => {
+    currentCtx = campusAdminOf("2");
+    route([
+      participantRow({ $id: "p1", ticket_email: "a@example.com" }),
+      participantRow({ $id: "p2", ticket_email: "b@example.com" }),
+    ]);
+
+    const result = await sendConnectEmails("b1");
+
+    expect(result).toEqual({ addresses: 2, queued: 2 });
+    const [queries] = queriesFor("big_event_participants");
+    expect(queries).toContain(Query.equal("campus_id", ["2"]));
+    expect(queries).toContain(Query.isNull("user_id"));
+    expect(queries).toContain(Query.isNotNull("ticket_email"));
+    expect(logAuditEvent).toHaveBeenCalledWith(
+      currentCtx,
+      "big_event.connect_emails.send",
+      expect.objectContaining({
+        payload: { addresses: 2, queued: 2, requested: null },
+      })
+    );
+  });
+
+  test("send again refuses a person outside your campus", async () => {
+    currentCtx = campusAdminOf("2");
+    route([participantRow({ $id: "p9", campus_id: "3" })]);
+    await expect(sendConnectEmails("b1", ["p9"])).rejects.toThrow();
+    expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  test("send again refuses a person who isn't on this big event", async () => {
+    route([]);
+    await expect(sendConnectEmails("b1", ["p-other"])).rejects.toThrow();
+    expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  test("kicks the processor after queueing", async () => {
+    route([participantRow()]);
+    await sendConnectEmails("b1", ["p1"]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://api.example.test/api/cron/big-event-deliveries");
+    expect(init.method).toBe("POST");
+    expect(init.headers).toEqual({ "x-cron-secret": "secret" });
+  });
+
+  test("kick is a no-op without the api url", async () => {
+    process.env.NEXT_PUBLIC_API_BASE_URL = "";
+    route([participantRow()]);
+    await sendConnectEmails("b1", ["p1"]);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

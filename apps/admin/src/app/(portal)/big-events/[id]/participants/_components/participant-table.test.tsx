@@ -151,6 +151,7 @@ async function mount(): Promise<TestElement> {
         bigEventId: "b1",
         campusOptions: [{ label: "Bergen", value: "2" }],
         defaultCampusId: "2",
+        isPublished: true,
         list,
       })
     );

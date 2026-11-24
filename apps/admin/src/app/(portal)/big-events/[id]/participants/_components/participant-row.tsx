@@ -13,6 +13,7 @@ import { useTransition } from "react";
 import { toast } from "sonner";
 import { formatOsloShortDay } from "@/lib/big-events/dates";
 import {
+  canSendConnectEmail,
   type ParticipantListItem,
   type ParticipantSuggestion,
   participantName,
@@ -128,8 +129,11 @@ interface ParticipantRowProps {
   onEdit: (row: ParticipantListItem) => void;
   onLink: (row: ParticipantListItem) => void;
   onRemove: (row: ParticipantListItem) => void;
+  onSendAgain: (row: ParticipantListItem) => void;
   onUnlink: (row: ParticipantListItem) => void;
   row: ParticipantListItem;
+  /** True while a send is running or the big event isn't published. */
+  sendDisabled: boolean;
   showRoom: boolean;
 }
 
@@ -139,12 +143,15 @@ export function ParticipantRow({
   onEdit,
   onLink,
   onRemove,
+  onSendAgain,
   onUnlink,
   row,
+  sendDisabled,
   showRoom,
 }: ParticipantRowProps) {
   const t = useTranslations("adminPortal.bigEvents.participants");
   const tLink = useTranslations("adminPortal.bigEvents.link");
+  const tConnect = useTranslations("adminPortal.bigEvents.connect");
   const tReach = useTranslations("adminPortal.bigEvents.participants.reach");
   const name = participantName(row);
   const PileIcon = PILE_ICONS[row.pile];
@@ -232,6 +239,14 @@ export function ParticipantRow({
             ) : (
               <DropdownMenuItem onSelect={() => onLink(row)}>
                 {tLink("linkAccount")}
+              </DropdownMenuItem>
+            )}
+            {canSendConnectEmail(row) && (
+              <DropdownMenuItem
+                disabled={sendDisabled}
+                onSelect={() => onSendAgain(row)}
+              >
+                {tConnect("sendAgain")}
               </DropdownMenuItem>
             )}
             <DropdownMenuItem

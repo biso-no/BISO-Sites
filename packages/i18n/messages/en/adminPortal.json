@@ -328,6 +328,14 @@
         "failed": "Some rows couldn't be saved. Reload the list and check it before importing again."
       }
     },
+    "connect": {
+      "sendAll": "Send connect emails ({count})",
+      "sendAgain": "Send again",
+      "publishFirst": "Publish the big event before sending connect emails",
+      "queued": "{count, plural, one {Queued # email} other {Queued # emails}}",
+      "nothingToSend": "Nobody to send to",
+      "failed": "Couldn't queue the emails. Try again."
+    },
     "link": {
       "linkAccount": "Link account",
       "unlink": "Unlink account",

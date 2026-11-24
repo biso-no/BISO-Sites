@@ -21,6 +21,7 @@ import {
 } from "@/lib/big-events/participant-form";
 import {
   ALL_CAMPUSES,
+  canSendConnectEmail,
   filterParticipants,
   NO_CAMPUS,
   type ParticipantFilters,
@@ -28,7 +29,10 @@ import {
   type ParticipantListItem,
   participantName,
 } from "@/lib/big-events/participant-list";
-import { removeParticipants } from "../../../../_actions/big-event-participants";
+import {
+  removeParticipants,
+  sendConnectEmails,
+} from "../../../../_actions/big-event-participants";
 import { EmptyState } from "../../../../_components/empty-state";
 import { PortalButton } from "../../../../_components/portal-button";
 import {
@@ -50,6 +54,8 @@ interface ParticipantTableProps {
   campusOptions: CampusOption[];
   /** Pre-selected campus when adding someone. */
   defaultCampusId: ParticipantCampusId | null;
+  /** Connect emails go out only for a published big event. */
+  isPublished: boolean;
   list: ParticipantList;
 }
 
@@ -110,12 +116,14 @@ function RemoveDialog({
 /** The participants tab: reach chips, filters, toolbar and the list itself. */
 export function ParticipantTable({
   bigEventId,
+  isPublished,
   campusOptions,
   defaultCampusId,
   list,
 }: ParticipantTableProps) {
   const t = useTranslations("adminPortal.bigEvents.participants");
   const tImport = useTranslations("adminPortal.bigEvents.import");
+  const tConnect = useTranslations("adminPortal.bigEvents.connect");
   const router = useRouter();
   const [filters, setFilters] = useState<ParticipantFilters>({
     campus: ALL_CAMPUSES,
@@ -128,6 +136,7 @@ export function ParticipantTable({
     null
   );
   const [isRemoving, startRemove] = useTransition();
+  const [isSending, startSend] = useTransition();
   const [linkTarget, setLinkTarget] = useState<ParticipantListItem | null>(
     null
   );
@@ -157,6 +166,10 @@ export function ParticipantTable({
         : option
     ),
   ];
+  const sendableCount = useMemo(
+    () => list.rows.filter(canSendConnectEmail).length,
+    [list.rows]
+  );
   const connectedCount = list.counts.push + list.counts.app_no_push;
 
   const setFilter = <K extends keyof ParticipantFilters>(
@@ -181,6 +194,26 @@ export function ParticipantTable({
         router.refresh();
       } catch {
         toast.error(t("removeDialog.failed"));
+      }
+    });
+  }
+
+  /** Queues the connect email for one person, or for everyone when no row is given. */
+  function sendConnect(row?: ParticipantListItem) {
+    startSend(async () => {
+      try {
+        const result = await sendConnectEmails(
+          bigEventId,
+          row ? [row.$id] : undefined
+        );
+        if (result.queued === 0) {
+          toast.info(tConnect("nothingToSend"));
+        } else {
+          toast.success(tConnect("queued", { count: result.queued }));
+        }
+        router.refresh();
+      } catch {
+        toast.error(tConnect("failed"));
       }
     });
   }
@@ -265,10 +298,14 @@ export function ParticipantTable({
         actions={addButtons}
         bigEventId={bigEventId}
         campusFilterOptions={campusFilterOptions}
+        canSendConnect={isPublished}
         connectedCount={connectedCount}
         filters={filters}
         hasRooms={list.hasRooms}
+        isSending={isSending}
         onFilterChange={setFilter}
+        onSendConnect={() => sendConnect()}
+        sendableCount={sendableCount}
         showCampusFilter={campusOptions.length > 1}
         visibleRows={visibleRows}
         withoutRoom={withoutRoom}
@@ -309,8 +346,10 @@ export function ParticipantTable({
                   onEdit={openDialog}
                   onLink={setLinkTarget}
                   onRemove={setRemoveTarget}
+                  onSendAgain={sendConnect}
                   onUnlink={setUnlinkTarget}
                   row={row}
+                  sendDisabled={isSending || !isPublished}
                   showRoom={list.hasRooms}
                 />
               ))}

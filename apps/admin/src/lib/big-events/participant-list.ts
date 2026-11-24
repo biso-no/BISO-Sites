@@ -39,6 +39,13 @@ export type ParticipantListItem = Pick<
 > &
   ParticipantListExtras;
 
+/** Not connected and has a ticket email: someone a connect email can reach. */
+export function canSendConnectEmail(
+  row: Pick<ParticipantListItem, "ticket_email" | "user_id">
+): boolean {
+  return !row.user_id && Boolean(row.ticket_email);
+}
+
 /** Copies only the columns the tab may see; never spread a whole row into the browser. */
 export function toParticipantListItem(
   row: BigEventParticipantRow,

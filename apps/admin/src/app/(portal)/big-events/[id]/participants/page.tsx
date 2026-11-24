@@ -59,6 +59,7 @@ export default async function BigEventParticipantsPage({
       bigEventId={event.$id}
       campusOptions={campusOptions}
       defaultCampusId={defaultCampusId}
+      isPublished={event.status === "published"}
       list={list}
     />
   );

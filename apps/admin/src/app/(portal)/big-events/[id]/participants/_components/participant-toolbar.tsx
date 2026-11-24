@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Download, Search, ShieldCheck } from "lucide-react";
+import { Copy, Download, Mail, Search, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useTransition } from "react";
@@ -38,14 +38,21 @@ interface ParticipantToolbarProps {
   actions: ReactNode;
   bigEventId: string;
   campusFilterOptions: { label: string; value: string }[];
+  /** False while the big event is a draft or archived. */
+  canSendConnect: boolean;
   /** People connected to an account, whose membership can be checked. */
   connectedCount: number;
   filters: ParticipantFilters;
   hasRooms: boolean;
+  /** A send is running; the button waits so a double click can't queue twice. */
+  isSending: boolean;
   onFilterChange: <K extends keyof ParticipantFilters>(
     key: K,
     value: ParticipantFilters[K]
   ) => void;
+  onSendConnect: () => void;
+  /** People who are not connected and have a ticket email. */
+  sendableCount: number;
   /** Only when the caller can see more than one campus. */
   showCampusFilter: boolean;
   /** The rows the filters leave, for "Copy emails". */
@@ -58,15 +65,20 @@ export function ParticipantToolbar({
   actions,
   bigEventId,
   campusFilterOptions,
+  canSendConnect,
   connectedCount,
   filters,
   hasRooms,
+  isSending,
   onFilterChange,
+  onSendConnect,
+  sendableCount,
   showCampusFilter,
   visibleRows,
   withoutRoom,
 }: ParticipantToolbarProps) {
   const t = useTranslations("adminPortal.bigEvents.participants");
+  const tConnect = useTranslations("adminPortal.bigEvents.connect");
   const tReach = useTranslations("adminPortal.bigEvents.participants.reach");
   const router = useRouter();
   const [isChecking, startCheck] = useTransition();
@@ -175,6 +187,20 @@ export function ParticipantToolbar({
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {actions}
+        <PortalButton
+          disabled={!canSendConnect || sendableCount === 0}
+          loading={isSending}
+          onClick={onSendConnect}
+          title={canSendConnect ? undefined : tConnect("publishFirst")}
+        >
+          {isSending ? null : <Mail aria-hidden size={16} />}
+          {tConnect("sendAll", { count: sendableCount })}
+        </PortalButton>
+        {canSendConnect ? null : (
+          <p className="w-full text-xs" style={{ color: STUDIO.ink4 }}>
+            {tConnect("publishFirst")}
+          </p>
+        )}
         <PortalButton
           loading={isChecking}
           onClick={runMembershipCheck}
