@@ -10,8 +10,8 @@ import { hasValidCronSecret } from "@/lib/cron-auth";
  * manually with `Authorization: Bearer ${CRON_SECRET}`.
  *
  * Deletes participants, group memberships and email deliveries 30 days after a
- * big event ends. The event and its groups stay. Bounded per run; the next run
- * picks up whatever is left.
+ * big event ends. The event and its groups stay. Bounded per run (1000 rows);
+ * the next run picks up whatever is left.
  */
 
 export const runtime = "nodejs";
@@ -19,29 +19,42 @@ export const maxDuration = 300;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const RETENTION_DAYS = 30;
-const EVENTS_PER_RUN = 25;
+const EVENTS_PER_PAGE = 25;
 const BATCH_SIZE = 100;
-const MAX_BATCHES = 10;
+const CHUNK_SIZE = 5;
+/** Total rows deleted per run across all events and tables. */
+const MAX_DELETES_PER_RUN = 1000;
 
 type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
+
+interface Budget {
+  left: number;
+}
 
 async function deleteForEvent(
   db: AdminDb,
   table: string,
-  bigEventId: string
+  bigEventId: string,
+  budget: Budget
 ): Promise<number> {
   let deleted = 0;
-  for (let batch = 0; batch < MAX_BATCHES; batch += 1) {
+  while (budget.left > 0) {
+    const limit = Math.min(BATCH_SIZE, budget.left);
     const { rows } = await db.listRows("app", table, [
       Query.equal("big_event_id", bigEventId),
-      Query.limit(BATCH_SIZE),
+      Query.limit(limit),
       Query.select(["$id"]),
     ]);
-    for (const row of rows) {
-      await db.deleteRow("app", table, row.$id);
-      deleted += 1;
+    for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+      await Promise.all(
+        rows
+          .slice(i, i + CHUNK_SIZE)
+          .map((row) => db.deleteRow("app", table, row.$id))
+      );
     }
-    if (rows.length < BATCH_SIZE) {
+    deleted += rows.length;
+    budget.left -= rows.length;
+    if (rows.length < limit) {
       break;
     }
   }
@@ -61,31 +74,47 @@ export async function POST(request: Request) {
   try {
     const cutoff = new Date(Date.now() - RETENTION_DAYS * DAY_MS);
     const { db } = await createAdminClient();
-    const { rows: events } = await db.listRows("app", BIG_EVENT_TABLES.events, [
-      Query.lessThanEqual("ends_at", cutoff.toISOString()),
-      Query.limit(EVENTS_PER_RUN),
-      Query.select(["$id"]),
-    ]);
-
+    const budget: Budget = { left: MAX_DELETES_PER_RUN };
     let participantsDeleted = 0;
     let membersDeleted = 0;
     let deliveriesDeleted = 0;
-    for (const event of events) {
-      participantsDeleted += await deleteForEvent(
-        db,
-        BIG_EVENT_TABLES.participants,
-        event.$id
+    let cursor: string | undefined;
+    while (budget.left > 0) {
+      const { rows: events } = await db.listRows(
+        "app",
+        BIG_EVENT_TABLES.events,
+        [
+          Query.lessThanEqual("ends_at", cutoff.toISOString()),
+          Query.orderAsc("$id"),
+          Query.limit(EVENTS_PER_PAGE),
+          Query.select(["$id"]),
+          ...(cursor ? [Query.cursorAfter(cursor)] : []),
+        ]
       );
-      membersDeleted += await deleteForEvent(
-        db,
-        BIG_EVENT_TABLES.groupMembers,
-        event.$id
-      );
-      deliveriesDeleted += await deleteForEvent(
-        db,
-        BIG_EVENT_TABLES.deliveries,
-        event.$id
-      );
+      for (const event of events) {
+        participantsDeleted += await deleteForEvent(
+          db,
+          BIG_EVENT_TABLES.participants,
+          event.$id,
+          budget
+        );
+        membersDeleted += await deleteForEvent(
+          db,
+          BIG_EVENT_TABLES.groupMembers,
+          event.$id,
+          budget
+        );
+        deliveriesDeleted += await deleteForEvent(
+          db,
+          BIG_EVENT_TABLES.deliveries,
+          event.$id,
+          budget
+        );
+      }
+      if (events.length < EVENTS_PER_PAGE) {
+        break;
+      }
+      cursor = events.at(-1)?.$id;
     }
 
     console.log(

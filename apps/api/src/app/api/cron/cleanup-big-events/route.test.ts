@@ -77,4 +77,38 @@ describe("POST /api/cron/cleanup-big-events", () => {
     expect(listRows).toHaveBeenCalledTimes(1);
     expect(deleteRow).not.toHaveBeenCalled();
   });
+
+  it("cleans events beyond the first 25 expired ones", async () => {
+    listRows.mockImplementation((_db: string, table: string, q: string[]) => {
+      const query = JSON.stringify(q);
+      if (table === "big_events") {
+        return Promise.resolve(
+          query.includes("cursorAfter") ? rows("f", 5) : rows("e", 25)
+        );
+      }
+      if (table === "big_event_participants" && query.includes("f4")) {
+        return Promise.resolve(rows("p", 2));
+      }
+      return Promise.resolve({ rows: [], total: 0 });
+    });
+    const body = await (
+      await POST(request({ "x-cron-secret": SECRET }))
+    ).json();
+    expect(body.participantsDeleted).toBe(2);
+    expect(
+      listRows.mock.calls.filter(([, t]) => t === "big_events")
+    ).toHaveLength(2);
+  });
+
+  it("stops at the per-run delete budget", async () => {
+    listRows.mockImplementation((_db: string, table: string) =>
+      Promise.resolve(table === "big_events" ? rows("e", 25) : rows("x", 100))
+    );
+    const body = await (
+      await POST(request({ "x-cron-secret": SECRET }))
+    ).json();
+    expect(body.participantsDeleted).toBe(1000);
+    expect(body.membersDeleted + body.deliveriesDeleted).toBe(0);
+    expect(deleteRow).toHaveBeenCalledTimes(1000);
+  });
 });
