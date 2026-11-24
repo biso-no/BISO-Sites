@@ -363,9 +363,11 @@ describe("applyImport", () => {
     await expect(previewImport("b1", form(), mapping, bus)).rejects.toThrow(
       "Travel"
     );
-    await expect(applyImport("b1", form(), mapping, bus)).rejects.toThrow(
-      "Travel"
-    );
+    // Refused before any write: nothing changed, and the result says so.
+    expect(await applyImport("b1", form(), mapping, bus)).toMatchObject({
+      complete: false,
+      written: 0,
+    });
     expect(fake.db.createRow).not.toHaveBeenCalled();
 
     // Rooms are fine without Travel.
@@ -440,7 +442,7 @@ describe("applyImport", () => {
           capacity: 4,
           kind: "room",
           name: "101",
-          source_key: "col:room:101",
+          source_key: "col:room:2:101",
         },
       ],
       [MEMBERS]: [
@@ -690,7 +692,7 @@ describe("applyImport: when a write fails", () => {
           capacity: 4,
           kind: "room",
           name: "101",
-          source_key: "col:room:101",
+          source_key: "col:room:-:101",
         },
       ],
       [MEMBERS]: [
@@ -722,6 +724,172 @@ describe("applyImport: when a write fails", () => {
 
     expect(result).toMatchObject({ complete: false, moved: 0 });
     expect(fake.rows(MEMBERS).map((member) => member.$id)).toEqual(["m1"]);
+  });
+});
+
+describe("applyImport: repairing places (R34)", () => {
+  /** Kari (p1) and Ola (p2) in room 101, campus-less like the file. */
+  function seedRoom101(...participantIds: string[]): void {
+    seed({
+      [GROUPS]: [
+        {
+          $id: "g-101",
+          big_event_id: "b1",
+          booking_participant_id: null,
+          campus_id: null,
+          capacity: 4,
+          kind: "room",
+          name: "101",
+          source_key: "col:room:-:101",
+        },
+      ],
+      [MEMBERS]: participantIds.map((participantId) => ({
+        $id: `m-${participantId}`,
+        big_event_id: "b1",
+        group_id: "g-101",
+        leg: null,
+        participant_id: participantId,
+      })),
+      [PARTICIPANTS]: [
+        participantRow({ $id: "p1", campus_id: null }),
+        participantRow({
+          $id: "p2",
+          campus_id: null,
+          first_name: "Ola",
+          last_name: "Hansen",
+          phone: "+4792345678",
+          ticket_email: "ola@example.com",
+        }),
+      ],
+    });
+  }
+  const roomFile = () =>
+    pasteForm([
+      ["Navn", "Etternavn", "Mobilnr", "Rom"],
+      ["Kari", "Nordmann", "91234567", "102"],
+      ["Ola", "Hansen", "92345678", "102"],
+    ]);
+  const roomMapping = mappingFor("first_name", "last_name", "phone", "group");
+
+  function roomsOf(participantId: string): string[] {
+    const names = new Map(
+      fake.rows(GROUPS).map((group) => [group.$id, String(group.name)])
+    );
+    return fake
+      .rows(MEMBERS)
+      .filter((member) => member.participant_id === participantId)
+      .map((member) => names.get(String(member.group_id)) ?? "?")
+      .sort();
+  }
+
+  test("a re-import removes a stale old place left by a failed save", async () => {
+    seedRoom101("p1", "p2");
+    fake.setBeforeWrite(({ kind }) => {
+      if (kind === "delete") {
+        throw new Error("Appwrite is down");
+      }
+    });
+    const failed = await applyImport("b1", roomFile(), roomMapping, PLAIN);
+    expect(failed).toMatchObject({ complete: false });
+    expect(roomsOf("p1")).toEqual(["101", "102"]);
+
+    fake.setBeforeWrite(null);
+    const preview = await previewImport("b1", roomFile(), roomMapping, PLAIN);
+    expect(preview).toMatchObject({ moved: 2, newGroups: 0, placed: 0 });
+
+    const repaired = await applyImport("b1", roomFile(), roomMapping, PLAIN);
+    expect(repaired).toMatchObject({ complete: true, moved: 2 });
+    expect(roomsOf("p1")).toEqual(["102"]);
+    expect(roomsOf("p2")).toEqual(["102"]);
+  });
+
+  test("some new places written then one fails → the next import repairs both", async () => {
+    seedRoom101("p1", "p2");
+    fake.setBeforeWrite(({ data, kind, tableId }) => {
+      if (
+        kind === "create" &&
+        tableId === MEMBERS &&
+        data?.participant_id === "p2"
+      ) {
+        throw new Error("Appwrite is down");
+      }
+    });
+    await applyImport("b1", roomFile(), roomMapping, PLAIN);
+    // Kari got her new room, Ola didn't; nobody left room 101.
+    expect(roomsOf("p1")).toEqual(["101", "102"]);
+    expect(roomsOf("p2")).toEqual(["101"]);
+
+    fake.setBeforeWrite(null);
+    const repaired = await applyImport("b1", roomFile(), roomMapping, PLAIN);
+    expect(repaired).toMatchObject({ complete: true, moved: 2, placed: 1 });
+    expect(roomsOf("p1")).toEqual(["102"]);
+    expect(roomsOf("p2")).toEqual(["102"]);
+  });
+
+  test("a re-import completes a missing bus leg", async () => {
+    const bus = (id: string, name: string) => ({
+      $id: id,
+      big_event_id: "b1",
+      booking_participant_id: null,
+      campus_id: null,
+      capacity: 50,
+      kind: "bus",
+      name,
+      source_key: `col:bus:-:${name.toLowerCase()}`,
+    });
+    const seat = (
+      id: string,
+      groupId: string,
+      participantId: string,
+      leg: string
+    ) => ({
+      $id: id,
+      big_event_id: "b1",
+      group_id: groupId,
+      leg,
+      participant_id: participantId,
+    });
+    seed({
+      [GROUPS]: [bus("g-b1", "Buss 1"), bus("g-b2", "Buss 2")],
+      [MEMBERS]: [
+        // Kari: only the way out was written.
+        seat("s1", "g-b1", "p1", "out"),
+        // Ola: out on bus 1, home on bus 2; the file says bus 1.
+        seat("s2", "g-b1", "p2", "out"),
+        seat("s3", "g-b2", "p2", "home"),
+      ],
+      [PARTICIPANTS]: [
+        participantRow({ $id: "p1", campus_id: null }),
+        participantRow({
+          $id: "p2",
+          campus_id: null,
+          first_name: "Ola",
+          last_name: "Hansen",
+          phone: "+4792345678",
+          ticket_email: "ola@example.com",
+        }),
+      ],
+    });
+    const busFile = pasteForm([
+      ["Navn", "Etternavn", "Mobilnr", "Buss"],
+      ["Kari", "Nordmann", "91234567", "Buss 1"],
+      ["Ola", "Hansen", "92345678", "Buss 1"],
+    ]);
+
+    const result = await applyImport("b1", busFile, roomMapping, {
+      ...PLAIN,
+      groupKind: "bus",
+    });
+
+    expect(result).toMatchObject({ complete: true, moved: 1 });
+    const seats = (participantId: string) =>
+      fake
+        .rows(MEMBERS)
+        .filter((member) => member.participant_id === participantId)
+        .map((member) => `${member.group_id}:${member.leg}`)
+        .sort();
+    expect(seats("p1")).toEqual(["g-b1:home", "g-b1:out"]);
+    expect(seats("p2")).toEqual(["g-b1:home", "g-b1:out"]);
   });
 });
 

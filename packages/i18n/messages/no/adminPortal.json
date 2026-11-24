@@ -325,6 +325,7 @@
         "back": "Tilbake",
         "save": "Lagre",
         "saved": "{linked, plural, =0 {Lagret.} one {Lagret. # person ble koblet til automatisk.} other {Lagret. # personer ble koblet til automatisk.}}",
+        "notSaved": "Kunne ikke lagre. Ingenting ble endret.",
         "failed": "Noen rader ble ikke lagret. Last inn listen på nytt og sjekk den før du importerer igjen."
       }
     },

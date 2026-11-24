@@ -325,6 +325,7 @@
         "back": "Back",
         "save": "Save",
         "saved": "{linked, plural, =0 {Saved.} one {Saved. # person was connected automatically.} other {Saved. # people were connected automatically.}}",
+        "notSaved": "Couldn't save. Nothing was changed.",
         "failed": "Some rows couldn't be saved. Reload the list and check it before importing again."
       }
     },

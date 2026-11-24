@@ -15,12 +15,15 @@ import {
 import { toast } from "sonner";
 import type { ImportField } from "@/lib/big-events/import/field-aliases";
 import type { ImportColumns } from "@/lib/big-events/import/import-columns";
+import {
+  type ImportResult,
+  saveOutcome,
+} from "@/lib/big-events/import/import-result";
 import type { ImportOptions } from "@/lib/big-events/import/plan-import";
 import type { ImportPreview as Preview } from "@/lib/big-events/import/plan-summary";
 import type { ParticipantCampusId } from "@/lib/big-events/participant-form";
 import {
   applyImport,
-  type ImportResult,
   previewImport,
   readImportFile,
 } from "../../../../../_actions/big-event-import";
@@ -380,7 +383,8 @@ export function ImportWizard({
 
   /**
    * Saves once. After a failed write (ruling R28) the organizer goes to the
-   * list to check it, never straight into another attempt.
+   * list to check it, never straight into another attempt. When nothing was
+   * written (R34) the wizard stays and may try again.
    */
   function save() {
     if (saving.current) {
@@ -399,8 +403,14 @@ export function ImportWizard({
       } catch {
         result = null;
       }
-      if (result?.complete) {
-        toast.success(t("preview.saved", { linked: result.linked }));
+      const outcome = saveOutcome(result);
+      if (outcome === "nothing_changed") {
+        toast.error(t("preview.notSaved"));
+        saving.current = false;
+        return;
+      }
+      if (outcome === "saved") {
+        toast.success(t("preview.saved", { linked: result?.linked ?? 0 }));
       } else {
         toast.error(t("preview.failed"), UNTIL_CLOSED);
       }

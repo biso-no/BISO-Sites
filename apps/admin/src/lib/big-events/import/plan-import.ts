@@ -86,7 +86,19 @@ export interface Placement {
   rule: PlacementRule;
 }
 
+/** Where the group column puts someone already on the list (ruling R34). */
+export interface ColumnTarget {
+  groupKey: string;
+  participantId: string;
+}
+
 export interface ImportPlan {
+  /**
+   * The group each person already on the list belongs in by the group
+   * column, also when they are in it already: their other groups of that
+   * kind are removed, and a bus seat gets both legs (ruling R34).
+   */
+  columnTargets: ColumnTarget[];
   create: ParsedPerson[];
   duplicatesInFile: number;
   /** Existing participant ids not seen in this file. */

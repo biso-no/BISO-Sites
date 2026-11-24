@@ -1,4 +1,8 @@
-import type { GroupKind } from "@repo/shared/big-events/tables";
+import {
+  GROUP_LEGS,
+  type GroupKind,
+  type GroupLeg,
+} from "@repo/shared/big-events/tables";
 import type {
   BigEventGroupMemberRow,
   BigEventGroupRow,
@@ -91,8 +95,10 @@ function kindsByKey(plan: ImportPlan, groups: BigEventGroupRow[]) {
 }
 
 /**
- * Memberships the import replaces (ruling R8): someone placed into a group
- * leaves the other groups of the same kind they were in. The new file is the
+ * Memberships the import replaces (rulings R8, R34): everyone the group
+ * column puts in a group leaves every other group of the same kind, on every
+ * leg. Driven by the column target, not by new places, so a re-import also
+ * clears a stale place a failed save left behind. The new file is the
  * organizers' latest word.
  */
 export function replacedMemberships(
@@ -104,13 +110,12 @@ export function replacedMemberships(
   const kinds = kindsByKey(plan, groups);
   const kindById = new Map(groups.map((group) => [group.$id, group.kind]));
   const replaced = new Map<string, BigEventGroupMemberRow>();
-  for (const placement of plan.placements) {
-    const kind = kinds.get(placement.groupKey);
-    if (!(kind && isExistingTarget(placement.person))) {
+  for (const { groupKey, participantId } of plan.columnTargets) {
+    const kind = kinds.get(groupKey);
+    if (!kind) {
       continue;
     }
-    const { participantId } = placement.person;
-    const targetId = byKey.get(placement.groupKey)?.$id;
+    const targetId = byKey.get(groupKey)?.$id;
     for (const membership of members) {
       if (
         membership.participant_id === participantId &&
@@ -122,6 +127,51 @@ export function replacedMemberships(
     }
   }
   return [...replaced.values()];
+}
+
+/** A bus seat the import adds for someone already on that bus. */
+export interface MissingLeg {
+  groupKey: string;
+  leg: GroupLeg;
+  participantId: string;
+}
+
+/**
+ * Bus legs to add (ruling R34): someone already on their target bus for one
+ * leg gets the other one too, so a seat half-written by a failed save is
+ * completed. Someone not yet on the bus gets both legs from their placement.
+ */
+export function missingBusLegs(
+  plan: ImportPlan,
+  groups: BigEventGroupRow[],
+  members: BigEventGroupMemberRow[]
+): MissingLeg[] {
+  const byKey = groupsByKey(groups);
+  const missing: MissingLeg[] = [];
+  for (const { groupKey, participantId } of plan.columnTargets) {
+    const bus = byKey.get(groupKey);
+    if (bus?.kind !== "bus") {
+      continue;
+    }
+    const legs = new Set(
+      members
+        .filter(
+          (membership) =>
+            membership.participant_id === participantId &&
+            membership.group_id === bus.$id
+        )
+        .map((membership) => membership.leg)
+    );
+    if (legs.size === 0) {
+      continue;
+    }
+    for (const leg of GROUP_LEGS) {
+      if (!legs.has(leg)) {
+        missing.push({ groupKey, leg, participantId });
+      }
+    }
+  }
+  return missing;
 }
 
 function fullName(person: { firstName: string; lastName: string | null }) {

@@ -19,6 +19,7 @@ import type {
 } from "@repo/shared/big-events/types";
 import { mapAllSettledWithConcurrency } from "@repo/shared/utils/concurrency";
 import { revalidatePath } from "next/cache";
+import { unstable_rethrow } from "next/navigation";
 import { z } from "zod";
 import { requireAuth } from "@/lib/authorization";
 import {
@@ -35,6 +36,7 @@ import {
   type ImportColumns,
   withAiSuggestions,
 } from "@/lib/big-events/import/import-columns";
+import type { ImportResult } from "@/lib/big-events/import/import-result";
 import { parseImportFile } from "@/lib/big-events/import/parse-file.server";
 import {
   type ImportMapping,
@@ -50,6 +52,8 @@ import {
   groupsByKey,
   type ImportPreview,
   isExistingTarget,
+  type MissingLeg,
+  missingBusLegs,
   type PlanContext,
   replacedMemberships,
   summarizePlan,
@@ -62,26 +66,6 @@ import { getBigEvent } from "./big-events";
 
 type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
 type GrantedAccess = Exclude<BigEventAccess, null>;
-
-/** What saving an import did, in counts. */
-export interface ImportResult {
-  /** Every write succeeded. When false, the organizer checks the list before importing again. */
-  complete: boolean;
-  created: number;
-  /** Writes that failed. */
-  failed: number;
-  /** Connected to their BI account by ticket email. */
-  linked: number;
-  moved: number;
-  newGroups: number;
-  outsideYourCampus: number;
-  placed: number;
-  skipped: number;
-  /** Got a "possible match" to confirm. */
-  suggested: number;
-  unchanged: number;
-  updated: number;
-}
 
 const DATABASE_ID = "app";
 const PARTICIPANTS = BIG_EVENT_TABLES.participants;
@@ -477,16 +461,20 @@ function groupIdsByKey(
   return byKey;
 }
 
-/** One membership per placement; a bus seat both ways. */
+/**
+ * One membership per placement (a bus seat both ways), plus the missing leg
+ * of a bus seat someone already half has (ruling R34).
+ */
 function createPlaces(
   db: AdminDb,
   bigEventId: string,
   plan: ImportPlan,
+  missingLegs: MissingLeg[],
   groupIds: GroupIds,
   targets: TargetIds
 ) {
   const assignedAt = new Date().toISOString();
-  const rows = plan.placements.flatMap((placement, index) => {
+  const placementRows = plan.placements.flatMap((placement, index) => {
     const participantId = targets.of(placement.person);
     const group = groupIds.get(placement.groupKey);
     if (!(participantId && group)) {
@@ -505,10 +493,31 @@ function createPlaces(
       },
     }));
   });
-  return settleWrites(rows, async ({ index, row }) => {
-    await db.createRow(DATABASE_ID, MEMBERS, ID.unique(), row);
-    return index;
+  const legRows = missingLegs.flatMap(({ groupKey, leg, participantId }) => {
+    const group = groupIds.get(groupKey);
+    return group
+      ? [
+          {
+            index: null,
+            row: {
+              assigned_at: assignedAt,
+              big_event_id: bigEventId,
+              group_id: group.id,
+              leg,
+              participant_id: participantId,
+              pinned: false,
+            },
+          },
+        ]
+      : [];
   });
+  return settleWrites(
+    [...placementRows, ...legRows],
+    async ({ index, row }) => {
+      await db.createRow(DATABASE_ID, MEMBERS, ID.unique(), row);
+      return index;
+    }
+  );
 }
 
 /**
@@ -558,8 +567,15 @@ async function writePlan(
   }
 
   const groupIds = groupIdsByKey(prepared.groups, groups.done);
-  const places = await createPlaces(db, bigEventId, plan, groupIds, targets);
-  outcome.placed = new Set(places.done).size;
+  const places = await createPlaces(
+    db,
+    bigEventId,
+    plan,
+    missingBusLegs(plan, prepared.groups, prepared.members),
+    groupIds,
+    targets
+  );
+  outcome.placed = new Set(places.done.filter((index) => index !== null)).size;
   if (!finished("places", places.count)) {
     return outcome;
   }
@@ -684,13 +700,11 @@ function toResult(
   linked: number,
   suggested: number
 ): ImportResult {
+  const phases = Object.values(outcome.phases);
   return {
     complete: outcome.complete,
     created: outcome.created.length,
-    failed: Object.values(outcome.phases).reduce(
-      (sum, phase) => sum + phase.failed,
-      0
-    ),
+    failed: phases.reduce((sum, phase) => sum + phase.failed, 0),
     linked,
     moved: outcome.moved,
     newGroups: outcome.newGroups,
@@ -700,8 +714,26 @@ function toResult(
     suggested,
     unchanged: outcome.unchanged,
     updated: outcome.updated,
+    written: phases.reduce((sum, phase) => sum + phase.written, 0),
   };
 }
+
+/** A save refused before any write: nothing was changed. */
+const NOTHING_WRITTEN: ImportResult = {
+  complete: false,
+  created: 0,
+  failed: 0,
+  linked: 0,
+  moved: 0,
+  newGroups: 0,
+  outsideYourCampus: 0,
+  placed: 0,
+  skipped: 0,
+  suggested: 0,
+  unchanged: 0,
+  updated: 0,
+  written: 0,
+};
 
 /**
  * Step 3, "Save": plans again from the file (a plan from the browser is never
@@ -716,7 +748,23 @@ export async function applyImport(
   options: ImportOptions
 ): Promise<ImportResult> {
   const ctx = await requireAuth();
-  const { db, prepared } = await loadImport(bigEventId, form, mapping, options);
+  let loaded: Awaited<ReturnType<typeof loadImport>>;
+  try {
+    loaded = await loadImport(bigEventId, form, mapping, options);
+  } catch (error) {
+    // Redirects and other Next.js signals pass through.
+    unstable_rethrow(error);
+    // Refused before any write (no access, Travel off, unreadable file):
+    // the wizard can say nothing was changed.
+    console.error("[big-events] An import was refused:", error);
+    await logAuditEvent(ctx, "big_event.import", {
+      payload: { complete: false, refused: true },
+      resourceId: bigEventId,
+      resourceType: "big_event",
+    });
+    return NOTHING_WRITTEN;
+  }
+  const { db, prepared } = loaded;
   const importId = ID.unique();
   let outcome = emptyOutcome();
   let linked = new Set<string>();

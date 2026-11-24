@@ -11,6 +11,7 @@ import {
   parseRoomCount,
 } from "./normalize";
 import type {
+  ColumnTarget,
   ImportOptions,
   ImportPlan,
   NewGroup,
@@ -39,6 +40,8 @@ interface BoardGroup {
 }
 
 interface Board {
+  /** Group-column targets of people already on the list (ruling R34). */
+  columnTargets: ColumnTarget[];
   groups: Map<string, BoardGroup>;
   /** Participant id → keys of the groups they are already in. */
   memberOf: Map<string, Set<string>>;
@@ -50,20 +53,22 @@ interface Board {
 /** Rooms looked up by order number or by buyer contact. */
 type RoomIndex = Map<string, Set<string>>;
 
-/** `col:<kind>:[<campus id>:]<value>`; campus ids are digits. */
-const COLUMN_KEY = /^col:[a-z]+:(?:\d+:)?(.*)$/;
+/** Stands in for the campus in a key of a group without one. */
+const NO_CAMPUS = "-";
+/** `col:<kind>:<campus id or ->:<value>`; the value may hold colons. */
+const COLUMN_KEY = /^col:[a-z]+:[^:]+:(.*)$/;
 
 /**
  * Kind- and campus-qualified (ruling R27), so a bus "1" and a room "1" never
- * share a key, nor do Bergen's and Oslo's "Buss 1".
+ * share a key, nor do Bergen's and Oslo's "Buss 1". Always four parts (R34),
+ * so a value like "10:15" is never read as a campus.
  */
 function columnKey(
   kind: GroupKind,
   campusId: string | null,
   value: string
 ): string {
-  const campus = campusId ? `${campusId}:` : "";
-  return `col:${kind}:${campus}${normalizeName(value)}`;
+  return `col:${kind}:${campusId ?? NO_CAMPUS}:${normalizeName(value)}`;
 }
 
 /**
@@ -105,6 +110,7 @@ function buildBoard(
   members: BigEventGroupMemberRow[]
 ): Board {
   const board: Board = {
+    columnTargets: [],
     groups: new Map(),
     memberOf: new Map(),
     roomOf: new Map(),
@@ -271,6 +277,12 @@ function placeByColumn(
         booker: null,
       });
     place(board, subject, key, "group_column");
+    if (subject.participant) {
+      board.columnTargets.push({
+        groupKey: key,
+        participantId: subject.participant.$id,
+      });
+    }
   }
 }
 
@@ -598,7 +610,7 @@ export function planRooms(input: {
   members: BigEventGroupMemberRow[];
 }): Pick<
   ImportPlan,
-  "newGroups" | "placements" | "unplaced" | "overfullRooms"
+  "columnTargets" | "newGroups" | "placements" | "unplaced" | "overfullRooms"
 > {
   const { subjects, options } = input;
   const board = buildBoard(input.groups, input.members);
@@ -618,6 +630,7 @@ export function planRooms(input: {
     : [];
 
   return {
+    columnTargets: board.columnTargets,
     newGroups: newGroups(board),
     placements: board.placements,
     unplaced,

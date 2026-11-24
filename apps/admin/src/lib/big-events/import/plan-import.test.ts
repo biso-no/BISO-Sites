@@ -1096,7 +1096,7 @@ describe("planImport: group column", () => {
     );
     expect(result.newGroups).toEqual([
       {
-        key: "col:bus:buss 1",
+        key: "col:bus:-:buss 1",
         kind: "bus",
         name: "Buss 1",
         campusId: null,
@@ -1105,7 +1105,7 @@ describe("planImport: group column", () => {
         booker: null,
       },
       {
-        key: "col:bus:buss 2",
+        key: "col:bus:-:buss 2",
         kind: "bus",
         name: "Buss 2",
         campusId: null,
@@ -1115,9 +1115,9 @@ describe("planImport: group column", () => {
       },
     ]);
     expect(result.placements.map((placement) => placement.groupKey)).toEqual([
-      "col:bus:buss 1",
-      "col:bus:buss 1",
-      "col:bus:buss 2",
+      "col:bus:-:buss 1",
+      "col:bus:-:buss 1",
+      "col:bus:-:buss 2",
     ]);
     expect(result.placements.every((p) => p.rule === "group_column")).toBe(
       true
@@ -1143,13 +1143,13 @@ describe("planImport: group column", () => {
     ).toEqual([
       ["col:bus:2:buss 1", "2"],
       ["col:bus:1:buss 1", "1"],
-      ["col:bus:buss 1", null],
+      ["col:bus:-:buss 1", null],
     ]);
     expect(result.placements.map((placement) => placement.groupKey)).toEqual([
       "col:bus:2:buss 1",
       "col:bus:1:buss 1",
       "col:bus:2:buss 1",
-      "col:bus:buss 1",
+      "col:bus:-:buss 1",
     ]);
   });
 
@@ -1185,7 +1185,7 @@ describe("planImport: group column", () => {
     const bergen = group("g-b", {
       campus_id: "2",
       kind: "bus",
-      source_key: "col:bus:buss 1",
+      source_key: "col:bus:-:buss 1",
     });
     const moved = group("g-m", {
       campus_id: "1",
@@ -1194,13 +1194,52 @@ describe("planImport: group column", () => {
     });
     const noCampus = group("g-n", {
       kind: "bus",
-      source_key: "col:bus:buss 1",
+      source_key: "col:bus:-:buss 1",
     });
     expect(existingGroupKey(bergen)).toBe("col:bus:2:buss 1");
     expect(existingGroupKey(moved)).toBe("col:bus:1:buss 1");
-    expect(existingGroupKey(noCampus)).toBe("col:bus:buss 1");
+    expect(existingGroupKey(noCampus)).toBe("col:bus:-:buss 1");
+    // A value with a colon is never read as a campus (R34).
+    const time = group("g-t", { kind: "room", source_key: "col:room:-:10:15" });
+    expect(existingGroupKey(time)).toBe("col:room:-:10:15");
+    expect(existingGroupKey({ ...time, campus_id: "2" })).toBe(
+      "col:room:2:10:15"
+    );
     expect(existingGroupKey(OLA_ROOM)).toBe("booking:A-1");
     expect(existingGroupKey(group("g-x", {}))).toBe("id:g-x");
+  });
+
+  test("everyone already on the list gets their column target, even when already there (R34)", () => {
+    const room101 = group("g-101", {
+      name: "101",
+      source_key: "col:room:-:101",
+    });
+    const kari = participant("p-kari", {
+      first_name: "Kari",
+      last_name: "Nordmann",
+      ticket_email: "kari@gmail.com",
+    });
+    const result = plan(
+      sheet(
+        ["Kari Nordmann", "kari@gmail.com", "", "", "101"],
+        ["Per Hansen", "per@gmail.com", "", "", "102"]
+      ),
+      0,
+      SHEET_WITH_ROOM,
+      { ...NO_OPTIONS, groupKind: "room" },
+      {
+        groups: [room101],
+        members: [member("g-101", "p-kari")],
+        participants: [kari],
+      }
+    );
+    // Kari is in room 101 already: no new place, but 101 is still her target.
+    expect(result.placements.map((placement) => placement.groupKey)).toEqual([
+      "col:room:-:102",
+    ]);
+    expect(result.columnTargets).toEqual([
+      { groupKey: "col:room:-:101", participantId: "p-kari" },
+    ]);
   });
 
   test("a column value can name an existing group of the same kind only", () => {
@@ -1230,7 +1269,7 @@ describe("planImport: group column", () => {
     );
     const [per, kari] = result.create;
     expect(result.placements).toEqual([
-      { person: per, groupKey: "col:room:rom 9", rule: "group_column" },
+      { person: per, groupKey: "col:room:-:rom 9", rule: "group_column" },
       { person: kari, groupKey: "booking:A-1", rule: "order_number" },
     ]);
     expect(result.unplaced).toEqual([]);
