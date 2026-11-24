@@ -1,0 +1,143 @@
+---
+title: Import people and connect tickets
+description: How to import a ticket list or a hosts' sheet, check the columns, send connect emails, link tickets to BI accounts by hand, and what students see.
+who: Global admins, members of the board that runs the big event, and campus admins for their own campus's people.
+covers:
+  - apps/admin/src/app/(portal)/big-events/**
+  - apps/admin/src/app/(portal)/_actions/big-event*.ts
+  - apps/admin/src/lib/big-events/**
+  - apps/web/src/lib/big-events/**
+  - packages/shared/big-events/**
+  - apps/web/src/app/(public)/connect/**
+  - apps/api/src/app/api/cron/big-event-deliveries/**
+  - apps/api/src/app/api/cron/cleanup-big-events/**
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- The big event exists. See [How big events work](/guide/big-events).
+- You have the ticket list as an Excel (.xlsx) or CSV file up to 4 MB, or you can copy the rows from a spreadsheet. It can be the ticket seller's export or a hosts' sheet, as it is. You don't need to reformat it.
+- To send connect emails, the big event must be **Published**.
+- Students connect only with a BI account. Tickets bought with another email are still connected through a BI account.
+
+</BeforeYouStart>
+
+## Import the list
+
+<Steps>
+<Step title="Open the import">
+
+Open the big event, go to **Participants** and choose **Import list**.
+
+</Step>
+<Step title="Upload the file or paste rows">
+
+Drop the file in the box, or choose **Or paste rows** and paste the rows with their headings. Choose **Read the list**. Nothing is saved yet.
+
+</Step>
+<Step title="Check the columns">
+
+This step is called **Check the columns**. It shows each column with a few examples from your file and our guess at what it holds: first name, last name, full name, email, phone, campus, order number, ticket type, or a room, bus or group. Change anything that's wrong, and set a column to **Ignore this column** if you don't need it.
+
+You must choose a name column, and an email or phone column, before you can go on.
+
+Depending on the file, you also answer a few questions:
+
+- **Which campus are these people from?** Used only for rows that don't name a campus.
+- **What is in the column?** For a room, bus or group column, say which it is. People with the same value end up together. Buses need **Travel** turned on in the big event's settings.
+- **Each row is a room booking.** Tick this when the file lists whoever booked a room, as the ticket seller's export does. Each buyer gets a room with the size on the ticket, and the other places stay open until the roommates are on the list. A ticket type like "2 x … 4-Person" gives two rooms.
+
+</Step>
+<Step title="Check and save">
+
+The preview shows how many people are new, updated or unchanged, and how many rooms or groups it will create. Read it, then choose **Save**.
+
+</Step>
+</Steps>
+
+### Room bookings
+
+When each row is a room booking, the file with the buyers (Payment 1) fills each room with the buyer. A later file with the roommates (Payment 2) places each person in a room in this order:
+
+1. By the order number, if their row has the same one as the booking.
+2. By the buyer's email or phone, if it matches exactly one booking.
+3. Otherwise they stay on the list as **Not in a room yet**.
+
+**Not in a room yet** is a filter on the participants list, with a count. Fix the file and import again to place them.
+
+### Importing again
+
+- Importing a newer file updates the people already on the list. It doesn't make copies.
+- People on the list who aren't in the new file are listed in the preview as **On the list but not in this file**. This is normal when a file covers only some people, like the buyers. Nobody is removed automatically. To remove someone, use **Remove** on their row.
+- A person already in another room or group of the same kind is moved to the one in the new file. The preview counts these as people who change room.
+- Rooms and groups belong to a campus. Two groups with the same name on different campuses stay separate.
+- If saving partly fails, you see "Some rows couldn't be saved". Reload the list and check it before you import again.
+
+## Connect tickets to accounts
+
+A ticket is connected when it is linked to a student's BI account. Connected students see the big event in the BISO app once it is available there.
+
+### Automatic links
+
+When you save an import, a ticket is linked by itself only if its email belongs to a BI account and that email is on exactly one ticket in the big event. A shared email, such as a parent or a friend who bought several tickets, never links automatically.
+
+### Possible matches
+
+When the phone number, or the name and campus, match a BI account, the row shows **Possible match: name (email)** with the reason. Choose **Link** to accept it, or **Not them** to stop suggesting that account.
+
+### Link by hand
+
+On a person's row, open the menu and choose **Link account**. Search by name or email. Only accounts that have signed in with BI are listed. An account can hold one ticket per big event, and a ticket can be linked to one account.
+
+### Unlink
+
+Choose **Unlink account** on the row's menu to disconnect a ticket. The person stays on the list, and their account no longer shows the big event.
+
+## Send connect emails
+
+Choose **Send connect emails** above the list. The button shows how many emails will go out. It is disabled until the big event is **Published**.
+
+- The button sends to people who aren't connected yet. For one person, open the menu on their row and choose **Send again**.
+- One email goes to each address. When several people share an address, one email lists each person's own link.
+- Emails go out a few at a time, so it can take a while for a long list.
+- People who haven't connected get one reminder 4 days after the first email.
+- The links stop working when the big event ends.
+
+<WhatHappensNext>
+
+## What happens next
+
+- The student gets the email, opens their link on biso.no, and signs in with their BI account.
+- The row changes from **Connect email sent** to **Connected** when they confirm.
+- Where a ticket isn't connected, the person still gets email from you.
+
+</WhatHappensNext>
+
+## What the student sees
+
+1. The email has a link to biso.no/connect/ followed by a code.
+2. The page asks them to sign in with their BI account. If they are signed in with another account, it asks them to switch.
+3. They see the name on the ticket and choose **Connect my ticket**. If the ticket isn't theirs, the page tells them to send the link to the right person.
+4. They see **You're connected!** with the BISO app download buttons.
+
+If the link no longer works, the page offers **Get a new link**. If they never got the email, they can open biso.no/connect/help (**Didn't get the email?**), type the address on their ticket, and get a new link. The page gives the same answer whether or not the address is on a list.
+
+## Membership warning
+
+The participants list can show **No valid membership** on a connected person. **Check memberships** looks up everyone who is connected. It is a warning only. It doesn't stop anyone from connecting or taking part. Handle it the way your event needs, for example by asking them to join.
+
+Only connected people can be checked, because that is how we find their membership.
+
+## Personal data
+
+Ticket emails, phone numbers, connections to accounts and the email history are deleted 30 days after the big event ends. After that the list is empty.
+
+## Common mistakes
+
+- Choosing the wrong column for the name or the email. Check the examples shown on **Check the columns**.
+- Importing the Payment 2 file before the Payment 1 file. The roommates have no booking to join and stay **Not in a room yet**.
+- Expecting people missing from a newer file to disappear. They stay until you remove them.
+- Importing again after a failed save without reloading. Reload and check the list first.
+- Sending connect emails while the big event is a draft. Publish it first.

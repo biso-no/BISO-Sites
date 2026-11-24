@@ -1,0 +1,92 @@
+---
+title: How big events work
+description: What a big event is, who can manage one, how to create it, who you can reach through it, and what the system does on its own.
+who: Global admins, members of the board that runs the big event, and campus admins for their own campus's people.
+covers:
+  - apps/admin/src/app/(portal)/big-events/**
+  - apps/admin/src/app/(portal)/_actions/big-event*.ts
+  - apps/admin/src/lib/big-events/**
+  - apps/web/src/lib/big-events/**
+  - packages/shared/big-events/**
+  - apps/web/src/app/(public)/connect/**
+  - apps/api/src/app/api/cron/big-event-deliveries/**
+  - apps/api/src/app/api/cron/cleanup-big-events/**
+---
+
+A big event is a trip or festival with many participants, like Winter Games or Fadderullan. It collects everyone with a ticket in one list. You can see who is coming, which room they have, and how to reach them.
+
+In the admin, big events are in the sidebar as **Store arrangementer** (Big events), next to **Arrangementer** (Events). A normal event is a page students read. A big event is a list of people you work with.
+
+The big events screens are in English whatever your admin language, so this guide names their labels in English.
+
+## What this release covers
+
+- Creating a big event and keeping its settings.
+- Importing the ticket list and the hosts' sheet.
+- Seeing who you can reach, and how.
+- Connecting each ticket to a student's BI account.
+
+Buses and bus check-in, messages to participants, and the big event's page in the app and on the website are not part of this release yet. The settings page has switches for travel and group check-in. Turning them on doesn't add anything for students yet.
+
+## Who can use big events
+
+| Who | What they can do |
+|---|---|
+| Global admins (National + Operations Unit) | Every big event, every participant, all settings. |
+| Members of the board that runs the big event | The same, for that big event. |
+| Campus admins | Only the participants of their own campus. They can change a big event's settings only if it is a big event on their own campus. |
+
+- Campus admins never see participants from another campus, or participants with no campus. Only global admins and the board see those, so every person on the list needs a campus. The participants list tells you how many have none.
+- A campus admin can import only their own campus's people. Rows for another campus are left out, and the preview says so.
+- Only global admins can move a big event to another campus.
+
+If you think you should have access and don't, ask IT to check your groups.
+
+## Create a big event
+
+<Steps>
+<Step title="Start a new big event">
+
+Open **Store arrangementer** (Big events) and choose **New big event**.
+
+</Step>
+<Step title="Fill in the basics">
+
+Give it a name in Norwegian (the English name is optional), a campus, the board that runs it, and a start and end. Place, address and cover image are optional. You can change all of it later under **Settings**.
+
+</Step>
+<Step title="Choose a status">
+
+A new big event starts as **Draft**. Set it to **Published** when you are ready to connect tickets. **Archived** hides it everywhere.
+
+</Step>
+<Step title="Create it">
+
+Choose **Create big event**. Next, import the ticket list. See [Import people and connect tickets](/guide/big-events/import-and-connect).
+
+</Step>
+</Steps>
+
+## Who you can reach
+
+Above the participants list, **Who you can reach** shows three counts. Each one is a filter.
+
+| Pile | What it means |
+|---|---|
+| **Gets push notifications** | Connected, and has push notifications on in the BISO app. They get a push on their phone. |
+| **Connected, gets email** | Connected to a BI account, but without push notifications. They get an email. |
+| **Not connected yet, gets email** | The ticket isn't linked to an account. They get an email to the address on the ticket. |
+
+Everyone gets one or the other, so you can always reach the whole list.
+
+## What the system does on its own
+
+- It links a ticket to an account without you when the ticket's email belongs to a BI account and that email is on exactly one ticket.
+- It sends the connect emails you queue, a few at a time, and one reminder 4 days later to people who haven't connected.
+- It deletes personal data 30 days after the big event ends: ticket emails, phone numbers and the connections to accounts.
+
+## Common mistakes
+
+- Importing a list where the people have no campus. Campus admins won't see them. Set a campus in the import or edit the person.
+- Expecting a connect email for a draft. Emails are sent only for a **Published** big event.
+- Treating the membership warning as a block. See [Membership warning](/guide/big-events/import-and-connect#membership-warning).
