@@ -1,14 +1,17 @@
-export type ImportField =
-  | "first_name"
-  | "last_name"
-  | "full_name"
-  | "email"
-  | "phone"
-  | "campus"
-  | "ticket_ref"
-  | "ticket_category"
-  | "group"
-  | "ignore";
+export const IMPORT_FIELDS = [
+  "first_name",
+  "last_name",
+  "full_name",
+  "email",
+  "phone",
+  "campus",
+  "ticket_ref",
+  "ticket_category",
+  "group",
+  "ignore",
+] as const;
+
+export type ImportField = (typeof IMPORT_FIELDS)[number];
 
 /** Known header names per field (Tickster's purchasers export, plus common variants). */
 export const FIELD_ALIASES: Record<
