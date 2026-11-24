@@ -35,7 +35,88 @@
     "submissions": "Skjemainnsendinger"
   },
   "bigEvents": {
-    "title": "Store arrangementer"
+    "title": "Store arrangementer",
+    "description": "Turer og festivaler med mange deltakere, som Winter Games og Fadderullan.",
+    "new": "Nytt stort arrangement",
+    "backToList": "Alle store arrangementer",
+    "empty": {
+      "title": "Ingen store arrangementer ennå",
+      "description": "Et stort arrangement samler alle med billett til noe som Winter Games, slik at du ser hvem som kommer og når dem på ett sted."
+    },
+    "list": {
+      "participants": "{count, plural, one {# deltaker} other {# deltakere}}",
+      "connected": "{count} tilkoblet",
+      "ownCampusOnly": "tallene gjelder bare ditt campus"
+    },
+    "status": {
+      "draft": "Utkast",
+      "published": "Publisert",
+      "archived": "Arkivert"
+    },
+    "campuses": {
+      "1": "Oslo",
+      "2": "Bergen",
+      "3": "Trondheim",
+      "4": "Stavanger",
+      "5": "Nasjonal"
+    },
+    "tabs": {
+      "participants": "Deltakere",
+      "settings": "Innstillinger"
+    },
+    "participantsSoon": {
+      "title": "Deltakerne kommer hit snart",
+      "description": "Snart kan du hente inn billettlisten og se alle som kommer."
+    },
+    "newPage": {
+      "title": "Nytt stort arrangement",
+      "description": "Start med det grunnleggende. Du kan endre alt senere."
+    },
+    "form": {
+      "nameNo": "Navn på norsk",
+      "nameNoPlaceholder": "f.eks. Winter Games 2027",
+      "nameEn": "Navn på engelsk",
+      "nameEnHelp": "La feltet stå tomt for å bruke det norske navnet.",
+      "campus": "Campus",
+      "campusLocked": "Bare globale administratorer kan flytte et stort arrangement til et annet campus.",
+      "board": "Styret som står bak",
+      "boardHelp": "Medlemmene i dette styret kan administrere arrangementet.",
+      "boardPlaceholder": "Velg styre",
+      "startsAt": "Starter",
+      "endsAt": "Slutter",
+      "date": "dato",
+      "time": "klokkeslett",
+      "placeName": "Sted",
+      "placeNamePlaceholder": "f.eks. Hemsedal",
+      "placeAddress": "Adresse",
+      "heroImage": "Forsidebilde",
+      "heroImageHelp": "Vises øverst på arrangementets side.",
+      "travel": "Reise (busser)",
+      "travelHelp": "Slå på hvis deltakerne reiser sammen med buss.",
+      "groupCheckin": "Innsjekk for andre grupper",
+      "groupCheckinHelp": "Lar ledere ta oppmøte i andre grupper enn busser.",
+      "status": "Status",
+      "statusHelp": "Tilkoblede deltakere ser arrangementet mens det er publisert. Arkivert skjuler det overalt.",
+      "create": "Opprett arrangementet",
+      "save": "Lagre endringer",
+      "created": "Arrangementet er opprettet",
+      "saved": "Endringene er lagret",
+      "saveFailed": "Kunne ikke lagre. Sjekk nettforbindelsen og prøv igjen.",
+      "errors": {
+        "name_no": "Skriv et navn på opptil 200 tegn.",
+        "name_en": "Det engelske navnet kan ha opptil 200 tegn.",
+        "campus_id": "Velg campus.",
+        "department_id": "Velg styret på nytt.",
+        "starts_at": "Velg dato og klokkeslett for start.",
+        "ends_at": "Velg dato og klokkeslett for slutt, etter starten.",
+        "place_name": "Stedet kan ha opptil 200 tegn.",
+        "place_address": "Adressen kan ha opptil 300 tegn.",
+        "hero_image_url": "Last opp bildet på nytt.",
+        "travel_enabled": "Slå reise av eller på.",
+        "group_checkin_enabled": "Slå innsjekk av eller på.",
+        "status": "Velg status."
+      }
+    }
   },
   "sidebar": {
     "studioHint": "Studiohint",

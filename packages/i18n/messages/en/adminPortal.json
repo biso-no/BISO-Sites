@@ -35,7 +35,88 @@
     "submissions": "Form Submissions"
   },
   "bigEvents": {
-    "title": "Big events"
+    "title": "Big events",
+    "description": "Trips and festivals with many participants, like Winter Games and Fadderullan.",
+    "new": "New big event",
+    "backToList": "All big events",
+    "empty": {
+      "title": "No big events yet",
+      "description": "A big event collects everyone with a ticket to something like Winter Games, so you can see who is coming and reach them in one place."
+    },
+    "list": {
+      "participants": "{count, plural, one {# participant} other {# participants}}",
+      "connected": "{count} connected",
+      "ownCampusOnly": "counts for your campus only"
+    },
+    "status": {
+      "draft": "Draft",
+      "published": "Published",
+      "archived": "Archived"
+    },
+    "campuses": {
+      "1": "Oslo",
+      "2": "Bergen",
+      "3": "Trondheim",
+      "4": "Stavanger",
+      "5": "National"
+    },
+    "tabs": {
+      "participants": "Participants",
+      "settings": "Settings"
+    },
+    "participantsSoon": {
+      "title": "Participants arrive here soon",
+      "description": "Soon you can bring in the ticket list and see everyone who is coming."
+    },
+    "newPage": {
+      "title": "New big event",
+      "description": "Start with the basics. You can change all of it later."
+    },
+    "form": {
+      "nameNo": "Name in Norwegian",
+      "nameNoPlaceholder": "e.g. Winter Games 2027",
+      "nameEn": "Name in English",
+      "nameEnHelp": "Leave empty to use the Norwegian name.",
+      "campus": "Campus",
+      "campusLocked": "Only global admins can move a big event to another campus.",
+      "board": "Board that runs it",
+      "boardHelp": "Members of this board can manage the big event.",
+      "boardPlaceholder": "Choose a board",
+      "startsAt": "Starts",
+      "endsAt": "Ends",
+      "date": "date",
+      "time": "time",
+      "placeName": "Place",
+      "placeNamePlaceholder": "e.g. Hemsedal",
+      "placeAddress": "Address",
+      "heroImage": "Cover image",
+      "heroImageHelp": "Shown at the top of the big event's page.",
+      "travel": "Travel (buses)",
+      "travelHelp": "Turn on if participants travel together by bus.",
+      "groupCheckin": "Check-in for other groups",
+      "groupCheckinHelp": "Lets leaders take attendance in groups other than buses.",
+      "status": "Status",
+      "statusHelp": "Connected participants see the big event while it is published. Archived hides it everywhere.",
+      "create": "Create big event",
+      "save": "Save changes",
+      "created": "Big event created",
+      "saved": "Changes saved",
+      "saveFailed": "Couldn't save. Check your connection and try again.",
+      "errors": {
+        "name_no": "Write a name of up to 200 characters.",
+        "name_en": "Keep the English name to 200 characters.",
+        "campus_id": "Choose a campus.",
+        "department_id": "Choose the board again.",
+        "starts_at": "Choose a start date and time.",
+        "ends_at": "Choose an end date and time after the start.",
+        "place_name": "Keep the place to 200 characters.",
+        "place_address": "Keep the address to 300 characters.",
+        "hero_image_url": "Upload the image again.",
+        "travel_enabled": "Turn travel on or off.",
+        "group_checkin_enabled": "Turn check-in on or off.",
+        "status": "Choose a status."
+      }
+    }
   },
   "sidebar": {
     "studioHint": "Studio hint",
