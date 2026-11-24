@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { Query } from "@repo/api";
 import type { UserAuthContext } from "@/lib/authorization";
-import { NATIONAL_CAMPUS_ID } from "@/lib/event-scope";
+import { NATIONAL_CAMPUS_ID, withNationalEventScope } from "@/lib/event-scope";
 import { NO_MATCH_FILTER } from "@/lib/utils/authorization";
 import {
   bigEventAccess,
