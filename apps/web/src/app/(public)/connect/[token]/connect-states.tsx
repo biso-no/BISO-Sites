@@ -142,13 +142,18 @@ export function ConnectStates({
       return (
         <NeedsBiSignInState
           body={t("signedOut.body")}
+          failedText={t("signInFailed")}
           returnTo={returnTo}
           title={view.eventName}
         />
       );
     case "needs_bi":
       return (
-        <NeedsBiSignInState body={t("needsBi.body")} returnTo={returnTo} />
+        <NeedsBiSignInState
+          body={t("needsBi.body")}
+          failedText={t("signInFailed")}
+          returnTo={returnTo}
+        />
       );
     case "linked_to_other":
       return (

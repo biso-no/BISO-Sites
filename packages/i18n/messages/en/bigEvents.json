@@ -15,6 +15,7 @@
     "signedOut": {
       "body": "Sign in with your BI account to connect your ticket."
     },
+    "signInFailed": "We couldn't start the BI sign-in. Try again in a moment.",
     "needsBi": {
       "body": "You're signed in with an account that isn't your BI account. Sign in with your BI account to connect your ticket."
     },

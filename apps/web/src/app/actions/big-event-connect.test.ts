@@ -350,6 +350,46 @@ describe("requestConnectLink", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("help waits for the kick inside after(), so a frozen runtime can't drop it", async () => {
+    rows("big_event_participants").push(
+      participant("p-anne", { ticket_email: "anne@example.com" })
+    );
+    let kickAnswered = false;
+    fetchMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            kickAnswered = true;
+            resolve(new Response(null, { status: 200 }));
+          }, 0);
+        })
+    );
+
+    await requestConnectLink("anne@example.com");
+    await flushAfter();
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(kickAnswered).toBe(true);
+  });
+
+  it("help swallows a failed kick", async () => {
+    rows("big_event_participants").push(
+      participant("p-bo", { ticket_email: "bo@example.com" })
+    );
+    fetchMock.mockRejectedValueOnce(new Error("api down"));
+    const consoleError = vi.spyOn(console, "error");
+
+    await expect(requestConnectLink("bo@example.com")).resolves.toEqual({
+      ok: true,
+    });
+    await expect(flushAfter()).resolves.toBeUndefined();
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(rows("big_event_deliveries")).toHaveLength(1);
+    expect(consoleError).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
   it("help is rate limited per address", async () => {
     rows("big_event_participants").push(
       participant("p-kari", { ticket_email: "kari@example.com" })
@@ -374,21 +414,32 @@ describe("requestConnectLink", () => {
   });
 });
 
-describe("the connected state", () => {
+describe("the connect page states", () => {
+  const states = codeOnly(
+    readFileSync(
+      join(
+        import.meta.dirname,
+        "../(public)/connect/[token]/connect-states.tsx"
+      ),
+      "utf8"
+    )
+  );
+
   it("has no app link until the app knows big events", () => {
     // Ruling R32: /app/big-events/<slug> 404s on the web until Stage 4, and
     // released apps ignore /app/ paths they don't know. Store buttons only.
-    const states = codeOnly(
-      readFileSync(
-        join(
-          import.meta.dirname,
-          "../(public)/connect/[token]/connect-states.tsx"
-        ),
-        "utf8"
-      )
-    );
     expect(states).not.toContain("/app/big-events");
     expect(states).not.toContain("openApp");
     expect(states).toContain("<AppStoreBadge");
+  });
+
+  it("gives every BI sign-in state the ticket's failure copy", () => {
+    // Without it, a failed start says "could not confirm your student number",
+    // which is the membership page's wording.
+    const signIns = states.match(/<NeedsBiSignInState\b[^>]*>/g) ?? [];
+    expect(signIns).toHaveLength(2);
+    for (const signIn of signIns) {
+      expect(signIn).toContain('failedText={t("signInFailed")}');
+    }
   });
 });

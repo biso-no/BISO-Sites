@@ -84,27 +84,38 @@ export async function connectTicket(
   return result;
 }
 
-/** Starts the api's sending run now rather than at the next cron tick. */
-function kickDeliveries(): void {
+/**
+ * Starts the api's sending run now rather than at the next cron tick. Awaited
+ * inside `after()`, so a runtime that freezes once the callback settles can't
+ * drop the request; a failure is left to the next cron run.
+ */
+async function kickDeliveries(): Promise<void> {
   const base = process.env.NEXT_PUBLIC_API_BASE_URL;
   const secret = process.env.CRON_SECRET;
   if (!(base && secret)) {
     return;
   }
-  fetch(`${base.replace(TRAILING_SLASHES, "")}/api/cron/big-event-deliveries`, {
-    cache: "no-store",
-    headers: { "x-cron-secret": secret },
-    method: "POST",
-  }).catch(() => {
+  try {
+    const response = await fetch(
+      `${base.replace(TRAILING_SLASHES, "")}/api/cron/big-event-deliveries`,
+      {
+        cache: "no-store",
+        headers: { "x-cron-secret": secret },
+        method: "POST",
+      }
+    );
+    // The run's answer isn't needed; release the connection.
+    await response.body?.cancel();
+  } catch {
     // The next cron run sends it.
-  });
+  }
 }
 
 async function sendConnectLinks(address: string): Promise<void> {
   try {
     const { db } = await createAdminClient();
     if ((await queueConnectLinks(db, address)) > 0) {
-      kickDeliveries();
+      await kickDeliveries();
     }
   } catch (error) {
     console.error("[Connect help] Could not queue connect links", error);

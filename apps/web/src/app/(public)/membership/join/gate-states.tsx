@@ -81,14 +81,17 @@ export function SignedOutState({
  * Signed in, but not with a BI account. There is no linking any more: the
  * student signs out of this account and in with BI, and the membership
  * follows the student number. Other pages that need a BI account (the
- * ticket connect page) pass their own `title` / `body`.
+ * ticket connect page) pass their own `title` / `body` / `failedText`.
  */
 export function NeedsBiSignInState({
   body,
+  failedText,
   returnTo = "/membership/join",
   title,
 }: {
   body?: string;
+  /** Shown when the BI sign-in could not be started. */
+  failedText?: string;
   returnTo?: string;
   title?: string;
 }) {
@@ -110,7 +113,11 @@ export function NeedsBiSignInState({
 
   return (
     <StateCard
-      alert={startFailed ? <StateAlert>{t("linkFailed")}</StateAlert> : null}
+      alert={
+        startFailed ? (
+          <StateAlert>{failedText ?? t("linkFailed")}</StateAlert>
+        ) : null
+      }
       body={body ?? t("body")}
       icon={GraduationCap}
       title={title ?? t("title")}

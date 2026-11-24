@@ -15,6 +15,7 @@
     "signedOut": {
       "body": "Logg inn med BI-kontoen din for å koble til billetten."
     },
+    "signInFailed": "Vi fikk ikke startet BI-innloggingen. Prøv igjen om litt.",
     "needsBi": {
       "body": "Du er logget inn med en konto som ikke er BI-kontoen din. Logg inn med BI-kontoen din for å koble til billetten."
     },
