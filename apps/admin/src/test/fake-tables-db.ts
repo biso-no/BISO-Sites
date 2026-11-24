@@ -5,6 +5,7 @@ import { mock } from "bun:test";
  * live per table; `listRows` honours `equal`, `notEqual`, `isNull`,
  * `isNotNull`, `contains`, `or`, `cursorAfter` and `limit` (other queries,
  * such as `select`, are ignored), so code under test reads back what it wrote.
+ * A write hook can delay or fail single writes.
  */
 export type FakeRow = Record<string, unknown> & { $id: string };
 
@@ -60,6 +61,15 @@ function settle<T>(work: () => T): Promise<T> {
   }
 }
 
+/** A write the code under test is about to make; a hook may delay or fail it. */
+export interface FakeWrite {
+  data?: Record<string, unknown>;
+  kind: "create" | "update" | "delete";
+  rowId: string;
+  tableId: string;
+}
+export type FakeWriteHook = (write: FakeWrite) => Promise<void> | void;
+
 function notFound(): Error {
   return Object.assign(new Error("Row not found"), { code: 404 });
 }
@@ -67,6 +77,12 @@ function notFound(): Error {
 export function createFakeTablesDb() {
   const tables = new Map<string, FakeRow[]>();
   let nextId = 0;
+  let beforeWrite: FakeWriteHook | null = null;
+  /** Runs the hook (if any) before the write; its throw fails the write. */
+  const gate = (write: FakeWrite): Promise<void> =>
+    beforeWrite
+      ? settle(() => beforeWrite?.(write)).then(() => undefined)
+      : Promise.resolve();
 
   const table = (tableId: string): FakeRow[] => {
     const existing = tables.get(tableId);
@@ -86,7 +102,7 @@ export function createFakeTablesDb() {
         rowId: string,
         data: Record<string, unknown>
       ) =>
-        settle(() => {
+        gate({ data, kind: "create", rowId, tableId }).then(() => {
           nextId += 1;
           const $id = rowId === "unique()" ? `new-${tableId}-${nextId}` : rowId;
           const row: FakeRow = { ...data, $id };
@@ -95,7 +111,7 @@ export function createFakeTablesDb() {
         })
     ),
     deleteRow: mock((_databaseId: string, tableId: string, rowId: string) =>
-      settle(() => {
+      gate({ kind: "delete", rowId, tableId }).then(() => {
         const rows = table(tableId);
         const index = rows.findIndex((row) => row.$id === rowId);
         if (index === -1) {
@@ -131,7 +147,7 @@ export function createFakeTablesDb() {
         rowId: string,
         data: Record<string, unknown> = {}
       ) =>
-        settle(() => {
+        gate({ data, kind: "update", rowId, tableId }).then(() => {
           const row = table(tableId).find(
             (candidate) => candidate.$id === rowId
           );
@@ -146,10 +162,11 @@ export function createFakeTablesDb() {
 
   return {
     db,
-    /** Replaces every table's rows. */
+    /** Replaces every table's rows and drops the write hook. */
     reset(seed: Record<string, FakeRow[]>): void {
       tables.clear();
       nextId = 0;
+      beforeWrite = null;
       for (const fn of Object.values(db)) {
         fn.mockClear();
       }
@@ -162,6 +179,10 @@ export function createFakeTablesDb() {
     },
     rows(tableId: string): FakeRow[] {
       return table(tableId);
+    },
+    /** Delays or fails chosen writes (cleared by `reset`). */
+    setBeforeWrite(hook: FakeWriteHook | null): void {
+      beforeWrite = hook;
     },
   };
 }

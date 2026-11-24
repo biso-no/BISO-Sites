@@ -13,6 +13,7 @@ import {
   planImport,
   sameIdentity,
 } from "./plan-import";
+import { existingGroupKey } from "./plan-import-rooms";
 
 const ROW_META = {
   $sequence: "1",
@@ -129,6 +130,9 @@ const SHEET_MAPPING: ImportMapping = {
 };
 const SHEET_WITH_ROOM: ImportMapping = {
   columns: ["full_name", "email", "phone", "ticket_ref", "group"],
+};
+const SHEET_WITH_CAMPUS_AND_GROUP: ImportMapping = {
+  columns: ["full_name", "email", "phone", "campus", "group"],
 };
 function sheet(...data: string[][]): string[][] {
   return [["Name", "Email", "Phone", "Order", "Room"], ...data];
@@ -1120,6 +1124,83 @@ describe("planImport: group column", () => {
     );
     // A bus file says nothing about rooms.
     expect(result.unplaced).toEqual([]);
+  });
+
+  test("one value across campuses makes one group per campus (R27)", () => {
+    const result = plan(
+      sheet(
+        ["Kari Nordmann", "kari@gmail.com", "", "Bergen", "Buss 1"],
+        ["Per Hansen", "per@gmail.com", "", "Oslo", "Buss 1"],
+        ["Ane Dahl", "ane@gmail.com", "", "Bergen", "buss  1"],
+        ["Liv Berg", "liv@gmail.com", "", "", "Buss 1"]
+      ),
+      0,
+      SHEET_WITH_CAMPUS_AND_GROUP,
+      { ...NO_OPTIONS, groupKind: "bus" }
+    );
+    expect(
+      result.newGroups.map((created) => [created.key, created.campusId])
+    ).toEqual([
+      ["col:bus:2:buss 1", "2"],
+      ["col:bus:1:buss 1", "1"],
+      ["col:bus:buss 1", null],
+    ]);
+    expect(result.placements.map((placement) => placement.groupKey)).toEqual([
+      "col:bus:2:buss 1",
+      "col:bus:1:buss 1",
+      "col:bus:2:buss 1",
+      "col:bus:buss 1",
+    ]);
+  });
+
+  test("a value names only a group of the person's campus or one without a campus (R27)", () => {
+    const osloBus = group("g-oslo", {
+      campus_id: "1",
+      kind: "bus",
+      name: "Buss 1",
+    });
+    const sharedBus = group("g-shared", { kind: "bus", name: "Buss 9" });
+    const result = plan(
+      sheet(
+        ["Kari Nordmann", "kari@gmail.com", "", "Bergen", "Buss 1"],
+        ["Per Hansen", "per@gmail.com", "", "Oslo", "Buss 1"],
+        ["Ane Dahl", "ane@gmail.com", "", "Bergen", "Buss 9"]
+      ),
+      0,
+      SHEET_WITH_CAMPUS_AND_GROUP,
+      { ...NO_OPTIONS, groupKind: "bus" },
+      { groups: [osloBus, sharedBus] }
+    );
+    expect(result.newGroups.map((created) => created.key)).toEqual([
+      "col:bus:2:buss 1",
+    ]);
+    expect(result.placements.map((placement) => placement.groupKey)).toEqual([
+      "col:bus:2:buss 1",
+      "id:g-oslo",
+      "id:g-shared",
+    ]);
+  });
+
+  test("an existing column group is keyed with its own campus (R27)", () => {
+    const bergen = group("g-b", {
+      campus_id: "2",
+      kind: "bus",
+      source_key: "col:bus:buss 1",
+    });
+    const moved = group("g-m", {
+      campus_id: "1",
+      kind: "bus",
+      source_key: "col:bus:2:buss 1",
+    });
+    const noCampus = group("g-n", {
+      kind: "bus",
+      source_key: "col:bus:buss 1",
+    });
+    expect(existingGroupKey(bergen)).toBe("col:bus:2:buss 1");
+    expect(existingGroupKey(moved)).toBe("col:bus:1:buss 1");
+    expect(existingGroupKey(noCampus)).toBe("col:bus:buss 1");
+    expect(existingGroupKey(OLA_ROOM)).toBe("booking:A-1");
+    expect(existingGroupKey(group("g-x", {}))).toBe("id:g-x");
   });
 
   test("a column value can name an existing group of the same kind only", () => {

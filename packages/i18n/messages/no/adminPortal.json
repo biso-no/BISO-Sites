@@ -284,6 +284,7 @@
         "roomBookingsHelp": "Hver kjøper får et rom med størrelsen på billetten. De andre plassene står ledige til romkameratene er på listen.",
         "needName": "Velg kolonnen med navnet før du går videre.",
         "needContact": "Velg kolonnen med e-postadressen eller telefonnummeret før du går videre.",
+        "busNeedsTravel": "Busser krever at Reise er slått på i innstillingene for arrangementet. Velg en annen type, eller slå på Reise først.",
         "back": "Tilbake",
         "next": "Sjekk importen",
         "failed": "Kunne ikke sjekke listen. Prøv igjen."
@@ -324,7 +325,7 @@
         "back": "Tilbake",
         "save": "Lagre",
         "saved": "{linked, plural, =0 {Lagret.} one {Lagret. # person ble koblet til automatisk.} other {Lagret. # personer ble koblet til automatisk.}}",
-        "failed": "Kunne ikke lagre alt. Prøv igjen: de som ble lagret, legges ikke til to ganger."
+        "failed": "Noen rader ble ikke lagret. Last inn listen på nytt og sjekk den før du importerer igjen."
       }
     },
     "link": {

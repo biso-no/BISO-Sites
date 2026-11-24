@@ -28,7 +28,6 @@ export interface PlanSubject {
 }
 
 interface BoardGroup {
-  campuses: Set<string | null>;
   capacity: number | null;
   /** Existing members plus placements in this plan. */
   count: number;
@@ -51,18 +50,39 @@ interface Board {
 /** Rooms looked up by order number or by buyer contact. */
 type RoomIndex = Map<string, Set<string>>;
 
-/** An existing group's key in a plan: its source key, else its id. */
+/** `col:<kind>:[<campus id>:]<value>`; campus ids are digits. */
+const COLUMN_KEY = /^col:[a-z]+:(?:\d+:)?(.*)$/;
+
+/**
+ * Kind- and campus-qualified (ruling R27), so a bus "1" and a room "1" never
+ * share a key, nor do Bergen's and Oslo's "Buss 1".
+ */
+function columnKey(
+  kind: GroupKind,
+  campusId: string | null,
+  value: string
+): string {
+  const campus = campusId ? `${campusId}:` : "";
+  return `col:${kind}:${campus}${normalizeName(value)}`;
+}
+
+/**
+ * An existing group's key in a plan: its source key, else its id. A group
+ * made from a column is keyed with its own kind and current campus, the same
+ * way the plan keys new ones.
+ */
 export function existingGroupKey(group: BigEventGroupRow): string {
-  return group.source_key ?? `id:${group.$id}`;
+  if (!group.source_key) {
+    return `id:${group.$id}`;
+  }
+  const column = COLUMN_KEY.exec(group.source_key);
+  return column
+    ? columnKey(group.kind, group.campus_id, column[1] ?? "")
+    : group.source_key;
 }
 
 function bookingKey(ref: string): string {
   return `booking:${ref}`;
-}
-
-/** Kind-qualified so a bus "1" and a room "1" never share a key. */
-function columnKey(kind: GroupKind, value: string): string {
-  return `col:${kind}:${normalizeName(value)}`;
 }
 
 function fullName(person: ParsedPerson): string {
@@ -103,7 +123,6 @@ function buildBoard(
         count: 0,
         row,
         created: null,
-        campuses: new Set(),
       });
     }
   }
@@ -146,7 +165,6 @@ function createGroup(board: Board, group: NewGroup): string {
     count: 0,
     row: null,
     created: group,
-    campuses: new Set(),
   });
   return group.key;
 }
@@ -177,7 +195,6 @@ function place(
   if (target.kind === "room") {
     board.roomOf.set(subject, key);
   }
-  target.campuses.add(subject.campusId);
   if (isMember(board, subject, key)) {
     return;
   }
@@ -188,19 +205,16 @@ function place(
 // ---------------------------------------------------------------------------
 // Spec rule 1: a column holding a Payment 1 order number or a group name
 
-function findColumnGroup(
+/**
+ * An existing group named like the value: the one of the person's campus,
+ * else the one without a campus (ruling R27). Never another campus's group.
+ */
+function namedGroup(
   board: Board,
   kind: GroupKind,
-  value: string
+  value: string,
+  campusId: string | null
 ): string | null {
-  const booking = board.groups.get(bookingKey(value));
-  if (kind === "room" && booking?.kind === "room") {
-    return booking.key;
-  }
-  const column = board.groups.get(columnKey(kind, value));
-  if (column) {
-    return column.key;
-  }
   const wanted = normalizeName(value);
   const named = [...board.groups.values()].filter(
     (group) =>
@@ -208,9 +222,33 @@ function findColumnGroup(
       group.kind === kind &&
       normalizeName(group.name) === wanted
   );
-  return named.length === 1 ? (named[0]?.key ?? null) : null;
+  for (const campus of campusId ? [campusId, null] : [null]) {
+    const onCampus = named.filter((group) => group.row?.campus_id === campus);
+    if (onCampus.length > 0) {
+      return onCampus.length === 1 ? (onCampus[0]?.key ?? null) : null;
+    }
+  }
+  return null;
 }
 
+function findColumnGroup(
+  board: Board,
+  kind: GroupKind,
+  value: string,
+  campusId: string | null
+): string | null {
+  const booking = board.groups.get(bookingKey(value));
+  if (kind === "room" && booking?.kind === "room") {
+    return booking.key;
+  }
+  const column = board.groups.get(columnKey(kind, campusId, value));
+  if (column) {
+    return column.key;
+  }
+  return namedGroup(board, kind, value, campusId);
+}
+
+/** One group per value and campus: the same value on two campuses is two groups. */
 function placeByColumn(
   board: Board,
   subjects: PlanSubject[],
@@ -222,12 +260,12 @@ function placeByColumn(
       continue;
     }
     const key =
-      findColumnGroup(board, kind, value) ??
+      findColumnGroup(board, kind, value, subject.campusId) ??
       createGroup(board, {
-        key: columnKey(kind, value),
+        key: columnKey(kind, subject.campusId, value),
         kind,
         name: value,
-        campusId: null,
+        campusId: subject.campusId,
         capacity: null,
         bookingRowNumber: null,
         booker: null,
@@ -527,24 +565,10 @@ function placeIntoExistingRooms(
 
 // ---------------------------------------------------------------------------
 
-/** A group made from a column gets its members' campus when they all share one. */
 function newGroups(board: Board): NewGroup[] {
-  const created: NewGroup[] = [];
-  for (const group of board.groups.values()) {
-    if (group.created) {
-      const fromColumn = group.created.bookingRowNumber === null;
-      const [onlyCampus] = group.campuses;
-      created.push(
-        fromColumn
-          ? {
-              ...group.created,
-              campusId: group.campuses.size === 1 ? (onlyCampus ?? null) : null,
-            }
-          : group.created
-      );
-    }
-  }
-  return created;
+  return [...board.groups.values()].flatMap((group) =>
+    group.created ? [group.created] : []
+  );
 }
 
 function overfullRooms(board: Board): string[] {

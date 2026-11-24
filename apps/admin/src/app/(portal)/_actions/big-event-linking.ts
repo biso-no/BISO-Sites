@@ -277,18 +277,53 @@ async function lookupAccounts(
   return response.rows;
 }
 
+/** What every lookup in one `findSuggestions` run shares. */
+interface SuggestionContext {
+  /** Phones on more than one participant of the big event (ruling R29). */
+  sharedPhones: Set<string>;
+  /** Accounts already holding a ticket in the big event. */
+  taken: Set<string>;
+}
+
+/** Normalized phones that more than one participant of the big event holds. */
+async function phonesOnSeveralTickets(
+  db: AdminDb,
+  bigEventId: string,
+  candidates: BigEventParticipantRow[]
+): Promise<Set<string>> {
+  const phones = candidates.flatMap((row) => normalizePhone(row.phone) ?? []);
+  const holders = await listRowsByIds<BigEventParticipantRow>(
+    db,
+    PARTICIPANTS,
+    "phone",
+    phones,
+    [Query.equal("big_event_id", [bigEventId]), Query.select(["$id", "phone"])]
+  );
+  const tickets = new Map<string, number>();
+  for (const row of holders) {
+    const phone = normalizePhone(row.phone);
+    if (phone) {
+      tickets.set(phone, (tickets.get(phone) ?? 0) + 1);
+    }
+  }
+  return new Set(
+    [...tickets].flatMap(([phone, count]) => (count > 1 ? [phone] : []))
+  );
+}
+
 /**
- * A possible match: the one BI-linked account with the same phone, else the
- * one BI-linked account with the same name on the same campus. Never a
- * dismissed account or one that already holds a ticket in the big event.
+ * A possible match: the one BI-linked account with the same phone (unless
+ * that phone is on several tickets), else the one BI-linked account with the
+ * same name on the same campus. Never a dismissed account or one that
+ * already holds a ticket in the big event.
  */
 async function suggestionFor(
   db: AdminDb,
   participant: BigEventParticipantRow,
-  taken: Set<string>
+  { sharedPhones, taken }: SuggestionContext
 ): Promise<{ reason: SuggestionReason; userId: string } | null> {
   const phone = normalizePhone(participant.phone);
-  if (phone) {
+  if (phone && !sharedPhones.has(phone)) {
     const byPhone = onlyCandidate(
       await lookupAccounts(db, [Query.equal("phone", phoneVariants(phone))]),
       participant,
@@ -364,14 +399,17 @@ export async function findSuggestions(
     Query.isNotNull("user_id"),
     Query.select(["$id", "user_id"]),
   ]);
-  const taken = new Set(linked.flatMap((row) => row.user_id ?? []));
+  const context: SuggestionContext = {
+    sharedPhones: await phonesOnSeveralTickets(db, bigEventId, candidates),
+    taken: new Set(linked.flatMap((row) => row.user_id ?? [])),
+  };
 
   const results = await mapWithConcurrency(
     candidates,
     SUGGESTION_CONCURRENCY,
     async (participant) => {
       try {
-        const suggestion = await suggestionFor(db, participant, taken);
+        const suggestion = await suggestionFor(db, participant, context);
         if (!suggestion) {
           return false;
         }

@@ -141,6 +141,20 @@ describe("findSuggestions", () => {
     expect(stored("p1")?.suggested_user_id).toBeNull();
   });
 
+  test("a phone on two tickets gives no phone suggestion (R29)", async () => {
+    seed(
+      [
+        participant({ $id: "p1" }),
+        participant({ $id: "p2", first_name: "Ola", last_name: "Hansen" }),
+      ],
+      [account({ $id: "u-bi", name: "Someone Else", phone: "91234567" })]
+    );
+
+    expect(await findSuggestions("b1")).toEqual({ suggested: 0 });
+    expect(stored("p1")?.suggested_user_id).toBeNull();
+    expect(stored("p2")?.suggested_user_id).toBeNull();
+  });
+
   test("a dismissed account is not suggested again", async () => {
     seed(
       [participant({ dismissed_user_id: "u-bi" })],

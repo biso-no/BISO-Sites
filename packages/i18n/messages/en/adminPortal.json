@@ -284,6 +284,7 @@
         "roomBookingsHelp": "Each buyer gets a room with the size on the ticket. The other places stay open until the roommates are on the list.",
         "needName": "Choose the column with the name before you go on.",
         "needContact": "Choose the column with the email address or the phone number before you go on.",
+        "busNeedsTravel": "Buses need Travel turned on in the big event's settings. Choose another kind, or turn Travel on first.",
         "back": "Back",
         "next": "Check the import",
         "failed": "Couldn't check the list. Try again."
@@ -324,7 +325,7 @@
         "back": "Back",
         "save": "Save",
         "saved": "{linked, plural, =0 {Saved.} one {Saved. # person was connected automatically.} other {Saved. # people were connected automatically.}}",
-        "failed": "Couldn't save everything. Try again: people who were saved won't be added twice."
+        "failed": "Some rows couldn't be saved. Reload the list and check it before importing again."
       }
     },
     "link": {

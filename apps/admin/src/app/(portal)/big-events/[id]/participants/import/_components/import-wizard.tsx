@@ -20,6 +20,7 @@ import type { ImportPreview as Preview } from "@/lib/big-events/import/plan-summ
 import type { ParticipantCampusId } from "@/lib/big-events/participant-form";
 import {
   applyImport,
+  type ImportResult,
   previewImport,
   readImportFile,
 } from "../../../../../_actions/big-event-import";
@@ -50,6 +51,8 @@ const READABLE_FILE = /\.(xlsx|csv)$/i;
 const ACCEPT =
   ".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const BYTES_PER_KB = 1024;
+/** A failed save stays on screen until the organizer closes it. */
+const UNTIL_CLOSED = { duration: Number.POSITIVE_INFINITY };
 
 function formatSize(bytes: number): string {
   const kb = bytes / BYTES_PER_KB;
@@ -58,10 +61,14 @@ function formatSize(bytes: number): string {
     : `${(kb / BYTES_PER_KB).toFixed(1)} MB`;
 }
 
+type ColumnProblem = "needName" | "needContact" | "busNeedsTravel";
+
 /** The step 2 problem that stops the import, if any. */
-function missingColumn(
-  mapping: ImportField[]
-): "needName" | "needContact" | null {
+function columnProblem(
+  mapping: ImportField[],
+  settings: ImportSettings,
+  groupKinds: GroupKind[]
+): ColumnProblem | null {
   if (
     !mapping.some((field) => field === "first_name" || field === "full_name")
   ) {
@@ -69,6 +76,11 @@ function missingColumn(
   }
   if (!mapping.some((field) => field === "email" || field === "phone")) {
     return "needContact";
+  }
+  // The server refuses too (ruling R30); buses exist only when Travel is on.
+  const busColumn = mapping.includes("group") && settings.groupKind === "bus";
+  if (busColumn && !groupKinds.includes("bus")) {
+    return "busNeedsTravel";
   }
   return null;
 }
@@ -296,10 +308,10 @@ export function ImportWizard({
     roomBookings: false,
   });
   const [preview, setPreview] = useState<Preview | null>(null);
-  const [problem, setProblem] = useState<"needName" | "needContact" | null>(
-    null
-  );
+  const [problem, setProblem] = useState<ColumnProblem | null>(null);
   const [isPending, startTransition] = useTransition();
+  /** One save per wizard: the page is left afterwards, whatever happened. */
+  const saving = useRef(false);
 
   function source(): FormData {
     const form = new FormData();
@@ -344,9 +356,9 @@ export function ImportWizard({
   }
 
   function checkImport() {
-    const missing = missingColumn(mapping);
-    setProblem(missing);
-    if (missing) {
+    const found = columnProblem(mapping, settings, groupKinds);
+    setProblem(found);
+    if (found) {
       return;
     }
     startTransition(async () => {
@@ -366,20 +378,33 @@ export function ImportWizard({
     });
   }
 
+  /**
+   * Saves once. After a failed write (ruling R28) the organizer goes to the
+   * list to check it, never straight into another attempt.
+   */
   function save() {
+    if (saving.current) {
+      return;
+    }
+    saving.current = true;
     startTransition(async () => {
+      let result: ImportResult | null = null;
       try {
-        const result = await applyImport(
+        result = await applyImport(
           bigEventId,
           source(),
           { columns: mapping },
           toOptions(settings, mapping)
         );
-        toast.success(t("preview.saved", { linked: result.linked }));
-        router.push(`/big-events/${bigEventId}/participants`);
       } catch {
-        toast.error(t("preview.failed"));
+        result = null;
       }
+      if (result?.complete) {
+        toast.success(t("preview.saved", { linked: result.linked }));
+      } else {
+        toast.error(t("preview.failed"), UNTIL_CLOSED);
+      }
+      router.push(`/big-events/${bigEventId}/participants`);
     });
   }
 

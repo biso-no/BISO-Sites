@@ -317,6 +317,62 @@ describe("applyImport", () => {
     expect(fake.rows(PARTICIPANTS).some((row) => row.user_id)).toBe(false);
   });
 
+  test("an email on another campus's ticket links neither (R29)", async () => {
+    currentCtx = makeCtx({
+      managedCampusIds: ["2"],
+      resolvedCampusIds: ["2"],
+      roles: ["campusadmin"],
+    });
+    seed({
+      [PARTICIPANTS]: [
+        participantRow({
+          $id: "p-oslo",
+          campus_id: "1",
+          first_name: "Ola",
+          last_name: "Hansen",
+          ticket_email: "kari@bi.no",
+        }),
+      ],
+      user: [{ $id: "u-kari", email: "kari@bi.no", student_id: "1234567" }],
+    });
+
+    const result = await applyImport(
+      "b1",
+      pasteForm([
+        ["Navn", "Etternavn", "E-post", "Campus"],
+        ["Kari", "Nordmann", "kari@bi.no", "Bergen"],
+      ]),
+      mappingFor("first_name", "last_name", "email", "campus"),
+      PLAIN
+    );
+
+    expect(result).toMatchObject({ created: 1, linked: 0 });
+    expect(fake.rows(PARTICIPANTS).some((row) => row.user_id)).toBe(false);
+  });
+
+  test("buses need Travel (R30)", async () => {
+    seed({ big_events: [{ ...bigEvent, travel_enabled: false }] });
+    const form = () =>
+      pasteForm([
+        ["Navn", "Etternavn", "Mobilnr", "Buss"],
+        ["Kari", "Nordmann", "91234567", "Buss 1"],
+      ]);
+    const mapping = mappingFor("first_name", "last_name", "phone", "group");
+    const bus = { ...PLAIN, groupKind: "bus" as const };
+
+    await expect(previewImport("b1", form(), mapping, bus)).rejects.toThrow(
+      "Travel"
+    );
+    await expect(applyImport("b1", form(), mapping, bus)).rejects.toThrow(
+      "Travel"
+    );
+    expect(fake.db.createRow).not.toHaveBeenCalled();
+
+    // Rooms are fine without Travel.
+    await applyImport("b1", form(), mapping, { ...PLAIN, groupKind: "room" });
+    expect(fake.rows(GROUPS)).toMatchObject([{ kind: "room" }]);
+  });
+
   test("campus access skips other campuses' rows", async () => {
     currentCtx = makeCtx({
       managedCampusIds: ["2"],
@@ -424,6 +480,105 @@ describe("applyImport", () => {
     });
   });
 
+  test("full-access import keeps two campuses' Buss 1 apart", async () => {
+    const form = () =>
+      pasteForm([
+        ["Navn", "Etternavn", "Mobilnr", "Campus", "Buss"],
+        ["Kari", "Nordmann", "91234567", "Bergen", "Buss 1"],
+        ["Ola", "Hansen", "92345678", "Oslo", "Buss 1"],
+        ["Per", "Dahl", "93456789", "Bergen", "Buss 1"],
+      ]);
+    const mapping = mappingFor(
+      "first_name",
+      "last_name",
+      "phone",
+      "campus",
+      "group"
+    );
+    const options = { ...PLAIN, groupKind: "bus" as const };
+
+    await applyImport("b1", form(), mapping, options);
+
+    const buses = fake.rows(GROUPS);
+    expect(
+      buses.map((bus) => [bus.name, bus.campus_id, bus.source_key]).sort()
+    ).toEqual([
+      ["Buss 1", "1", "col:bus:1:buss 1"],
+      ["Buss 1", "2", "col:bus:2:buss 1"],
+    ]);
+    const busOf = (firstName: string) => {
+      const person = byName(fake.rows(PARTICIPANTS), firstName);
+      const seat = fake
+        .rows(MEMBERS)
+        .find((member) => member.participant_id === person?.$id);
+      return buses.find((bus) => bus.$id === seat?.group_id)?.campus_id;
+    };
+    expect([busOf("Kari"), busOf("Ola"), busOf("Per")]).toEqual([
+      "2",
+      "1",
+      "2",
+    ]);
+
+    // The same file again finds both buses and moves no one.
+    const again = await previewImport("b1", form(), mapping, options);
+    expect(again).toMatchObject({ moved: 0, newGroups: 0, placed: 0 });
+  });
+
+  test("a campus admin's Buss 1 isn't reused for another campus's rows", async () => {
+    const mapping = mappingFor(
+      "first_name",
+      "last_name",
+      "phone",
+      "campus",
+      "group"
+    );
+    const options = { ...PLAIN, groupKind: "bus" as const };
+    currentCtx = makeCtx({
+      managedCampusIds: ["2"],
+      resolvedCampusIds: ["2"],
+      roles: ["campusadmin"],
+    });
+    await applyImport(
+      "b1",
+      pasteForm([
+        ["Navn", "Etternavn", "Mobilnr", "Campus", "Buss"],
+        ["Kari", "Nordmann", "91234567", "Bergen", "Buss 1"],
+      ]),
+      mapping,
+      options
+    );
+
+    currentCtx = makeCtx();
+    const preview = await previewImport(
+      "b1",
+      pasteForm([
+        ["Navn", "Etternavn", "Mobilnr", "Campus", "Buss"],
+        ["Ola", "Hansen", "92345678", "Oslo", "Buss 1"],
+      ]),
+      mapping,
+      options
+    );
+    expect(preview).toMatchObject({ created: 1, newGroups: 1 });
+
+    await applyImport(
+      "b1",
+      pasteForm([
+        ["Navn", "Etternavn", "Mobilnr", "Campus", "Buss"],
+        ["Ola", "Hansen", "92345678", "Oslo", "Buss 1"],
+      ]),
+      mapping,
+      options
+    );
+    const bergenBus = fake.rows(GROUPS).find((bus) => bus.campus_id === "2");
+    const bergenSeats = fake
+      .rows(MEMBERS)
+      .filter((member) => member.group_id === bergenBus?.$id);
+    const kari = byName(fake.rows(PARTICIPANTS), "Kari");
+    expect(new Set(bergenSeats.map((seat) => seat.participant_id))).toEqual(
+      new Set([kari?.$id])
+    );
+  });
+
   test("a bus column gives a seat both ways", async () => {
     const form = pasteForm([
       ["Navn", "Etternavn", "Mobilnr", "Buss"],
@@ -442,6 +597,131 @@ describe("applyImport", () => {
         .map((member) => member.leg)
         .sort()
     ).toEqual(["home", "out"]);
+  });
+});
+
+describe("applyImport: when a write fails", () => {
+  test("a failed write stops later phases and is audited", async () => {
+    seed({
+      user: [{ $id: "u-ola", email: "ola@example.com", student_id: "1234567" }],
+    });
+    fake.setBeforeWrite(({ data, tableId }) => {
+      if (tableId === PARTICIPANTS && data?.first_name === "Per") {
+        throw new Error("Appwrite is down");
+      }
+    });
+
+    const result = await applyImport(
+      "b1",
+      ticksterForm(),
+      TICKSTER_MAPPING,
+      ROOM_BOOKINGS
+    );
+
+    expect(result).toMatchObject({
+      complete: false,
+      created: 2,
+      failed: 1,
+      linked: 0,
+      newGroups: 0,
+      placed: 0,
+    });
+    expect(fake.rows(PARTICIPANTS)).toHaveLength(2);
+    // Later phases never ran: no rooms, no places, no email link.
+    expect(fake.rows(GROUPS)).toEqual([]);
+    expect(fake.rows(MEMBERS)).toEqual([]);
+    expect(fake.rows(PARTICIPANTS).some((row) => row.user_id)).toBe(false);
+
+    expect(logAuditEvent).toHaveBeenCalledTimes(1);
+    const [, action, audit] = logAuditEvent.mock.calls[0] ?? [];
+    expect(action).toBe("big_event.import");
+    expect(audit).toMatchObject({
+      payload: {
+        complete: false,
+        phases: { created: { failed: 1, written: 2 } },
+      },
+    });
+    const payload = JSON.stringify(audit);
+    for (const personal of ["Per", "per@example.com", "93456789", "A102"]) {
+      expect(payload).not.toContain(personal);
+    }
+  });
+
+  test("no write is still running when apply returns", async () => {
+    let inFlight = 0;
+    fake.setBeforeWrite(async ({ data, tableId }) => {
+      if (tableId !== PARTICIPANTS) {
+        return;
+      }
+      inFlight += 1;
+      try {
+        if (data?.first_name === "Ola") {
+          throw new Error("Appwrite is down");
+        }
+        if (data?.first_name === "Kari") {
+          await new Promise((resolve) => setTimeout(resolve, 30));
+        }
+      } finally {
+        inFlight -= 1;
+      }
+    });
+
+    const result = await applyImport(
+      "b1",
+      ticksterForm(),
+      TICKSTER_MAPPING,
+      ROOM_BOOKINGS
+    );
+
+    expect(inFlight).toBe(0);
+    expect(result).toMatchObject({ complete: false, created: 2, failed: 1 });
+    // The slow write finished before apply returned.
+    expect(byName(fake.rows(PARTICIPANTS), "Kari")).toBeDefined();
+  });
+
+  test("a failed new place keeps the old one (R8)", async () => {
+    seed({
+      [GROUPS]: [
+        {
+          $id: "g-101",
+          big_event_id: "b1",
+          booking_participant_id: null,
+          campus_id: null,
+          capacity: 4,
+          kind: "room",
+          name: "101",
+          source_key: "col:room:101",
+        },
+      ],
+      [MEMBERS]: [
+        {
+          $id: "m1",
+          big_event_id: "b1",
+          group_id: "g-101",
+          leg: null,
+          participant_id: "p1",
+        },
+      ],
+      [PARTICIPANTS]: [participantRow({ campus_id: null })],
+    });
+    fake.setBeforeWrite(({ kind, tableId }) => {
+      if (tableId === MEMBERS && kind === "create") {
+        throw new Error("Appwrite is down");
+      }
+    });
+
+    const result = await applyImport(
+      "b1",
+      pasteForm([
+        ["Navn", "Etternavn", "Mobilnr", "Rom"],
+        ["Kari", "Nordmann", "91234567", "102"],
+      ]),
+      mappingFor("first_name", "last_name", "phone", "group"),
+      PLAIN
+    );
+
+    expect(result).toMatchObject({ complete: false, moved: 0 });
+    expect(fake.rows(MEMBERS).map((member) => member.$id)).toEqual(["m1"]);
   });
 });
 
