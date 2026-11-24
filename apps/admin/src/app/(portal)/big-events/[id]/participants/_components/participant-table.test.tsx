@@ -106,6 +106,7 @@ function item(overrides: Partial<ParticipantListItem>): ParticipantListItem {
     phone: null,
     pile: "email",
     roomName: null,
+    suggestion: null,
     ticket_email: null,
     user_id: null,
     ...overrides,
@@ -131,7 +132,12 @@ const list: ParticipantList = {
       first_name: "Ola",
       last_name: "Hansen",
     }),
-    item({ $id: "p3", first_name: "Anne", last_name: "Berg" }),
+    item({
+      $id: "p3",
+      first_name: "Anne",
+      last_name: "Berg",
+      suggestion: { email: "anne@bi.no", name: "Anne Berg", reason: "phone" },
+    }),
   ],
 };
 
@@ -175,6 +181,27 @@ describe("ParticipantTable", () => {
     expect(text).toContain("Not in a room yet (2)");
     expect(text).toContain("Gets push notifications1");
     expect(text.toLowerCase()).not.toContain("in the app");
+  });
+
+  test("an unlinked person shows a possible match to link or dismiss", async () => {
+    const container = await mount();
+    expect(container.textContent).toContain(
+      "Possible match: Anne Berg (anne@bi.no) · same phone"
+    );
+    expect(buttonStartingWith(container, "Link")).toBeDefined();
+    expect(buttonStartingWith(container, "Not them")).toBeDefined();
+  });
+
+  test("the toolbar links to the import", async () => {
+    const container = await mount();
+    const [importLink] = findElements(
+      container,
+      (element) =>
+        element.tagName === "A" && element.textContent === "Import list"
+    );
+    expect(importLink?.getAttribute("href")).toBe(
+      "/big-events/b1/participants/import"
+    );
   });
 
   test("a reach chip narrows the list to that pile", async () => {

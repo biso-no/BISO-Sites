@@ -9,7 +9,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@repo/ui/components/ui/alert-dialog";
-import { Plus, TriangleAlert, Users } from "lucide-react";
+import { Plus, TriangleAlert, Upload, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
@@ -35,8 +35,10 @@ import {
   MONO_STACK,
   SERIF_STACK,
   STUDIO,
+  StudioLinkButton,
   StudioPanel,
 } from "../../../../_components/studio";
+import { LinkAccountDialog, UnlinkAccountDialog } from "./link-account-dialog";
 import { type CampusOption, ParticipantDialog } from "./participant-dialog";
 import { ParticipantRow } from "./participant-row";
 import { ParticipantToolbar } from "./participant-toolbar";
@@ -113,6 +115,7 @@ export function ParticipantTable({
   list,
 }: ParticipantTableProps) {
   const t = useTranslations("adminPortal.bigEvents.participants");
+  const tImport = useTranslations("adminPortal.bigEvents.import");
   const router = useRouter();
   const [filters, setFilters] = useState<ParticipantFilters>({
     campus: ALL_CAMPUSES,
@@ -125,6 +128,12 @@ export function ParticipantTable({
     null
   );
   const [isRemoving, startRemove] = useTransition();
+  const [linkTarget, setLinkTarget] = useState<ParticipantListItem | null>(
+    null
+  );
+  const [unlinkTarget, setUnlinkTarget] = useState<ParticipantListItem | null>(
+    null
+  );
 
   const visibleRows = useMemo(
     () => filterParticipants(list.rows, filters),
@@ -176,11 +185,20 @@ export function ParticipantTable({
     });
   }
 
-  const addButton = (
-    <PortalButton onClick={() => openDialog(null)} variant="primary">
-      <Plus aria-hidden size={16} />
-      {t("addPerson")}
-    </PortalButton>
+  const addButtons = (
+    <>
+      <StudioLinkButton
+        href={`/big-events/${bigEventId}/participants/import`}
+        variant="primary"
+      >
+        <Upload aria-hidden size={16} />
+        {tImport("button")}
+      </StudioLinkButton>
+      <PortalButton onClick={() => openDialog(null)}>
+        <Plus aria-hidden size={16} />
+        {t("addPerson")}
+      </PortalButton>
+    </>
   );
 
   const participantDialog = dialog && (
@@ -211,7 +229,9 @@ export function ParticipantTable({
           icon={<Users aria-hidden size={28} />}
           title={t("empty.title")}
         >
-          {addButton}
+          <div className="flex flex-wrap justify-center gap-2">
+            {addButtons}
+          </div>
         </EmptyState>
         {participantDialog}
       </>
@@ -242,7 +262,7 @@ export function ParticipantTable({
       )}
 
       <ParticipantToolbar
-        actions={addButton}
+        actions={addButtons}
         bigEventId={bigEventId}
         campusFilterOptions={campusFilterOptions}
         connectedCount={connectedCount}
@@ -287,7 +307,9 @@ export function ParticipantTable({
                   campusLabel={campusLabel}
                   key={row.$id}
                   onEdit={openDialog}
+                  onLink={setLinkTarget}
                   onRemove={setRemoveTarget}
+                  onUnlink={setUnlinkTarget}
                   row={row}
                   showRoom={list.hasRooms}
                 />
@@ -317,6 +339,26 @@ export function ParticipantTable({
       )}
 
       {participantDialog}
+      {linkTarget && (
+        <LinkAccountDialog
+          bigEventId={bigEventId}
+          key={linkTarget.$id}
+          onOpenChange={(open) => {
+            if (!open) {
+              setLinkTarget(null);
+            }
+          }}
+          row={linkTarget}
+        />
+      )}
+      <UnlinkAccountDialog
+        onOpenChange={(open) => {
+          if (!open) {
+            setUnlinkTarget(null);
+          }
+        }}
+        row={unlinkTarget}
+      />
       <RemoveDialog
         onConfirm={confirmRemove}
         onOpenChange={(open) => {

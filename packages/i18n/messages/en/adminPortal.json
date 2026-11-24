@@ -107,7 +107,7 @@
       "remove": "Remove",
       "empty": {
         "title": "No one on the list yet",
-        "description": "Add people one at a time with Add person."
+        "description": "Import the ticket list, or add people one at a time."
       },
       "noMatches": "No one matches what you picked.",
       "showing": "Showing {shown} of {total}",
@@ -209,6 +209,160 @@
         "travel_enabled": "Turn travel on or off.",
         "group_checkin_enabled": "Turn check-in on or off.",
         "status": "Choose a status."
+      }
+    },
+    "import": {
+      "button": "Import list",
+      "title": "Import participants",
+      "description": "Upload the ticket list or the hosts' sheet as it is. You check what we read before anything is saved.",
+      "backToParticipants": "Back to participants",
+      "stepOf": "Step {step} of 3",
+      "steps": {
+        "upload": "Upload",
+        "columns": "Check the columns",
+        "preview": "Check and save"
+      },
+      "upload": {
+        "dropHere": "Drop the file here, or click to choose one",
+        "fileTypes": "Excel (.xlsx) or CSV, up to 4 MB",
+        "chooseAnother": "Choose another file",
+        "orPaste": "Or paste rows",
+        "pastePlaceholder": "Copy the rows from your spreadsheet, headings included, and paste them here.",
+        "privacy": "We only read the file. Nothing is saved until you confirm.",
+        "read": "Read the list",
+        "wrongType": "This file can't be read. Save it as Excel (.xlsx) or CSV and try again.",
+        "tooBig": "This file is too big. It can be up to 4 MB.",
+        "nothing": "Choose a file or paste some rows first.",
+        "empty": "We didn't find any rows in this list.",
+        "failed": "Couldn't read the list. Check that it's the right file and try again."
+      },
+      "columns": {
+        "intro": "We found {count, plural, one {# row} other {# rows}}. This is what we think each column holds. Change anything that's wrong.",
+        "column": "Column {letter}",
+        "noHeading": "No heading",
+        "examples": "In the file:",
+        "noExamples": "Empty in the first rows",
+        "fieldLabel": "What is in {header}?",
+        "looksLike": {
+          "first_name": "Looks like the first name",
+          "last_name": "Looks like the last name",
+          "full_name": "Looks like the full name",
+          "email": "Looks like the email address",
+          "phone": "Looks like the phone number",
+          "campus": "Looks like the campus",
+          "ticket_ref": "Looks like the order number",
+          "ticket_category": "Looks like the ticket type: it often says the campus and the room size",
+          "group": "Looks like a room, bus or group",
+          "ignore": "We'll leave this column out. Pick what it holds if you need it."
+        },
+        "fields": {
+          "first_name": "First name",
+          "last_name": "Last name",
+          "full_name": "Full name (first and last)",
+          "email": "Email",
+          "phone": "Phone",
+          "campus": "Campus",
+          "ticket_ref": "Order number",
+          "ticket_category": "Ticket type",
+          "group": "Room, bus or group",
+          "ignore": "Ignore this column"
+        },
+        "settings": "A few choices",
+        "campusMissing": "Which campus are these people from?",
+        "campusSome": "Campus for rows that don't say",
+        "campusHelp": "Used only where the list doesn't name a campus.",
+        "campusNone": "Leave without campus",
+        "groupKind": "What is in the column {header}?",
+        "groupKinds": {
+          "room": "Room",
+          "bus": "Bus",
+          "buddy": "Buddy group",
+          "team": "Team"
+        },
+        "groupKindHelp": "People with the same value end up together.",
+        "roomBookings": "Each row is a room booking (we'll keep open places for the roommates)",
+        "roomBookingsHelp": "Each buyer gets a room with the size on the ticket. The other places stay open until the roommates are on the list.",
+        "needName": "Choose the column with the name before you go on.",
+        "needContact": "Choose the column with the email address or the phone number before you go on.",
+        "back": "Back",
+        "next": "Check the import",
+        "failed": "Couldn't check the list. Try again."
+      },
+      "preview": {
+        "created": "{count} new",
+        "updated": "{count} updated",
+        "unchanged": "{count} unchanged",
+        "missing": "{count, plural, one {# already on the list but not in this file} other {# already on the list but not in this file}}",
+        "skipped": "{count, plural, one {# row skipped} other {# rows skipped}}",
+        "nothingNew": "Everyone in this list is already on it as it is.",
+        "createdList": "New people",
+        "missingList": "On the list but not in this file",
+        "missingHelp": "{count, plural, one {# person on the list isn't} other {# people on the list aren't}} in this file. That's expected when a file covers only some people, like the buyers. No one is removed.",
+        "skippedList": "Skipped rows",
+        "skippedRow": "Row {row}: {reason, select, no_name {no name} other {no email address or phone number}}",
+        "duplicates": "{count, plural, one {# person is in the file more than once and is counted once.} other {# people are in the file more than once and are counted once.}}",
+        "more": "and {count} more",
+        "newGroups": {
+          "room": "{count, plural, one {# new room} other {# new rooms}}",
+          "bus": "{count, plural, one {# new bus} other {# new buses}}",
+          "buddy": "{count, plural, one {# new buddy group} other {# new buddy groups}}",
+          "team": "{count, plural, one {# new team} other {# new teams}}",
+          "other": "{count, plural, one {# new group} other {# new groups}}"
+        },
+        "moved": {
+          "room": "{count, plural, one {# person changes room} other {# people change room}}",
+          "bus": "{count, plural, one {# person changes bus} other {# people change bus}}",
+          "buddy": "{count, plural, one {# person changes buddy group} other {# people change buddy group}}",
+          "team": "{count, plural, one {# person changes team} other {# people change team}}",
+          "other": "{count, plural, one {# person changes group} other {# people change group}}"
+        },
+        "unplaced": "{count, plural, one {# person isn't in a room yet} other {# people aren't in a room yet}}",
+        "unplacedHelp": "They show under \"Not in a room yet\" on the participants list.",
+        "overfull": "{count, plural, one {# room has} other {# rooms have}} more people than places: {names}",
+        "noCampus": "{count, plural, one {# person has} other {# people have}} no campus. Only global admins and the board see them until someone sets a campus.",
+        "outsideYourCampus": "{count, plural, one {# row is for another campus or has no campus, so it is left out.} other {# rows are for another campus or have no campus, so they are left out.}} You can import only your own campus's people.",
+        "back": "Back",
+        "save": "Save",
+        "saved": "{linked, plural, =0 {Saved.} one {Saved. # person was connected automatically.} other {Saved. # people were connected automatically.}}",
+        "failed": "Couldn't save everything. Try again: people who were saved won't be added twice."
+      }
+    },
+    "link": {
+      "linkAccount": "Link account",
+      "unlink": "Unlink account",
+      "possibleMatch": "Possible match: {name} ({email})",
+      "possibleMatchNoEmail": "Possible match: {name}",
+      "reasons": {
+        "phone": "same phone",
+        "name": "same name and campus"
+      },
+      "accept": "Link",
+      "dismiss": "Not them",
+      "linked": "{name} is connected to {email}",
+      "dismissed": "We won't suggest that account again",
+      "unlinked": "{name} is no longer connected",
+      "failed": "Couldn't do that. Try again.",
+      "refused": {
+        "not_bi_linked": "This account hasn't signed in with BI, so it can't hold a ticket.",
+        "linked_to_other": "This ticket is already connected to another account. Unlink it first.",
+        "account_has_ticket": "This account already has a ticket for this big event.",
+        "no_suggestion": "That possible match is gone. Refresh the page."
+      },
+      "dialog": {
+        "title": "Link {name} to an account",
+        "description": "Search by the student's name or email. Only accounts that have signed in with BI are shown.",
+        "search": "Name or email",
+        "minChars": "Type at least two letters.",
+        "searching": "Searching…",
+        "noResults": "No account with BI sign-in matches.",
+        "hasTicket": "Already has a ticket here",
+        "choose": "Link",
+        "searchFailed": "Couldn't search. Try again."
+      },
+      "unlinkDialog": {
+        "title": "Unlink {name}?",
+        "description": "Their account no longer shows this big event until the ticket is connected again. The person stays on the list.",
+        "confirm": "Unlink"
       }
     }
   },

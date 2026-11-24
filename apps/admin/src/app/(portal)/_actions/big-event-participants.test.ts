@@ -291,6 +291,40 @@ describe("listParticipants", () => {
       expect(byId.get("p1")).not.toHaveProperty(hidden);
     }
   });
+
+  test("a possible match shows the account's name and email, not its id", async () => {
+    routeListRows({
+      big_event_participants: () =>
+        rows([
+          participantRow({
+            $id: "p1",
+            suggested_reason: "phone",
+            suggested_user_id: "u-match",
+          }),
+          participantRow({
+            $id: "p2",
+            first_name: "Ola",
+            suggested_reason: "name",
+            suggested_user_id: "u-gone",
+          }),
+        ]),
+      big_events: () => rows([bigEventRow()]),
+      user: () =>
+        rows([{ $id: "u-match", email: "kari@bi.no", name: "Kari Nordmann" }]),
+    });
+
+    const list = await listParticipants("b1");
+
+    const byId = new Map(list.rows.map((row) => [row.$id, row]));
+    expect(byId.get("p1")?.suggestion).toEqual({
+      email: "kari@bi.no",
+      name: "Kari Nordmann",
+      reason: "phone",
+    });
+    // A suggested account that no longer exists shows nothing.
+    expect(byId.get("p2")?.suggestion).toBeNull();
+    expect(JSON.stringify(list.rows)).not.toContain("u-match");
+  });
 });
 
 describe("addParticipant and updateParticipant", () => {

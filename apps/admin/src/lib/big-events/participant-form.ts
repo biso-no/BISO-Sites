@@ -36,6 +36,22 @@ export function toParticipantCampusId(
   return PARTICIPANT_CAMPUS_IDS.find((id) => id === value) ?? null;
 }
 
+/**
+ * The campus a new person starts on: the big event's campus when the caller
+ * may give it (ruling R16), else no campus when they'd still see the person,
+ * else the caller's first campus.
+ */
+export function defaultParticipantCampus(
+  eventCampus: ParticipantCampusId | null,
+  campusIds: ParticipantCampusId[],
+  allowsNoCampus: boolean
+): ParticipantCampusId | null {
+  if (eventCampus && campusIds.includes(eventCampus)) {
+    return eventCampus;
+  }
+  return allowsNoCampus ? null : (campusIds[0] ?? null);
+}
+
 export function emptyParticipantForm(
   campusId: ParticipantCampusId | null
 ): ParticipantFormValues {

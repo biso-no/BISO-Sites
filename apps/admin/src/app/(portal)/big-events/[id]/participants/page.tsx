@@ -3,8 +3,8 @@ import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
 import { canSeeParticipant } from "@/lib/big-events/access";
 import {
+  defaultParticipantCampus,
   PARTICIPANT_CAMPUS_IDS,
-  type ParticipantCampusId,
   toParticipantCampusId,
 } from "@/lib/big-events/participant-form";
 import { listParticipants } from "../../../_actions/big-event-participants";
@@ -14,18 +14,6 @@ import { ParticipantTable } from "./_components/participant-table";
 
 // "Check memberships" looks up every connected participant in Finago.
 export const maxDuration = 300;
-
-/** Someone added by hand starts on the big event's campus, else on no campus when allowed. */
-function pickDefaultCampus(
-  eventCampus: ParticipantCampusId | null,
-  campusIds: ParticipantCampusId[],
-  allowsNoCampus: boolean
-): ParticipantCampusId | null {
-  if (eventCampus && campusIds.includes(eventCampus)) {
-    return eventCampus;
-  }
-  return allowsNoCampus ? null : (campusIds[0] ?? null);
-}
 
 interface BigEventParticipantsPageProps {
   params: Promise<{ id: string }>;
@@ -60,7 +48,7 @@ export default async function BigEventParticipantsPage({
       value: campusId,
     })),
   ];
-  const defaultCampusId = pickDefaultCampus(
+  const defaultCampusId = defaultParticipantCampus(
     toParticipantCampusId(event.campus_id),
     campusIds,
     allowsNoCampus

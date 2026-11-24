@@ -21,6 +21,7 @@ function item(overrides: Partial<ParticipantListItem>): ParticipantListItem {
     phone: null,
     pile: "email",
     roomName: null,
+    suggestion: null,
     ticket_email: null,
     user_id: null,
     ...overrides,

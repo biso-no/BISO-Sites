@@ -28,6 +28,7 @@ import {
 import {
   type ParticipantList,
   type ParticipantListItem,
+  type ParticipantSuggestion,
   type PileFilter,
   sortParticipants,
   toParticipantListItem,
@@ -143,11 +144,18 @@ async function loadParticipantList(
   const linkedIds = participants.flatMap((row) =>
     row.user_id ? [row.user_id] : []
   );
+  const suggestedIds = participants.flatMap((row) =>
+    !row.user_id && row.suggested_user_id ? [row.suggested_user_id] : []
+  );
   const [rooms, accounts, push] = await Promise.all([
     loadRoomNames(db, bigEventId),
-    listRowsByIds<Users>(db, USER_TABLE, "$id", linkedIds, [
-      Query.select(["$id", "name", "email"]),
-    ]),
+    listRowsByIds<Users>(
+      db,
+      USER_TABLE,
+      "$id",
+      [...linkedIds, ...suggestedIds],
+      [Query.select(["$id", "name", "email"])]
+    ),
     getPushReach(linkedIds),
   ]);
   const accountById = new Map(
@@ -172,10 +180,30 @@ async function loadParticipantList(
         accountName: account?.name ?? null,
         pile,
         roomName: rooms.byParticipant.get(row.$id) ?? null,
+        suggestion: suggestionFor(row, accountById),
       });
     }
   );
   return { counts, hasRooms: rooms.hasRooms, noCampus, rows };
+}
+
+/** The possible match as the tab shows it; nothing once linked or when the account is gone. */
+function suggestionFor(
+  row: BigEventParticipantRow,
+  accounts: Map<string, Users>
+): ParticipantSuggestion | null {
+  const account =
+    !row.user_id && row.suggested_user_id
+      ? accounts.get(row.suggested_user_id)
+      : undefined;
+  if (!(account && row.suggested_reason)) {
+    return null;
+  }
+  return {
+    email: account.email,
+    name: account.name ?? "",
+    reason: row.suggested_reason,
+  };
 }
 
 function changedColumns(

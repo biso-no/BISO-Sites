@@ -7,12 +7,21 @@ import {
   DropdownMenuTrigger,
 } from "@repo/ui/components/ui/dropdown-menu";
 import { MoreHorizontal } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
+import { useTransition } from "react";
+import { toast } from "sonner";
 import { formatOsloShortDay } from "@/lib/big-events/dates";
 import {
   type ParticipantListItem,
+  type ParticipantSuggestion,
   participantName,
 } from "@/lib/big-events/participant-list";
+import {
+  acceptSuggestion,
+  dismissSuggestion,
+} from "../../../../_actions/big-event-linking";
+import { PortalButton } from "../../../../_components/portal-button";
 import { STUDIO } from "../../../../_components/studio";
 import { PILE_ICONS } from "./reach-summary";
 
@@ -37,10 +46,89 @@ function StatusText({ row }: { row: ParticipantListItem }) {
   return <p>{t("notConnected")}</p>;
 }
 
+/** "Possible match: Kari Nordmann (kari@bi.no) · same phone" with Link and Not them. */
+function PossibleMatch({
+  row,
+  suggestion,
+}: {
+  row: ParticipantListItem;
+  suggestion: ParticipantSuggestion;
+}) {
+  const t = useTranslations("adminPortal.bigEvents.link");
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const who = suggestion.email
+    ? t("possibleMatch", { email: suggestion.email, name: suggestion.name })
+    : t("possibleMatchNoEmail", { name: suggestion.name });
+
+  function accept() {
+    startTransition(async () => {
+      try {
+        const result = await acceptSuggestion(row.$id);
+        if (!result.ok) {
+          toast.error(t(`refused.${result.reason}`));
+          return;
+        }
+        toast.success(
+          t("linked", {
+            email: suggestion.email ?? suggestion.name,
+            name: participantName(row),
+          })
+        );
+        router.refresh();
+      } catch {
+        toast.error(t("failed"));
+      }
+    });
+  }
+
+  function dismiss() {
+    startTransition(async () => {
+      try {
+        await dismissSuggestion(row.$id);
+        toast.success(t("dismissed"));
+        router.refresh();
+      } catch {
+        toast.error(t("failed"));
+      }
+    });
+  }
+
+  return (
+    <div
+      className="mt-2 rounded-lg border px-3 py-2 text-xs"
+      style={{
+        background: "rgba(42,74,122,0.06)",
+        borderColor: "rgba(42,74,122,0.2)",
+        color: STUDIO.sky,
+      }}
+    >
+      <p className="break-words">
+        {who} · {t(`reasons.${suggestion.reason}`)}
+      </p>
+      <div className="mt-1.5 flex flex-wrap gap-1.5">
+        <PortalButton disabled={isPending} onClick={accept} size="sm">
+          {t("accept")}
+        </PortalButton>
+        <PortalButton
+          disabled={isPending}
+          onClick={dismiss}
+          size="sm"
+          variant="ghost"
+        >
+          {t("dismiss")}
+        </PortalButton>
+      </div>
+    </div>
+  );
+}
+
 interface ParticipantRowProps {
   campusLabel: (campusId: string | null) => string;
   onEdit: (row: ParticipantListItem) => void;
+  onLink: (row: ParticipantListItem) => void;
   onRemove: (row: ParticipantListItem) => void;
+  onUnlink: (row: ParticipantListItem) => void;
   row: ParticipantListItem;
   showRoom: boolean;
 }
@@ -49,11 +137,14 @@ interface ParticipantRowProps {
 export function ParticipantRow({
   campusLabel,
   onEdit,
+  onLink,
   onRemove,
+  onUnlink,
   row,
   showRoom,
 }: ParticipantRowProps) {
   const t = useTranslations("adminPortal.bigEvents.participants");
+  const tLink = useTranslations("adminPortal.bigEvents.link");
   const tReach = useTranslations("adminPortal.bigEvents.participants.reach");
   const name = participantName(row);
   const PileIcon = PILE_ICONS[row.pile];
@@ -98,6 +189,9 @@ export function ParticipantRow({
                 {row.accountEmail}
               </p>
             )}
+            {!row.user_id && row.suggestion && (
+              <PossibleMatch row={row} suggestion={row.suggestion} />
+            )}
           </div>
         </div>
       </td>
@@ -131,6 +225,15 @@ export function ParticipantRow({
             <DropdownMenuItem onSelect={() => onEdit(row)}>
               {t("edit")}
             </DropdownMenuItem>
+            {row.user_id ? (
+              <DropdownMenuItem onSelect={() => onUnlink(row)}>
+                {tLink("unlink")}
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem onSelect={() => onLink(row)}>
+                {tLink("linkAccount")}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
               onSelect={() => onRemove(row)}
               style={{ color: STUDIO.claret }}

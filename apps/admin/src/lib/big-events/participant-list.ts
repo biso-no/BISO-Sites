@@ -1,5 +1,13 @@
+import type { SuggestionReason } from "@repo/shared/big-events/tables";
 import type { BigEventParticipantRow } from "@repo/shared/big-events/types";
 import type { ReachPile } from "./reach";
+
+/** A "possible match" as the organizer sees it: who, and why. Never the account id. */
+export interface ParticipantSuggestion {
+  email: string | null;
+  name: string;
+  reason: SuggestionReason;
+}
 
 /** What the tab adds to a participant row. */
 export interface ParticipantListExtras {
@@ -8,6 +16,8 @@ export interface ParticipantListExtras {
   pile: ReachPile;
   /** The room's name (the buyer's name); null when not in a room. */
   roomName: string | null;
+  /** A possible account for an unlinked person, resolved on the server. */
+  suggestion: ParticipantSuggestion | null;
 }
 
 /**

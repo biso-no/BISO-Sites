@@ -107,7 +107,7 @@
       "remove": "Fjern",
       "empty": {
         "title": "Ingen på listen ennå",
-        "description": "Legg til folk én og én med Legg til person."
+        "description": "Importer billettlisten, eller legg til folk én og én."
       },
       "noMatches": "Ingen passer med det du har valgt.",
       "showing": "Viser {shown} av {total}",
@@ -209,6 +209,160 @@
         "travel_enabled": "Slå reise av eller på.",
         "group_checkin_enabled": "Slå innsjekk av eller på.",
         "status": "Velg status."
+      }
+    },
+    "import": {
+      "button": "Importer liste",
+      "title": "Importer deltakere",
+      "description": "Last opp billettlisten eller vertenes regneark slik det er. Du sjekker det vi leser før noe lagres.",
+      "backToParticipants": "Tilbake til deltakere",
+      "stepOf": "Steg {step} av 3",
+      "steps": {
+        "upload": "Last opp",
+        "columns": "Sjekk kolonnene",
+        "preview": "Sjekk og lagre"
+      },
+      "upload": {
+        "dropHere": "Slipp filen her, eller klikk for å velge en",
+        "fileTypes": "Excel (.xlsx) eller CSV, opptil 4 MB",
+        "chooseAnother": "Velg en annen fil",
+        "orPaste": "Eller lim inn rader",
+        "pastePlaceholder": "Kopier radene fra regnearket, med overskriftene, og lim dem inn her.",
+        "privacy": "Vi leser bare filen. Ingenting lagres før du bekrefter.",
+        "read": "Les listen",
+        "wrongType": "Denne filen kan ikke leses. Lagre den som Excel (.xlsx) eller CSV og prøv igjen.",
+        "tooBig": "Filen er for stor. Den kan være på opptil 4 MB.",
+        "nothing": "Velg en fil eller lim inn noen rader først.",
+        "empty": "Vi fant ingen rader i denne listen.",
+        "failed": "Kunne ikke lese listen. Sjekk at det er riktig fil, og prøv igjen."
+      },
+      "columns": {
+        "intro": "Vi fant {count, plural, one {# rad} other {# rader}}. Slik tror vi kolonnene skal leses. Endre det som er feil.",
+        "column": "Kolonne {letter}",
+        "noHeading": "Uten overskrift",
+        "examples": "I filen:",
+        "noExamples": "Tom i de første radene",
+        "fieldLabel": "Hva står i {header}?",
+        "looksLike": {
+          "first_name": "Ser ut som fornavnet",
+          "last_name": "Ser ut som etternavnet",
+          "full_name": "Ser ut som hele navnet",
+          "email": "Ser ut som e-postadressen",
+          "phone": "Ser ut som telefonnummeret",
+          "campus": "Ser ut som campus",
+          "ticket_ref": "Ser ut som ordrenummeret",
+          "ticket_category": "Ser ut som billettypen: den sier ofte campus og romstørrelse",
+          "group": "Ser ut som et rom, en buss eller en gruppe",
+          "ignore": "Vi tar ikke med denne kolonnen. Velg hva den inneholder hvis du trenger den."
+        },
+        "fields": {
+          "first_name": "Fornavn",
+          "last_name": "Etternavn",
+          "full_name": "Hele navnet (for- og etternavn)",
+          "email": "E-post",
+          "phone": "Telefon",
+          "campus": "Campus",
+          "ticket_ref": "Ordrenummer",
+          "ticket_category": "Billettype",
+          "group": "Rom, buss eller gruppe",
+          "ignore": "Ikke ta med denne kolonnen"
+        },
+        "settings": "Noen valg",
+        "campusMissing": "Hvilken campus hører disse personene til?",
+        "campusSome": "Campus for rader som ikke sier det",
+        "campusHelp": "Brukes bare der listen ikke nevner en campus.",
+        "campusNone": "La stå uten campus",
+        "groupKind": "Hva står i kolonnen {header}?",
+        "groupKinds": {
+          "room": "Rom",
+          "bus": "Buss",
+          "buddy": "Faddergruppe",
+          "team": "Lag"
+        },
+        "groupKindHelp": "De med samme verdi havner sammen.",
+        "roomBookings": "Hver rad er en rombestilling (vi holder av plass til romkameratene)",
+        "roomBookingsHelp": "Hver kjøper får et rom med størrelsen på billetten. De andre plassene står ledige til romkameratene er på listen.",
+        "needName": "Velg kolonnen med navnet før du går videre.",
+        "needContact": "Velg kolonnen med e-postadressen eller telefonnummeret før du går videre.",
+        "back": "Tilbake",
+        "next": "Sjekk importen",
+        "failed": "Kunne ikke sjekke listen. Prøv igjen."
+      },
+      "preview": {
+        "created": "{count} nye",
+        "updated": "{count} oppdatert",
+        "unchanged": "{count} uendret",
+        "missing": "{count} står allerede på listen, men ikke i denne filen",
+        "skipped": "{count, plural, one {# rad hoppet over} other {# rader hoppet over}}",
+        "nothingNew": "Alle i denne listen står allerede på den slik de er.",
+        "createdList": "Nye personer",
+        "missingList": "På listen, men ikke i denne filen",
+        "missingHelp": "{count, plural, one {# person på listen er} other {# personer på listen er}} ikke i denne filen. Det er forventet når en fil bare har noen av dem, for eksempel kjøperne. Ingen blir fjernet.",
+        "skippedList": "Rader som ble hoppet over",
+        "skippedRow": "Rad {row}: {reason, select, no_name {mangler navn} other {mangler e-postadresse og telefonnummer}}",
+        "duplicates": "{count, plural, one {# person står flere ganger i filen og telles én gang.} other {# personer står flere ganger i filen og telles én gang.}}",
+        "more": "og {count} til",
+        "newGroups": {
+          "room": "{count, plural, one {# nytt rom} other {# nye rom}}",
+          "bus": "{count, plural, one {# ny buss} other {# nye busser}}",
+          "buddy": "{count, plural, one {# ny faddergruppe} other {# nye faddergrupper}}",
+          "team": "{count, plural, one {# nytt lag} other {# nye lag}}",
+          "other": "{count, plural, one {# ny gruppe} other {# nye grupper}}"
+        },
+        "moved": {
+          "room": "{count, plural, one {# person bytter rom} other {# personer bytter rom}}",
+          "bus": "{count, plural, one {# person bytter buss} other {# personer bytter buss}}",
+          "buddy": "{count, plural, one {# person bytter faddergruppe} other {# personer bytter faddergruppe}}",
+          "team": "{count, plural, one {# person bytter lag} other {# personer bytter lag}}",
+          "other": "{count, plural, one {# person bytter gruppe} other {# personer bytter gruppe}}"
+        },
+        "unplaced": "{count, plural, one {# person er ikke på rom ennå} other {# personer er ikke på rom ennå}}",
+        "unplacedHelp": "De vises under «Ikke på rom ennå» på deltakerlisten.",
+        "overfull": "{count, plural, one {# rom har} other {# rom har}} flere personer enn plasser: {names}",
+        "noCampus": "{count, plural, one {# person mangler} other {# personer mangler}} campus. Bare globale administratorer og styret ser dem til noen setter campus.",
+        "outsideYourCampus": "{count, plural, one {# rad gjelder en annen campus eller mangler campus, så den tas ikke med.} other {# rader gjelder en annen campus eller mangler campus, så de tas ikke med.}} Du kan bare importere personer fra din egen campus.",
+        "back": "Tilbake",
+        "save": "Lagre",
+        "saved": "{linked, plural, =0 {Lagret.} one {Lagret. # person ble koblet til automatisk.} other {Lagret. # personer ble koblet til automatisk.}}",
+        "failed": "Kunne ikke lagre alt. Prøv igjen: de som ble lagret, legges ikke til to ganger."
+      }
+    },
+    "link": {
+      "linkAccount": "Koble til konto",
+      "unlink": "Koble fra konto",
+      "possibleMatch": "Mulig treff: {name} ({email})",
+      "possibleMatchNoEmail": "Mulig treff: {name}",
+      "reasons": {
+        "phone": "samme telefon",
+        "name": "samme navn og campus"
+      },
+      "accept": "Koble til",
+      "dismiss": "Ikke denne",
+      "linked": "{name} er koblet til {email}",
+      "dismissed": "Vi foreslår ikke den kontoen igjen",
+      "unlinked": "{name} er ikke lenger tilkoblet",
+      "failed": "Det gikk ikke. Prøv igjen.",
+      "refused": {
+        "not_bi_linked": "Denne kontoen har ikke logget inn med BI, så den kan ikke ha en billett.",
+        "linked_to_other": "Denne billetten er allerede koblet til en annen konto. Koble den fra først.",
+        "account_has_ticket": "Denne kontoen har allerede en billett til dette arrangementet.",
+        "no_suggestion": "Det mulige treffet finnes ikke lenger. Last inn siden på nytt."
+      },
+      "dialog": {
+        "title": "Koble {name} til en konto",
+        "description": "Søk etter studentens navn eller e-post. Bare kontoer som har logget inn med BI, vises.",
+        "search": "Navn eller e-post",
+        "minChars": "Skriv minst to bokstaver.",
+        "searching": "Søker …",
+        "noResults": "Ingen konto med BI-innlogging passer.",
+        "hasTicket": "Har allerede en billett her",
+        "choose": "Koble til",
+        "searchFailed": "Kunne ikke søke. Prøv igjen."
+      },
+      "unlinkDialog": {
+        "title": "Koble fra {name}?",
+        "description": "Kontoen viser ikke lenger dette arrangementet før billetten kobles til igjen. Personen blir stående på listen.",
+        "confirm": "Koble fra"
       }
     }
   },
