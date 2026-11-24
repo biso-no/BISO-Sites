@@ -10,8 +10,7 @@
     },
     "connected": {
       "title": "Nå er du koblet til!",
-      "body": "Bussen, rommet og oppdateringene dine vises i BISO-appen.",
-      "openApp": "Åpne i appen"
+      "body": "Bussen, rommet og oppdateringene dine vises i BISO-appen."
     },
     "signedOut": {
       "body": "Logg inn med BI-kontoen din for å koble til billetten."

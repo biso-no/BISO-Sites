@@ -1,8 +1,11 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   deriveConnectToken,
   hashConnectToken,
 } from "@repo/shared/big-events/connect-token";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { codeOnly } from "@/test/source";
 
 type Row = Record<string, unknown> & { $id: string };
 interface ParsedQuery {
@@ -368,5 +371,24 @@ describe("requestConnectLink", () => {
     }
 
     expect(rows("big_event_deliveries")).toHaveLength(ADDRESS_LIMIT);
+  });
+});
+
+describe("the connected state", () => {
+  it("has no app link until the app knows big events", () => {
+    // Ruling R32: /app/big-events/<slug> 404s on the web until Stage 4, and
+    // released apps ignore /app/ paths they don't know. Store buttons only.
+    const states = codeOnly(
+      readFileSync(
+        join(
+          import.meta.dirname,
+          "../(public)/connect/[token]/connect-states.tsx"
+        ),
+        "utf8"
+      )
+    );
+    expect(states).not.toContain("/app/big-events");
+    expect(states).not.toContain("openApp");
+    expect(states).toContain("<AppStoreBadge");
   });
 });

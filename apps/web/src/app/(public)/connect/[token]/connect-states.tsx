@@ -84,19 +84,17 @@ function ConfirmState({ token, view }: { token: string; view: ConfirmView }) {
   );
 }
 
-function ConnectedState({ slug }: { slug: string }) {
+/**
+ * No "Open in the app" link yet (ruling R32): `/app/big-events/<slug>` has no
+ * web page until Stage 4, and released apps ignore `/app/` paths they don't
+ * know. The store buttons get the student the app that will show the event.
+ */
+function ConnectedState() {
   const t = useTranslations("bigEvents.connect.connected");
   const tApp = useTranslations("common.footer.app");
   return (
     <StateCard body={t("body")} icon={CircleCheck} title={t("title")}>
-      {/* A plain link: the installed app claims `/app/*` links, a client-side
-          navigation would never reach it. */}
-      <a
-        className={statusPanelPrimaryAction}
-        href={`/app/big-events/${encodeURIComponent(slug)}`}
-      >
-        {t("openApp")}
-      </a>
+      <p className="type-label basis-full text-ink">{tApp("heading")}</p>
       <div className="flex basis-full flex-wrap gap-2.5">
         <AppStoreBadge
           hint={tApp("appleHint")}
@@ -139,7 +137,7 @@ export function ConnectStates({
     case "confirm":
       return <ConfirmState token={token} view={view} />;
     case "connected":
-      return <ConnectedState slug={view.slug} />;
+      return <ConnectedState />;
     case "signed_out":
       return (
         <NeedsBiSignInState

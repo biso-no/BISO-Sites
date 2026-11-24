@@ -10,8 +10,7 @@
     },
     "connected": {
       "title": "You're connected!",
-      "body": "Your bus, room and updates will show in the BISO app.",
-      "openApp": "Open in the app"
+      "body": "Your bus, room and updates will show in the BISO app."
     },
     "signedOut": {
       "body": "Sign in with your BI account to connect your ticket."
