@@ -31,6 +31,9 @@
       "title": "This link doesn't work anymore.",
       "body": "We can send a new link to the email address on your ticket.",
       "cta": "Get a new link"
+    },
+    "ended": {
+      "title": "This event has ended, so the link no longer works."
     }
   },
   "help": {

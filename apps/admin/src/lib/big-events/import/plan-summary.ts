@@ -99,27 +99,30 @@ function kindsByKey(plan: ImportPlan, groups: BigEventGroupRow[]) {
  * column puts in a group leaves every other group of the same kind, on every
  * leg. Driven by the column target, not by new places, so a re-import also
  * clears a stale place a failed save left behind. The new file is the
- * organizers' latest word.
+ * organizers' latest word. Groups are compared by plan key, as planning does:
+ * a place in any group with the target's key counts as already there, so a
+ * second group with the same key never costs someone their only place.
  */
 export function replacedMemberships(
   plan: ImportPlan,
   groups: BigEventGroupRow[],
   members: BigEventGroupMemberRow[]
 ): BigEventGroupMemberRow[] {
-  const byKey = groupsByKey(groups);
   const kinds = kindsByKey(plan, groups);
   const kindById = new Map(groups.map((group) => [group.$id, group.kind]));
+  const keyById = new Map(
+    groups.map((group) => [group.$id, existingGroupKey(group)])
+  );
   const replaced = new Map<string, BigEventGroupMemberRow>();
   for (const { groupKey, participantId } of plan.columnTargets) {
     const kind = kinds.get(groupKey);
     if (!kind) {
       continue;
     }
-    const targetId = byKey.get(groupKey)?.$id;
     for (const membership of members) {
       if (
         membership.participant_id === participantId &&
-        membership.group_id !== targetId &&
+        keyById.get(membership.group_id) !== groupKey &&
         kindById.get(membership.group_id) === kind
       ) {
         replaced.set(membership.$id, membership);

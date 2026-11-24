@@ -195,7 +195,7 @@
       "save": "Save changes",
       "created": "Big event created",
       "saved": "Changes saved",
-      "saveFailed": "Couldn't save. Check your connection and try again.",
+      "saveFailed": "Couldn't save. Try again, or reload the page.",
       "errors": {
         "name_no": "Write a name of up to 200 characters.",
         "name_en": "Keep the English name to 200 characters.",

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  CalendarX,
   CircleCheck,
   Link2Off,
   Ticket,
@@ -111,6 +112,12 @@ function ConnectedState() {
   );
 }
 
+/** The big event is over: no new link would work either, so none is offered. */
+function EndedState() {
+  const t = useTranslations("bigEvents.connect.ended");
+  return <StateCard icon={CalendarX} title={t("title")} />;
+}
+
 function InvalidState() {
   const t = useTranslations("bigEvents.connect.invalid");
   return (
@@ -163,6 +170,8 @@ export function ConnectStates({
           title={t("linkedToOther.title")}
         />
       );
+    case "ended":
+      return <EndedState />;
     case "account_has_ticket":
       return (
         <StateCard

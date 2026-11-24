@@ -29,7 +29,7 @@ export function StateCard({
   children,
 }: {
   alert?: React.ReactNode;
-  body: string;
+  body?: string;
   children?: React.ReactNode;
   icon: ComponentType<{ className?: string }>;
   title: string;
@@ -40,7 +40,7 @@ export function StateCard({
         <Icon className="size-8" />
       </span>
       <h2 className="type-display-sm break-words text-ink">{title}</h2>
-      <p className="type-body text-ink-muted">{body}</p>
+      {body ? <p className="type-body text-ink-muted">{body}</p> : null}
       {alert ? <div className="w-full">{alert}</div> : null}
       <div className="mt-2 flex flex-wrap gap-3">{children}</div>
     </div>

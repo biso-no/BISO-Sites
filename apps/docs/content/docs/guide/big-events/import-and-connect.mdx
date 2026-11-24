@@ -9,6 +9,7 @@ covers:
   - apps/web/src/lib/big-events/**
   - packages/shared/big-events/**
   - apps/web/src/app/(public)/connect/**
+  - apps/web/src/app/actions/big-event-connect.ts
   - apps/api/src/app/api/cron/big-event-deliveries/**
   - apps/api/src/app/api/cron/cleanup-big-events/**
 ---
@@ -75,6 +76,7 @@ When each row is a room booking, the file with the buyers (Payment 1) puts each 
 - Importing a newer file updates the people already on the list. It doesn't make copies.
 - People on the list who aren't in the new file are shown as **På listen, men ikke i denne filen** (On the list but not in this file). This is normal when a file covers only some people, like the buyers. Nobody is removed automatically. To remove someone, choose **Fjern** (Remove) on their row.
 - A person already in another room or group of the same kind is moved to the one in the new file. The preview counts these, for example "3 personer bytter rom" (3 people change room).
+- A new email address for someone already on the list stops the link in the connect emails they already got. See [Send connect emails](#send-connect-emails).
 - Rooms and groups belong to a campus. Two groups with the same name on different campuses stay separate.
 - If **Kunne ikke lagre. Ingenting ble endret.** (Couldn't save. Nothing was changed.) shows, nothing was written. Try again.
 - If **Noen rader ble ikke lagret.** (Some rows couldn't be saved.) shows, part of the file was saved. Reload the list and check it before you import again.
@@ -82,7 +84,7 @@ When each row is a room booking, the file with the buyers (Payment 1) puts each 
 ## The participants list
 
 - **Legg til person** (Add person) adds someone who isn't on the ticket list. The email you give is where their connect email goes.
-- **Rediger** (Edit), in the menu on a row, changes a person's name, email, phone or campus. It doesn't change their account.
+- **Rediger** (Edit), in the menu on a row, changes a person's name, email, phone or campus. It doesn't change their account. A new email address stops the link in the connect emails they already got.
 - **Søk etter navn eller e-post** (Search by name or email) and the **Campus** filter narrow the list. The three reach piles and **Ikke på rom ennå** are filters too.
 - **Kopier e-postadresser** (Copy emails) copies the addresses of the people shown.
 - **Last ned CSV** (Download CSV) downloads the people shown as a spreadsheet.
@@ -105,13 +107,15 @@ In the menu on a person's row, choose **Koble til konto** (Link account). Search
 
 ### Unlink
 
-Choose **Koble fra konto** (Unlink account) in the row's menu to disconnect a ticket. The person stays on the list, and their account no longer shows the big event.
+Choose **Koble fra konto** (Unlink account) in the row's menu to disconnect a ticket. The person stays on the list, and their account no longer shows the big event. The link in the connect emails they already got stops working, so nobody else can connect the ticket with it. To let the right person connect, send a new email with **Send på nytt** (Send again).
 
 ## Send connect emails
 
-Choose **Send koblings-e-post** (Send connect emails) above the list. The number in brackets is how many people will get one. The button is disabled until the big event is published.
+Choose **Send koblings-e-post** (Send connect emails) above the list. It sends to people who aren't connected and haven't had a connect email yet, and the number in brackets is how many they are. So after you import the roommates (Payment 2), it reaches only the new people, not the buyers who already got one. Before anything is sent, you're asked to confirm, with the number of emails. The button is disabled until the big event is published.
 
-- The button sends to people who aren't connected yet. For one person, open the menu on their row and choose **Send på nytt** (Send again).
+- When someone who isn't connected has already had a connect email, a second button appears: **Send på nytt til alle som ikke er tilkoblet** (Send again to everyone not connected). It sends to everyone who isn't connected, also those who already had an email, and asks first too. Everyone who already had one gets it again, so use it sparingly.
+- For one person, open the menu on their row and choose **Send på nytt** (Send again). Do this after you change someone's email address or unlink them: their old link no longer works, and the new email has a new one.
+- After a send, a message says how many emails were queued. **Venter allerede på å bli sendt** (Already waiting to be sent) means the emails were queued before and haven't gone out yet.
 - One email goes to each address. When several people share an address, one email lists each person's own link.
 - Emails go out a few at a time, so it can take a while for a long list.
 - People who haven't connected get one reminder 4 days after the first email.
@@ -136,7 +140,7 @@ The student's pages follow the language of biso.no. The English text is quoted h
 3. They see the name on the ticket and choose **Connect my ticket** (Koble til billetten min). If the ticket isn't theirs, the page tells them to send the link to the right person.
 4. They see **You're connected!** (Nå er du koblet til!) and "Your bus, room and updates will show in the BISO app." The page also has the BISO app download buttons.
 
-If the link no longer works, the page offers **Get a new link** (Få en ny lenke). If they never got the email, they can open biso.no/connect/help, **Didn't get the email?** (Fikk du ikke e-posten?), type the address on their ticket, and get a new link. The page gives the same answer whether or not the address is on a list.
+If the big event has ended, the page says **This event has ended, so the link no longer works.** (Arrangementet er over, så lenken virker ikke lenger.) and offers nothing more. If the link no longer works for another reason, the page offers **Get a new link** (Få en ny lenke). If they never got the email, they can open biso.no/connect/help, **Didn't get the email?** (Fikk du ikke e-posten?), type the address on their ticket, and get a new link. The page gives the same answer whether or not the address is on a list.
 
 ## Membership warning
 
@@ -146,7 +150,7 @@ Only connected people can be checked, because that is how we find their membersh
 
 ## Personal data
 
-Ticket emails, phone numbers, connections to accounts and the email history are deleted 30 days after the big event ends. After that the list is empty.
+Ticket emails, phone numbers, connections to accounts and the email history are deleted 30 days after the big event ends. After that the list is empty. Rooms and groups stay without names: a room named after its buyer gets its room number, or **Rom**, as its name, and buses and groups lose their contact person.
 
 ## Common mistakes
 
@@ -155,3 +159,4 @@ Ticket emails, phone numbers, connections to accounts and the email history are 
 - Expecting people missing from a newer file to disappear. They stay until you remove them.
 - Importing again after "Noen rader ble ikke lagret" without reloading. Reload and check the list first.
 - Sending connect emails while the big event is a draft. Publish it first.
+- Using **Send på nytt til alle som ikke er tilkoblet** (Send again to everyone not connected) after each import. **Send koblings-e-post** (Send connect emails) already reaches the new people, without emailing the others again.

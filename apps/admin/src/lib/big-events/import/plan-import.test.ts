@@ -14,6 +14,7 @@ import {
   sameIdentity,
 } from "./plan-import";
 import { existingGroupKey } from "./plan-import-rooms";
+import { replacedMemberships } from "./plan-summary";
 
 const ROW_META = {
   $sequence: "1",
@@ -1289,5 +1290,48 @@ describe("planImport: group column", () => {
     );
     expect(result.placements).toHaveLength(2);
     expect(result.overfullRooms).toEqual(["booking:A-1"]);
+  });
+});
+
+describe("replacedMemberships", () => {
+  test("a place in a group with the target's key is never replaced", () => {
+    // Two rooms share one key (made by hand, or left by an old import). Kari
+    // is only in the second one, which the plan reads as already there.
+    const room101 = group("g-101", {
+      name: "101",
+      source_key: "col:room:-:101",
+    });
+    const twin101 = group("g-101-twin", {
+      name: "101",
+      source_key: "col:room:-:101",
+    });
+    const room102 = group("g-102", {
+      name: "102",
+      source_key: "col:room:-:102",
+    });
+    const kari = participant("p-kari", {
+      first_name: "Kari",
+      last_name: "Nordmann",
+      ticket_email: "kari@gmail.com",
+    });
+    const existing = {
+      groups: [room101, twin101, room102],
+      members: [member("g-101-twin", "p-kari"), member("g-102", "p-kari")],
+      participants: [kari],
+    };
+    const result = plan(
+      sheet(["Kari Nordmann", "kari@gmail.com", "", "", "101"]),
+      0,
+      SHEET_WITH_ROOM,
+      { ...NO_OPTIONS, groupKind: "room" },
+      existing
+    );
+
+    expect(result.placements).toEqual([]);
+    expect(
+      replacedMemberships(result, existing.groups, existing.members).map(
+        (membership) => membership.group_id
+      )
+    ).toEqual(["g-102"]);
   });
 });

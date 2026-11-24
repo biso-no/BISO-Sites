@@ -33,6 +33,7 @@ describe("POST /api/cron/big-event-deliveries", () => {
     vi.stubEnv("CRON_SECRET", SECRET);
     vi.stubEnv("BIG_EVENTS_CONNECT_SECRET", "connect-secret");
     vi.stubEnv("NEXT_PUBLIC_WEB_BASE_URL", "https://biso.no");
+    vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "");
     vi.stubEnv("BIG_EVENTS_EMAILS_PER_MINUTE", "");
     vi.stubGlobal("fetch", fetchMock);
     fetchMock.mockResolvedValue(new Response(null));
@@ -101,6 +102,19 @@ describe("POST /api/cron/big-event-deliveries", () => {
       headers: { "x-cron-secret": SECRET },
       method: "POST",
     });
+  });
+
+  it("re-kicks through the api's public address when it is set", async () => {
+    vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "https://api.biso.no/");
+    processDeliveries.mockResolvedValue({ failed: 0, remaining: 2, sent: 1 });
+    // Behind a proxy the request can arrive on an internal address.
+    await POST(
+      new Request("http://10.0.0.7:3000/api/cron/big-event-deliveries", {
+        headers: { "x-cron-secret": SECRET },
+        method: "POST",
+      })
+    );
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe(URL_);
   });
 
   it("survives a failing re-kick", async () => {

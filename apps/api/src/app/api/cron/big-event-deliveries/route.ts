@@ -8,7 +8,7 @@ import {
 import { BIG_EVENT_TABLES } from "@repo/shared/big-events/tables";
 import { NextResponse } from "next/server";
 import { hasValidCronSecret } from "@/lib/cron-auth";
-import { webBaseUrl } from "@/lib/public-urls";
+import { apiBaseUrl, webBaseUrl } from "@/lib/public-urls";
 
 /**
  * Big-event email queue. Driven by the `scheduled-dispatch` Appwrite Function
@@ -66,8 +66,17 @@ async function otherChainIsActive(
   return rows.length > 0;
 }
 
+/**
+ * Where the follow-up run goes: this api's public address when it is set,
+ * since behind a proxy the request may have arrived on an internal one.
+ */
+function followUpUrl(request: Request): string {
+  const base = apiBaseUrl();
+  return base ? `${base}/api/cron/big-event-deliveries` : request.url;
+}
+
 function kickAgain(request: Request, secret: string, chainId: string): void {
-  fetch(new URL(request.url), {
+  fetch(followUpUrl(request), {
     headers: {
       [CHAIN_HEADER]: chainId,
       [DEPTH_HEADER]: String(readDepth(request) + 1),

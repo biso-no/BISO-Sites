@@ -195,7 +195,7 @@
       "save": "Lagre endringer",
       "created": "Arrangementet er opprettet",
       "saved": "Endringene er lagret",
-      "saveFailed": "Kunne ikke lagre. Sjekk nettforbindelsen og prøv igjen.",
+      "saveFailed": "Kunne ikke lagre. Prøv igjen, eller last inn siden på nytt.",
       "errors": {
         "name_no": "Skriv et navn på opptil 200 tegn.",
         "name_en": "Det engelske navnet kan ha opptil 200 tegn.",
