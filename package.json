@@ -9,6 +9,7 @@
   },
   "catalog": {
     "botbuilder": "^4.23.3",
+    "meilisearch": "^0.63.0",
     "pdf-lib": "^1.17.1",
     "@ai-sdk/anthropic": "^4.0.85",
     "@ai-sdk/openai": "4.0.50",

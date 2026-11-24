@@ -33,6 +33,7 @@ export const messageNamespaces = [
   "resources",
   "membership",
   "students",
+  "search",
   "shop",
   "terms",
   "projects",

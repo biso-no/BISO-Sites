@@ -1,0 +1,76 @@
+{
+  "field": {
+    "label": "Search biso.no",
+    "placeholder": "Search events, jobs, news and more"
+  },
+  "open": "Search",
+  "close": "Close search",
+  "cancel": "Cancel",
+  "submit": "Search",
+  "showAll": "{count, plural, one {Show # result for \"{query}\"} other {Show all # results for \"{query}\"}}",
+  "groups": {
+    "event": "Events",
+    "news": "News",
+    "job": "Jobs",
+    "product": "Shop",
+    "page": "Pages",
+    "unit": "Departments and units"
+  },
+  "best": "Best match",
+  "recent": {
+    "title": "Recent searches",
+    "clear": "Clear"
+  },
+  "shortcuts": {
+    "title": "Quick links",
+    "events": "Upcoming events",
+    "jobs": "Open positions",
+    "shop": "Shop"
+  },
+  "empty": {
+    "title": "No results for \"{query}\"",
+    "body": "Check the spelling or try a shorter or more general word.",
+    "links": "Or go straight to"
+  },
+  "error": {
+    "title": "Search is unavailable",
+    "body": "We could not reach search right now. Try again in a moment.",
+    "link": "Go to the search page",
+    "retry": "Try again"
+  },
+  "hints": {
+    "move": "Move",
+    "open": "Open",
+    "close": "Close"
+  },
+  "resultsCount": "{count, plural, =0 {No results} one {# result} other {# results}}",
+  "page": {
+    "title": "Search",
+    "metaTitle": "Search",
+    "onlyCampus": "Only {campus}",
+    "previous": "Previous",
+    "next": "Next",
+    "pageOf": "Page {page} of {total}",
+    "all": "All",
+    "filterLabel": "Filter results by type",
+    "pagination": "Search results pages",
+    "resultsHeading": "Search results",
+    "pastEnd": "No results on this page",
+    "pastEndBody": "The page you asked for is past the last one.",
+    "backToFirst": "Back to page 1",
+    "emptyGroup": "No {group} for “{query}”",
+    "emptyGroupBody": "There are matches in other categories.",
+    "showAllTypes": "Show all results",
+    "campusOn": "on",
+    "campusOff": "off"
+  },
+  "meta": {
+    "membersFrom": "Members from {price}",
+    "memberPrice": "Member price {price}",
+    "freeForMembers": "Free for members",
+    "applyBy": "Apply by {date}",
+    "inStock": "In stock",
+    "outOfStock": "Out of stock"
+  },
+  "searching": "Searching…"
+}

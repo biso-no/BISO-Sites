@@ -18,9 +18,11 @@ export const PANEL_HEADING_CLASS = "type-label mb-2 px-2 text-ink-muted";
 interface MegaPanelProps {
   ariaLabel: string;
   children: ReactNode;
+  /** Extra classes for the shell, e.g. a height cap for long content. */
+  className?: string;
   id: string;
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
 
 /**
@@ -34,6 +36,7 @@ interface MegaPanelProps {
 export function MegaPanel({
   id,
   ariaLabel,
+  className,
   onMouseEnter,
   onMouseLeave,
   children,
@@ -42,7 +45,10 @@ export function MegaPanel({
     <motion.div
       animate={{ opacity: 1, y: 0 }}
       aria-label={ariaLabel}
-      className="absolute inset-x-0 top-full border-edge border-t bg-surface shadow-elev-2"
+      className={cn(
+        "absolute inset-x-0 top-full border-edge border-t bg-surface shadow-elev-2",
+        className
+      )}
       id={id}
       initial={{ opacity: 0, y: -4 }}
       onMouseEnter={onMouseEnter}

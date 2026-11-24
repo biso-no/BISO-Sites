@@ -36,6 +36,7 @@ import projects from "./en/projects.json";
 import replayConsent from "./en/replayConsent.json";
 import reportProblem from "./en/reportProblem.json";
 import resources from "./en/resources.json";
+import search from "./en/search.json";
 import shop from "./en/shop.json";
 import students from "./en/students.json";
 import terms from "./en/terms.json";
@@ -70,6 +71,7 @@ export default {
   resources,
   membership,
   news,
+  search,
   shop,
   students,
   terms,

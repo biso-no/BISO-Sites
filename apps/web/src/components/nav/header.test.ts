@@ -23,6 +23,16 @@ const shell = read("../layout/site-shell.tsx");
 
 /** A `/campus/<slug>` template literal in the source. */
 const CAMPUS_LANDING_TEMPLATE = /`\/campus\/\$\{/;
+/** The `className` of a JSX tag. */
+const PROXY_CLASS_NAME = /className="([^"]*)"/;
+/** A search trigger somewhere before a cart button. */
+const TRIGGER_BEFORE_CART = /<SearchTrigger[\s\S]*<CartButton/;
+/** Static imports of the quick search or the modules only it needs. */
+const STATIC_QUICK_SEARCH_IMPORTS = [
+  /from "@\/components\/search\/quick-search"/,
+  /from "@\/components\/search\/quick-search-/,
+  /from "@\/components\/search\/use-quick-search"/,
+];
 
 describe("header (RD-017)", () => {
   it("keeps the panel behaviour in a hook, not in the header", () => {
@@ -124,6 +134,95 @@ describe("header (RD-017)", () => {
     expect(shell).toContain("<NavigationV2");
     expect(shell).not.toContain("<Navigation ");
     expect(shell).not.toContain("isShellV2Enabled");
+  });
+});
+
+describe("site search in the header", () => {
+  const UTILITY_GROUP = "hidden shrink-0 items-center gap-2 min-[1340px]:flex";
+  const utilityGroup = v2.slice(
+    v2.indexOf(UTILITY_GROUP),
+    v2.indexOf("<AccountMenu")
+  );
+  const mobileCluster = v2.slice(v2.indexOf("min-[1340px]:hidden"));
+
+  it("loads the quick search only when it opens", () => {
+    // The first paint of the header must not carry the search code.
+    expect(v2).toContain("dynamic(");
+    expect(v2).toContain('import("@/components/search/quick-search")');
+    expect(v2).toContain("ssr: false");
+    for (const staticImport of STATIC_QUICK_SEARCH_IMPORTS) {
+      expect(v2).not.toMatch(staticImport);
+    }
+  });
+
+  it("puts a trigger before the cart in the utility group and on phones", () => {
+    expect(v2).toMatch(TRIGGER_BEFORE_CART);
+    expect(utilityGroup).toMatch(TRIGGER_BEFORE_CART);
+    expect(mobileCluster).toMatch(TRIGGER_BEFORE_CART);
+  });
+
+  it("opens from / and Ctrl/Cmd+K, in the layout the viewport shows", () => {
+    expect(v2).toContain("useSearchShortcut(");
+    expect(v2).toContain('DESKTOP_MEDIA_QUERY = "(min-width: 1340px)"');
+    expect(v2).toContain("window.matchMedia(DESKTOP_MEDIA_QUERY)");
+  });
+
+  it("keeps search apart from the mega panels", () => {
+    // The panel hook closes on mouse-leave; search must not.
+    expect(hook).not.toContain("search");
+    // Opening search closes any panel.
+    const openSearch = v2.slice(v2.indexOf("const openSearch ="));
+    expect(openSearch.slice(0, 300)).toContain("closeNow()");
+  });
+
+  it("raises the phone keyboard on the first open", () => {
+    // iOS raises the keyboard only for a focus inside the tap. The quick
+    // search arrives after the tap, so the sheet trigger focuses an eager,
+    // editable proxy first and the quick search takes focus from it.
+    const refAt = v2.indexOf("ref={focusProxyRef}");
+    const proxyTag = v2.slice(
+      v2.lastIndexOf("<input", refAt),
+      v2.indexOf("/>", refAt)
+    );
+    const proxyClasses = PROXY_CLASS_NAME.exec(proxyTag)?.[1].split(" ") ?? [];
+    expect(proxyTag).toContain('aria-hidden="true"');
+    expect(proxyTag).toContain("tabIndex={-1}");
+    expect(proxyClasses).toContain("text-base"); // 16px: iOS does not zoom
+    expect(proxyClasses).toContain("fixed");
+    // It must stay focusable: not read-only, disabled, hidden or invisible.
+    expect(proxyTag).not.toContain("readOnly");
+    expect(proxyTag).not.toContain("disabled");
+    expect(proxyClasses).not.toContain("hidden");
+    expect(proxyClasses).not.toContain("invisible");
+
+    const openSheet = v2.slice(v2.indexOf("const openSheetSearch ="));
+    const focusAt = openSheet.indexOf(
+      "focusProxyRef.current?.focus({ preventScroll: true })"
+    );
+    expect(focusAt).toBeGreaterThan(-1);
+    expect(focusAt).toBeLessThan(openSheet.indexOf('openSearch("sheet")'));
+    expect(mobileCluster).toContain("onOpen={openSheetSearch}");
+    expect(v2).toContain("focusProxyRef={focusProxyRef}");
+  });
+
+  it("survives a quick search that fails to load", () => {
+    // A rejected chunk would otherwise reach the global error page.
+    const block = v2.slice(v2.indexOf("{searchLayout && ("));
+    expect(block.indexOf("<SearchErrorBoundary")).toBeGreaterThan(-1);
+    expect(block.indexOf("<SearchErrorBoundary")).toBeLessThan(
+      block.indexOf("<QuickSearch")
+    );
+  });
+
+  it("warms the quick search only when a trigger is about to be used", () => {
+    expect(v2.split("onPrefetch={prefetchQuickSearch}")).toHaveLength(3);
+    // Defined once and never called from render.
+    expect(v2.split("prefetchQuickSearch(")).toHaveLength(2);
+  });
+
+  it("keeps the header solid while search is open", () => {
+    const solid = v2.slice(v2.indexOf("const solid ="));
+    expect(solid.slice(0, solid.indexOf(";"))).toContain("searchOpen");
   });
 });
 

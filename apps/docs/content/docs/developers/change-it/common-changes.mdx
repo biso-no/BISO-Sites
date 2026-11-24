@@ -5,6 +5,8 @@ covers:
   - apps/web/src/lib/data/public-content.ts
   - apps/web/src/lib/campus-scope.ts
   - apps/web/src/app/sitemap.ts
+  - apps/web/src/app/sitemap-static.ts
+  - packages/shared/search/coded-pages.ts
   - apps/web/src/app/campus-routing.test.ts
   - apps/web/src/app/api/revalidate/route.ts
   - apps/web/src/app/(public)/design-system/page-blocks/fixture.ts
@@ -53,7 +55,7 @@ Use these recipes for the changes you'll make most often. Each one lists the fil
    - set the page's canonical address to the URL without `?campus=`;
    - add the path to `CAMPUS_SCOPED_PATHS` in `apps/web/src/lib/campus-scope.ts`;
    - add the page to the `feeds` list in `apps/web/src/app/campus-routing.test.ts`, which checks those three things.
-5. If search engines should find the page, add it to `staticRoutes` in `apps/web/src/app/sitemap.ts`.
+5. If search engines should find the page, add it to `STATIC_SITEMAP_ROUTES` in `apps/web/src/app/sitemap-static.ts`. Then add an entry for it to `CODED_PAGES` in `packages/shared/search/coded-pages.ts`: its path, and a title, a description and the keywords people type, in Norwegian and English. That list is how the site search finds pages written in code. `apps/web/src/app/sitemap-static.test.ts` fails when a sitemap page is missing from `CODED_PAGES`, or when `CODED_PAGES` has a page the sitemap doesn't (the project hubs aside). Search shows the new entry once search-sync is redeployed and its reindex has run, as `functions/search-sync/README.md` describes.
 
 Check:
 

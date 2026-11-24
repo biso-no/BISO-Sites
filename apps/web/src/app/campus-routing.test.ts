@@ -6,7 +6,8 @@ import { codeOnly } from "@/test/source";
 
 const read = (f: string) =>
   codeOnly(readFileSync(join(import.meta.dirname, f), "utf8"));
-const sitemap = read("sitemap.ts");
+// The coded routes live in sitemap-static.ts, the dynamic ones in sitemap.ts.
+const sitemap = `${read("sitemap.ts")}\n${read("sitemap-static.ts")}`;
 // Every feed that scopes by `?campus=` server-side. `/units` and `/shop`
 // joined the first three at RD-025 — verified in RD-033, which also found they
 // had never been given the canonical the other three carry.
@@ -104,7 +105,7 @@ describe("campus routing (RD-016)", () => {
       "/privacy",
       "/terms",
     ]) {
-      expect(sitemap).toContain(`${path}\``);
+      expect(sitemap).toContain(`path: "${path}"`);
     }
   });
 });

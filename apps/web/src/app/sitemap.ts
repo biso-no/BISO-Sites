@@ -10,15 +10,12 @@ import {
   unitCanonicalPath,
 } from "@repo/shared/utils/unit-urls";
 import type { MetadataRoute } from "next";
-import { CAMPUS_SLUGS } from "@/lib/campus-scope";
 import { cachedPublishedPage, sitemapEntries } from "@/lib/data/public-content";
 import { PROJECT_HUB_SLUGS } from "@/lib/project-hub";
 import { isServableProjectPage, nationalProjectForUnit } from "@/lib/unit-page";
+import { STATIC_SITEMAP_ROUTES } from "./sitemap-static";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_URL || "https://biso.no";
-
-// The other former subpages redirect into sections of /about.
-const ABOUT_SUBROUTES = ["drugs-policy", "academics-contact"];
 
 interface SlugWithTimestamp {
   $updatedAt: string;
@@ -71,64 +68,13 @@ async function servableProjectPages(): Promise<Set<ProjectSlug>> {
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const staticRoutes: MetadataRoute.Sitemap = [
-    { url: `${BASE}/`, changeFrequency: "weekly", priority: 1 },
-    { url: `${BASE}/jobs`, changeFrequency: "daily", priority: 0.9 },
-    { url: `${BASE}/events`, changeFrequency: "daily", priority: 0.8 },
-    { url: `${BASE}/news`, changeFrequency: "daily", priority: 0.7 },
-    { url: `${BASE}/shop`, changeFrequency: "daily", priority: 0.7 },
-    { url: `${BASE}/about`, changeFrequency: "monthly", priority: 0.6 },
-    { url: `${BASE}/documents`, changeFrequency: "monthly", priority: 0.5 },
-    { url: `${BASE}/campus`, changeFrequency: "weekly", priority: 0.6 },
-    { url: `${BASE}/membership`, changeFrequency: "monthly", priority: 0.6 },
-    { url: `${BASE}/business`, changeFrequency: "monthly", priority: 0.5 },
-    { url: `${BASE}/contact`, changeFrequency: "monthly", priority: 0.4 },
-    { url: `${BASE}/units`, changeFrequency: "weekly", priority: 0.6 },
-    { url: `${BASE}/students`, changeFrequency: "weekly", priority: 0.6 },
-    { url: `${BASE}/projects`, changeFrequency: "weekly", priority: 0.6 },
-    {
-      url: `${BASE}/okonomisk-stotte`,
-      changeFrequency: "monthly",
-      priority: 0.5,
-    },
-    { url: `${BASE}/resources`, changeFrequency: "monthly", priority: 0.5 },
-    {
-      url: `${BASE}/business-hotspot`,
-      changeFrequency: "monthly",
-      priority: 0.4,
-    },
-    { url: `${BASE}/safety`, changeFrequency: "monthly", priority: 0.4 },
-    { url: `${BASE}/press`, changeFrequency: "monthly", priority: 0.3 },
-    ...ABOUT_SUBROUTES.map((slug) => ({
-      url: `${BASE}/about/${slug}`,
-      changeFrequency: "monthly" as const,
-      priority: 0.4,
-    })),
-    // Campus landing pages only.
-    //
-    // **No `?campus=` feed variants.** They were listed here at first, which
-    // contradicted the pages themselves: `/events`, `/news` and `/jobs` each
-    // hard-canonical every scoped request back to the unscoped feed, so a
-    // sitemap entry for `/events?campus=bergen` tells a crawler "index this"
-    // and the page it lands on replies "no, index /events instead". Caught in
-    // PR review. The canonical is the half worth keeping — a scoped feed is a
-    // filtered view of the same collection and should not compete with the
-    // listing it filters — so the sitemap entries go.
-    //
-    // The campus *landing* pages stay: they self-canonical, and each is a
-    // distinct page rather than a filtered view. `/units` and `/shop` also
-    // accept `?campus=` and are likewise unlisted; `/units` already has all
-    // 141 of its `/units/<campus>/<slug>` pages below, which is the
-    // campus-specific content a crawler actually wants. `/projects` has no
-    // campus_id and cannot be scoped at all.
-    ...CAMPUS_SLUGS.map((slug) => ({
-      url: `${BASE}/campus/${slug}`,
-      changeFrequency: "weekly" as const,
-      priority: 0.6,
-    })),
-    { url: `${BASE}/privacy`, changeFrequency: "yearly", priority: 0.2 },
-    { url: `${BASE}/terms`, changeFrequency: "yearly", priority: 0.2 },
-  ];
+  const staticRoutes: MetadataRoute.Sitemap = STATIC_SITEMAP_ROUTES.map(
+    ({ path, changeFrequency, priority }) => ({
+      url: `${BASE}${path}`,
+      changeFrequency,
+      priority,
+    })
+  );
 
   // Minimal-select (slug + timestamp) cached reads serve every crawler, one
   // cache entry per table. Each listing is independently best-effort — a

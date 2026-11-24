@@ -4,6 +4,7 @@ import { getAllowedOrigins, isAllowedOrigin } from "./allowed-origins";
 describe("API allowed origins", () => {
   it("allows production BISO origins in production", () => {
     expect(isAllowedOrigin("https://biso.no", "production")).toBe(true);
+    expect(isAllowedOrigin("https://www.biso.no", "production")).toBe(true);
     expect(isAllowedOrigin("https://admin.biso.no", "production")).toBe(true);
   });
 

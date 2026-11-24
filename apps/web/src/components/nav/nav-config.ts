@@ -26,6 +26,15 @@ import {
 
 export type PanelId = "students" | "projects" | "about";
 
+/**
+ * The header's content box and the logo's width. The open search bar is drawn
+ * over the header row from the logo's right edge, so it lays itself out with
+ * the same two values instead of measuring.
+ */
+export const HEADER_CONTAINER_CLASS =
+  "mx-auto w-full max-w-biso-wide px-4 sm:px-6 lg:px-8";
+export const HEADER_LOGO_WIDTH_CLASS = "w-[clamp(140px,12vw,190px)]";
+
 export interface NavLinkConfig {
   href: string;
   icon?: LucideIcon;

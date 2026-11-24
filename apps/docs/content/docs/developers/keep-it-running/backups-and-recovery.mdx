@@ -99,7 +99,7 @@ A restored copy holds production's settings, so left to run it acts like product
 So:
 
 1. Restore to a separate server. Never restore a test over the live one.
-2. Before Appwrite starts on the test server, block its outbound network traffic. If you can't, disable the three functions and the push and email providers in its console straight away.
+2. Before Appwrite starts on the test server, block its outbound network traffic. If you can't, disable the four functions and the push and email providers in its console straight away.
 3. Don't point an app at the test server unless both `NEXT_PUBLIC_APPWRITE_ENDPOINT` and `NEXT_PUBLIC_APPWRITE_PROJECT` are set, or it uses production. See [Secrets and environment](/developers/keep-it-running/secrets-and-environment#unset-appwrite-settings-mean-production).
 4. Delete the test server when you're done. It holds a full copy of BISO's personal data.
 

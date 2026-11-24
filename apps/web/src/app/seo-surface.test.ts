@@ -28,6 +28,13 @@ describe("crawler surface (RD-033)", () => {
     expect(sitemap).not.toContain("design-system");
   });
 
+  it("keeps /search out of the index", () => {
+    // Result pages are query-dependent and thin; crawlers get nothing from them.
+    expect(robots).toContain('"/search$"');
+    expect(robots).toContain('"/search?"');
+    expect(robots).not.toContain('"/search"');
+  });
+
   it("serves the legacy aliases as 308 route handlers, not pages", () => {
     // A page calling `permanentRedirect()` cannot set the status under
     // `cacheComponents` — PPR flushes the shell with a 200 first, so the

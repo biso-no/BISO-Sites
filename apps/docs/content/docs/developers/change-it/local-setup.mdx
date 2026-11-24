@@ -61,6 +61,8 @@ cp apps/admin/.env.example apps/admin/.env.local
 
 `functions/scheduled-dispatch` and `packages/wp-import` have templates too. The templates list most variable names but not all of them. [Secrets and environment](/developers/keep-it-running/secrets-and-environment#all-variables-by-service) has the full list.
 
+The api's template also has `MEILISEARCH_HOST` and `MEILISEARCH_SEARCH_KEY`, for site search. They are empty, and nothing else needs them. With them empty, `/api/search` answers `503` with `NOT_CONFIGURED` and the website's search box shows an error message. To try search locally you need a Meilisearch server that has been filled by a reindex of the `search-sync` function. See [Site search](/developers/reference/search).
+
 Three things catch people out:
 
 - **The templates leave the Appwrite endpoint and project empty.** An empty value counts as unset, so a copied template talks to production until you fill both in. The next section says what to put there.
