@@ -622,6 +622,56 @@ export enum ExpenseApproversSource {
   CONFIRMED = "confirmed",
 }
 
+export enum BigEventsStatus {
+  DRAFT = "draft",
+  PUBLISHED = "published",
+  ARCHIVED = "archived",
+}
+
+export enum BigEventParticipantsLinkMethod {
+  EMAIL = "email",
+  CONNECT = "connect",
+  MANUAL = "manual",
+}
+
+export enum BigEventParticipantsSuggestedReason {
+  PHONE = "phone",
+  NAME = "name",
+}
+
+export enum BigEventGroupsKind {
+  BUS = "bus",
+  ROOM = "room",
+  BUDDY = "buddy",
+  TEAM = "team",
+  OTHER = "other",
+}
+
+export enum BigEventGroupMembersLeg {
+  OUT = "out",
+  HOME = "home",
+}
+
+export enum BigEventDeliveriesKind {
+  CONNECT = "connect",
+  CONNECT_REMINDER = "connect_reminder",
+  MESSAGE = "message",
+}
+
+export enum BigEventDeliveriesChannel {
+  EMAIL = "email",
+  PUSH = "push",
+  SMS = "sms",
+}
+
+export enum BigEventDeliveriesStatus {
+  PENDING = "pending",
+  SENDING = "sending",
+  SENT = "sent",
+  FAILED = "failed",
+  SKIPPED = "skipped",
+}
+
 export type News = Models.Row & {
   slug: string | null;
   status: NewsStatus;
@@ -2022,4 +2072,86 @@ export type ExpenseApprovers = Models.Row & {
   confirmed_at: string | null;
   last_used_at: string | null;
   active: boolean;
+};
+
+export type BigEvents = Models.Row & {
+  name_no: string;
+  name_en: string | null;
+  slug: string;
+  campus_id: string;
+  department_id: string | null;
+  starts_at: string;
+  ends_at: string;
+  place_name: string | null;
+  place_address: string | null;
+  hero_image_url: string | null;
+  status: BigEventsStatus;
+  travel_enabled: boolean;
+  group_checkin_enabled: boolean;
+  created_by: string | null;
+};
+
+export type BigEventParticipants = Models.Row & {
+  big_event_id: string;
+  first_name: string;
+  last_name: string | null;
+  ticket_email: string | null;
+  phone: string | null;
+  campus_id: string | null;
+  ticket_ref: string | null;
+  ticket_category: string | null;
+  room_size: number | null;
+  last_import_id: string | null;
+  user_id: string | null;
+  linked_at: string | null;
+  link_method: BigEventParticipantsLinkMethod | null;
+  connect_nonce: string | null;
+  connect_token_hash: string | null;
+  connect_sent_at: string | null;
+  connect_reminded_at: string | null;
+  membership_valid: boolean | null;
+  membership_checked_at: string | null;
+  suggested_user_id: string | null;
+  suggested_reason: BigEventParticipantsSuggestedReason | null;
+  dismissed_user_id: string | null;
+};
+
+export type BigEventGroups = Models.Row & {
+  big_event_id: string;
+  kind: BigEventGroupsKind;
+  name: string;
+  campus_id: string | null;
+  capacity: number | null;
+  contact_name: string | null;
+  contact_phone: string | null;
+  contact_user_id: string | null;
+  note: string | null;
+  room_number: string | null;
+  source_key: string | null;
+  booking_participant_id: string | null;
+};
+
+export type BigEventGroupMembers = Models.Row & {
+  big_event_id: string;
+  group_id: string;
+  participant_id: string;
+  leg: BigEventGroupMembersLeg | null;
+  pinned: boolean;
+  assigned_at: string | null;
+};
+
+export type BigEventDeliveries = Models.Row & {
+  big_event_id: string;
+  kind: BigEventDeliveriesKind;
+  channel: BigEventDeliveriesChannel;
+  to_address: string | null;
+  participant_ids: string[] | null;
+  message_id: string | null;
+  status: BigEventDeliveriesStatus;
+  attempts: number;
+  last_error: string | null;
+  claimed_by: string | null;
+  claimed_at: string | null;
+  sent_at: string | null;
+  scheduled_for: string | null;
 };
