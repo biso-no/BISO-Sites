@@ -19,9 +19,18 @@ describe("describeValueShape", () => {
 
   test("describes names without echoing them", () => {
     const shape = describeValueShape(["Ola Nordmann"]);
-    expect(shape).toBe("one or two capitalized words");
+    expect(shape).toBe("one to three capitalized words");
     expect(shape).not.toContain("Ola");
     expect(shape).not.toContain("Nordmann");
+  });
+
+  test("describes longer and joined names as names", () => {
+    expect(describeValueShape(["Ola Nordmann Hansen"])).toBe(
+      "one to three capitalized words"
+    );
+    expect(describeValueShape(["Anne-Lise O'Brien"])).toBe(
+      "one to three capitalized words"
+    );
   });
 
   test("describes ticket-like text without echoing it", () => {

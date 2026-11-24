@@ -8,7 +8,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DIGITS = /^\d+$/;
 const PLUS_47_NUMBER = /^\+47[\s]?\d{8}$/;
 const INTERNATIONAL_NUMBER = /^\+\d{1,3}[\s]?\d{6,12}$/;
-const CAPITALIZED_WORDS = /^\p{Lu}\p{L}*(?:[ -]\p{Lu}\p{L}*)?$/u;
+const CAPITALIZED_WORDS = /^\p{Lu}[\p{L}'-]*(?: \p{Lu}[\p{L}'-]*){0,2}$/u;
 const HAS_LETTER = /\p{L}/u;
 const HAS_DIGIT = /\d/;
 const CITY_NAME = /\b(?:oslo|bergen|trondheim|stavanger)\b/i;
@@ -18,6 +18,7 @@ function digitsPhrase(values: string[]): string {
   const lengths = values.map((value) => value.length);
   const min = Math.min(...lengths);
   const max = Math.max(...lengths);
+  // The only shape that reveals values; allowed only for small integers (counts, group numbers).
   if (max <= MAX_SMALL_NUMBER_DIGITS) {
     const numbers = values.map(Number);
     return `number ${Math.min(...numbers)}–${Math.max(...numbers)}`;
@@ -47,7 +48,7 @@ export function describeValueShape(values: string[]): string {
     return digitsPhrase(sample);
   }
   if (sample.every((value) => CAPITALIZED_WORDS.test(value))) {
-    return "one or two capitalized words";
+    return "one to three capitalized words";
   }
 
   const hasLetters = sample.some((value) => HAS_LETTER.test(value));

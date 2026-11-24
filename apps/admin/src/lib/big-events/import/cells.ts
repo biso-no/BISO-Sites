@@ -13,7 +13,10 @@ export function cellToString(value: unknown): string {
     }
     return Number.isSafeInteger(value)
       ? String(value)
-      : value.toLocaleString("fullwide", { useGrouping: false });
+      : value.toLocaleString("fullwide", {
+          useGrouping: false,
+          maximumFractionDigits: 20,
+        });
   }
   if (value instanceof Date) {
     return Number.isNaN(value.getTime())

@@ -6,6 +6,7 @@ describe("cellToString", () => {
     expect(cellToString(91_234_567)).toBe("91234567");
     expect(cellToString(4_791_234_567)).toBe("4791234567");
     expect(cellToString(1.2e21)).not.toContain("e");
+    expect(cellToString(1.234_56)).toBe("1.23456");
   });
 
   test("converts dates, blanks and padded strings", () => {

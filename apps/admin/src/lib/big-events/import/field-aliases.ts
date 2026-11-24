@@ -65,15 +65,18 @@ export function matchHeader(header: string): ImportField | null {
 }
 
 /**
- * Matches a whole header row. Tickster's "Navn" is the first name when an
- * "Etternavn" column follows; without one it is the full name.
+ * Matches a whole header row. Tickster's ambiguous "Navn" is the first name
+ * when an "Etternavn" column follows; without one (and without a separate
+ * full-name column) it is the full name. Unambiguous headers are left alone.
  */
 export function matchHeaders(headers: string[]): (ImportField | null)[] {
   const matches = headers.map(matchHeader);
-  if (!matches.includes("last_name")) {
-    return matches.map((field) =>
-      field === "first_name" ? "full_name" : field
-    );
+  if (matches.includes("last_name") || matches.includes("full_name")) {
+    return matches;
   }
-  return matches;
+  return matches.map((field, index) =>
+    field === "first_name" && normalize(headers[index] ?? "") === "navn"
+      ? "full_name"
+      : field
+  );
 }

@@ -26,6 +26,18 @@ describe("field aliases", () => {
     expect(matchHeaders(["Navn", "E-post"])[0]).toBe("full_name");
   });
 
+  test("keeps unambiguous first-name headers as first_name", () => {
+    expect(matchHeaders(["Fornavn", "E-post"])[0]).toBe("first_name");
+    expect(matchHeaders(["First name", "Email"])[0]).toBe("first_name");
+  });
+
+  test("never produces two full-name columns", () => {
+    expect(matchHeaders(["Navn", "Fullt navn"])).toEqual([
+      "first_name",
+      "full_name",
+    ]);
+  });
+
   test("matches variants ignoring case, accents and punctuation", () => {
     expect(matchHeader("Rom")).toBe("group");
     expect(matchHeader("BUSS")).toBe("group");
