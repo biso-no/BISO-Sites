@@ -236,6 +236,20 @@ describe("capability links", () => {
       "https://biso.no/shop/order/[redacted]",
     ],
     ["/shop/order/6745a1b2c3d4", "/shop/order/[redacted]"],
+    // Big-event ticket connect links (the token is a 43-character base64url HMAC).
+    [
+      "https://biso.no/connect/AbC-123_xyzAbC-123_xyzAbC-123_xyzAbC-123_x?utm_source=email",
+      "https://biso.no/connect/[redacted]",
+    ],
+    [
+      "https://biso.no/connect/AbC-123_xyzAbC-123_xyzAbC-123_xyzAbC-123_x",
+      "https://biso.no/connect/[redacted]",
+    ],
+    ["/connect/AbC-123_xyz?_rsc=1", "/connect/[redacted]"],
+    ["/connect/AbC-123_xyz", "/connect/[redacted]"],
+    // Only the help page itself is exempt, not a key that starts with "help".
+    ["/connect/helpAbC-123_xyz", "/connect/[redacted]"],
+    ["/connect/help?email=x", "/connect/help"],
     // The rest of the path stays, and so does the spelling of the route.
     ["/fs/approve/abc%2Fdef/receipt", "/fs/approve/[redacted]/receipt"],
     ["/FS/Approve/abc123", "/FS/Approve/[redacted]"],
@@ -260,10 +274,14 @@ describe("capability links", () => {
     "/fs/6745a1b2c3d4",
     "/fs/approve",
     "/scanner",
+    "/connect/help",
+    "https://biso.no/connect/help",
     // Next's route templates, as stack frames and route names show them.
     "/scan/[token]",
     "/app/apps/admin/.next/server/app/(scan)/scan/[token]/page.js",
     "https://biso.no/_next/static/chunks/app/(public)/fs/approve/%5Btoken%5D/page.js",
+    "/connect/[token]",
+    "https://biso.no/_next/static/chunks/app/(public)/connect/%5Btoken%5D/page.js",
   ])("scrubUrl keeps %s", (url) => {
     expect(scrubUrl(url)).toBe(url);
   });
@@ -283,6 +301,9 @@ describe("capability links", () => {
     expect(scrubText("redirectTo=/fs/approve/abc123&x=1")).toBe(
       "redirectTo=/fs/approve/[redacted]"
     );
+    expect(
+      scrubText('POST /connect/AbC-123_xyz 500 {"to":"/connect/help"}')
+    ).toBe('POST /connect/[redacted] 500 {"to":"/connect/help"}');
     expect(scrubText("scrubbed /scan/[redacted] stays")).toBe(
       "scrubbed /scan/[redacted] stays"
     );
@@ -334,12 +355,14 @@ describe("capability links", () => {
   });
 
   it("has one pattern per capability route", () => {
-    expect(CAPABILITY_PATH_PATTERNS).toHaveLength(4);
+    expect(CAPABILITY_PATH_PATTERNS).toHaveLength(5);
   });
 
   it.each([
     ["capability route runs", "/scan/".repeat(35_000)],
     ["capability links", "/fs/approve/a".repeat(15_000)],
+    ["connect routes", "/connect/".repeat(22_000)],
+    ["connect help links", "/connect/help".repeat(15_000)],
     ["double slashes", "//".repeat(100_000)],
     ["a long host after a double slash", `//${"a".repeat(200_000)}`],
     ["double-slash hosts", "//a".repeat(66_000)],

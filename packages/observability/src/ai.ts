@@ -25,6 +25,7 @@ export type AiFunctionId =
   | "admin.page-editor-chat"
   | "admin.assistant"
   | "admin.content-translation"
+  | "admin.big-events.column-mapping"
   | "docs.ask"
   | "api.expense-summary"
   | "api.expense-account"

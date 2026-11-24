@@ -44,6 +44,7 @@
     "react": "catalog:",
     "react-dom": "catalog:",
     "react-hook-form": "catalog:",
+    "read-excel-file": "catalog:",
     "recharts": "catalog:",
     "sonner": "catalog:",
     "tw-animate-css": "catalog:",

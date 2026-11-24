@@ -7,6 +7,7 @@
     "./types/*": "./types/*.ts",
     "./member-pass/*": "./member-pass/*.ts",
     "./search/*": "./search/*.ts",
+    "./big-events/*": "./big-events/*.ts",
     "./recruitment": "./recruitment.ts",
     "./recruitment/booking-slots": "./recruitment/booking-slots.ts",
     "./recruitment/booking-link": "./recruitment/booking-link.ts",

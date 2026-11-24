@@ -5,6 +5,7 @@
     "departments": "Departments",
     "jobs": "Jobs",
     "events": "Events",
+    "bigEvents": "Big events",
     "shop": "Products",
     "expenses": "Expenses",
     "expensesList": "Expenses",
@@ -32,6 +33,354 @@
     "organization": "Organization",
     "system": "System",
     "submissions": "Form Submissions"
+  },
+  "bigEvents": {
+    "title": "Big events",
+    "description": "Trips and festivals with many participants, like Winter Games and Fadderullan.",
+    "new": "New big event",
+    "backToList": "All big events",
+    "empty": {
+      "title": "No big events yet",
+      "description": "A big event collects everyone with a ticket to something like Winter Games, so you can see who is coming and reach them in one place."
+    },
+    "list": {
+      "participants": "{count, plural, one {# participant} other {# participants}}",
+      "connected": "{count} connected",
+      "ownCampusOnly": "counts for your campus only"
+    },
+    "status": {
+      "draft": "Draft",
+      "published": "Published",
+      "archived": "Archived"
+    },
+    "campuses": {
+      "1": "Oslo",
+      "2": "Bergen",
+      "3": "Trondheim",
+      "4": "Stavanger",
+      "5": "National"
+    },
+    "tabs": {
+      "participants": "Participants",
+      "settings": "Settings"
+    },
+    "participants": {
+      "reach": {
+        "label": "Who you can reach",
+        "all": "Everyone",
+        "push": "Gets push notifications",
+        "app_no_push": "Connected, gets email",
+        "email": "Not connected yet, gets email",
+        "help": "People with push notifications get one on their phone. Everyone else gets an email."
+      },
+      "noCampus": "{count, plural, one {# person has} other {# people have}} no campus. Only global admins and the board can see them until someone sets a campus.",
+      "search": "Search by name or email",
+      "campusFilter": "Campus",
+      "allCampuses": "All campuses",
+      "noCampusOption": "No campus",
+      "notInRoom": "Not in a room yet ({count})",
+      "addPerson": "Add person",
+      "checkMemberships": "Check memberships",
+      "checkMembershipsHelp": "Looks up the membership of everyone who is connected to an account.",
+      "copyEmails": "Copy emails",
+      "copyEmailsHelp": "Copies the email addresses of the people shown below.",
+      "downloadCsv": "Download CSV",
+      "downloadCsvHelp": "Downloads the people shown as a spreadsheet.",
+      "columns": {
+        "name": "Name",
+        "campus": "Campus",
+        "room": "Room",
+        "status": "Status",
+        "membership": "Membership",
+        "actions": "Actions"
+      },
+      "roomName": "Room · {name}",
+      "noRoom": "Not in a room",
+      "status": {
+        "connected": "Connected",
+        "connectSent": "Connect email sent {date}",
+        "notConnected": "Not connected"
+      },
+      "noValidMembership": "No valid membership",
+      "rowMenu": "More for {name}",
+      "edit": "Edit",
+      "remove": "Remove",
+      "empty": {
+        "title": "No one on the list yet",
+        "description": "Import the ticket list, or add people one at a time."
+      },
+      "noMatches": "No one matches what you picked.",
+      "showing": "Showing {shown} of {total}",
+      "copied": "{count, plural, one {Copied # email address} other {Copied # email addresses}}",
+      "nothingToCopy": "There are no email addresses in this list.",
+      "copyFailed": "Couldn't copy. Your browser may have blocked it.",
+      "csvFileName": "participants",
+      "csvFailed": "Couldn't make the file. Try again.",
+      "csv": {
+        "firstName": "First name",
+        "lastName": "Last name",
+        "email": "Email",
+        "phone": "Phone",
+        "campus": "Campus",
+        "room": "Room"
+      },
+      "memberships": {
+        "done": "{checked, plural, one {Checked # membership} other {Checked # memberships}}. {invalid, plural, =0 {All are valid.} one {# isn't valid.} other {# aren't valid.}}",
+        "partial": "Some couldn't be checked right now. Try again later.",
+        "noneConnected": "No one is connected yet, so there are no memberships to check.",
+        "failed": "Couldn't check memberships. Try again."
+      },
+      "dialog": {
+        "addTitle": "Add person",
+        "addDescription": "For someone who isn't on the ticket list.",
+        "editTitle": "Edit {name}",
+        "editDescription": "Changes here don't affect the person's account.",
+        "firstName": "First name",
+        "lastName": "Last name",
+        "email": "Email",
+        "emailHelp": "The address on the ticket. The connect email goes here.",
+        "phone": "Phone",
+        "campus": "Campus",
+        "add": "Add",
+        "save": "Save",
+        "added": "{name} was added",
+        "saved": "Changes saved",
+        "saveFailed": "Couldn't save. Check your connection and try again.",
+        "errors": {
+          "first_name": "Write a first name of up to 100 characters.",
+          "last_name": "Keep the last name to 100 characters.",
+          "ticket_email": "Check the email address.",
+          "phone": "Check the phone number.",
+          "campus_id": "Choose a campus."
+        }
+      },
+      "removeDialog": {
+        "title": "Remove {name}?",
+        "description": "They are taken off this big event's list and out of their room, buses and groups. Their account isn't changed.",
+        "confirm": "Remove",
+        "removed": "{name} was removed",
+        "failed": "Couldn't remove. Try again."
+      }
+    },
+    "newPage": {
+      "title": "New big event",
+      "description": "Start with the basics. You can change all of it later."
+    },
+    "form": {
+      "nameNo": "Name in Norwegian",
+      "nameNoPlaceholder": "e.g. Winter Games 2027",
+      "nameEn": "Name in English",
+      "nameEnHelp": "Leave empty to use the Norwegian name.",
+      "campus": "Campus",
+      "campusLocked": "Only global admins can move a big event to another campus.",
+      "board": "Board that runs it",
+      "boardHelp": "Members of this board can manage the big event.",
+      "boardPlaceholder": "Choose a board",
+      "startsAt": "Starts",
+      "endsAt": "Ends",
+      "date": "date",
+      "time": "time",
+      "placeName": "Place",
+      "placeNamePlaceholder": "e.g. Hemsedal",
+      "placeAddress": "Address",
+      "heroImage": "Cover image",
+      "heroImageHelp": "Shown at the top of the big event's page.",
+      "travel": "Travel (buses)",
+      "travelHelp": "Turn on if participants travel together by bus.",
+      "groupCheckin": "Check-in for other groups",
+      "groupCheckinHelp": "Lets leaders take attendance in groups other than buses.",
+      "status": "Status",
+      "statusHelp": "Connected participants see the big event while it is published. Archived hides it everywhere.",
+      "create": "Create big event",
+      "save": "Save changes",
+      "created": "Big event created",
+      "saved": "Changes saved",
+      "saveFailed": "Couldn't save. Try again, or reload the page.",
+      "errors": {
+        "name_no": "Write a name of up to 200 characters.",
+        "name_en": "Keep the English name to 200 characters.",
+        "campus_id": "Choose a campus.",
+        "department_id": "Choose the board again.",
+        "starts_at": "Choose a start date and time.",
+        "ends_at": "Choose an end date and time after the start.",
+        "place_name": "Keep the place to 200 characters.",
+        "place_address": "Keep the address to 300 characters.",
+        "hero_image_url": "Upload the image again.",
+        "travel_enabled": "Turn travel on or off.",
+        "group_checkin_enabled": "Turn check-in on or off.",
+        "status": "Choose a status."
+      }
+    },
+    "import": {
+      "button": "Import list",
+      "title": "Import participants",
+      "description": "Upload the ticket list or the hosts' sheet as it is. You check what we read before anything is saved.",
+      "backToParticipants": "Back to participants",
+      "stepOf": "Step {step} of 3",
+      "steps": {
+        "upload": "Upload",
+        "columns": "Check the columns",
+        "preview": "Check and save"
+      },
+      "upload": {
+        "dropHere": "Drop the file here, or click to choose one",
+        "fileTypes": "Excel (.xlsx) or CSV, up to 4 MB",
+        "chooseAnother": "Choose another file",
+        "orPaste": "Or paste rows",
+        "pastePlaceholder": "Copy the rows from your spreadsheet, headings included, and paste them here.",
+        "privacy": "We only read the file. Nothing is saved until you confirm.",
+        "read": "Read the list",
+        "wrongType": "This file can't be read. Save it as Excel (.xlsx) or CSV and try again.",
+        "tooBig": "This file is too big. It can be up to 4 MB.",
+        "nothing": "Choose a file or paste some rows first.",
+        "empty": "We didn't find any rows in this list.",
+        "failed": "Couldn't read the list. Check that it's the right file and try again."
+      },
+      "columns": {
+        "intro": "We found {count, plural, one {# row} other {# rows}}. This is what we think each column holds. Change anything that's wrong.",
+        "column": "Column {letter}",
+        "noHeading": "No heading",
+        "examples": "In the file:",
+        "noExamples": "Empty in the first rows",
+        "fieldLabel": "What is in {header}?",
+        "looksLike": {
+          "first_name": "Looks like the first name",
+          "last_name": "Looks like the last name",
+          "full_name": "Looks like the full name",
+          "email": "Looks like the email address",
+          "phone": "Looks like the phone number",
+          "campus": "Looks like the campus",
+          "ticket_ref": "Looks like the order number",
+          "ticket_category": "Looks like the ticket type: it often says the campus and the room size",
+          "group": "Looks like a room, bus or group",
+          "ignore": "We'll leave this column out. Pick what it holds if you need it."
+        },
+        "fields": {
+          "first_name": "First name",
+          "last_name": "Last name",
+          "full_name": "Full name (first and last)",
+          "email": "Email",
+          "phone": "Phone",
+          "campus": "Campus",
+          "ticket_ref": "Order number",
+          "ticket_category": "Ticket type",
+          "group": "Room, bus or group",
+          "ignore": "Ignore this column"
+        },
+        "settings": "A few choices",
+        "campusMissing": "Which campus are these people from?",
+        "campusSome": "Campus for rows that don't say",
+        "campusHelp": "Used only where the list doesn't name a campus.",
+        "campusNone": "Leave without campus",
+        "groupKind": "What is in the column {header}?",
+        "groupKinds": {
+          "room": "Room",
+          "bus": "Bus",
+          "buddy": "Buddy group",
+          "team": "Team"
+        },
+        "groupKindHelp": "People with the same value end up together.",
+        "roomBookings": "Each row is a room booking (we'll keep open places for the roommates)",
+        "roomBookingsHelp": "Each buyer gets a room with the size on the ticket. The other places stay open until the roommates are on the list.",
+        "needName": "Choose the column with the name before you go on.",
+        "needContact": "Choose the column with the email address or the phone number before you go on.",
+        "busNeedsTravel": "Buses need Travel turned on in the big event's settings. Choose another kind, or turn Travel on first.",
+        "back": "Back",
+        "next": "Check the import",
+        "failed": "Couldn't check the list. Try again."
+      },
+      "preview": {
+        "created": "{count} new",
+        "updated": "{count} updated",
+        "unchanged": "{count} unchanged",
+        "missing": "{count, plural, one {# already on the list but not in this file} other {# already on the list but not in this file}}",
+        "skipped": "{count, plural, one {# row skipped} other {# rows skipped}}",
+        "nothingNew": "Everyone in this list is already on it as it is.",
+        "createdList": "New people",
+        "missingList": "On the list but not in this file",
+        "missingHelp": "{count, plural, one {# person on the list isn't} other {# people on the list aren't}} in this file. That's expected when a file covers only some people, like the buyers. No one is removed.",
+        "skippedList": "Skipped rows",
+        "skippedRow": "Row {row}: {reason, select, no_name {no name} other {no email address or phone number}}",
+        "duplicates": "{count, plural, one {# person is in the file more than once and is counted once.} other {# people are in the file more than once and are counted once.}}",
+        "more": "and {count} more",
+        "newGroups": {
+          "room": "{count, plural, one {# new room} other {# new rooms}}",
+          "bus": "{count, plural, one {# new bus} other {# new buses}}",
+          "buddy": "{count, plural, one {# new buddy group} other {# new buddy groups}}",
+          "team": "{count, plural, one {# new team} other {# new teams}}",
+          "other": "{count, plural, one {# new group} other {# new groups}}"
+        },
+        "moved": {
+          "room": "{count, plural, one {# person changes room} other {# people change room}}",
+          "bus": "{count, plural, one {# person changes bus} other {# people change bus}}",
+          "buddy": "{count, plural, one {# person changes buddy group} other {# people change buddy group}}",
+          "team": "{count, plural, one {# person changes team} other {# people change team}}",
+          "other": "{count, plural, one {# person changes group} other {# people change group}}"
+        },
+        "unplaced": "{count, plural, one {# person isn't in a room yet} other {# people aren't in a room yet}}",
+        "unplacedHelp": "They show under \"Not in a room yet\" on the participants list.",
+        "overfull": "{count, plural, one {# room has} other {# rooms have}} more people than places: {names}",
+        "noCampus": "{count, plural, one {# person has} other {# people have}} no campus. Only global admins and the board see them until someone sets a campus.",
+        "outsideYourCampus": "{count, plural, one {# row is for another campus or has no campus, so it is left out.} other {# rows are for another campus or have no campus, so they are left out.}} You can import only your own campus's people.",
+        "back": "Back",
+        "save": "Save",
+        "saved": "{linked, plural, =0 {Saved.} one {Saved. # person was connected automatically.} other {Saved. # people were connected automatically.}}",
+        "notSaved": "Couldn't save. Nothing was changed.",
+        "failed": "Some rows couldn't be saved. Reload the list and check it before importing again."
+      }
+    },
+    "connect": {
+      "sendNew": "Send connect emails ({count})",
+      "sendEveryone": "Send again to everyone not connected ({count})",
+      "sendAgain": "Send again",
+      "publishFirst": "Publish the big event before sending connect emails",
+      "confirmTitle": "{emails, plural, one {Send # email?} other {Send # emails?}}",
+      "confirmNew": "{people, plural, one {Goes to # person who isn't connected and hasn't had a connect email yet.} other {Goes to # people who aren't connected and haven't had a connect email yet.}} People who share an address get one email together.",
+      "confirmEveryone": "{people, plural, one {Goes to # person who isn't connected, even if they already had a connect email.} other {Goes to # people who aren't connected, also those who already had a connect email.}} People who share an address get one email together.",
+      "confirm": "Send",
+      "queued": "{count, plural, one {Queued # email} other {Queued # emails}}",
+      "alreadyWaiting": "Already waiting to be sent",
+      "nothingToSend": "Nobody to send to",
+      "failed": "Couldn't queue the emails. Try again."
+    },
+    "link": {
+      "linkAccount": "Link account",
+      "unlink": "Unlink account",
+      "possibleMatch": "Possible match: {name} ({email})",
+      "possibleMatchNoEmail": "Possible match: {name}",
+      "reasons": {
+        "phone": "same phone",
+        "name": "same name and campus"
+      },
+      "accept": "Link",
+      "dismiss": "Not them",
+      "linked": "{name} is connected to {email}",
+      "dismissed": "We won't suggest that account again",
+      "unlinked": "{name} is no longer connected",
+      "failed": "Couldn't do that. Try again.",
+      "refused": {
+        "not_bi_linked": "This account hasn't signed in with BI, so it can't hold a ticket.",
+        "linked_to_other": "This ticket is already connected to another account. Unlink it first.",
+        "account_has_ticket": "This account already has a ticket for this big event.",
+        "no_suggestion": "That possible match is gone. Refresh the page."
+      },
+      "dialog": {
+        "title": "Link {name} to an account",
+        "description": "Search by the student's name or email. Only accounts that have signed in with BI are shown.",
+        "search": "Name or email",
+        "minChars": "Type at least two letters.",
+        "searching": "Searching…",
+        "noResults": "No account with BI sign-in matches.",
+        "hasTicket": "Already has a ticket here",
+        "choose": "Link",
+        "searchFailed": "Couldn't search. Try again."
+      },
+      "unlinkDialog": {
+        "title": "Unlink {name}?",
+        "description": "Their account no longer shows this big event until the ticket is connected again. The person stays on the list.",
+        "confirm": "Unlink"
+      }
+    }
   },
   "sidebar": {
     "studioHint": "Studio hint",

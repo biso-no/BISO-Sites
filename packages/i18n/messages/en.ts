@@ -11,6 +11,7 @@ import adminShop from "./en/adminShop.json";
 import adminUnits from "./en/adminUnits.json";
 import adminUsers from "./en/adminUsers.json";
 import applications from "./en/applications.json";
+import bigEvents from "./en/bigEvents.json";
 import businessHotspot from "./en/businessHotspot.json";
 import campus from "./en/campus.json";
 import common from "./en/common.json";
@@ -92,4 +93,5 @@ export default {
   adminPosts,
   adminPortal,
   onboarding,
+  bigEvents,
 };

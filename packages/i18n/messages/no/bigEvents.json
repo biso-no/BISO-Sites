@@ -1,0 +1,48 @@
+{
+  "connect": {
+    "title": "Koble til billetten din",
+    "confirm": {
+      "question": "Vil du koble billetten til {holderName} for {eventName} til kontoen din ({accountEmail})?",
+      "cta": "Koble til billetten min",
+      "connecting": "Kobler til…",
+      "notYou": "Er du ikke {holderName}? Ikke koble til, send heller lenken til riktig person.",
+      "failed": "Vi fikk ikke koblet til billetten din. Prøv igjen."
+    },
+    "connected": {
+      "title": "Nå er du koblet til!",
+      "body": "Bussen, rommet og oppdateringene dine vises i BISO-appen."
+    },
+    "signedOut": {
+      "body": "Logg inn med BI-kontoen din for å koble til billetten."
+    },
+    "signInFailed": "Vi fikk ikke startet BI-innloggingen. Prøv igjen om litt.",
+    "needsBi": {
+      "body": "Du er logget inn med en konto som ikke er BI-kontoen din. Logg inn med BI-kontoen din for å koble til billetten."
+    },
+    "linkedToOther": {
+      "title": "Denne billetten er allerede koblet til en annen konto.",
+      "body": "Ta kontakt med arrangørene."
+    },
+    "accountHasTicket": {
+      "title": "Kontoen din har allerede en billett til {eventName}.",
+      "body": "Hvis billetten tilhører noen andre, send lenken til dem."
+    },
+    "invalid": {
+      "title": "Denne lenken virker ikke lenger.",
+      "body": "Vi kan sende en ny lenke til e-postadressen på billetten din.",
+      "cta": "Få en ny lenke"
+    },
+    "ended": {
+      "title": "Arrangementet er over, så lenken virker ikke lenger."
+    }
+  },
+  "help": {
+    "title": "Fikk du ikke e-posten?",
+    "lede": "Skriv inn e-postadressen du brukte da du kjøpte billetten, så sender vi lenken dit.",
+    "emailLabel": "E-postadressen på billetten",
+    "submit": "Send meg en ny lenke",
+    "sending": "Sender…",
+    "sent": "Hvis adressen står på en liste, har vi sendt en lenke. Sjekk innboksen og søppelpostmappen.",
+    "failed": "Noe gikk galt. Prøv igjen."
+  }
+}

@@ -1,0 +1,221 @@
+<style>
+  .wg { --ink:#001731; --paper:#F4F7FA; --surface:#fff; --raised:#EAF0F5; --muted:#526579; --hair:#DCE5EC; --sky:#3DA9E0; --marker:#FECD45; --ok:#177A4E; --warn:#935700; --err:#D12F3A; }
+  .wg .phones { display:flex; gap:28px; flex-wrap:wrap; justify-content:center; margin:20px 0 8px; }
+  .wg .col { display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .wg .when { font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-secondary); font-weight:600; }
+  .wg .phone { width:300px; background:var(--paper); border-radius:34px; border:9px solid #0b0f14; overflow:hidden; color:var(--ink); font-size:13px; line-height:1.35; box-shadow:0 12px 30px rgba(0,0,0,.18); }
+  .wg .status { height:22px; display:flex; justify-content:space-between; padding:4px 18px 0; font-size:11px; font-weight:600; }
+  .wg .hero { margin:6px 10px 0; border-radius:20px; padding:16px; color:#fff; background:linear-gradient(160deg,#0B2747 0%,#12314F 45%,#3DA9E0 140%); position:relative; overflow:hidden; }
+  .wg .hero:after { content:""; position:absolute; right:-30px; bottom:-40px; width:160px; height:110px; background:radial-gradient(ellipse at center, rgba(255,255,255,.35), transparent 70%); }
+  .wg .eyebrow { font-size:10px; letter-spacing:.1em; text-transform:uppercase; opacity:.75; font-weight:600; }
+  .wg .hero h4 { font-size:19px; margin:3px 0 2px; }
+  .wg .big { font-size:34px; font-weight:800; margin-top:10px; line-height:1; }
+  .wg .big small { font-size:13px; font-weight:500; opacity:.8; margin-left:4px; }
+  .wg .body { padding:10px; display:flex; flex-direction:column; gap:8px; }
+  .wg .card { background:var(--surface); border-radius:16px; padding:12px; border:1px solid var(--hair); position:relative; }
+  .wg .card .lab { font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); font-weight:700; display:flex; align-items:center; gap:6px; }
+  .wg .card h5 { font-size:16px; margin:4px 0 2px; }
+  .wg .row { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .wg .meta { color:var(--muted); font-size:12px; }
+  .wg .btn { background:var(--ink); color:#fff; border-radius:999px; padding:7px 12px; font-size:12px; font-weight:700; display:inline-block; }
+  .wg .btn.ghost { background:var(--raised); color:var(--ink); }
+  .wg .chip { background:var(--raised); border-radius:999px; padding:2px 8px; font-size:11px; font-weight:600; }
+  .wg .update { background:#FFF7DB; border:1px solid #F3DF9A; }
+  .wg .alert { background:#FDECEC; border:1px solid #F3C2C5; }
+  .wg .tiles { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .wg .tile { background:var(--surface); border:1px solid var(--hair); border-radius:14px; padding:10px; font-weight:700; font-size:12px; }
+  .wg .tile span { display:block; font-size:18px; margin-bottom:2px; }
+  .wg .check { display:flex; gap:8px; align-items:center; padding:3px 0; font-size:12px; }
+  .wg .box { width:15px; height:15px; border-radius:4px; border:1.5px solid var(--muted); flex:none; }
+  .wg .box.on { background:var(--ok); border-color:var(--ok); }
+  .wg .tl { display:flex; gap:10px; padding:5px 0; border-top:1px solid var(--hair); font-size:12px; }
+  .wg .tl:first-of-type { border-top:0; }
+  .wg .tl b { width:38px; flex:none; }
+  .wg .tl.now { color:var(--ink); font-weight:700; }
+  .wg .tl.past { color:var(--muted); text-decoration:line-through; }
+  .wg .dot { width:8px; height:8px; border-radius:50%; display:inline-block; flex:none; }
+  .wg .d-auto { background:var(--sky); }
+  .wg .d-admin { background:var(--marker); }
+  .wg .tag { position:absolute; top:10px; right:10px; }
+  .wg .legend { display:flex; gap:22px; justify-content:center; font-size:13px; color:var(--text-secondary); margin:6px 0 18px; flex-wrap:wrap; }
+  .wg .legend .dot { width:10px; height:10px; margin-right:6px; vertical-align:-1px; }
+  .wg .tabbar { display:flex; justify-content:space-around; border-top:1px solid var(--hair); background:var(--surface); padding:8px 0 12px; font-size:10px; color:var(--muted); }
+  .wg .tabbar .on { color:var(--ink); font-weight:700; }
+</style>
+
+<div class="wg">
+  <h2>Winter Games in the app: one "My trip" screen that changes with the trip</h2>
+  <p class="subtitle">Same screen, three moments. Blue dot = filled in automatically from the participant list. Yellow dot = written by the organizers in admin.</p>
+
+  <div class="legend">
+    <span><span class="dot d-auto"></span>Personal, automatic (bus, room, pass)</span>
+    <span><span class="dot d-admin"></span>Organizers write it in admin</span>
+  </div>
+
+  <div class="phones">
+
+    <!-- BEFORE -->
+    <div class="col">
+      <div class="when">1 · Before the trip</div>
+      <div class="phone">
+        <div class="status"><span>09:41</span><span>●●● ᯤ ▮</span></div>
+        <div class="hero">
+          <div class="eyebrow">Winter Games 2027</div>
+          <h4>Storefjell</h4>
+          <div style="font-size:12px;opacity:.85">Fri 12 – Sun 14 February</div>
+          <div class="big">10 <small>days to go</small></div>
+        </div>
+        <div class="body">
+          <div class="card">
+            <span class="dot d-auto tag"></span>
+            <div class="lab">Your bus out</div>
+            <h5>Bus 2 · Oslo → Storefjell</h5>
+            <div class="meta">Fri 12 Feb, leaves 14:00 sharp</div>
+            <div class="meta">Meet: BI Nydalen, main entrance</div>
+            <div class="row" style="margin-top:8px">
+              <span class="meta">Bus lead: Kari N.</span>
+              <span class="btn">Show my pass</span>
+            </div>
+          </div>
+          <div class="card">
+            <span class="dot d-auto tag"></span>
+            <div class="lab">Your room</div>
+            <h5>4-person room</h5>
+            <div class="meta">With Ola, Ingrid and Sander</div>
+            <div class="meta">Room number at check-in</div>
+          </div>
+          <div class="card update">
+            <span class="dot d-admin tag"></span>
+            <div class="lab">Latest update · 2 h ago</div>
+            <div style="margin-top:4px;font-weight:600">Ski rental orders close Friday at 23:59</div>
+          </div>
+          <div class="card">
+            <span class="dot d-admin tag"></span>
+            <div class="lab">Before you go</div>
+            <div class="check" style="margin-top:4px"><span class="box on"></span>Payment 2 done</div>
+            <div class="check"><span class="box on"></span>Ticket connected to the app</div>
+            <div class="check"><span class="box"></span>Pack ski clothes, ID, charger</div>
+            <div class="check"><span class="box"></span>Order ski rental</div>
+          </div>
+          <div class="tiles">
+            <div class="tile"><span>🗓</span>Programme</div>
+            <div class="tile"><span>ℹ️</span>Practical info</div>
+            <div class="tile"><span>🗺</span>Map</div>
+            <div class="tile"><span>☎️</span>Contacts</div>
+          </div>
+        </div>
+        <div class="tabbar"><span>Home</span><span>Explore</span><span class="on">Trip</span><span>Pass</span><span>Profile</span></div>
+      </div>
+    </div>
+
+    <!-- DURING -->
+    <div class="col">
+      <div class="when">2 · Up at Storefjell</div>
+      <div class="phone">
+        <div class="status"><span>15:20</span><span>●●● ᯤ ▮</span></div>
+        <div class="hero" style="padding:12px 16px">
+          <div class="eyebrow">Winter Games · Day 2 of 3</div>
+          <h4 style="font-size:16px">Saturday</h4>
+        </div>
+        <div class="body">
+          <div class="card alert">
+            <span class="dot d-admin tag"></span>
+            <div class="lab" style="color:var(--err)">Important · 12 min ago</div>
+            <div style="margin-top:4px;font-weight:600">Afterski moved indoors because of wind. Same time, the hall by reception.</div>
+          </div>
+          <div class="card">
+            <span class="dot d-admin tag"></span>
+            <div class="lab">Now</div>
+            <h5>Slalom competition</h5>
+            <div class="meta">The slope by lift 3 · until 16:00</div>
+            <div class="lab" style="margin-top:10px">Next · in 3 h</div>
+            <div style="font-weight:700;margin-top:2px">Dinner</div>
+            <div class="meta">Main restaurant · 18:30</div>
+          </div>
+          <div class="card">
+            <span class="dot d-admin tag"></span>
+            <div class="lab">Today</div>
+            <div style="margin-top:4px">
+              <div class="tl past"><b>08:00</b>Breakfast</div>
+              <div class="tl past"><b>11:00</b>Ski school meetup</div>
+              <div class="tl now"><b>14:00</b>Slalom competition</div>
+              <div class="tl"><b>16:30</b>Afterski (indoors)</div>
+              <div class="tl"><b>18:30</b>Dinner</div>
+              <div class="tl"><b>21:00</b>Theme party</div>
+            </div>
+          </div>
+          <div class="card">
+            <span class="dot d-auto tag"></span>
+            <div class="lab">Your room</div>
+            <h5>Room 214</h5>
+            <div class="meta">With Ola, Ingrid and Sander</div>
+          </div>
+          <div class="tiles">
+            <div class="tile"><span>🗺</span>Map</div>
+            <div class="tile"><span>🆘</span>Emergency</div>
+          </div>
+        </div>
+        <div class="tabbar"><span>Home</span><span>Explore</span><span class="on">Trip</span><span>Pass</span><span>Profile</span></div>
+      </div>
+    </div>
+
+    <!-- GOING HOME -->
+    <div class="col">
+      <div class="when">3 · Going home</div>
+      <div class="phone">
+        <div class="status"><span>10:15</span><span>●●● ᯤ ▮</span></div>
+        <div class="hero" style="padding:12px 16px">
+          <div class="eyebrow">Winter Games · Last day</div>
+          <h4 style="font-size:16px">Sunday · going home</h4>
+        </div>
+        <div class="body">
+          <div class="card" style="border:2px solid var(--ink)">
+            <span class="dot d-auto tag"></span>
+            <div class="lab">Your bus home</div>
+            <h5>Bus 2 · Storefjell → Oslo</h5>
+            <div class="meta">Leaves 12:00 from the hotel's main entrance</div>
+            <div class="meta">Arrives BI Nydalen around 15:30</div>
+            <div class="row" style="margin-top:8px">
+              <span class="meta">Bus lead: Kari N.</span>
+              <span class="btn">Show my pass</span>
+            </div>
+          </div>
+          <div class="card">
+            <span class="dot d-admin tag"></span>
+            <div class="lab">Today</div>
+            <div style="margin-top:4px">
+              <div class="tl past"><b>08:00</b>Breakfast (until 10:00)</div>
+              <div class="tl now"><b>11:00</b>Check out, keys to reception</div>
+              <div class="tl"><b>12:00</b>Buses leave</div>
+            </div>
+          </div>
+          <div class="card update">
+            <span class="dot d-admin tag"></span>
+            <div class="lab">Update · 1 h ago</div>
+            <div style="margin-top:4px;font-weight:600">Lost something? Lost & found is at reception until 11:45.</div>
+          </div>
+          <div class="card">
+            <span class="dot d-admin tag"></span>
+            <div class="lab">Thanks for coming!</div>
+            <div class="meta" style="margin-top:4px">Tell us how it went. Takes 2 minutes.</div>
+            <div style="margin-top:8px"><span class="btn ghost">Give feedback</span></div>
+          </div>
+        </div>
+        <div class="tabbar"><span>Home</span><span>Explore</span><span class="on">Trip</span><span>Pass</span><span>Profile</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <h3 style="margin-top:26px">Building blocks organizers can add in admin</h3>
+  <p class="subtitle">Click the ones you think they'll need. Leave out anything that feels like too much.</p>
+  <div class="options" data-multiselect>
+    <div class="option" data-choice="programme" onclick="toggleSelect(this)"><div class="letter">🗓</div><div class="content"><h3>Programme</h3><p>Day by day, with times and places. Powers "Now / Next" and "Today".</p></div></div>
+    <div class="option" data-choice="updates" onclick="toggleSelect(this)"><div class="letter">📣</div><div class="content"><h3>Updates</h3><p>Short messages that also go out as push or email. Can be marked Important.</p></div></div>
+    <div class="option" data-choice="checklist" onclick="toggleSelect(this)"><div class="letter">✅</div><div class="content"><h3>Before you go checklist</h3><p>Things to do or pack. Students tick them off on their own phone.</p></div></div>
+    <div class="option" data-choice="info" onclick="toggleSelect(this)"><div class="letter">ℹ️</div><div class="content"><h3>Practical info pages</h3><p>Free text with headings and pictures: packing list, rules, ski rental, FAQ.</p></div></div>
+    <div class="option" data-choice="map" onclick="toggleSelect(this)"><div class="letter">🗺</div><div class="content"><h3>Map</h3><p>An uploaded picture of the venue, plus a link to open the address in Maps.</p></div></div>
+    <div class="option" data-choice="contacts" onclick="toggleSelect(this)"><div class="letter">☎️</div><div class="content"><h3>Contacts</h3><p>Organizers, bus leads, and an emergency number, with tap to call.</p></div></div>
+    <div class="option" data-choice="links" onclick="toggleSelect(this)"><div class="letter">🔗</div><div class="content"><h3>Links and buttons</h3><p>Feedback form, Tickster, ski rental shop, anything external.</p></div></div>
+  </div>
+</div>

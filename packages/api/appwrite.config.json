@@ -13857,6 +13857,853 @@
                     ]
                 }
             ]
+        },
+        {
+            "$id": "big_events",
+            "$permissions": [],
+            "databaseId": "app",
+            "name": "Big Events",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "name_no",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 200,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "name_en",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 200,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "slug",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 120,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "campus_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 8,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "department_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "starts_at",
+                    "type": "datetime",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "ends_at",
+                    "type": "datetime",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "place_name",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 200,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "place_address",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 300,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "hero_image_url",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 1000,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "status",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": "draft",
+                    "format": "enum",
+                    "elements": [
+                        "draft",
+                        "published",
+                        "archived"
+                    ]
+                },
+                {
+                    "key": "travel_enabled",
+                    "type": "boolean",
+                    "required": false,
+                    "array": false,
+                    "default": false
+                },
+                {
+                    "key": "group_checkin_enabled",
+                    "type": "boolean",
+                    "required": false,
+                    "array": false,
+                    "default": false
+                },
+                {
+                    "key": "created_by",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "slug_unique",
+                    "type": "unique",
+                    "status": "available",
+                    "columns": [
+                        "slug"
+                    ],
+                    "orders": []
+                },
+                {
+                    "key": "campus_id_idx",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "campus_id"
+                    ],
+                    "orders": []
+                },
+                {
+                    "key": "department_id_idx",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "department_id"
+                    ],
+                    "orders": []
+                },
+                {
+                    "key": "status_idx",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "status"
+                    ],
+                    "orders": []
+                }
+            ]
+        },
+        {
+            "$id": "big_event_participants",
+            "$permissions": [],
+            "databaseId": "app",
+            "name": "Big Event Participants",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "big_event_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "first_name",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 100,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "last_name",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 100,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "ticket_email",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 320,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "phone",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 32,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "campus_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 8,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "ticket_ref",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "ticket_category",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 200,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "room_size",
+                    "type": "integer",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "min": 1,
+                    "max": 20
+                },
+                {
+                    "key": "last_import_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "user_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "linked_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "link_method",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "email",
+                        "connect",
+                        "manual"
+                    ]
+                },
+                {
+                    "key": "connect_nonce",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "connect_token_hash",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "connect_sent_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "connect_reminded_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "membership_valid",
+                    "type": "boolean",
+                    "required": false,
+                    "array": false,
+                    "default": null
+                },
+                {
+                    "key": "membership_checked_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "suggested_user_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "suggested_reason",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "phone",
+                        "name"
+                    ]
+                },
+                {
+                    "key": "dismissed_user_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "big_event_id_idx",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "big_event_id"
+                    ],
+                    "orders": []
+                },
+                {
+                    "key": "big_event_user_idx",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "big_event_id",
+                        "user_id"
+                    ],
+                    "orders": []
+                },
+                {
+                    "key": "big_event_ticket_email_idx",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "big_event_id",
+                        "ticket_email"
+                    ],
+                    "orders": []
+                },
+                {
+                    "key": "big_event_campus_idx",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "big_event_id",
+                        "campus_id"
+                    ],
+                    "orders": []
+                },
+                {
+                    "key": "connect_token_hash_idx",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "connect_token_hash"
+                    ],
+                    "orders": []
+                }
+            ]
+        },
+        {
+            "$id": "big_event_groups",
+            "$permissions": [],
+            "databaseId": "app",
+            "name": "Big Event Groups",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "big_event_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "kind",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "bus",
+                        "room",
+                        "buddy",
+                        "team",
+                        "other"
+                    ]
+                },
+                {
+                    "key": "name",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 200,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "campus_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 8,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "capacity",
+                    "type": "integer",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "min": 1,
+                    "max": 200
+                },
+                {
+                    "key": "contact_name",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 120,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "contact_phone",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 32,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "contact_user_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "note",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 2000,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "room_number",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 40,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "source_key",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 200,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "booking_participant_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "big_event_id_idx",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "big_event_id"
+                    ],
+                    "orders": []
+                },
+                {
+                    "key": "big_event_kind_idx",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "big_event_id",
+                        "kind"
+                    ],
+                    "orders": []
+                },
+                {
+                    "key": "big_event_source_key_idx",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "big_event_id",
+                        "source_key"
+                    ],
+                    "orders": []
+                }
+            ]
+        },
+        {
+            "$id": "big_event_group_members",
+            "$permissions": [],
+            "databaseId": "app",
+            "name": "Big Event Group Members",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "big_event_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "group_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "participant_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "leg",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "out",
+                        "home"
+                    ]
+                },
+                {
+                    "key": "pinned",
+                    "type": "boolean",
+                    "required": false,
+                    "array": false,
+                    "default": false
+                },
+                {
+                    "key": "assigned_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "big_event_id_idx",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "big_event_id"
+                    ],
+                    "orders": []
+                },
+                {
+                    "key": "group_id_idx",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "group_id"
+                    ],
+                    "orders": []
+                },
+                {
+                    "key": "participant_id_idx",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "participant_id"
+                    ],
+                    "orders": []
+                }
+            ]
+        },
+        {
+            "$id": "big_event_deliveries",
+            "$permissions": [],
+            "databaseId": "app",
+            "name": "Big Event Deliveries",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "big_event_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "kind",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "connect",
+                        "connect_reminder",
+                        "message"
+                    ]
+                },
+                {
+                    "key": "channel",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "email",
+                        "push",
+                        "sms"
+                    ]
+                },
+                {
+                    "key": "to_address",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 320,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "participant_ids",
+                    "type": "string",
+                    "required": false,
+                    "array": true,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "message_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "status",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": "pending",
+                    "format": "enum",
+                    "elements": [
+                        "pending",
+                        "sending",
+                        "sent",
+                        "failed",
+                        "skipped"
+                    ]
+                },
+                {
+                    "key": "attempts",
+                    "type": "integer",
+                    "required": false,
+                    "array": false,
+                    "default": 0,
+                    "min": -9223372036854775808,
+                    "max": 9223372036854775807
+                },
+                {
+                    "key": "last_error",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 500,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "claimed_by",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "claimed_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "sent_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "scheduled_for",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "status_scheduled_idx",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "status",
+                        "scheduled_for"
+                    ],
+                    "orders": []
+                },
+                {
+                    "key": "big_event_id_idx",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "big_event_id"
+                    ],
+                    "orders": []
+                },
+                {
+                    "key": "message_id_idx",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "message_id"
+                    ],
+                    "orders": []
+                }
+            ]
         }
     ],
     "buckets": [

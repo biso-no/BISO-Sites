@@ -75,6 +75,7 @@ export const NAV_ACCESS = {
   // pseudo-role must never open jobs or applicant data.
   "portal.jobs": [ROLES.GLOBAL_ADMIN, ROLES.HR],
   "portal.events": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
+  "portal.bigEvents": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
   "portal.shop": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
   // Webshop accounting (sales types, clearing accounts, posting switch) is an
   // organisation-wide finance surface: global and campus admins only.

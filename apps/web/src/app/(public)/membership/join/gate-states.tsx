@@ -29,7 +29,7 @@ export function StateCard({
   children,
 }: {
   alert?: React.ReactNode;
-  body: string;
+  body?: string;
   children?: React.ReactNode;
   icon: ComponentType<{ className?: string }>;
   title: string;
@@ -40,7 +40,7 @@ export function StateCard({
         <Icon className="size-8" />
       </span>
       <h2 className="type-display-sm break-words text-ink">{title}</h2>
-      <p className="type-body text-ink-muted">{body}</p>
+      {body ? <p className="type-body text-ink-muted">{body}</p> : null}
       {alert ? <div className="w-full">{alert}</div> : null}
       <div className="mt-2 flex flex-wrap gap-3">{children}</div>
     </div>
@@ -80,12 +80,20 @@ export function SignedOutState({
 /**
  * Signed in, but not with a BI account. There is no linking any more: the
  * student signs out of this account and in with BI, and the membership
- * follows the student number.
+ * follows the student number. Other pages that need a BI account (the
+ * ticket connect page) pass their own `title` / `body` / `failedText`.
  */
 export function NeedsBiSignInState({
+  body,
+  failedText,
   returnTo = "/membership/join",
+  title,
 }: {
+  body?: string;
+  /** Shown when the BI sign-in could not be started. */
+  failedText?: string;
   returnTo?: string;
+  title?: string;
 }) {
   const t = useTranslations("membership.join.needsBiLink");
   const [isStarting, start] = useTransition();
@@ -105,10 +113,14 @@ export function NeedsBiSignInState({
 
   return (
     <StateCard
-      alert={startFailed ? <StateAlert>{t("linkFailed")}</StateAlert> : null}
-      body={t("body")}
+      alert={
+        startFailed ? (
+          <StateAlert>{failedText ?? t("linkFailed")}</StateAlert>
+        ) : null
+      }
+      body={body ?? t("body")}
       icon={GraduationCap}
-      title={t("title")}
+      title={title ?? t("title")}
     >
       <button
         aria-busy={isStarting}
