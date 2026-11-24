@@ -9,13 +9,16 @@ import { ROLES } from "@/lib/roles";
 import { NO_MATCH_FILTER } from "@/lib/utils/authorization";
 
 /**
- * Who may see and manage a big event (spec D2). `full` manages the event and
- * sees every participant; `campus` (a campus admin on a National event) sees
- * only participants from their own campuses; `null` has no access.
+ * Who may see and manage a big event (spec D2). `full` (global admins and the
+ * owning department) manages the event and sees every participant; `campus`
+ * (campus admins) sees only participants from their own campuses and edits
+ * settings only when `canEditSettings`; `null` has no access. Callers decide
+ * permissions only through the helpers in this module, never by comparing
+ * `level`.
  */
 export type BigEventAccess =
   | { level: "full" }
-  | { level: "campus"; campusIds: string[] }
+  | { level: "campus"; campusIds: string[]; canEditSettings: boolean }
   | null;
 
 const isGlobalAdmin = (ctx: UserAuthContext): boolean =>
@@ -40,11 +43,17 @@ export function bigEventAccess(
   if (!isCampusAdmin(ctx)) {
     return null;
   }
-  if (event.campus_id === NATIONAL_CAMPUS_ID) {
-    return { campusIds: [...ctx.managedCampusIds], level: "campus" };
+  const campusIds = ctx.managedCampusIds.filter(
+    (id) => id !== NATIONAL_CAMPUS_ID
+  );
+  if (campusIds.length === 0) {
+    return null;
   }
-  if (ctx.managedCampusIds.includes(event.campus_id)) {
-    return { level: "full" };
+  if (event.campus_id === NATIONAL_CAMPUS_ID) {
+    return { campusIds, canEditSettings: false, level: "campus" };
+  }
+  if (campusIds.includes(event.campus_id)) {
+    return { campusIds, canEditSettings: true, level: "campus" };
   }
   return null;
 }
@@ -64,7 +73,10 @@ export function canCreateBigEvent(
 }
 
 export function canEditBigEventSettings(access: BigEventAccess): boolean {
-  return access?.level === "full";
+  if (access === null) {
+    return false;
+  }
+  return access.level === "full" || access.canEditSettings;
 }
 
 /** Query strings scoping a `listRows` on big_events to what the user may see. */
@@ -99,6 +111,9 @@ export function participantCampusFilter(access: BigEventAccess): string[] {
   }
   if (access.level === "full") {
     return [];
+  }
+  if (access.campusIds.length === 0) {
+    return [NO_MATCH_FILTER];
   }
   return [Query.equal("campus_id", access.campusIds)];
 }

@@ -65,8 +65,12 @@ describe("bigEventAccess", () => {
     ).toBeNull();
   });
 
-  test("campus admin has full access to a big event on a campus they manage", () => {
-    expect(bigEventAccess(bergenAdmin, bergenEvent)).toEqual({ level: "full" });
+  test("campus admin gets campus-level access to a big event on a campus they manage", () => {
+    expect(bigEventAccess(bergenAdmin, bergenEvent)).toEqual({
+      campusIds: [BERGEN],
+      canEditSettings: true,
+      level: "campus",
+    });
   });
 
   test("campus admin has no access to another campus's big event", () => {
@@ -76,6 +80,7 @@ describe("bigEventAccess", () => {
   test("campus admin gets campus-level access to a National big event", () => {
     expect(bigEventAccess(bergenAdmin, nationalNoDept)).toEqual({
       campusIds: [BERGEN],
+      canEditSettings: false,
       level: "campus",
     });
   });
@@ -121,8 +126,19 @@ describe("canEditBigEventSettings", () => {
   test("only full access may edit settings", () => {
     expect(canEditBigEventSettings({ level: "full" })).toBe(true);
     expect(
-      canEditBigEventSettings({ campusIds: [BERGEN], level: "campus" })
+      canEditBigEventSettings({
+        campusIds: [BERGEN],
+        canEditSettings: false,
+        level: "campus",
+      })
     ).toBe(false);
+    expect(
+      canEditBigEventSettings({
+        campusIds: [BERGEN],
+        canEditSettings: true,
+        level: "campus",
+      })
+    ).toBe(true);
     expect(canEditBigEventSettings(null)).toBe(false);
   });
 });
@@ -172,7 +188,11 @@ describe("participant visibility", () => {
 
   test("campus access filters participants to the campuses", () => {
     expect(
-      participantCampusFilter({ campusIds: [BERGEN], level: "campus" })
+      participantCampusFilter({
+        campusIds: [BERGEN],
+        canEditSettings: false,
+        level: "campus",
+      })
     ).toEqual([Query.equal("campus_id", [BERGEN])]);
   });
 
@@ -192,11 +212,61 @@ describe("participant visibility", () => {
     );
     expect(
       canSeeParticipant(
-        { campusIds: [BERGEN], level: "campus" },
+        { campusIds: [BERGEN], canEditSettings: true, level: "campus" },
         { campus_id: null }
       )
     ).toBe(false);
     expect(canSeeParticipant(null, { campus_id: null })).toBe(false);
     expect(canSeeParticipant(null, { campus_id: BERGEN })).toBe(false);
+  });
+});
+
+describe("campus admin scoping (R16)", () => {
+  test("a Bergen admin on a Bergen big event edits settings but sees only Bergen participants", () => {
+    const access = bigEventAccess(bergenAdmin, bergenEvent);
+    expect(canEditBigEventSettings(access)).toBe(true);
+    expect(canSeeParticipant(access, { campus_id: BERGEN })).toBe(true);
+    expect(participantCampusFilter(access)).toEqual([
+      Query.equal("campus_id", [BERGEN]),
+    ]);
+  });
+
+  test("a Bergen admin on a Bergen big event doesn't see an Oslo or a no-campus participant", () => {
+    const access = bigEventAccess(bergenAdmin, bergenEvent);
+    expect(canSeeParticipant(access, { campus_id: OSLO })).toBe(false);
+    expect(canSeeParticipant(access, { campus_id: null })).toBe(false);
+  });
+
+  test("a Bergen admin on Winter Games (another board's National event) can't edit settings", () => {
+    expect(
+      canEditBigEventSettings(bigEventAccess(bergenAdmin, nationalNoDept))
+    ).toBe(false);
+  });
+
+  test("a campus admin with no managed campuses gets no access", () => {
+    const none = { ...bergenAdmin, managedCampusIds: [] };
+    expect(bigEventAccess(none, bergenEvent)).toBeNull();
+    expect(bigEventAccess(none, nationalNoDept)).toBeNull();
+  });
+
+  test("National never appears in campusIds even with withNationalEventScope", () => {
+    const widened = withNationalEventScope(bergenAdmin);
+    for (const event of [bergenEvent, nationalNoDept]) {
+      const access = bigEventAccess(widened, event);
+      expect(access?.level).toBe("campus");
+      if (access?.level === "campus") {
+        expect(access.campusIds).toEqual([BERGEN]);
+      }
+    }
+  });
+
+  test("participantCampusFilter never builds an empty equal", () => {
+    expect(
+      participantCampusFilter({
+        campusIds: [],
+        canEditSettings: true,
+        level: "campus",
+      })
+    ).toEqual([NO_MATCH_FILTER]);
   });
 });
