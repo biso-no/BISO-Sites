@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { renderEmail } from "./email-layout";
 
+const PADDED_BUTTON_CELL =
+  /<td bgcolor="#3DA9E0" style="[^"]*padding:12px 24px/;
+const BUTTON_LINK = /<a href="https:\/\/biso\.no\/c\/1"[^>]*>/;
+
 const input = {
   footer: "Questions? https://biso.no/connect/help",
   preheader: "Hidden preview",
@@ -43,6 +47,13 @@ describe("renderEmail", () => {
     const { html } = renderEmail(input);
     expect(html).toContain('href="https://biso.no/c/1"');
     expect(html).toContain('href="https://biso.no/connect/help"');
+  });
+
+  it("pads the button cell, not the link, so Outlook keeps its size", () => {
+    const { html } = renderEmail(input);
+    expect(html).toMatch(PADDED_BUTTON_CELL);
+    const buttonLink = html.match(BUTTON_LINK);
+    expect(buttonLink?.[0]).not.toContain("padding");
   });
 
   it("refuses a link that is not http(s)", () => {

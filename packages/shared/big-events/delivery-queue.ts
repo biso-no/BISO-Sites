@@ -58,7 +58,6 @@ export type ConnectKind = "connect" | "connect_reminder";
 export interface EnqueueConnectInput {
   bigEventId: string;
   kind: ConnectKind;
-  now?: Date;
   participants: BigEventParticipantRow[];
 }
 
@@ -103,6 +102,8 @@ const DELIVERIES = BIG_EVENT_TABLES.deliveries;
 const CONNECT_KINDS: ConnectKind[] = ["connect", "connect_reminder"];
 const BATCH_SIZE = 10;
 const PAGE_SIZE = 100;
+/** Appwrite refuses an `equal` query with more values than this. */
+const MAX_QUERY_VALUES = 100;
 const MAX_ATTEMPTS = 3;
 const LAST_ERROR_MAX = 500;
 const MINUTE_MS = 60_000;
@@ -179,9 +180,11 @@ function groupByAddress(
 
 /**
  * Queues one `pending` email per ticket address for the unlinked participants
- * with a ticket email (people sharing an address share one email). An address
- * whose people are all in a `pending` or `sending` email of the same kind
- * already is skipped.
+ * with a ticket email (people sharing an address share one email), due at
+ * once. Someone already in a `pending` or `sending` email of the same kind to
+ * the same address is left out, so nobody gets the same email twice; an
+ * address with nobody left gets no email. (An email waiting for someone's old
+ * address doesn't count: it is skipped at send time.)
  */
 export async function enqueueConnectEmails(
   db: DeliveryDb,
@@ -197,17 +200,19 @@ export async function enqueueConnectEmails(
     Query.equal("kind", input.kind),
     Query.equal("status", ["pending", "sending"]),
   ]);
-  const scheduledFor = (input.now ?? new Date()).toISOString();
+  const waiting = new Set(
+    open.flatMap((delivery) =>
+      (delivery.participant_ids ?? []).map(
+        (id) => `${normalizeAddress(delivery.to_address)} ${id}`
+      )
+    )
+  );
 
   let addresses = 0;
   let queued = 0;
   for (const [key, group] of groups) {
-    const covered = open.some(
-      (delivery) =>
-        normalizeAddress(delivery.to_address) === key &&
-        group.ids.every((id) => delivery.participant_ids?.includes(id))
-    );
-    if (covered) {
+    const ids = group.ids.filter((id) => !waiting.has(`${key} ${id}`));
+    if (ids.length === 0) {
       continue;
     }
     await db.createRow(DB, DELIVERIES, ID.unique(), {
@@ -215,13 +220,13 @@ export async function enqueueConnectEmails(
       big_event_id: input.bigEventId,
       channel: "email",
       kind: input.kind,
-      participant_ids: group.ids,
-      scheduled_for: scheduledFor,
+      participant_ids: ids,
+      scheduled_for: null,
       status: "pending",
       to_address: group.address,
     });
     addresses += 1;
-    queued += group.ids.length;
+    queued += ids.length;
   }
   return { addresses, queued };
 }
@@ -263,7 +268,6 @@ export async function enqueueDueReminders(
     const result = await enqueueConnectEmails(db, {
       bigEventId: event.$id,
       kind: "connect_reminder",
-      now,
       participants: due.filter((person) => !reminded.has(person.$id)),
     });
     queued += result.queued;
@@ -310,7 +314,11 @@ function isDue(row: BigEventDeliveryRow, now: Date): boolean {
   return !row.scheduled_for || Date.parse(row.scheduled_for) <= now.getTime();
 }
 
-/** A failed attempt: back to `pending` after a pause, or `failed` at the last attempt. */
+/**
+ * A failed attempt: back to `pending` after a pause, or `failed` at the last
+ * attempt. The claim stays on the row: the cron route reads a recent
+ * `claimed_at` as "a chain is sending", and the next claim overwrites it.
+ */
 async function recordFailure(
   db: DeliveryDb,
   row: BigEventDeliveryRow,
@@ -322,19 +330,22 @@ async function recordFailure(
   const retryAt = new Date(now.getTime() + RETRY_DELAY_MS * attempts);
   await db.updateRow(DB, DELIVERIES, row.$id, {
     attempts,
-    claimed_at: null,
-    claimed_by: null,
     last_error: message,
     scheduled_for: final ? row.scheduled_for : retryAt.toISOString(),
     status: final ? "failed" : "pending",
   });
 }
 
-/** Rows a dead run left in `sending` for over 10 minutes; the interruption counts as an attempt. */
+/**
+ * Connect emails a dead run left in `sending` for over 10 minutes; the
+ * interruption counts as an attempt. Other kinds belong to their own sender.
+ */
 async function releaseStuck(db: DeliveryDb, now: Date): Promise<void> {
   const cutoff = new Date(now.getTime() - STUCK_AFTER_MS).toISOString();
   const { rows } = await db.listRows<BigEventDeliveryRow>(DB, DELIVERIES, [
     Query.equal("status", "sending"),
+    Query.equal("channel", "email"),
+    Query.equal("kind", CONNECT_KINDS),
     Query.or([
       Query.isNull("claimed_at"),
       Query.lessThan("claimed_at", cutoff),
@@ -389,6 +400,23 @@ async function loadEvent(
   return ctx.events.get(id) ?? null;
 }
 
+async function loadParticipants(
+  db: DeliveryDb,
+  ids: string[]
+): Promise<BigEventParticipantRow[]> {
+  const found: BigEventParticipantRow[] = [];
+  for (let start = 0; start < ids.length; start += MAX_QUERY_VALUES) {
+    const chunk = ids.slice(start, start + MAX_QUERY_VALUES);
+    const { rows } = await db.listRows<BigEventParticipantRow>(
+      DB,
+      PARTICIPANTS,
+      [Query.equal("$id", chunk), Query.limit(chunk.length)]
+    );
+    found.push(...rows);
+  }
+  return found;
+}
+
 /** The person's link, giving them a nonce and stored token hash first when needed. */
 async function connectUrl(
   ctx: RunContext,
@@ -430,11 +458,7 @@ async function prepareConnectEmail(
     return null;
   }
 
-  const { rows } = await ctx.db.listRows<BigEventParticipantRow>(
-    DB,
-    PARTICIPANTS,
-    [Query.equal("$id", ids), Query.limit(ids.length)]
-  );
+  const rows = await loadParticipants(ctx.db, ids);
   const people = ids
     .map((id) => rows.find((person) => person.$id === id))
     .filter(
@@ -472,11 +496,14 @@ async function markSent(
   people: BigEventParticipantRow[]
 ): Promise<void> {
   const at = ctx.now().toISOString();
-  await ctx.db.updateRow(DB, DELIVERIES, row.$id, {
-    last_error: null,
-    sent_at: at,
-    status: "sent",
-  });
+  const status = { last_error: null, sent_at: at, status: "sent" };
+  try {
+    await ctx.db.updateRow(DB, DELIVERIES, row.$id, status);
+  } catch {
+    // The email is out: one more try, so a hiccup doesn't leave the row to
+    // be released and sent again.
+    await ctx.db.updateRow(DB, DELIVERIES, row.$id, status);
+  }
   const reminder = row.kind === "connect_reminder";
   for (const person of people) {
     if (reminder) {
@@ -491,7 +518,7 @@ async function markSent(
   }
 }
 
-type Outcome = "failed" | "none" | "sent";
+type Outcome = "failed" | "none" | "sent" | "unclaimed";
 
 /**
  * Claims, builds and sends one row. A send that throws (or a failure while
@@ -499,7 +526,14 @@ type Outcome = "failed" | "none" | "sent";
  * not, so a sent email is never retried because of them.
  */
 async function deliverRow(ctx: RunContext, id: string): Promise<Outcome> {
-  const row = await claim(ctx.db, id, ctx.runId, ctx.now());
+  let row: BigEventDeliveryRow | null;
+  try {
+    row = await claim(ctx.db, id, ctx.runId, ctx.now());
+  } catch {
+    // A transient read/write error: leave this row to a later run (or to the
+    // stuck-row release if the claim landed) and carry on with the rest.
+    return "unclaimed";
+  }
   if (!row) {
     return "none";
   }
@@ -575,16 +609,19 @@ export async function processDeliveries(
 
   let sent = 0;
   let failed = 0;
+  /** Rows whose claim hit an error; not tried again this run. */
+  const passed = new Set<string>();
   while (budgetLeft()) {
     const { rows } = await deps.db.listRows<BigEventDeliveryRow>(
       DB,
       DELIVERIES,
       dueQueries(now(), BATCH_SIZE)
     );
-    if (rows.length === 0) {
+    const fresh = rows.filter((row) => !passed.has(row.$id));
+    if (fresh.length === 0) {
       break;
     }
-    for (const listed of rows) {
+    for (const listed of fresh) {
       if (!budgetLeft()) {
         break;
       }
@@ -593,6 +630,8 @@ export async function processDeliveries(
         sent += 1;
       } else if (outcome === "failed") {
         failed += 1;
+      } else if (outcome === "unclaimed") {
+        passed.add(listed.$id);
       }
     }
   }

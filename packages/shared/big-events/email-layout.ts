@@ -105,8 +105,8 @@ function richText(text: string): string {
 function buttonHtml(button: EmailButton): string {
   return [
     `<table ${TABLE_ATTRS} style="margin:8px 0 0;">`,
-    `<tr><td bgcolor="${SKY}" style="border-radius:6px;background-color:${SKY};">`,
-    `<a href="${safeHref(button.url)}" style="display:inline-block;padding:12px 24px;font-family:${FONT};font-size:16px;line-height:20px;font-weight:700;color:${NAVY};text-decoration:none;border-radius:6px;">`,
+    `<tr><td bgcolor="${SKY}" style="padding:12px 24px;border-radius:6px;background-color:${SKY};">`,
+    `<a href="${safeHref(button.url)}" style="font-family:${FONT};font-size:16px;line-height:20px;font-weight:700;color:${NAVY};text-decoration:none;">`,
     escapeHtml(button.label),
     "</a></td></tr></table>",
   ].join("");

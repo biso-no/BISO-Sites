@@ -16,7 +16,8 @@ type DeliveryDb = import("./delivery-queue").DeliveryDb;
 
 // ── In-memory Appwrite fake: evaluates the JSON query strings ─────────────────
 
-type Row = Record<string, unknown> & { $createdAt: string; $id: string };
+type Data = Record<string, unknown>;
+type Row = Data & { $createdAt: string; $id: string };
 
 interface ParsedQuery {
   attribute?: string;
@@ -61,12 +62,31 @@ function notFound(): Error {
 }
 
 const PAGING = new Set(["limit", "cursorAfter", "orderAsc", "orderDesc"]);
+/** Appwrite refuses a query with more values than this. */
+const MAX_QUERY_VALUES = 100;
 
 class FakeDb {
   readonly tables = new Map<string, Map<string, Row>>();
   /** Runs after each update, so a test can play a competing run. */
   afterUpdate: ((table: string, row: Row) => void) | null = null;
+  /** Runs before each read or write; throwing fails that call (a transient error). */
+  beforeCall:
+    | ((call: "get" | "update", table: string, data?: Data) => void)
+    | null = null;
   private seq = 0;
+
+  private fault(
+    call: "get" | "update",
+    table: string,
+    data?: Data
+  ): Error | null {
+    try {
+      this.beforeCall?.(call, table, data);
+      return null;
+    } catch (error) {
+      return error as Error;
+    }
+  }
 
   table(name: string): Map<string, Row> {
     let table = this.tables.get(name);
@@ -101,6 +121,10 @@ class FakeDb {
   }
 
   getRow<T>(_databaseId: string, tableId: string, rowId: string): Promise<T> {
+    const error = this.fault("get", tableId);
+    if (error) {
+      return Promise.reject(error);
+    }
     const row = this.table(tableId).get(rowId);
     if (!row) {
       return Promise.reject(notFound());
@@ -114,6 +138,9 @@ class FakeDb {
     queries: string[] = []
   ): Promise<{ rows: T[]; total: number }> {
     const parsed = queries.map((q) => JSON.parse(q) as ParsedQuery);
+    if (parsed.some((q) => (q.values?.length ?? 0) > MAX_QUERY_VALUES)) {
+      return Promise.reject(new Error("Query values limit exceeded"));
+    }
     let rows = [...this.table(tableId).values()].filter((row) =>
       parsed.every((q) => PAGING.has(q.method) || matches(row, q))
     );
@@ -147,8 +174,12 @@ class FakeDb {
     _databaseId: string,
     tableId: string,
     rowId: string,
-    data: Record<string, unknown>
+    data: Data
   ): Promise<Row> {
+    const error = this.fault("update", tableId, data);
+    if (error) {
+      return Promise.reject(error);
+    }
     const row = this.table(tableId).get(rowId);
     if (!row) {
       return Promise.reject(notFound());
@@ -293,7 +324,6 @@ describe("enqueueConnectEmails", () => {
     const result = await enqueueConnectEmails(db as unknown as DeliveryDb, {
       bigEventId: "be1",
       kind: "connect",
-      now: NOW,
       participants: people,
     });
 
@@ -305,6 +335,7 @@ describe("enqueueConnectEmails", () => {
       channel: "email",
       kind: "connect",
       participant_ids: ["p1", "p2"],
+      scheduled_for: null,
       status: "pending",
       to_address: "family@example.com",
     });
@@ -348,9 +379,165 @@ describe("enqueueConnectEmails", () => {
     expect(again).toEqual({ addresses: 0, queued: 0 });
     expect(db.rows(D)).toHaveLength(1);
   });
+
+  it("a send again for more people only queues the new ones", async () => {
+    const ola = participant("p1", { ticket_email: "family@example.com" });
+    const kari = participant("p2", { ticket_email: "family@example.com" });
+    await enqueueConnectEmails(db as unknown as DeliveryDb, {
+      bigEventId: "be1",
+      kind: "connect",
+      participants: [ola],
+    });
+
+    const again = await enqueueConnectEmails(db as unknown as DeliveryDb, {
+      bigEventId: "be1",
+      kind: "connect",
+      participants: [ola, kari],
+    });
+
+    expect(again).toEqual({ addresses: 1, queued: 1 });
+    expect(
+      db.rows<BigEventDeliveryRow>(D).map((row) => row.participant_ids)
+    ).toEqual([["p1"], ["p2"]]);
+  });
+
+  it("queues a corrected address even while the old email waits", async () => {
+    await enqueueConnectEmails(db as unknown as DeliveryDb, {
+      bigEventId: "be1",
+      kind: "connect",
+      participants: [participant("p1", { ticket_email: "typo@exmaple.com" })],
+    });
+    const fixed = participant("p1", { ticket_email: "p1@example.com" });
+    seedPeople([fixed]);
+
+    const again = await enqueueConnectEmails(db as unknown as DeliveryDb, {
+      bigEventId: "be1",
+      kind: "connect",
+      participants: [fixed],
+    });
+    await processDeliveries(deps(), RUN);
+
+    expect(again).toEqual({ addresses: 1, queued: 1 });
+    expect(sentTo()).toEqual(["p1@example.com"]);
+  });
+
+  it("a second request that sees the first one queues nobody twice", async () => {
+    const people = [
+      participant("p1", { ticket_email: "family@example.com" }),
+      participant("p2", { ticket_email: "family@example.com" }),
+      participant("p3"),
+    ];
+    // The organizer sends to everyone, then the family asks for its links
+    // again from the help page while that email is still waiting.
+    await enqueueConnectEmails(db as unknown as DeliveryDb, {
+      bigEventId: "be1",
+      kind: "connect",
+      participants: people,
+    });
+    const help = await enqueueConnectEmails(db as unknown as DeliveryDb, {
+      bigEventId: "be1",
+      kind: "connect",
+      participants: people.slice(0, 2),
+    });
+
+    expect(help).toEqual({ addresses: 0, queued: 0 });
+    expect(db.rows(D)).toHaveLength(2);
+  });
 });
 
 describe("processDeliveries", () => {
+  it("a sent row and a failed row both keep their claim time", async () => {
+    const people = [participant("p1"), participant("p2")];
+    seedPeople(people);
+    await enqueueConnectEmails(db as unknown as DeliveryDb, {
+      bigEventId: "be1",
+      kind: "connect",
+      participants: people,
+    });
+    sendEmail
+      .mockResolvedValueOnce({ accepted: ["x"], messageId: "m", rejected: [] })
+      .mockRejectedValueOnce(new Error("Too many messages"));
+
+    await processDeliveries(deps(), RUN);
+
+    const [first, second] = db.rows<BigEventDeliveryRow>(D);
+    expect(first).toMatchObject({ claimed_by: "run-1", status: "sent" });
+    expect(first?.claimed_at).toBe(NOW.toISOString());
+    expect(second).toMatchObject({ claimed_by: "run-1", status: "pending" });
+    // Claimed before the pace wait, so at the same instant as the first.
+    expect(second?.claimed_at).toBe(NOW.toISOString());
+  });
+
+  it("sends one email with every link when 150 people share an address", async () => {
+    const people = Array.from({ length: 150 }, (_, index) =>
+      participant(`p${index}`, { ticket_email: "group@example.com" })
+    );
+    seedPeople(people);
+    await enqueueConnectEmails(db as unknown as DeliveryDb, {
+      bigEventId: "be1",
+      kind: "connect",
+      participants: people,
+    });
+
+    const result = await processDeliveries(deps(), RUN);
+
+    expect(result).toEqual({ failed: 0, remaining: 0, sent: 1 });
+    expect(urlsIn(0)).toHaveLength(150);
+  });
+
+  it("retries the status write after a send instead of sending again", async () => {
+    seedPeople([participant("p1")]);
+    await enqueueConnectEmails(db as unknown as DeliveryDb, {
+      bigEventId: "be1",
+      kind: "connect",
+      participants: [participant("p1")],
+    });
+    let failSentWrite = true;
+    db.beforeCall = (call, table, data) => {
+      if (
+        call === "update" &&
+        table === D &&
+        data?.status === "sent" &&
+        failSentWrite
+      ) {
+        failSentWrite = false;
+        throw new Error("Appwrite hiccup");
+      }
+    };
+
+    const result = await processDeliveries(deps(), RUN);
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ failed: 0, remaining: 0, sent: 1 });
+    expect(db.rows<BigEventDeliveryRow>(D)[0]).toMatchObject({
+      attempts: 0,
+      status: "sent",
+    });
+  });
+
+  it("a transient error while claiming skips only that row", async () => {
+    const people = [participant("p1"), participant("p2")];
+    seedPeople(people);
+    await enqueueConnectEmails(db as unknown as DeliveryDb, {
+      bigEventId: "be1",
+      kind: "connect",
+      participants: people,
+    });
+    let failFirstRead = true;
+    db.beforeCall = (call, table) => {
+      if (call === "get" && table === D && failFirstRead) {
+        failFirstRead = false;
+        throw new Error("Appwrite hiccup");
+      }
+    };
+
+    const result = await processDeliveries(deps(), RUN);
+
+    expect(sentTo()).toEqual(["p2@example.com"]);
+    expect(result).toEqual({ failed: 0, remaining: 1, sent: 1 });
+    expect(db.rows<BigEventDeliveryRow>(D)[0]?.status).toBe("pending");
+  });
+
   it("a claimed row taken by another run is skipped", async () => {
     seedPeople([participant("p1")]);
     await enqueueConnectEmails(db as unknown as DeliveryDb, {
@@ -389,7 +576,8 @@ describe("processDeliveries", () => {
     const [row] = db.rows<BigEventDeliveryRow>(D);
     expect(row).toMatchObject({
       attempts: 1,
-      claimed_by: null,
+      claimed_at: NOW.toISOString(),
+      claimed_by: "run-1",
       status: "pending",
     });
     expect(row?.last_error?.startsWith("SMTP down")).toBe(true);
@@ -545,6 +733,30 @@ describe("processDeliveries", () => {
     expect(sendEmail).not.toHaveBeenCalled();
     expect(result).toEqual({ failed: 0, remaining: 0, sent: 0 });
     expect(db.rows<BigEventDeliveryRow>(D)[0]?.status).toBe("skipped");
+  });
+
+  it("does not release a stuck message row", async () => {
+    db.seed(D, {
+      $id: "msg",
+      attempts: 0,
+      big_event_id: "be1",
+      channel: "email",
+      claimed_at: new Date(clock - 11 * MINUTE).toISOString(),
+      claimed_by: "stage-3-run",
+      kind: "message",
+      participant_ids: ["p1"],
+      scheduled_for: null,
+      status: "sending",
+      to_address: "p1@example.com",
+    });
+
+    await processDeliveries(deps(), RUN);
+
+    expect(db.rows<BigEventDeliveryRow>(D)[0]).toMatchObject({
+      attempts: 0,
+      claimed_by: "stage-3-run",
+      status: "sending",
+    });
   });
 
   it("leaves message deliveries alone", async () => {
