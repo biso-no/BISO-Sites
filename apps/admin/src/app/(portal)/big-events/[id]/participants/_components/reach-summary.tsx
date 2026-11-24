@@ -1,13 +1,13 @@
 "use client";
 
-import { Bell, BellOff, type LucideIcon, Mail, Users } from "lucide-react";
+import { Bell, type LucideIcon, Mail, MailCheck, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { PileFilter } from "@/lib/big-events/participant-list";
 import { REACH_PILES, type ReachPile } from "@/lib/big-events/reach";
 import { MONO_STACK, STUDIO } from "../../../../_components/studio";
 
 export const PILE_ICONS: Record<ReachPile, LucideIcon> = {
-  app_no_push: BellOff,
+  app_no_push: MailCheck,
   email: Mail,
   push: Bell,
 };
@@ -21,7 +21,7 @@ interface ReachSummaryProps {
   total: number;
 }
 
-/** "In the app with notifications: 81 · …": each count is a filter chip. */
+/** "Gets push notifications: 81 · …": each count is a filter chip. */
 export function ReachSummary({
   active,
   counts,

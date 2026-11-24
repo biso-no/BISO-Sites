@@ -30,6 +30,7 @@ import {
   type ParticipantListItem,
   type PileFilter,
   sortParticipants,
+  toParticipantListItem,
 } from "@/lib/big-events/participant-list";
 import {
   type ParticipantCsvHeaders,
@@ -129,13 +130,6 @@ async function loadRoomNames(
   return { byParticipant, hasRooms: true };
 }
 
-function withoutConnectSecrets(
-  row: BigEventParticipantRow
-): Omit<BigEventParticipantRow, "connect_nonce" | "connect_token_hash"> {
-  const { connect_nonce: _nonce, connect_token_hash: _hash, ...visible } = row;
-  return visible;
-}
-
 async function loadParticipantList(
   db: AdminDb,
   bigEventId: string,
@@ -173,13 +167,12 @@ async function loadParticipantList(
         noCampus += 1;
       }
       const account = row.user_id ? accountById.get(row.user_id) : undefined;
-      return {
-        ...withoutConnectSecrets(row),
+      return toParticipantListItem(row, {
         accountEmail: account?.email ?? null,
         accountName: account?.name ?? null,
         pile,
         roomName: rooms.byParticipant.get(row.$id) ?? null,
-      };
+      });
     }
   );
   return { counts, hasRooms: rooms.hasRooms, noCampus, rows };

@@ -1,6 +1,8 @@
 /**
- * How a participant can be reached (spec D4 "Reach lists"): a push in the app,
- * the app without notifications, or email only (not connected to an account).
+ * How a participant is reached (spec D4 "Reach lists", ruling R20): a push
+ * (connected account with a push target), email to the connected account, or
+ * email to the ticket address (not connected yet). Whether a connected person
+ * has the app can't be known, so the piles never claim it.
  */
 export const REACH_PILES = ["push", "app_no_push", "email"] as const;
 export type ReachPile = (typeof REACH_PILES)[number];

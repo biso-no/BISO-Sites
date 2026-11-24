@@ -8,7 +8,7 @@ describe("reachPile", () => {
     expect(reachPile({ user_id: "u-push" }, push)).toBe("push");
   });
 
-  test("a linked account without a push target is in the app without notifications", () => {
+  test("a linked account without a push target is connected and gets email", () => {
     expect(reachPile({ user_id: "u-quiet" }, push)).toBe("app_no_push");
   });
 

@@ -68,10 +68,10 @@
       "reach": {
         "label": "Who you can reach",
         "all": "Everyone",
-        "push": "In the app with notifications",
-        "app_no_push": "In the app without notifications",
-        "email": "Not in the app yet",
-        "help": "People in the app with notifications get a push. Everyone else gets an email."
+        "push": "Gets push notifications",
+        "app_no_push": "Connected, gets email",
+        "email": "Not connected yet, gets email",
+        "help": "People with push notifications get one on their phone. Everyone else gets an email."
       },
       "noCampus": "{count, plural, one {# person has} other {# people have}} no campus. Only global admins and the board can see them until someone sets a campus.",
       "search": "Search by name or email",
@@ -141,7 +141,6 @@
         "emailHelp": "The address on the ticket. The connect email goes here.",
         "phone": "Phone",
         "campus": "Campus",
-        "noCampus": "No campus",
         "add": "Add",
         "save": "Save",
         "added": "{name} was added",

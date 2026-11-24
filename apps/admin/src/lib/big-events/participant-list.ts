@@ -1,17 +1,52 @@
 import type { BigEventParticipantRow } from "@repo/shared/big-events/types";
 import type { ReachPile } from "./reach";
 
-/** A participant as the participants tab gets it. Connect-token columns stay on the server. */
-export type ParticipantListItem = Omit<
-  BigEventParticipantRow,
-  "connect_nonce" | "connect_token_hash"
-> & {
+/** What the tab adds to a participant row. */
+export interface ParticipantListExtras {
   accountEmail: string | null;
   accountName: string | null;
   pile: ReachPile;
   /** The room's name (the buyer's name); null when not in a room. */
   roomName: string | null;
-};
+}
+
+/**
+ * A participant as the participants tab gets it: only the columns it shows or
+ * the edit dialog changes. Suggestions, import bookkeeping and connect tokens
+ * stay on the server.
+ */
+export type ParticipantListItem = Pick<
+  BigEventParticipantRow,
+  | "$id"
+  | "campus_id"
+  | "connect_sent_at"
+  | "first_name"
+  | "last_name"
+  | "membership_valid"
+  | "phone"
+  | "ticket_email"
+  | "user_id"
+> &
+  ParticipantListExtras;
+
+/** Copies only the columns the tab may see; never spread a whole row into the browser. */
+export function toParticipantListItem(
+  row: BigEventParticipantRow,
+  extras: ParticipantListExtras
+): ParticipantListItem {
+  return {
+    $id: row.$id,
+    campus_id: row.campus_id,
+    connect_sent_at: row.connect_sent_at,
+    first_name: row.first_name,
+    last_name: row.last_name,
+    membership_valid: row.membership_valid,
+    phone: row.phone,
+    ticket_email: row.ticket_email,
+    user_id: row.user_id,
+    ...extras,
+  };
+}
 
 export interface ParticipantList {
   counts: Record<ReachPile, number>;

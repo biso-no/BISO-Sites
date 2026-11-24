@@ -231,7 +231,14 @@ describe("listParticipants", () => {
       big_event_groups: () => rows([{ $id: "g1", name: "Ola Hansen" }]),
       big_event_participants: () =>
         rows([
-          participantRow({ $id: "p1", user_id: "u-push" }),
+          participantRow({
+            $id: "p1",
+            dismissed_user_id: "u-other",
+            last_import_id: "import-1",
+            suggested_reason: "phone",
+            suggested_user_id: "u-other",
+            user_id: "u-push",
+          }),
           participantRow({
             $id: "p2",
             first_name: "Anne",
@@ -270,9 +277,19 @@ describe("listParticipants", () => {
       roomName: null,
     });
     expect(byId.get("p3")).toMatchObject({ accountEmail: null, pile: "email" });
-    // Connect token columns never leave the server.
-    expect(byId.get("p1")).not.toHaveProperty("connect_token_hash");
-    expect(byId.get("p1")).not.toHaveProperty("connect_nonce");
+    // Only what the tab shows or edits leaves the server.
+    for (const hidden of [
+      "connect_nonce",
+      "connect_token_hash",
+      "dismissed_user_id",
+      "last_import_id",
+      "suggested_reason",
+      "suggested_user_id",
+      "big_event_id",
+      "$permissions",
+    ]) {
+      expect(byId.get("p1")).not.toHaveProperty(hidden);
+    }
   });
 });
 

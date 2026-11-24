@@ -68,10 +68,10 @@
       "reach": {
         "label": "Hvem du når",
         "all": "Alle",
-        "push": "I appen med varsler",
-        "app_no_push": "I appen uten varsler",
-        "email": "Ikke i appen ennå",
-        "help": "De som har appen med varsler, får et pushvarsel. Alle andre får en e-post."
+        "push": "Får pushvarsler",
+        "app_no_push": "Tilkoblet, får e-post",
+        "email": "Ikke tilkoblet ennå, får e-post",
+        "help": "De som får pushvarsler, får dem på telefonen. Alle andre får e-post."
       },
       "noCampus": "{count, plural, one {# person mangler} other {# personer mangler}} campus. Bare globale administratorer og styret ser dem til noen setter campus.",
       "search": "Søk etter navn eller e-post",
@@ -98,7 +98,7 @@
       "noRoom": "Ikke på rom",
       "status": {
         "connected": "Tilkoblet",
-        "connectSent": "Tilkoblingse-post sendt {date}",
+        "connectSent": "Tilkoblings-e-post sendt {date}",
         "notConnected": "Ikke tilkoblet"
       },
       "noValidMembership": "Mangler gyldig medlemskap",
@@ -138,10 +138,9 @@
         "firstName": "Fornavn",
         "lastName": "Etternavn",
         "email": "E-post",
-        "emailHelp": "Adressen på billetten. Tilkoblingse-posten sendes hit.",
+        "emailHelp": "Adressen på billetten. Tilkoblings-e-posten sendes hit.",
         "phone": "Telefon",
         "campus": "Campus",
-        "noCampus": "Uten campus",
         "add": "Legg til",
         "save": "Lagre",
         "added": "{name} er lagt til",

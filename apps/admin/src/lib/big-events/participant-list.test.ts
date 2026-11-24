@@ -10,40 +10,21 @@ import {
 
 function item(overrides: Partial<ParticipantListItem>): ParticipantListItem {
   return {
-    $collectionId: "big_event_participants",
-    $createdAt: "",
-    $databaseId: "app",
     $id: "p",
-    $permissions: [],
-    $sequence: 1,
-    $tableId: "big_event_participants",
-    $updatedAt: "",
     accountEmail: null,
     accountName: null,
-    big_event_id: "b1",
     campus_id: "2",
-    connect_reminded_at: null,
     connect_sent_at: null,
-    dismissed_user_id: null,
     first_name: "Kari",
-    last_import_id: null,
     last_name: "Nordmann",
-    link_method: null,
-    linked_at: null,
-    membership_checked_at: null,
     membership_valid: null,
     phone: null,
     pile: "email",
-    room_size: null,
     roomName: null,
-    suggested_reason: null,
-    suggested_user_id: null,
-    ticket_category: null,
     ticket_email: null,
-    ticket_ref: null,
     user_id: null,
     ...overrides,
-  } as ParticipantListItem;
+  };
 }
 
 const everyone: ParticipantFilters = {
