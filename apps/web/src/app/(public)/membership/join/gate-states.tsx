@@ -80,12 +80,17 @@ export function SignedOutState({
 /**
  * Signed in, but not with a BI account. There is no linking any more: the
  * student signs out of this account and in with BI, and the membership
- * follows the student number.
+ * follows the student number. Other pages that need a BI account (the
+ * ticket connect page) pass their own `title` / `body`.
  */
 export function NeedsBiSignInState({
+  body,
   returnTo = "/membership/join",
+  title,
 }: {
+  body?: string;
   returnTo?: string;
+  title?: string;
 }) {
   const t = useTranslations("membership.join.needsBiLink");
   const [isStarting, start] = useTransition();
@@ -106,9 +111,9 @@ export function NeedsBiSignInState({
   return (
     <StateCard
       alert={startFailed ? <StateAlert>{t("linkFailed")}</StateAlert> : null}
-      body={t("body")}
+      body={body ?? t("body")}
       icon={GraduationCap}
-      title={t("title")}
+      title={title ?? t("title")}
     >
       <button
         aria-busy={isStarting}

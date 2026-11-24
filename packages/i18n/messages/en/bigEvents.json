@@ -1,0 +1,45 @@
+{
+  "connect": {
+    "title": "Connect your ticket",
+    "confirm": {
+      "question": "Connect {holderName}'s ticket for {eventName} to your account ({accountEmail})?",
+      "cta": "Connect my ticket",
+      "connecting": "Connecting…",
+      "notYou": "Not {holderName}? Don't connect, send the link to the right person.",
+      "failed": "We couldn't connect your ticket. Try again."
+    },
+    "connected": {
+      "title": "You're connected!",
+      "body": "Your bus, room and updates will show in the BISO app.",
+      "openApp": "Open in the app"
+    },
+    "signedOut": {
+      "body": "Sign in with your BI account to connect your ticket."
+    },
+    "needsBi": {
+      "body": "You're signed in with an account that isn't your BI account. Sign in with your BI account to connect your ticket."
+    },
+    "linkedToOther": {
+      "title": "This ticket is already connected to another account.",
+      "body": "Contact the organizers."
+    },
+    "accountHasTicket": {
+      "title": "Your account already has a ticket for {eventName}.",
+      "body": "If this ticket belongs to someone else, send the link to them."
+    },
+    "invalid": {
+      "title": "This link doesn't work anymore.",
+      "body": "We can send a new link to the email address on your ticket.",
+      "cta": "Get a new link"
+    }
+  },
+  "help": {
+    "title": "Didn't get the email?",
+    "lede": "Type the email address you used when you bought your ticket, and we'll send your link there.",
+    "emailLabel": "Email address on your ticket",
+    "submit": "Send me a new link",
+    "sending": "Sending…",
+    "sent": "If that address is on a list, we've sent a link. Check your inbox and spam folder.",
+    "failed": "Something went wrong. Try again."
+  }
+}
