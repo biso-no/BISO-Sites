@@ -516,6 +516,12 @@ export function planImport(input: {
   members: BigEventGroupMemberRow[];
   /** Buses exist only with Travel on (spec D5): rooms' buses count only then. */
   travelEnabled: boolean;
+  /**
+   * The kind of each group in `members` the caller can't see (another
+   * campus's or a National group): its pins keep people from groups of that
+   * kind only (rulings R13, R15). Empty with full access.
+   */
+  unseenGroupKinds: ReadonlyMap<string, GroupKind>;
 }): ImportPlan {
   const { options, existing } = input;
   const { pairs, duplicates, seen } = matchExisting(input.people, existing);
@@ -546,6 +552,7 @@ export function planImport(input: {
     groups: input.groups,
     members: input.members,
     travelEnabled: input.travelEnabled,
+    unseenGroupKinds: input.unseenGroupKinds,
   });
 
   return {

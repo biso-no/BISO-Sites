@@ -174,6 +174,7 @@ function plan(
     groups: existing.groups ?? [],
     members: existing.members ?? [],
     travelEnabled: true,
+    unseenGroupKinds: new Map(),
   });
 }
 
@@ -1600,6 +1601,7 @@ describe("planImport: room buses (N2)", () => {
       groups: existing.groups,
       members: existing.members,
       travelEnabled: false,
+      unseenGroupKinds: new Map(),
     });
     expect(noTravel.roomBuses).toEqual([]);
     const buddies = plan(

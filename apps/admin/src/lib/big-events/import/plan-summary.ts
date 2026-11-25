@@ -15,6 +15,7 @@ import type {
   ImportOptions,
   ImportPlan,
   ParsedPerson,
+  Placement,
   PlacementTarget,
   SkippedRow,
 } from "./plan-import";
@@ -199,6 +200,29 @@ export function missingBusLegs(
   return missing;
 }
 
+/**
+ * Placements that write a place: every one, except a bus place whose legs
+ * are both held on buses the caller can't see (ruling R13), which writes
+ * nothing and so is no new place.
+ */
+export function writtenPlacements(
+  plan: ImportPlan,
+  groups: BigEventGroupRow[],
+  members: BigEventGroupMemberRow[]
+): Placement[] {
+  const kinds = kindsByKey(plan, groups);
+  const unseen = unseenSeatLegs(groups, members);
+  return plan.placements.filter(({ groupKey, person }) => {
+    const participantId = isExistingTarget(person)
+      ? person.participantId
+      : null;
+    return (
+      kinds.get(groupKey) !== "bus" ||
+      freeLegs(unseen, participantId).length > 0
+    );
+  });
+}
+
 /** People whose out or home bus the import changes: new people by their row. */
 export interface BusMovers {
   participantIds: Set<string>;
@@ -248,13 +272,8 @@ export function busMovers(
 ): BusMovers {
   const movers = roomBusMovers(plan, groups, members);
   const kinds = kindsByKey(plan, groups);
-  const unseen = unseenSeatLegs(groups, members);
-  for (const { groupKey, person } of plan.placements) {
-    const participantId = isExistingTarget(person)
-      ? person.participantId
-      : null;
-    const writes = freeLegs(unseen, participantId).length > 0;
-    if (kinds.get(groupKey) === "bus" && writes) {
+  for (const { groupKey, person } of writtenPlacements(plan, groups, members)) {
+    if (kinds.get(groupKey) === "bus") {
       addMover(movers, person);
     }
   }
@@ -311,7 +330,7 @@ function changeCounts(plan: ImportPlan, context: PlanContext): ChangeCounts {
       )
     ).size,
     newGroups: plan.newGroups.length,
-    placed: plan.placements.length,
+    placed: writtenPlacements(plan, groups, members).length,
     resizedRooms: plan.groupUpdates.length,
     roomBusMoves: moverCount(roomBusMovers(plan, groups, members)),
     updated: plan.update.filter(
@@ -353,7 +372,10 @@ export function summarizePlan(
     missing: plan.missingFromFile.length,
     missingNames: missingNames.slice(0, MISSING_LIST_LIMIT),
     noCampus: plan.noCampus,
-    nothingNew: Object.values(counts).every((count) => count === 0),
+    // A missing bus leg (R34) is written too, though no count shows it.
+    nothingNew:
+      Object.values(counts).every((count) => count === 0) &&
+      missingBusLegs(plan, groups, context.members).length === 0,
     outsideYourCampus: context.outsideYourCampus,
     overfullRooms: overfullNames(plan, groups),
     skipped: plan.skipped.length,

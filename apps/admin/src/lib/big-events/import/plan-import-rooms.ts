@@ -53,10 +53,10 @@ interface Board {
   /** Participant id → keys of the groups they were moved into by hand. */
   pinnedIn: Map<string, Set<string>>;
   /**
-   * Participant id → pins in groups the caller can't see (another campus's,
-   * ruling R4): a bus seat (it has a leg) or a place in another group.
+   * Participant id → kinds of the groups the caller can't see (another
+   * campus's or a National group) they were moved into by hand (R13, R15).
    */
-  pinnedUnseen: Map<string, Set<"bus" | "other">>;
+  pinnedUnseen: Map<string, Set<GroupKind>>;
   placements: ImportPlan["placements"];
   /** The room each subject is in, from the list or from this plan. */
   roomOf: Map<PlanSubject, string>;
@@ -123,23 +123,29 @@ function addToSet<T>(map: Map<string, Set<T>>, id: string, value: T): void {
   map.set(id, values);
 }
 
-/** A pinned place, by plan key; one in a group the caller can't see by what it is. */
+/**
+ * A pinned place, by plan key; one in a group the caller can't see by that
+ * group's kind (a place in a group that no longer exists keeps nobody).
+ */
 function notePin(
   board: Board,
   membership: BigEventGroupMemberRow,
-  key: string | undefined
+  key: string | undefined,
+  unseenKinds: ReadonlyMap<string, GroupKind>
 ): void {
   const id = membership.participant_id;
+  const unseenKind = unseenKinds.get(membership.group_id);
   if (key) {
     addToSet(board.pinnedIn, id, key);
-  } else {
-    addToSet(board.pinnedUnseen, id, membership.leg ? "bus" : "other");
+  } else if (unseenKind) {
+    addToSet(board.pinnedUnseen, id, unseenKind);
   }
 }
 
 function buildBoard(
   groups: BigEventGroupRow[],
-  members: BigEventGroupMemberRow[]
+  members: BigEventGroupMemberRow[],
+  unseenKinds: ReadonlyMap<string, GroupKind>
 ): Board {
   const board: Board = {
     columnTargets: [],
@@ -171,7 +177,7 @@ function buildBoard(
   for (const membership of members) {
     const key = keyById.get(membership.group_id);
     if (membership.pinned === true) {
-      notePin(board, membership, key);
+      notePin(board, membership, key, unseenKinds);
     }
     const keys = board.memberOf.get(membership.participant_id) ?? new Set();
     // A bus member has a row per leg; count each person once.
@@ -296,8 +302,7 @@ function findColumnGroup(
 /**
  * Someone moved by hand into another group of this kind (a pinned place,
  * on any leg): the import never moves them (ruling R31). A pin in a group
- * the caller can't see counts too (ruling R13): a pinned seat for a bus
- * import, a pinned place of unknown kind for any other.
+ * of this kind the caller can't see counts too (rulings R13, R15).
  */
 function pinnedElsewhere(
   board: Board,
@@ -305,8 +310,7 @@ function pinnedElsewhere(
   kind: GroupKind,
   key: string
 ): boolean {
-  const unseen = board.pinnedUnseen.get(participantId);
-  if (unseen?.has(kind === "bus" ? "bus" : "other")) {
+  if (board.pinnedUnseen.get(participantId)?.has(kind)) {
     return true;
   }
   return [...(board.pinnedIn.get(participantId) ?? [])].some(
@@ -718,6 +722,7 @@ export function planRooms(input: {
   groups: BigEventGroupRow[];
   members: BigEventGroupMemberRow[];
   travelEnabled: boolean;
+  unseenGroupKinds: ReadonlyMap<string, GroupKind>;
 }): Pick<
   ImportPlan,
   | "columnTargets"
@@ -730,7 +735,7 @@ export function planRooms(input: {
   | "unplaced"
 > {
   const { subjects, options } = input;
-  const board = buildBoard(input.groups, input.members);
+  const board = buildBoard(input.groups, input.members, input.unseenGroupKinds);
   markExistingRooms(board, subjects);
 
   // Ruling R2: a mapped group column switches room bookings off, even when

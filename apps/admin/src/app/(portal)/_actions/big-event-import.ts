@@ -166,12 +166,21 @@ interface PreparedImport extends PlanContext {
   plan: ImportPlan;
 }
 
+/** Places the plan reads, and the kind of each group the caller can't see. */
+interface LoadedMembers {
+  members: BigEventGroupMemberRow[];
+  unseenGroupKinds: Map<string, GroupKind>;
+}
+
 /**
  * Every place in the groups the caller sees, plus every place of the people
  * they see anywhere in the big event (ruling R13): someone can be pinned or
- * seated on another campus's bus (R4), and the plan must see that to keep
- * them there. Places in unseen groups are only read, never written. Without
- * a campus filter every group is seen, so the first read has them all.
+ * seated in another campus's or a National group (R4, R9), and the plan must
+ * see that to keep them there. Of those unseen groups only the kind is read
+ * (ruling R15), so a pin keeps someone only from a group of its own kind; it
+ * never reaches the caller or the preview. Places in unseen groups are only
+ * read, never written. Without a campus filter every group is seen, so the
+ * first read has them all.
  */
 async function loadMembers(
   db: AdminDb,
@@ -179,7 +188,7 @@ async function loadMembers(
   groups: BigEventGroupRow[],
   existing: BigEventParticipantRow[],
   campusScoped: boolean
-): Promise<BigEventGroupMemberRow[]> {
+): Promise<LoadedMembers> {
   const inEvent = [Query.equal("big_event_id", [bigEventId])];
   const inGroups = await listRowsByIds<BigEventGroupMemberRow>(
     db,
@@ -189,7 +198,7 @@ async function loadMembers(
     inEvent
   );
   if (!campusScoped) {
-    return inGroups;
+    return { members: inGroups, unseenGroupKinds: new Map() };
   }
   const ofPeople = await listRowsByIds<BigEventGroupMemberRow>(
     db,
@@ -201,7 +210,20 @@ async function loadMembers(
   const byId = new Map(
     [...inGroups, ...ofPeople].map((member) => [member.$id, member])
   );
-  return [...byId.values()];
+  const seen = new Set(groups.map((group) => group.$id));
+  const unseen = await listRowsByIds<BigEventGroupRow>(
+    db,
+    GROUPS,
+    "$id",
+    ofPeople
+      .map((member) => member.group_id)
+      .filter((groupId) => !seen.has(groupId)),
+    [...inEvent, Query.select(["$id", "kind"])]
+  );
+  return {
+    members: [...byId.values()],
+    unseenGroupKinds: new Map(unseen.map((group) => [group.$id, group.kind])),
+  };
 }
 
 /**
@@ -231,7 +253,7 @@ async function prepareImport(
     listAllRows<BigEventParticipantRow>(db, PARTICIPANTS, scope),
     listAllRows<BigEventGroupRow>(db, GROUPS, scope),
   ]);
-  const members = await loadMembers(
+  const { members, unseenGroupKinds } = await loadMembers(
     db,
     bigEventId,
     groups,
@@ -246,6 +268,7 @@ async function prepareImport(
     groups,
     members,
     travelEnabled: event.travel_enabled === true,
+    unseenGroupKinds,
   });
   return {
     busListsPublished: Boolean(event.bus_lists_published_at),
