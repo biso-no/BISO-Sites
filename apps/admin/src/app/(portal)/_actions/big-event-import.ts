@@ -41,9 +41,11 @@ import {
 import type { ImportResult } from "@/lib/big-events/import/import-result";
 import { parseImportFile } from "@/lib/big-events/import/parse-file.server";
 import {
+  freeLegs,
   type RoomBusSeat,
   roomBusRemovals,
   roomBusSeatsToAdd,
+  unseenSeatLegs,
 } from "@/lib/big-events/import/plan-buses";
 import {
   type ImportMapping,
@@ -86,7 +88,6 @@ const MAX_ROWS = 5000;
 const MAX_COLUMNS = 200;
 const WRITE_CONCURRENCY = 8;
 const SUGGESTION_CAP = 200;
-const BUS_LEGS: GroupLeg[] = ["out", "home"];
 
 const mappingSchema = z.object({
   columns: z.array(z.enum(IMPORT_FIELDS)).max(MAX_COLUMNS),
@@ -166,6 +167,44 @@ interface PreparedImport extends PlanContext {
 }
 
 /**
+ * Every place in the groups the caller sees, plus every place of the people
+ * they see anywhere in the big event (ruling R13): someone can be pinned or
+ * seated on another campus's bus (R4), and the plan must see that to keep
+ * them there. Places in unseen groups are only read, never written. Without
+ * a campus filter every group is seen, so the first read has them all.
+ */
+async function loadMembers(
+  db: AdminDb,
+  bigEventId: string,
+  groups: BigEventGroupRow[],
+  existing: BigEventParticipantRow[],
+  campusScoped: boolean
+): Promise<BigEventGroupMemberRow[]> {
+  const inEvent = [Query.equal("big_event_id", [bigEventId])];
+  const inGroups = await listRowsByIds<BigEventGroupMemberRow>(
+    db,
+    MEMBERS,
+    "group_id",
+    groups.map((group) => group.$id),
+    inEvent
+  );
+  if (!campusScoped) {
+    return inGroups;
+  }
+  const ofPeople = await listRowsByIds<BigEventGroupMemberRow>(
+    db,
+    MEMBERS,
+    "participant_id",
+    existing.map((row) => row.$id),
+    inEvent
+  );
+  const byId = new Map(
+    [...inGroups, ...ofPeople].map((member) => [member.$id, member])
+  );
+  return [...byId.values()];
+}
+
+/**
  * Plans the import against what the caller may see: their campus's
  * participants and groups. Rows for other campuses are left out and counted.
  */
@@ -186,20 +225,18 @@ async function prepareImport(
   const people = parsed.people.filter((person) =>
     canSeeParticipant(access, { campus_id: person.campusId })
   );
-  const scope = [
-    Query.equal("big_event_id", [bigEventId]),
-    ...participantCampusFilter(access),
-  ];
+  const campusFilter = participantCampusFilter(access);
+  const scope = [Query.equal("big_event_id", [bigEventId]), ...campusFilter];
   const [existing, groups] = await Promise.all([
     listAllRows<BigEventParticipantRow>(db, PARTICIPANTS, scope),
     listAllRows<BigEventGroupRow>(db, GROUPS, scope),
   ]);
-  const members = await listRowsByIds<BigEventGroupMemberRow>(
+  const members = await loadMembers(
     db,
-    MEMBERS,
-    "group_id",
-    groups.map((group) => group.$id),
-    [Query.equal("big_event_id", [bigEventId])]
+    bigEventId,
+    groups,
+    existing,
+    campusFilter.length > 0
   );
   const plan = planImport({
     ...parsed,
@@ -535,7 +572,12 @@ function createPlaces(
   db: AdminDb,
   bigEventId: string,
   plan: ImportPlan,
-  extra: { missingLegs: MissingLeg[]; roomSeats: RoomBusSeat[] },
+  extra: {
+    missingLegs: MissingLeg[];
+    roomSeats: RoomBusSeat[];
+    /** Legs held on a bus the caller can't see: never doubled (R13). */
+    unseenLegs: Map<string, Set<GroupLeg>>;
+  },
   groupIds: GroupIds,
   targets: TargetIds
 ) {
@@ -546,7 +588,8 @@ function createPlaces(
     if (!(participantId && group)) {
       return [];
     }
-    const legs: (GroupLeg | null)[] = group.kind === "bus" ? BUS_LEGS : [null];
+    const legs: (GroupLeg | null)[] =
+      group.kind === "bus" ? freeLegs(extra.unseenLegs, participantId) : [null];
     return legs.map((leg) => ({
       index,
       row: {
@@ -600,7 +643,7 @@ function removePlaces(db: AdminDb, prepared: PreparedImport) {
     string,
     { membership: BigEventGroupMemberRow; move: boolean }
   >();
-  for (const membership of roomBusRemovals(plan, members)) {
+  for (const membership of roomBusRemovals(plan, groups, members)) {
     removals.set(membership.$id, { membership, move: false });
   }
   for (const membership of replacedMemberships(plan, groups, members)) {
@@ -676,6 +719,7 @@ async function writePlan(
     {
       missingLegs: missingBusLegs(plan, prepared.groups, prepared.members),
       roomSeats: roomBusSeatsToAdd(plan, prepared.members),
+      unseenLegs: unseenSeatLegs(prepared.groups, prepared.members),
     },
     groupIds,
     targets

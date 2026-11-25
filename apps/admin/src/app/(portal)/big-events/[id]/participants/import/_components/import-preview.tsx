@@ -118,15 +118,17 @@ export function ImportPreview({ preview }: ImportPreviewProps) {
     ...(preview.keptPinned > 0
       ? [t("keptPinned", { count: preview.keptPinned })]
       : []),
+    ...(preview.roomBusMoves > 0
+      ? [t("roomBusMoves", { count: preview.roomBusMoves })]
+      : []),
+    ...(preview.resizedRooms > 0
+      ? [t("resizedRooms", { count: preview.resizedRooms })]
+      : []),
   ];
   const hasLists =
     preview.created + preview.unplaced + preview.missing + preview.skipped > 0;
-  const nothingNew =
-    preview.created === 0 &&
-    preview.updated === 0 &&
-    preview.placed === 0 &&
-    preview.moved === 0 &&
-    preview.busNotices === 0;
+  // Decided with the counts on the server: no person, group, place or seat changes.
+  const { nothingNew } = preview;
 
   return (
     <div className="flex flex-col gap-4">

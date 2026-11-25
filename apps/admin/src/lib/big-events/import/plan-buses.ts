@@ -22,6 +22,13 @@ function participantIdOf(person: PlacementTarget): string | null {
   return "participantId" in person ? person.participantId : null;
 }
 
+/** The buses the caller can see: the only ones an import writes to. */
+function seenBuses(groups: BigEventGroupRow[]): Set<string> {
+  return new Set(
+    groups.filter((group) => group.kind === "bus").map((group) => group.$id)
+  );
+}
+
 function seatsByPerson(
   members: BigEventGroupMemberRow[]
 ): Map<string, BigEventGroupMemberRow[]> {
@@ -37,8 +44,42 @@ function seatsByPerson(
   return seats;
 }
 
+/**
+ * The legs each person has a seat on a bus the caller can't see (another
+ * campus's, ruling R4). The import never adds a second seat on such a leg
+ * and never removes that seat (ruling R13).
+ */
+export function unseenSeatLegs(
+  groups: BigEventGroupRow[],
+  members: BigEventGroupMemberRow[]
+): Map<string, Set<GroupLeg>> {
+  const buses = seenBuses(groups);
+  const legs = new Map<string, Set<GroupLeg>>();
+  for (const member of members) {
+    if (member.leg !== null && !buses.has(member.group_id)) {
+      const own = legs.get(member.participant_id) ?? new Set();
+      own.add(member.leg);
+      legs.set(member.participant_id, own);
+    }
+  }
+  return legs;
+}
+
+/** The legs a bus placement still writes: those not held on an unseen bus. */
+export function freeLegs(
+  unseen: Map<string, Set<GroupLeg>>,
+  participantId: string | null
+): GroupLeg[] {
+  const held = participantId ? unseen.get(participantId) : undefined;
+  return GROUP_LEGS.filter((leg) => !held?.has(leg));
+}
+
+/** A room's bus on a leg; home defaults to the out bus (spec D5, ruling R12). */
 function roomBusOn(room: BigEventGroupRow, leg: GroupLeg): string | null {
-  return (leg === "out" ? room.out_bus_id : room.home_bus_id) ?? null;
+  return (
+    (leg === "out" ? room.out_bus_id : (room.home_bus_id ?? room.out_bus_id)) ??
+    null
+  );
 }
 
 /**
@@ -58,17 +99,16 @@ function busFor(
 /**
  * The legs people ride with their room (spec D5: a person named into a room
  * takes the room's bus): each leg the room has a bus for, unless the person
- * was moved by hand onto another bus on that leg (a pinned seat). Home
- * follows a hand-moved way out (ruling R5).
+ * is held on that leg: moved by hand onto another bus (a pinned seat), or
+ * seated on a bus the caller can't see (ruling R13). Home follows a
+ * hand-moved way out (ruling R5).
  */
 export function roomBusSeats(
   stays: RoomStay[],
   groups: BigEventGroupRow[],
   members: BigEventGroupMemberRow[]
 ): RoomBusSeat[] {
-  const buses = new Set(
-    groups.filter((group) => group.kind === "bus").map((group) => group.$id)
-  );
+  const buses = seenBuses(groups);
   const seats = seatsByPerson(members);
   const wanted: RoomBusSeat[] = [];
   for (const { person, room } of stays) {
@@ -79,11 +119,13 @@ export function roomBusSeats(
         ?.group_id ?? null;
     for (const leg of GROUP_LEGS) {
       const busId = busFor(room, leg, pinnedOut);
-      const movedByHand = own.some(
+      const held = own.some(
         (seat) =>
-          seat.leg === leg && seat.pinned === true && seat.group_id !== busId
+          seat.leg === leg &&
+          ((seat.pinned === true && seat.group_id !== busId) ||
+            !buses.has(seat.group_id))
       );
-      if (busId && buses.has(busId) && !movedByHand) {
+      if (busId && buses.has(busId) && !held) {
         wanted.push({ busId, leg, person });
       }
     }
@@ -107,15 +149,17 @@ export function roomBusSeatsToAdd(
 }
 
 /**
- * Other seats on a leg someone rides with their room, on any bus, removed
- * with the old places (ruling R3a). Pinned seats are never removed. Driven
- * by the room, not by new seats, so a re-import repairs a half-saved move
- * (ruling R34).
+ * Other seats on a leg someone rides with their room, on any bus the caller
+ * can see, removed with the old places (ruling R3a). Pinned seats are never
+ * removed. Driven by the room, not by new seats, so a re-import repairs a
+ * half-saved move (ruling R34).
  */
 export function roomBusRemovals(
   plan: ImportPlan,
+  groups: BigEventGroupRow[],
   members: BigEventGroupMemberRow[]
 ): BigEventGroupMemberRow[] {
+  const buses = seenBuses(groups);
   const seats = seatsByPerson(members);
   const removed = new Map<string, BigEventGroupMemberRow>();
   for (const seat of plan.roomBuses) {
@@ -125,7 +169,8 @@ export function roomBusRemovals(
       if (
         member.leg === seat.leg &&
         member.group_id !== seat.busId &&
-        member.pinned !== true
+        member.pinned !== true &&
+        buses.has(member.group_id)
       ) {
         removed.set(member.$id, member);
       }

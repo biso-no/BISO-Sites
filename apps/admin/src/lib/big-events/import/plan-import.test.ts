@@ -4,6 +4,7 @@ import type {
   BigEventGroupRow,
   BigEventParticipantRow,
 } from "@repo/shared/big-events/types";
+import { roomBusRemovals } from "./plan-buses";
 import {
   type ImportMapping,
   type ImportOptions,
@@ -1528,6 +1529,58 @@ describe("planImport: room buses (N2)", () => {
     expect(result.roomBuses).toEqual([
       // Kari's way home follows her hand-moved way out (ruling R5).
       { busId: "g-b2", leg: "home", person: { participantId: "p-kari" } },
+      { busId: "g-b1", leg: "out", person: per },
+      { busId: "g-b1", leg: "home", person: per },
+    ]);
+  });
+
+  test("a way home moved by hand stays, with or without a pinned way out", () => {
+    const bus3 = group("g-b3", { kind: "bus", name: "Buss 3" });
+    const ola = participant("p-ola", {
+      first_name: "Ola",
+      last_name: "Hansen",
+      ticket_email: "ola@gmail.com",
+    });
+    const existing = {
+      groups: [bus1, bus2, bus3, room101],
+      members: [
+        // Kari's way home was moved to bus 2 by hand, her way out wasn't.
+        member("g-b2", "p-kari", { leg: "home", pinned: true }),
+        // Ola was moved out to bus 2 and home to bus 3, both by hand.
+        member("g-b2", "p-ola", { leg: "out", pinned: true }),
+        member("g-b3", "p-ola", { leg: "home", pinned: true }),
+      ],
+      participants: [kari, ola],
+    };
+    const result = plan(
+      sheet(
+        ["Kari Nordmann", "kari@gmail.com", "", "", "101"],
+        ["Ola Hansen", "ola@gmail.com", "", "", "101"]
+      ),
+      0,
+      SHEET_WITH_ROOM,
+      roomImport,
+      existing
+    );
+    expect(result.roomBuses).toEqual([
+      { busId: "g-b1", leg: "out", person: { participantId: "p-kari" } },
+    ]);
+    expect(roomBusRemovals(result, existing.groups, existing.members)).toEqual(
+      []
+    );
+  });
+
+  test("a room with only a bus out takes people home on it too", () => {
+    const outOnly = { ...room101, home_bus_id: null };
+    const result = plan(file(), 0, SHEET_WITH_ROOM, roomImport, {
+      groups: [bus1, bus2, outOnly],
+      // Kari's way home was moved to bus 2 by hand: it stays.
+      members: [member("g-b2", "p-kari", { leg: "home", pinned: true })],
+      participants: [kari],
+    });
+    const per = result.create[0];
+    expect(result.roomBuses).toEqual([
+      { busId: "g-b1", leg: "out", person: { participantId: "p-kari" } },
       { busId: "g-b1", leg: "out", person: per },
       { busId: "g-b1", leg: "home", person: per },
     ]);

@@ -318,8 +318,10 @@
           "team": "{count, plural, one {# person bytter lag} other {# personer bytter lag}}",
           "other": "{count, plural, one {# person bytter gruppe} other {# personer bytter gruppe}}"
         },
-        "keptPinned": "{count} beholdt der de ble flyttet for hånd",
-        "busNotices": "{count} får en «du er flyttet»-melding",
+        "keptPinned": "{count, plural, one {# person ble flyttet for hånd og blir der} other {# personer ble flyttet for hånd og blir der}}",
+        "roomBusMoves": "{count, plural, one {# person flyttes} other {# personer flyttes}} til bussen til rommet sitt",
+        "resizedRooms": "{count, plural, one {# rom endrer størrelse} other {# rom endrer størrelse}}",
+        "busNotices": "{count, plural, one {# person får en melding om bussen sin} other {# personer får en melding om bussen sin}}",
         "unplaced": "{count, plural, one {# person er ikke på rom ennå} other {# personer er ikke på rom ennå}}",
         "unplacedHelp": "De vises under «Ikke på rom ennå» på deltakerlisten.",
         "overfull": "{count, plural, one {# rom har} other {# rom har}} flere personer enn plasser: {names}",

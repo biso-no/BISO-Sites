@@ -1012,18 +1012,25 @@ describe("applyImport: pins, room buses and notices (N7)", () => {
       ],
       [PARTICIPANTS]: [participantRow({ campus_id: null }), ola()],
     });
-
-    const result = await applyImport(
-      "b1",
+    const form = () =>
       pasteForm([
         ["Navn", "Etternavn", "Mobilnr", "Rom"],
         ["Kari", "Nordmann", "91234567", "101"],
         ["Ola", "Hansen", "92345678", "101"],
         ["Per", "Dahl", "93456789", "101"],
-      ]),
-      groupMapping,
-      { ...PLAIN, groupKind: "room" }
-    );
+      ]);
+
+    // Kari and Per move to the room's bus; Ola stays where he was moved.
+    expect(
+      await previewImport("b1", form(), groupMapping, {
+        ...PLAIN,
+        groupKind: "room",
+      })
+    ).toMatchObject({ busNotices: 0, nothingNew: false, roomBusMoves: 2 });
+    const result = await applyImport("b1", form(), groupMapping, {
+      ...PLAIN,
+      groupKind: "room",
+    });
 
     expect(result).toMatchObject({ complete: true, placed: 3 });
     const per = byName(fake.rows(PARTICIPANTS), "Per");
@@ -1090,6 +1097,9 @@ describe("applyImport: pins, room buses and notices (N7)", () => {
     expect(room()?.capacity).toBe(4);
     // An older file sold Ola's room as a 2-person room.
     Object.assign(room() ?? {}, { capacity: 2 });
+    expect(
+      await previewImport("b1", ticksterForm(), TICKSTER_MAPPING, ROOM_BOOKINGS)
+    ).toMatchObject({ nothingNew: false, placed: 0, resizedRooms: 1 });
     fake.db.updateRow.mockClear();
 
     const again = await applyImport(
@@ -1155,6 +1165,129 @@ describe("applyImport: pins, room buses and notices (N7)", () => {
     expect(noticeOf("Per")).toEqual(expect.any(String));
     const [, , audit] = logAuditEvent.mock.calls.at(-1) ?? [];
     expect(audit).toMatchObject({ payload: { bus_notices: 2 } });
+  });
+
+  function roomRow(campusId: string | null, busId: string): FakeRow {
+    return {
+      $id: "g-101",
+      big_event_id: "b1",
+      booking_participant_id: null,
+      campus_id: campusId,
+      capacity: 4,
+      home_bus_id: busId,
+      kind: "room",
+      name: "101",
+      out_bus_id: busId,
+      source_key: `col:room:${campusId ?? "-"}:101`,
+    };
+  }
+
+  test("a campus admin's import keeps a person pinned on another campus's bus", async () => {
+    // Kari and Ola moved from Oslo to Bergen. Oslo's organizers had moved
+    // Kari onto their bus by hand; Ola still rides home on it.
+    const seedCampuses = () =>
+      seed({
+        [GROUPS]: [
+          {
+            ...busRow("g-oslo", "Buss 1"),
+            campus_id: "1",
+            source_key: "col:bus:1:buss 1",
+          },
+          {
+            ...busRow("g-bergen", "Buss 1"),
+            campus_id: "2",
+            source_key: "col:bus:2:buss 1",
+          },
+          roomRow("2", "g-bergen"),
+        ],
+        [MEMBERS]: [
+          seatRow("g-oslo", "p1", "out", true),
+          seatRow("g-oslo", "p1", "home"),
+          seatRow("g-oslo", "p2", "home"),
+        ],
+        [PARTICIPANTS]: [participantRow(), { ...ola(), campus_id: "2" }],
+      });
+    currentCtx = makeCtx({
+      managedCampusIds: ["2"],
+      resolvedCampusIds: ["2"],
+      roles: ["campusadmin"],
+    });
+    const file = (column: string, value: string) =>
+      pasteForm([
+        ["Navn", "Etternavn", "Mobilnr", column],
+        ["Kari", "Nordmann", "91234567", value],
+        ["Ola", "Hansen", "92345678", value],
+      ]);
+    const bergen = { ...PLAIN, defaultCampusId: "2" as const };
+
+    // Room import: nobody gets a second bus on a trip they already have.
+    seedCampuses();
+    const rooms = await applyImport("b1", file("Rom", "101"), groupMapping, {
+      ...bergen,
+      groupKind: "room",
+    });
+    expect(rooms).toMatchObject({ complete: true, placed: 2 });
+    expect(seats("p1")).toEqual(["g-101:null", "g-oslo:home", "g-oslo:out"]);
+    expect(seats("p2")).toEqual(["g-101:null", "g-bergen:out", "g-oslo:home"]);
+
+    // Bus import: Kari stays put; Ola gets only the way out.
+    seedCampuses();
+    const busImport = { ...bergen, groupKind: "bus" as const };
+    expect(
+      await previewImport("b1", file("Buss", "Buss 1"), groupMapping, busImport)
+    ).toMatchObject({ keptPinned: 1, newGroups: 0 });
+    await applyImport("b1", file("Buss", "Buss 1"), groupMapping, busImport);
+    expect(seats("p1")).toEqual(["g-oslo:home", "g-oslo:out"]);
+    expect(seats("p2")).toEqual(["g-bergen:out", "g-oslo:home"]);
+    // Oslo's seats are never touched.
+    expect(
+      fake.rows(MEMBERS).find((member) => member.$id === "m-g-oslo-p1-out")
+    ).toMatchObject({ pinned: true });
+  });
+
+  test("re-importing the same file writes no memberships, groups or notices", async () => {
+    seed({
+      big_events: [
+        { ...bigEvent, bus_lists_published_at: "2027-01-10T10:00:00.000Z" },
+      ],
+      [GROUPS]: [busRow("g-b1", "Buss 1"), roomRow(null, "g-b1")],
+      [MEMBERS]: [],
+      [PARTICIPANTS]: [participantRow({ campus_id: null })],
+    });
+    const form = () =>
+      pasteForm([
+        ["Navn", "Etternavn", "Mobilnr", "Rom"],
+        ["Kari", "Nordmann", "91234567", "101"],
+        ["Per", "Dahl", "93456789", "101"],
+      ]);
+    const roomImport = { ...PLAIN, groupKind: "room" as const };
+    await applyImport("b1", form(), groupMapping, roomImport);
+    expect(seats("p1")).toEqual(["g-101:null", "g-b1:home", "g-b1:out"]);
+
+    expect(
+      await previewImport("b1", form(), groupMapping, roomImport)
+    ).toMatchObject({
+      busNotices: 0,
+      moved: 0,
+      newGroups: 0,
+      nothingNew: true,
+      placed: 0,
+      resizedRooms: 0,
+      roomBusMoves: 0,
+    });
+    fake.db.createRow.mockClear();
+    fake.db.deleteRow.mockClear();
+    fake.db.updateRow.mockClear();
+    const again = await applyImport("b1", form(), groupMapping, roomImport);
+
+    expect(again).toMatchObject({ complete: true, moved: 0, placed: 0 });
+    expect(fake.db.createRow).not.toHaveBeenCalled();
+    expect(fake.db.deleteRow).not.toHaveBeenCalled();
+    const writes = fake.db.updateRow.mock.calls;
+    expect(writes.every(([, tableId]) => tableId === PARTICIPANTS)).toBe(true);
+    expect(
+      writes.some(([, , , data]) => data && "bus_notice_due_at" in data)
+    ).toBe(false);
   });
 });
 
