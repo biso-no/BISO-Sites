@@ -62,6 +62,7 @@
     },
     "tabs": {
       "participants": "Deltakere",
+      "groups": "Grupper",
       "settings": "Innstillinger"
     },
     "participants": {
@@ -381,6 +382,107 @@
         "title": "Koble fra {name}?",
         "description": "Kontoen viser ikke lenger dette arrangementet før billetten kobles til igjen. Personen blir stående på listen.",
         "confirm": "Koble fra"
+      }
+    },
+    "groups": {
+      "sections": {
+        "bus": "Busser",
+        "room": "Rom",
+        "buddy": "Faddergrupper",
+        "team": "Lag",
+        "other": "Andre"
+      },
+      "add": {
+        "bus": "Legg til buss",
+        "room": "Legg til rom",
+        "buddy": "Legg til gruppe",
+        "team": "Legg til gruppe",
+        "other": "Legg til gruppe"
+      },
+      "empty": {
+        "bus": "Ingen busser ennå.",
+        "room": "Ingen rom ennå.",
+        "buddy": "Ingen faddergrupper ennå.",
+        "team": "Ingen lag ennå.",
+        "other": "Ingen andre grupper ennå."
+      },
+      "kinds": {
+        "bus": "Buss",
+        "room": "Rom",
+        "buddy": "Faddergruppe",
+        "team": "Lag",
+        "other": "Annet"
+      },
+      "noCampus": "Uten campus",
+      "taken": "{taken} av {capacity}",
+      "openPlaces": "{count, plural, one {# ledig plass} other {# ledige plasser}}",
+      "roomNumber": "Rom {number}",
+      "contact": "Kontakt: {name}",
+      "seats": "Utreise {out} · Hjemreise {home}",
+      "seatsOf": "Utreise {out} av {capacity} · Hjemreise {home} av {capacity}",
+      "onlyOut": "Bare utreise",
+      "onlyHome": "Bare hjemreise",
+      "nobody": "Ingen her ennå.",
+      "editGroup": "Rediger {name}",
+      "deleteGroup": "Slett {name}",
+      "personMenu": "Flere valg for {name}",
+      "moveTo": "Flytt til …",
+      "noOtherGroups": "Ingen andre grupper å flytte til",
+      "takeOut": "Ta ut av gruppen",
+      "moved": "{name} er flyttet til {group}",
+      "takenOut": "{name} er tatt ut av {group}",
+      "dialog": {
+        "editTitle": "Rediger {name}",
+        "description": "Bare navnet må fylles ut.",
+        "kind": "Type",
+        "name": "Navn",
+        "campus": "Campus",
+        "seats": "Seter",
+        "places": "Plasser",
+        "capacityHelp": "La stå tomt for ingen grense.",
+        "roomNumber": "Romnummer",
+        "roomNumberHelp": "Vises for de som bor på rommet.",
+        "contactName": "Kontaktperson",
+        "contactPhone": "Telefon til kontaktpersonen",
+        "note": "Notat",
+        "out": "Utreise",
+        "home": "Hjemreise",
+        "leaves": "Avgang",
+        "date": "dato",
+        "time": "klokkeslett",
+        "meetingPoint": "Oppmøtested",
+        "mapsUrl": "Kartlenke",
+        "mapsUrlHelp": "En lenke til stedet i Google Maps eller lignende.",
+        "arrivesAround": "Fremme ca.",
+        "inUse": "Ta alle ut av gruppen for å endre dette.",
+        "add": "Legg til",
+        "save": "Lagre",
+        "added": "{name} er lagt til",
+        "saved": "Endringene er lagret",
+        "errors": {
+          "campus_id": "Velg campus.",
+          "capacity": "Skriv et helt tall fra 1 til 200.",
+          "contact_name": "Navnet kan ha opptil 120 tegn.",
+          "contact_phone": "Sjekk telefonnummeret.",
+          "home_arrival_note": "Bruk opptil 200 tegn.",
+          "home_departs_at": "Velg både dato og klokkeslett.",
+          "home_maps_url": "Lim inn en hel lenke som starter med https://.",
+          "home_meeting_point": "Oppmøtestedet kan ha opptil 300 tegn.",
+          "kind": "Velg type.",
+          "name": "Skriv et navn på opptil 200 tegn.",
+          "note": "Notatet kan ha opptil 2000 tegn.",
+          "out_departs_at": "Velg både dato og klokkeslett.",
+          "out_maps_url": "Lim inn en hel lenke som starter med https://.",
+          "out_meeting_point": "Oppmøtestedet kan ha opptil 300 tegn.",
+          "room_number": "Romnummeret kan ha opptil 40 tegn."
+        }
+      },
+      "deleteDialog": {
+        "title": "Slette {name}?",
+        "description": "Alle i den blir tatt ut av den.",
+        "busPublished": "Busslistene er publisert. Flytt folkene av bussen først.",
+        "confirm": "Slett",
+        "deleted": "{name} er slettet"
       }
     }
   },

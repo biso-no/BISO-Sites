@@ -600,6 +600,7 @@ describe("listGroups", () => {
     const [bus, room] = view.groups;
     expect(bus?.members).toEqual([
       {
+        campusId: "2",
         leg: "out",
         name: "Kari Nordmann",
         participantId: "p-b1",
@@ -607,6 +608,7 @@ describe("listGroups", () => {
         roomName: "Kari Nordmann",
       },
       {
+        campusId: "2",
         leg: "home",
         name: "Kari Nordmann",
         participantId: "p-b1",

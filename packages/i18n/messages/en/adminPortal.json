@@ -62,6 +62,7 @@
     },
     "tabs": {
       "participants": "Participants",
+      "groups": "Groups",
       "settings": "Settings"
     },
     "participants": {
@@ -381,6 +382,107 @@
         "title": "Unlink {name}?",
         "description": "Their account no longer shows this big event until the ticket is connected again. The person stays on the list.",
         "confirm": "Unlink"
+      }
+    },
+    "groups": {
+      "sections": {
+        "bus": "Buses",
+        "room": "Rooms",
+        "buddy": "Buddy groups",
+        "team": "Teams",
+        "other": "Other"
+      },
+      "add": {
+        "bus": "Add bus",
+        "room": "Add room",
+        "buddy": "Add group",
+        "team": "Add group",
+        "other": "Add group"
+      },
+      "empty": {
+        "bus": "No buses yet.",
+        "room": "No rooms yet.",
+        "buddy": "No buddy groups yet.",
+        "team": "No teams yet.",
+        "other": "No other groups yet."
+      },
+      "kinds": {
+        "bus": "Bus",
+        "room": "Room",
+        "buddy": "Buddy group",
+        "team": "Team",
+        "other": "Other"
+      },
+      "noCampus": "No campus",
+      "taken": "{taken} of {capacity}",
+      "openPlaces": "{count, plural, one {# open place} other {# open places}}",
+      "roomNumber": "Room {number}",
+      "contact": "Contact: {name}",
+      "seats": "Out {out} · Home {home}",
+      "seatsOf": "Out {out} of {capacity} · Home {home} of {capacity}",
+      "onlyOut": "Only out",
+      "onlyHome": "Only home",
+      "nobody": "No one in it yet.",
+      "editGroup": "Edit {name}",
+      "deleteGroup": "Delete {name}",
+      "personMenu": "More for {name}",
+      "moveTo": "Move to…",
+      "noOtherGroups": "No other group to move to",
+      "takeOut": "Take out of the group",
+      "moved": "{name} was moved to {group}",
+      "takenOut": "{name} was taken out of {group}",
+      "dialog": {
+        "editTitle": "Edit {name}",
+        "description": "Only the name is required.",
+        "kind": "Type",
+        "name": "Name",
+        "campus": "Campus",
+        "seats": "Seats",
+        "places": "Places",
+        "capacityHelp": "Leave empty for no limit.",
+        "roomNumber": "Room number",
+        "roomNumberHelp": "Shown to the people in the room.",
+        "contactName": "Contact person",
+        "contactPhone": "Contact person's phone",
+        "note": "Note",
+        "out": "Out",
+        "home": "Home",
+        "leaves": "Leaves",
+        "date": "date",
+        "time": "time",
+        "meetingPoint": "Meeting point",
+        "mapsUrl": "Map link",
+        "mapsUrlHelp": "A link to the place in Google Maps or similar.",
+        "arrivesAround": "Arrives around",
+        "inUse": "Take everyone out of the group to change this.",
+        "add": "Add",
+        "save": "Save",
+        "added": "{name} was added",
+        "saved": "Changes saved",
+        "errors": {
+          "campus_id": "Choose a campus.",
+          "capacity": "Write a whole number from 1 to 200.",
+          "contact_name": "Keep the name to 120 characters.",
+          "contact_phone": "Check the phone number.",
+          "home_arrival_note": "Keep it to 200 characters.",
+          "home_departs_at": "Choose both a date and a time.",
+          "home_maps_url": "Paste a full link that starts with https://.",
+          "home_meeting_point": "Keep the meeting point to 300 characters.",
+          "kind": "Choose a type.",
+          "name": "Write a name of up to 200 characters.",
+          "note": "Keep the note to 2000 characters.",
+          "out_departs_at": "Choose both a date and a time.",
+          "out_maps_url": "Paste a full link that starts with https://.",
+          "out_meeting_point": "Keep the meeting point to 300 characters.",
+          "room_number": "Keep the room number to 40 characters."
+        }
+      },
+      "deleteDialog": {
+        "title": "Delete {name}?",
+        "description": "Everyone in it is taken out of it.",
+        "busPublished": "The bus lists are published. Move the people off this bus first.",
+        "confirm": "Delete",
+        "deleted": "{name} was deleted"
       }
     }
   },

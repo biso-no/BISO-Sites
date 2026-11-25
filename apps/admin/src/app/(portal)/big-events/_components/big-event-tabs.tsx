@@ -6,13 +6,14 @@ import { STUDIO } from "../../_components/studio";
 
 interface BigEventTabsProps {
   bigEventId: string;
-  labels: { participants: string; settings: string };
+  labels: { groups: string; participants: string; settings: string };
   /** Settings is shown only to people who may change them. */
   showSettings: boolean;
 }
 
 const TABS = [
   { key: "participants" as const, segment: "participants", settings: false },
+  { key: "groups" as const, segment: "groups", settings: false },
   { key: "settings" as const, segment: "settings", settings: true },
 ];
 

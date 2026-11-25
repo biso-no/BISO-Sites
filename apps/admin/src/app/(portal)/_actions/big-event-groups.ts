@@ -40,6 +40,8 @@ type GrantedAccess = Exclude<BigEventAccess, null>;
 
 /** One person's place in a group, as the Groups tab shows it: a name, no contact details. */
 export interface GroupMemberView {
+  /** The person's own campus, so "Move to…" can offer groups on it. */
+  campusId: string | null;
   /** The bus leg for a bus seat; null in rooms and other groups. */
   leg: Leg | null;
   name: string;
@@ -245,19 +247,20 @@ function roomNamesByPerson(
 /** Visible people per group, by name; people the caller can't see are left out. */
 function membersByGroup(
   members: BigEventGroupMemberRow[],
-  names: Map<string, string>,
+  people: Map<string, Pick<GroupMemberView, "campusId" | "name">>,
   rooms: Map<string, string>
 ): Map<string, GroupMemberView[]> {
   const byGroup = new Map<string, GroupMemberView[]>();
   for (const member of members) {
-    const name = names.get(member.participant_id);
-    if (name === undefined) {
+    const person = people.get(member.participant_id);
+    if (person === undefined) {
       continue;
     }
     const list = byGroup.get(member.group_id) ?? [];
     list.push({
+      campusId: person.campusId,
       leg: member.leg,
-      name,
+      name: person.name,
       participantId: member.participant_id,
       pinned: member.pinned === true,
       roomName: rooms.get(member.participant_id) ?? null,
@@ -284,12 +287,17 @@ function buildGroupsView(
   const openPlaces = roomOpenPlaces(rooms, members);
 
   const visible = groups.filter((group) => canManageGroup(access, group));
-  const names = new Map(participants.map((row) => [row.$id, personName(row)]));
+  const visiblePeople = new Map(
+    participants.map((row) => [
+      row.$id,
+      { campusId: row.campus_id, name: personName(row) },
+    ])
+  );
   const roomNames = roomNamesByPerson(
     visible.filter((group) => group.kind === "room"),
     members
   );
-  const people = membersByGroup(members, names, roomNames);
+  const people = membersByGroup(members, visiblePeople, roomNames);
 
   const appearing = new Set<string>();
   for (const row of [...groups, ...participants]) {

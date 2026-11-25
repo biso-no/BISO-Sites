@@ -59,6 +59,7 @@ export default async function BigEventLayout({
       <BigEventTabs
         bigEventId={event.$id}
         labels={{
+          groups: t("tabs.groups"),
           participants: t("tabs.participants"),
           settings: t("tabs.settings"),
         }}
