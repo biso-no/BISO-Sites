@@ -80,6 +80,8 @@
       "allCampuses": "All campuses",
       "noCampusOption": "No campus",
       "notInRoom": "Not in a room yet ({count})",
+      "notOnBus": "Not on a bus yet ({count})",
+      "needsNewLink": "Needs a new link ({count})",
       "addPerson": "Add person",
       "checkMemberships": "Check memberships",
       "checkMembershipsHelp": "Looks up the membership of everyone who is connected to an account.",
@@ -91,11 +93,15 @@
         "name": "Name",
         "campus": "Campus",
         "room": "Room",
+        "bus": "Bus",
         "status": "Status",
         "membership": "Membership",
         "actions": "Actions"
       },
       "roomName": "Room · {name}",
+      "busName": "{name}",
+      "busOutHome": "{name} · Home: {home}",
+      "noBus": "No bus",
       "noRoom": "Not in a room",
       "status": {
         "connected": "Connected",
@@ -146,7 +152,7 @@
         "save": "Save",
         "added": "{name} was added",
         "saved": "Changes saved",
-        "saveFailed": "Couldn't save. Check your connection and try again.",
+        "saveFailed": "Couldn't save. Try again, or reload the page.",
         "errors": {
           "first_name": "Write a first name of up to 100 characters.",
           "last_name": "Keep the last name to 100 characters.",

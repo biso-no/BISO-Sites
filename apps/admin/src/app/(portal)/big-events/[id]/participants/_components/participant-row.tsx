@@ -134,6 +134,7 @@ interface ParticipantRowProps {
   row: ParticipantListItem;
   /** True while a send is running or the big event isn't published. */
   sendDisabled: boolean;
+  showBus: boolean;
   showRoom: boolean;
 }
 
@@ -147,6 +148,7 @@ export function ParticipantRow({
   onUnlink,
   row,
   sendDisabled,
+  showBus,
   showRoom,
 }: ParticipantRowProps) {
   const t = useTranslations("adminPortal.bigEvents.participants");
@@ -181,6 +183,19 @@ export function ParticipantRow({
           style={{ color: row.roomName ? STUDIO.ink2 : STUDIO.ink4 }}
         >
           {row.roomName ? t("roomName", { name: row.roomName }) : t("noRoom")}
+        </td>
+      )}
+      {showBus && (
+        <td
+          className={CELL}
+          style={{ color: row.busName ? STUDIO.ink2 : STUDIO.ink4 }}
+        >
+          {row.busName
+            ? t(row.homeBusName ? "busOutHome" : "busName", {
+                home: row.homeBusName ?? "",
+                name: row.busName,
+              })
+            : t("noBus")}
         </td>
       )}
       <td className={CELL}>

@@ -80,6 +80,8 @@
       "allCampuses": "Alle campus",
       "noCampusOption": "Uten campus",
       "notInRoom": "Ikke på rom ennå ({count})",
+      "notOnBus": "Ikke på buss ennå ({count})",
+      "needsNewLink": "Trenger ny lenke ({count})",
       "addPerson": "Legg til person",
       "checkMemberships": "Sjekk medlemskap",
       "checkMembershipsHelp": "Sjekker medlemskapet til alle som er koblet til en konto.",
@@ -91,11 +93,15 @@
         "name": "Navn",
         "campus": "Campus",
         "room": "Rom",
+        "bus": "Buss",
         "status": "Status",
         "membership": "Medlemskap",
         "actions": "Handlinger"
       },
       "roomName": "Rom · {name}",
+      "busName": "{name}",
+      "busOutHome": "{name} · Hjem: {home}",
+      "noBus": "Ingen buss",
       "noRoom": "Ikke på rom",
       "status": {
         "connected": "Tilkoblet",
@@ -146,7 +152,7 @@
         "save": "Lagre",
         "added": "{name} er lagt til",
         "saved": "Endringene er lagret",
-        "saveFailed": "Kunne ikke lagre. Sjekk nettforbindelsen og prøv igjen.",
+        "saveFailed": "Kunne ikke lagre. Prøv igjen, eller last inn siden på nytt.",
         "errors": {
           "first_name": "Skriv et fornavn på opptil 100 tegn.",
           "last_name": "Etternavnet kan ha opptil 100 tegn.",
