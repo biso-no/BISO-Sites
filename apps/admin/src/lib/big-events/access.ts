@@ -1,5 +1,6 @@
 import { Query } from "@repo/api";
 import type {
+  BigEventGroupRow,
   BigEventParticipantRow,
   BigEventRow,
 } from "@repo/shared/big-events/types";
@@ -7,6 +8,7 @@ import type { UserAuthContext } from "@/lib/authorization";
 import { NATIONAL_CAMPUS_ID } from "@/lib/event-scope";
 import { ROLES } from "@/lib/roles";
 import { NO_MATCH_FILTER } from "@/lib/utils/authorization";
+import { BIG_EVENT_CAMPUS_IDS } from "./form-schema";
 
 /**
  * Who may see and manage a big event (spec D2). `full` (global admins and the
@@ -132,4 +134,47 @@ export function canSeeParticipant(
     participant.campus_id !== null &&
     access.campusIds.includes(participant.campus_id)
   );
+}
+
+/**
+ * Whether the caller may create, edit, fill or delete a group (N8): full
+ * access manages every group; campus access only groups on its campuses, so a
+ * group with no campus is for full access only (same rule as participants).
+ */
+export function canManageGroup(
+  access: BigEventAccess,
+  group: Pick<BigEventGroupRow, "campus_id">
+): boolean {
+  if (access === null) {
+    return false;
+  }
+  if (access.level === "full") {
+    return true;
+  }
+  return group.campus_id !== null && access.campusIds.includes(group.campus_id);
+}
+
+/**
+ * Campuses the caller may create groups on (ruling R6), also before the big
+ * event has any groups or people: campus access → its own campuses (never
+ * National); full access → the big event's campus, or on a National big
+ * event every campus with National last (the dialog drops it for buses).
+ */
+export function manageableGroupCampuses(
+  access: BigEventAccess,
+  event: Pick<BigEventRow, "campus_id">
+): string[] {
+  if (access === null) {
+    return [];
+  }
+  if (access.level === "campus") {
+    return [...access.campusIds];
+  }
+  if (event.campus_id !== NATIONAL_CAMPUS_ID) {
+    return [event.campus_id];
+  }
+  return [
+    ...BIG_EVENT_CAMPUS_IDS.filter((id) => id !== NATIONAL_CAMPUS_ID),
+    NATIONAL_CAMPUS_ID,
+  ];
 }

@@ -936,6 +936,478 @@ describe("applyImport: repairing places (R34)", () => {
   });
 });
 
+describe("applyImport: pins, room buses and notices (N7)", () => {
+  function busRow(id: string, name: string): FakeRow {
+    return {
+      $id: id,
+      big_event_id: "b1",
+      booking_participant_id: null,
+      campus_id: null,
+      capacity: 50,
+      home_bus_id: null,
+      kind: "bus",
+      name,
+      out_bus_id: null,
+      source_key: `col:bus:-:${name.toLowerCase()}`,
+    };
+  }
+  function seatRow(
+    groupId: string,
+    participantId: string,
+    leg: "out" | "home" | null,
+    pinned = false
+  ): FakeRow {
+    return {
+      $id: `m-${groupId}-${participantId}-${leg}`,
+      big_event_id: "b1",
+      group_id: groupId,
+      leg,
+      participant_id: participantId,
+      pinned,
+    };
+  }
+  const ola = () =>
+    participantRow({
+      $id: "p2",
+      campus_id: null,
+      first_name: "Ola",
+      last_name: "Hansen",
+      phone: "+4792345678",
+      ticket_email: "ola@example.com",
+    });
+  function seats(participantId: string | undefined): string[] {
+    return fake
+      .rows(MEMBERS)
+      .filter((member) => member.participant_id === participantId)
+      .map((member) => `${member.group_id}:${member.leg}`)
+      .sort();
+  }
+  const groupMapping = mappingFor("first_name", "last_name", "phone", "group");
+
+  test("a person named into a room takes the room's bus", async () => {
+    seed({
+      [GROUPS]: [
+        busRow("g-b1", "Buss 1"),
+        busRow("g-b2", "Buss 2"),
+        {
+          $id: "g-101",
+          big_event_id: "b1",
+          booking_participant_id: null,
+          campus_id: null,
+          capacity: 4,
+          home_bus_id: "g-b1",
+          kind: "room",
+          name: "101",
+          out_bus_id: "g-b1",
+          source_key: "col:room:-:101",
+        },
+      ],
+      [MEMBERS]: [
+        // Kari got a seat on bus 2 before she had a room.
+        seatRow("g-b2", "p1", "out"),
+        seatRow("g-b2", "p1", "home"),
+        // Ola was moved onto bus 2 by hand on the way out.
+        seatRow("g-b2", "p2", "out", true),
+        seatRow("g-b2", "p2", "home"),
+      ],
+      [PARTICIPANTS]: [participantRow({ campus_id: null }), ola()],
+    });
+    const form = () =>
+      pasteForm([
+        ["Navn", "Etternavn", "Mobilnr", "Rom"],
+        ["Kari", "Nordmann", "91234567", "101"],
+        ["Ola", "Hansen", "92345678", "101"],
+        ["Per", "Dahl", "93456789", "101"],
+      ]);
+
+    // Kari and Per move to the room's bus; Ola stays where he was moved.
+    expect(
+      await previewImport("b1", form(), groupMapping, {
+        ...PLAIN,
+        groupKind: "room",
+      })
+    ).toMatchObject({ busNotices: 0, nothingNew: false, roomBusMoves: 2 });
+    const result = await applyImport("b1", form(), groupMapping, {
+      ...PLAIN,
+      groupKind: "room",
+    });
+
+    expect(result).toMatchObject({ complete: true, placed: 3 });
+    const per = byName(fake.rows(PARTICIPANTS), "Per");
+    expect(seats("p1")).toEqual(["g-101:null", "g-b1:home", "g-b1:out"]);
+    // Ola stays where he was moved by hand, and rides home on that bus too.
+    expect(seats("p2")).toEqual(["g-101:null", "g-b2:home", "g-b2:out"]);
+    expect(seats(per?.$id)).toEqual(["g-101:null", "g-b1:home", "g-b1:out"]);
+    expect(
+      fake
+        .rows(MEMBERS)
+        .every((member) => member.pinned === (member.$id === "m-g-b2-p2-out"))
+    ).toBe(true);
+  });
+
+  test("a pinned out seat takes the home seat with it on import", async () => {
+    seed({
+      [GROUPS]: [
+        busRow("g-b1", "Buss 1"),
+        busRow("g-b2", "Buss 2"),
+        {
+          $id: "g-101",
+          big_event_id: "b1",
+          booking_participant_id: null,
+          campus_id: null,
+          capacity: 4,
+          home_bus_id: "g-b1",
+          kind: "room",
+          name: "101",
+          out_bus_id: "g-b1",
+          source_key: "col:room:-:101",
+        },
+      ],
+      [MEMBERS]: [
+        // Both were moved onto bus 2 by hand on the way out only. Kari has
+        // no way home yet; Ola still rides home on bus 1.
+        seatRow("g-b2", "p1", "out", true),
+        seatRow("g-b2", "p2", "out", true),
+        seatRow("g-b1", "p2", "home"),
+      ],
+      [PARTICIPANTS]: [participantRow({ campus_id: null }), ola()],
+    });
+
+    const result = await applyImport(
+      "b1",
+      pasteForm([
+        ["Navn", "Etternavn", "Mobilnr", "Rom"],
+        ["Kari", "Nordmann", "91234567", "101"],
+        ["Ola", "Hansen", "92345678", "101"],
+      ]),
+      groupMapping,
+      { ...PLAIN, groupKind: "room" }
+    );
+
+    expect(result).toMatchObject({ complete: true, placed: 2 });
+    // Kari has no way home: it follows her hand-moved way out (ruling R5).
+    // Ola keeps the way home he has, as auto-fill would (rulings R3c, R19).
+    expect(seats("p1")).toEqual(["g-101:null", "g-b2:home", "g-b2:out"]);
+    expect(seats("p2")).toEqual(["g-101:null", "g-b1:home", "g-b2:out"]);
+  });
+
+  test("a re-import updates a booking room's capacity", async () => {
+    await applyImport("b1", ticksterForm(), TICKSTER_MAPPING, ROOM_BOOKINGS);
+    const room = () =>
+      fake.rows(GROUPS).find((group) => group.source_key === "booking:A100");
+    expect(room()?.capacity).toBe(4);
+    // An older file sold Ola's room as a 2-person room.
+    Object.assign(room() ?? {}, { capacity: 2 });
+    expect(
+      await previewImport("b1", ticksterForm(), TICKSTER_MAPPING, ROOM_BOOKINGS)
+    ).toMatchObject({ nothingNew: false, placed: 0, resizedRooms: 1 });
+    fake.db.updateRow.mockClear();
+
+    const again = await applyImport(
+      "b1",
+      ticksterForm(),
+      TICKSTER_MAPPING,
+      ROOM_BOOKINGS
+    );
+
+    expect(again).toMatchObject({ complete: true, newGroups: 0 });
+    expect(room()?.capacity).toBe(4);
+    // Only the room whose size changed is written.
+    const roomWrites = fake.db.updateRow.mock.calls.filter(
+      ([, tableId]) => tableId === GROUPS
+    );
+    expect(roomWrites).toEqual([
+      ["app", GROUPS, String(room()?.$id), { capacity: 4 }],
+    ]);
+  });
+
+  test("import bus moves after publishing mark notices", async () => {
+    const seedBuses = (published: string | null) =>
+      seed({
+        big_events: [{ ...bigEvent, bus_lists_published_at: published }],
+        [GROUPS]: [busRow("g-b1", "Buss 1"), busRow("g-b2", "Buss 2")],
+        [MEMBERS]: [
+          seatRow("g-b1", "p1", "out"),
+          seatRow("g-b1", "p1", "home"),
+          seatRow("g-b1", "p2", "out"),
+          seatRow("g-b1", "p2", "home"),
+        ],
+        [PARTICIPANTS]: [participantRow({ campus_id: null }), ola()],
+      });
+    // Kari moves to bus 2, Ola stays on bus 1, Per is new on bus 2.
+    const form = () =>
+      pasteForm([
+        ["Navn", "Etternavn", "Mobilnr", "Buss"],
+        ["Kari", "Nordmann", "91234567", "Buss 2"],
+        ["Ola", "Hansen", "92345678", "Buss 1"],
+        ["Per", "Dahl", "93456789", "Buss 2"],
+      ]);
+    const busImport = { ...PLAIN, groupKind: "bus" as const };
+    const noticeOf = (firstName: string) =>
+      byName(fake.rows(PARTICIPANTS), firstName)?.bus_notice_due_at ?? null;
+
+    // Before publishing, nobody has been told anything: no notices.
+    seedBuses(null);
+    expect(
+      await previewImport("b1", form(), groupMapping, busImport)
+    ).toMatchObject({ busNotices: 0, moved: 1 });
+    await applyImport("b1", form(), groupMapping, busImport);
+    expect(["Kari", "Ola", "Per"].map(noticeOf)).toEqual([null, null, null]);
+
+    seedBuses("2027-01-10T10:00:00.000Z");
+    expect(
+      await previewImport("b1", form(), groupMapping, busImport)
+    ).toMatchObject({ busNotices: 2, moved: 1 });
+    const result = await applyImport("b1", form(), groupMapping, busImport);
+    expect(result).toMatchObject({ complete: true, moved: 1 });
+    expect(seats("p1")).toEqual(["g-b2:home", "g-b2:out"]);
+    expect(noticeOf("Kari")).toEqual(expect.any(String));
+    expect(noticeOf("Ola")).toBeNull();
+    expect(noticeOf("Per")).toEqual(expect.any(String));
+    const [, , audit] = logAuditEvent.mock.calls.at(-1) ?? [];
+    expect(audit).toMatchObject({ payload: { bus_notices: 2 } });
+  });
+
+  function roomRow(campusId: string | null, busId: string | null): FakeRow {
+    return {
+      $id: "g-101",
+      big_event_id: "b1",
+      booking_participant_id: null,
+      campus_id: campusId,
+      capacity: 4,
+      home_bus_id: busId,
+      kind: "room",
+      name: "101",
+      out_bus_id: busId,
+      source_key: `col:room:${campusId ?? "-"}:101`,
+    };
+  }
+
+  test("a campus admin's import keeps a person pinned on another campus's bus", async () => {
+    // Kari and Ola moved from Oslo to Bergen. Oslo's organizers had moved
+    // Kari onto their bus by hand; Ola still rides home on it.
+    const seedCampuses = () =>
+      seed({
+        [GROUPS]: [
+          {
+            ...busRow("g-oslo", "Buss 1"),
+            campus_id: "1",
+            source_key: "col:bus:1:buss 1",
+          },
+          {
+            ...busRow("g-bergen", "Buss 1"),
+            campus_id: "2",
+            source_key: "col:bus:2:buss 1",
+          },
+          roomRow("2", "g-bergen"),
+        ],
+        [MEMBERS]: [
+          seatRow("g-oslo", "p1", "out", true),
+          seatRow("g-oslo", "p1", "home"),
+          seatRow("g-oslo", "p2", "home"),
+        ],
+        [PARTICIPANTS]: [participantRow(), { ...ola(), campus_id: "2" }],
+      });
+    currentCtx = makeCtx({
+      managedCampusIds: ["2"],
+      resolvedCampusIds: ["2"],
+      roles: ["campusadmin"],
+    });
+    const file = (column: string, value: string) =>
+      pasteForm([
+        ["Navn", "Etternavn", "Mobilnr", column],
+        ["Kari", "Nordmann", "91234567", value],
+        ["Ola", "Hansen", "92345678", value],
+      ]);
+    const bergen = { ...PLAIN, defaultCampusId: "2" as const };
+
+    // Room import: nobody gets a second bus on a trip they already have.
+    seedCampuses();
+    const rooms = await applyImport("b1", file("Rom", "101"), groupMapping, {
+      ...bergen,
+      groupKind: "room",
+    });
+    expect(rooms).toMatchObject({ complete: true, placed: 2 });
+    expect(seats("p1")).toEqual(["g-101:null", "g-oslo:home", "g-oslo:out"]);
+    expect(seats("p2")).toEqual(["g-101:null", "g-bergen:out", "g-oslo:home"]);
+
+    // Bus import: Kari stays put; Ola gets only the way out.
+    seedCampuses();
+    const busImport = { ...bergen, groupKind: "bus" as const };
+    expect(
+      await previewImport("b1", file("Buss", "Buss 1"), groupMapping, busImport)
+    ).toMatchObject({ keptPinned: 1, newGroups: 0 });
+    await applyImport("b1", file("Buss", "Buss 1"), groupMapping, busImport);
+    expect(seats("p1")).toEqual(["g-oslo:home", "g-oslo:out"]);
+    expect(seats("p2")).toEqual(["g-bergen:out", "g-oslo:home"]);
+    // Oslo's seats are never touched.
+    expect(
+      fake.rows(MEMBERS).find((member) => member.$id === "m-g-oslo-p1-out")
+    ).toMatchObject({ pinned: true });
+  });
+
+  test("re-importing the same file writes no memberships, groups or notices", async () => {
+    seed({
+      big_events: [
+        { ...bigEvent, bus_lists_published_at: "2027-01-10T10:00:00.000Z" },
+      ],
+      [GROUPS]: [busRow("g-b1", "Buss 1"), roomRow(null, "g-b1")],
+      [MEMBERS]: [],
+      [PARTICIPANTS]: [participantRow({ campus_id: null })],
+    });
+    const form = () =>
+      pasteForm([
+        ["Navn", "Etternavn", "Mobilnr", "Rom"],
+        ["Kari", "Nordmann", "91234567", "101"],
+        ["Per", "Dahl", "93456789", "101"],
+      ]);
+    const roomImport = { ...PLAIN, groupKind: "room" as const };
+    await applyImport("b1", form(), groupMapping, roomImport);
+    expect(seats("p1")).toEqual(["g-101:null", "g-b1:home", "g-b1:out"]);
+
+    expect(
+      await previewImport("b1", form(), groupMapping, roomImport)
+    ).toMatchObject({
+      busNotices: 0,
+      moved: 0,
+      newGroups: 0,
+      nothingNew: true,
+      placed: 0,
+      resizedRooms: 0,
+      roomBusMoves: 0,
+    });
+    fake.db.createRow.mockClear();
+    fake.db.deleteRow.mockClear();
+    fake.db.updateRow.mockClear();
+    const again = await applyImport("b1", form(), groupMapping, roomImport);
+
+    expect(again).toMatchObject({ complete: true, moved: 0, placed: 0 });
+    expect(fake.db.createRow).not.toHaveBeenCalled();
+    expect(fake.db.deleteRow).not.toHaveBeenCalled();
+    const writes = fake.db.updateRow.mock.calls;
+    expect(writes.every(([, tableId]) => tableId === PARTICIPANTS)).toBe(true);
+    expect(
+      writes.some(([, , , data]) => data && "bus_notice_due_at" in data)
+    ).toBe(false);
+  });
+
+  const bergenAdmin = () =>
+    makeCtx({
+      managedCampusIds: ["2"],
+      resolvedCampusIds: ["2"],
+      roles: ["campusadmin"],
+    });
+  const bergenRooms = {
+    ...PLAIN,
+    defaultCampusId: "2" as const,
+    groupKind: "room" as const,
+  };
+  const kariToRoom101 = () =>
+    pasteForm([
+      ["Navn", "Etternavn", "Mobilnr", "Rom"],
+      ["Kari", "Nordmann", "91234567", "101"],
+    ]);
+  /** Bergen's room 101 and a National group Kari was moved into by hand. */
+  function seedNationalPin(kind: "room" | "team"): void {
+    seed({
+      [GROUPS]: [
+        roomRow("2", null),
+        {
+          $id: "g-national",
+          big_event_id: "b1",
+          booking_participant_id: null,
+          campus_id: "5",
+          capacity: null,
+          home_bus_id: null,
+          kind,
+          name: "Lag 1",
+          out_bus_id: null,
+          source_key: null,
+        },
+      ],
+      [MEMBERS]: [seatRow("g-national", "p1", null, true)],
+      [PARTICIPANTS]: [participantRow()],
+    });
+  }
+
+  test("a hand move into a National team doesn't block a campus room import", async () => {
+    seedNationalPin("team");
+    currentCtx = bergenAdmin();
+
+    expect(
+      await previewImport("b1", kariToRoom101(), groupMapping, bergenRooms)
+    ).toMatchObject({ keptPinned: 0, placed: 1 });
+    await applyImport("b1", kariToRoom101(), groupMapping, bergenRooms);
+    expect(seats("p1")).toEqual(["g-101:null", "g-national:null"]);
+  });
+
+  test("a hand move into a National room still keeps the person on a campus room import", async () => {
+    seedNationalPin("room");
+    currentCtx = bergenAdmin();
+
+    expect(
+      await previewImport("b1", kariToRoom101(), groupMapping, bergenRooms)
+    ).toMatchObject({ keptPinned: 1, placed: 0 });
+    await applyImport("b1", kariToRoom101(), groupMapping, bergenRooms);
+    expect(seats("p1")).toEqual(["g-national:null"]);
+  });
+
+  test("a missing bus leg is something new in the preview (R34)", async () => {
+    seed({
+      [GROUPS]: [busRow("g-b1", "Buss 1")],
+      // Only Kari's way out was written last time.
+      [MEMBERS]: [seatRow("g-b1", "p1", "out")],
+      [PARTICIPANTS]: [participantRow({ campus_id: null })],
+    });
+    const form = pasteForm([
+      ["Navn", "Etternavn", "Mobilnr", "Buss"],
+      ["Kari", "Nordmann", "91234567", "Buss 1"],
+    ]);
+
+    expect(
+      await previewImport("b1", form, groupMapping, {
+        ...PLAIN,
+        groupKind: "bus",
+      })
+    ).toMatchObject({ moved: 0, nothingNew: false, placed: 0 });
+  });
+
+  test("a bus place held both ways on another campus's bus isn't a new place", async () => {
+    seed({
+      [GROUPS]: [
+        {
+          ...busRow("g-oslo", "Buss 1"),
+          campus_id: "1",
+          source_key: "col:bus:1:buss 1",
+        },
+        {
+          ...busRow("g-bergen", "Buss 1"),
+          campus_id: "2",
+          source_key: "col:bus:2:buss 1",
+        },
+      ],
+      [MEMBERS]: [
+        seatRow("g-oslo", "p1", "out"),
+        seatRow("g-oslo", "p1", "home"),
+      ],
+      [PARTICIPANTS]: [participantRow()],
+    });
+    currentCtx = bergenAdmin();
+    const form = () =>
+      pasteForm([
+        ["Navn", "Etternavn", "Mobilnr", "Buss"],
+        ["Kari", "Nordmann", "91234567", "Buss 1"],
+      ]);
+    const busImport = { ...bergenRooms, groupKind: "bus" as const };
+
+    expect(
+      await previewImport("b1", form(), groupMapping, busImport)
+    ).toMatchObject({ nothingNew: true, placed: 0 });
+    await applyImport("b1", form(), groupMapping, busImport);
+    expect(seats("p1")).toEqual(["g-oslo:home", "g-oslo:out"]);
+  });
+});
+
 describe("previewImport", () => {
   test("counts new, updated, unchanged, missing and skipped people", async () => {
     seed({

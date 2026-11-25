@@ -63,6 +63,8 @@ const EXPECTED_COLUMNS: Record<string, string[]> = {
     "travel_enabled",
     "group_checkin_enabled",
     "created_by",
+    "bus_lists_published_at",
+    "bus_lists_published_by",
   ],
   big_event_participants: [
     "big_event_id",
@@ -87,6 +89,8 @@ const EXPECTED_COLUMNS: Record<string, string[]> = {
     "suggested_user_id",
     "suggested_reason",
     "dismissed_user_id",
+    "bus_notice_due_at",
+    "bus_notified_at",
   ],
   big_event_groups: [
     "big_event_id",
@@ -101,6 +105,15 @@ const EXPECTED_COLUMNS: Record<string, string[]> = {
     "room_number",
     "source_key",
     "booking_participant_id",
+    "out_departs_at",
+    "out_meeting_point",
+    "out_maps_url",
+    "home_departs_at",
+    "home_meeting_point",
+    "home_maps_url",
+    "home_arrival_note",
+    "out_bus_id",
+    "home_bus_id",
   ],
   big_event_group_members: [
     "big_event_id",

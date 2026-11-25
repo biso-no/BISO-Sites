@@ -36,6 +36,7 @@ import {
   CONNECT_SEND_MODES,
   type ConnectSendMode,
   filterParticipants,
+  needsNewConnectLink,
   type ParticipantFilters,
   type ParticipantList,
   type ParticipantListItem,
@@ -67,6 +68,8 @@ const sendModeSchema = z.enum(CONNECT_SEND_MODES);
 /** The list's filters, as the toolbar holds them. They only ever narrow. */
 const filtersSchema = z.object({
   campus: z.string().max(36),
+  needsNewLink: z.boolean().default(false),
+  noBus: z.boolean().default(false),
   noRoom: z.boolean(),
   pile: z.enum(["all", ...REACH_PILES]),
   search: z.string().max(200),
@@ -148,10 +151,58 @@ async function loadRoomNames(
   return { byParticipant, hasRooms: true };
 }
 
+/** Each participant's bus names: the way out, and the way home when it differs. */
+async function loadBusNames(
+  db: AdminDb,
+  bigEventId: string
+): Promise<Map<string, { home: string | null; out: string | null }>> {
+  const buses = await listAllRows<BigEventGroupRow>(
+    db,
+    BIG_EVENT_TABLES.groups,
+    [
+      Query.equal("big_event_id", [bigEventId]),
+      Query.equal("kind", ["bus"]),
+      Query.select(["$id", "name"]),
+    ]
+  );
+  const byParticipant = new Map<
+    string,
+    { home: string | null; out: string | null }
+  >();
+  if (buses.length === 0) {
+    return byParticipant;
+  }
+  const names = new Map(buses.map((bus) => [bus.$id, bus.name]));
+  const members = await listRowsByIds<BigEventGroupMemberRow>(
+    db,
+    BIG_EVENT_TABLES.groupMembers,
+    "group_id",
+    [...names.keys()],
+    [
+      Query.equal("big_event_id", [bigEventId]),
+      Query.select(["$id", "group_id", "leg", "participant_id"]),
+    ]
+  );
+  for (const member of members) {
+    const name = names.get(member.group_id);
+    if (name === undefined || (member.leg !== "out" && member.leg !== "home")) {
+      continue;
+    }
+    const seat = byParticipant.get(member.participant_id) ?? {
+      home: null,
+      out: null,
+    };
+    seat[member.leg] = name;
+    byParticipant.set(member.participant_id, seat);
+  }
+  return byParticipant;
+}
+
 async function loadParticipantList(
   db: AdminDb,
   bigEventId: string,
-  access: GrantedAccess
+  access: GrantedAccess,
+  travelEnabled: boolean
 ): Promise<ParticipantList> {
   const participants = await listAllRows<BigEventParticipantRow>(
     db,
@@ -164,8 +215,13 @@ async function loadParticipantList(
   const suggestedIds = participants.flatMap((row) =>
     !row.user_id && row.suggested_user_id ? [row.suggested_user_id] : []
   );
-  const [rooms, accounts, push] = await Promise.all([
+  const [rooms, buses, accounts, push] = await Promise.all([
     loadRoomNames(db, bigEventId),
+    travelEnabled
+      ? loadBusNames(db, bigEventId)
+      : Promise.resolve(
+          new Map<string, { home: string | null; out: string | null }>()
+        ),
     listRowsByIds<Users>(
       db,
       USER_TABLE,
@@ -192,16 +248,26 @@ async function loadParticipantList(
         noCampus += 1;
       }
       const account = row.user_id ? accountById.get(row.user_id) : undefined;
+      const seat = buses.get(row.$id);
       return toParticipantListItem(row, {
         accountEmail: account?.email ?? null,
         accountName: account?.name ?? null,
+        busName: seat?.out ?? null,
+        homeBusName: seat?.home && seat.home !== seat.out ? seat.home : null,
+        needsNewLink: needsNewConnectLink(row),
         pile,
         roomName: rooms.byParticipant.get(row.$id) ?? null,
         suggestion: suggestionFor(row, accountById),
       });
     }
   );
-  return { counts, hasRooms: rooms.hasRooms, noCampus, rows };
+  return {
+    counts,
+    hasBuses: travelEnabled,
+    hasRooms: rooms.hasRooms,
+    noCampus,
+    rows,
+  };
 }
 
 /** The possible match as the tab shows it; nothing once linked or when the account is gone. */
@@ -243,9 +309,14 @@ function revalidateBigEvent(bigEventId: string): void {
 export async function listParticipants(
   bigEventId: string
 ): Promise<ParticipantList> {
-  const { access } = await requireBigEvent(bigEventId);
+  const { access, event } = await requireBigEvent(bigEventId);
   const { db } = await createAdminClient();
-  return await loadParticipantList(db, bigEventId, access);
+  return await loadParticipantList(
+    db,
+    bigEventId,
+    access,
+    Boolean(event.travel_enabled)
+  );
 }
 
 export async function addParticipant(
@@ -446,9 +517,14 @@ export async function exportParticipantsCsv(
 ): Promise<string> {
   const shown = filtersSchema.parse(filters);
   const columnTitles = csvHeadersSchema.parse(headers);
-  const { access } = await requireBigEvent(bigEventId);
+  const { access, event } = await requireBigEvent(bigEventId);
   const { db } = await createAdminClient();
-  const { rows } = await loadParticipantList(db, bigEventId, access);
+  const { rows } = await loadParticipantList(
+    db,
+    bigEventId,
+    access,
+    Boolean(event.travel_enabled)
+  );
   return participantsToCsv(filterParticipants(rows, shown), columnTitles);
 }
 

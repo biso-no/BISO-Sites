@@ -175,11 +175,14 @@ function item(overrides: Partial<ParticipantListItem>): ParticipantListItem {
     $id: "p",
     accountEmail: null,
     accountName: null,
+    busName: null,
     campus_id: "2",
     connect_sent_at: null,
     first_name: "Kari",
     last_name: "Nordmann",
+    homeBusName: null,
     membership_valid: null,
+    needsNewLink: false,
     phone: null,
     pile: "email",
     roomName: null,
@@ -192,6 +195,7 @@ function item(overrides: Partial<ParticipantListItem>): ParticipantListItem {
 
 const list: ParticipantList = {
   counts: { app_no_push: 0, email: 2, push: 1 },
+  hasBuses: true,
   hasRooms: true,
   noCampus: 0,
   rows: [
@@ -224,6 +228,7 @@ const list: ParticipantList = {
  */
 const sendList: ParticipantList = {
   counts: { app_no_push: 0, email: 4, push: 1 },
+  hasBuses: false,
   hasRooms: false,
   noCampus: 0,
   rows: [
@@ -397,5 +402,55 @@ describe("sending connect emails (R37)", () => {
     await click(buttonStartingWith(container, "Send connect emails (2)"));
     await click(findButton(alertDialog(container) as TestElement, "Send"));
     expect(toast.info).toHaveBeenCalledWith("Already waiting to be sent");
+  });
+
+  test("with Travel on, each row shows its bus and a Not on a bus yet chip", async () => {
+    const container = await mount({
+      ...list,
+      hasBuses: true,
+      rows: [
+        item({ $id: "b1", busName: "Bus 2" }),
+        item({
+          $id: "b2",
+          busName: "Bus 2",
+          first_name: "Ola",
+          homeBusName: "Bus 3",
+        }),
+        item({ $id: "b3", first_name: "Anne" }),
+      ],
+    });
+    const text = container.textContent;
+    expect(text).toContain("Bus 2 · Home: Bus 3");
+    expect(text).toContain("No bus");
+    expect(text).toContain("Not on a bus yet (1)");
+    await act(() => {
+      buttonStartingWith(container, "Not on a bus yet").click();
+    });
+    expect(container.textContent).toContain("Showing 1 of 3");
+  });
+
+  test("with Travel off there is no bus column or chip", async () => {
+    const text = (await mount({ ...list, hasBuses: false })).textContent;
+    expect(text).not.toContain("Not on a bus yet");
+    expect(text).not.toContain("No bus");
+  });
+
+  test("the Needs a new link chip shows only when someone does", async () => {
+    expect((await mount()).textContent).not.toContain("Needs a new link");
+  });
+
+  test("the Needs a new link chip counts and filters those people", async () => {
+    const container = await mount({
+      ...list,
+      rows: [
+        item({ $id: "n1", needsNewLink: true, ticket_email: "a@x.no" }),
+        item({ $id: "n2", first_name: "Ola" }),
+      ],
+    });
+    expect(container.textContent).toContain("Needs a new link (1)");
+    await act(() => {
+      buttonStartingWith(container, "Needs a new link").click();
+    });
+    expect(container.textContent).toContain("Showing 1 of 2");
   });
 });

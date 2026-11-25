@@ -37,6 +37,33 @@ function saveCsvFile(csv: string, fileName: string): void {
   URL.revokeObjectURL(url);
 }
 
+/** A pressed-or-not filter button. */
+function FilterChip({
+  label,
+  onToggle,
+  pressed,
+}: {
+  label: string;
+  onToggle: () => void;
+  pressed: boolean;
+}) {
+  return (
+    <button
+      aria-pressed={pressed}
+      className="rounded-lg border px-3 py-2.5 text-sm transition-colors"
+      onClick={onToggle}
+      style={{
+        background: pressed ? STUDIO.ink : "rgba(255,255,255,0.55)",
+        borderColor: pressed ? STUDIO.ink : STUDIO.rule2,
+        color: pressed ? STUDIO.paper : STUDIO.ink2,
+      }}
+      type="button"
+    >
+      {label}
+    </button>
+  );
+}
+
 interface ParticipantToolbarProps {
   /** Buttons that open things the table owns (add, import). */
   actions: ReactNode;
@@ -49,9 +76,13 @@ interface ParticipantToolbarProps {
   /** Who each toolbar send reaches (ruling R37). */
   connectReach: Record<ConnectSendMode, ConnectSendReach>;
   filters: ParticipantFilters;
+  /** Travel is on, so the bus filter shows. */
+  hasBuses: boolean;
   hasRooms: boolean;
   /** A send is running; the button waits so a double click can't queue twice. */
   isSending: boolean;
+  /** People whose connect link needs sending again (their email changed). */
+  needsNewLink: number;
   onFilterChange: <K extends keyof ParticipantFilters>(
     key: K,
     value: ParticipantFilters[K]
@@ -62,6 +93,7 @@ interface ParticipantToolbarProps {
   showCampusFilter: boolean;
   /** The rows the filters leave, for "Copy emails" and the download. */
   visibleRows: ParticipantListItem[];
+  withoutBus: number;
   withoutRoom: number;
 }
 
@@ -74,12 +106,15 @@ export function ParticipantToolbar({
   connectedCount,
   connectReach,
   filters,
+  hasBuses,
   hasRooms,
   isSending,
+  needsNewLink,
   onFilterChange,
   onSendConnect,
   showCampusFilter,
   visibleRows,
+  withoutBus,
   withoutRoom,
 }: ParticipantToolbarProps) {
   const t = useTranslations("adminPortal.bigEvents.participants");
@@ -177,21 +212,27 @@ export function ParticipantToolbar({
           />
         )}
         {hasRooms && (
-          <button
-            aria-pressed={filters.noRoom}
-            className="rounded-lg border px-3 py-2.5 text-sm transition-colors"
-            onClick={() => onFilterChange("noRoom", !filters.noRoom)}
-            style={{
-              background: filters.noRoom
-                ? STUDIO.ink
-                : "rgba(255,255,255,0.55)",
-              borderColor: filters.noRoom ? STUDIO.ink : STUDIO.rule2,
-              color: filters.noRoom ? STUDIO.paper : STUDIO.ink2,
-            }}
-            type="button"
-          >
-            {t("notInRoom", { count: withoutRoom })}
-          </button>
+          <FilterChip
+            label={t("notInRoom", { count: withoutRoom })}
+            onToggle={() => onFilterChange("noRoom", !filters.noRoom)}
+            pressed={filters.noRoom}
+          />
+        )}
+        {hasBuses && (
+          <FilterChip
+            label={t("notOnBus", { count: withoutBus })}
+            onToggle={() => onFilterChange("noBus", !filters.noBus)}
+            pressed={filters.noBus}
+          />
+        )}
+        {(needsNewLink > 0 || filters.needsNewLink) && (
+          <FilterChip
+            label={t("needsNewLink", { count: needsNewLink })}
+            onToggle={() =>
+              onFilterChange("needsNewLink", !filters.needsNewLink)
+            }
+            pressed={filters.needsNewLink}
+          />
         )}
       </div>
       <div className="flex flex-wrap items-center gap-2">

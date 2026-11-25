@@ -5,6 +5,7 @@ import {
   filterParticipants,
   isConnectTarget,
   NO_CAMPUS,
+  needsNewConnectLink,
   type ParticipantFilters,
   type ParticipantListItem,
   uniqueEmails,
@@ -15,11 +16,14 @@ function item(overrides: Partial<ParticipantListItem>): ParticipantListItem {
     $id: "p",
     accountEmail: null,
     accountName: null,
+    busName: null,
     campus_id: "2",
     connect_sent_at: null,
     first_name: "Kari",
     last_name: "Nordmann",
+    homeBusName: null,
     membership_valid: null,
+    needsNewLink: false,
     phone: null,
     pile: "email",
     roomName: null,
@@ -32,6 +36,8 @@ function item(overrides: Partial<ParticipantListItem>): ParticipantListItem {
 
 const everyone: ParticipantFilters = {
   campus: ALL_CAMPUSES,
+  needsNewLink: false,
+  noBus: false,
   noRoom: false,
   pile: "all",
   search: "",
@@ -76,6 +82,26 @@ describe("filterParticipants", () => {
     expect(
       ids(filterParticipants(people, { ...everyone, noRoom: true }))
     ).toEqual(["p2", "p3"]);
+  });
+
+  test("the bus filter keeps people with no bus out", () => {
+    const riders = [
+      item({ $id: "r1", busName: "Bus 2" }),
+      item({ $id: "r2", busName: null }),
+    ];
+    expect(
+      ids(filterParticipants(riders, { ...everyone, noBus: true }))
+    ).toEqual(["r2"]);
+  });
+
+  test("the new-link filter keeps only people whose link was cleared", () => {
+    const cleared = [
+      item({ $id: "c1", needsNewLink: true }),
+      item({ $id: "c2", needsNewLink: false }),
+    ];
+    expect(
+      ids(filterParticipants(cleared, { ...everyone, needsNewLink: true }))
+    ).toEqual(["c1"]);
   });
 
   test("searches names and emails without caring about case", () => {
@@ -131,5 +157,27 @@ describe("connect send targets (R37)", () => {
         item({}),
       ])
     ).toBe(2);
+  });
+});
+
+describe("needsNewConnectLink", () => {
+  const base = {
+    connect_sent_at: "2026-12-03T09:00:00.000+00:00",
+    connect_token_hash: null,
+    ticket_email: "kari@example.com",
+    user_id: null,
+  };
+
+  test("is an unlinked person with an address, sent once, no live link", () => {
+    expect(needsNewConnectLink(base)).toBe(true);
+  });
+
+  test("is not anyone else", () => {
+    expect(needsNewConnectLink({ ...base, user_id: "u1" })).toBe(false);
+    expect(needsNewConnectLink({ ...base, ticket_email: null })).toBe(false);
+    expect(needsNewConnectLink({ ...base, connect_sent_at: null })).toBe(false);
+    expect(needsNewConnectLink({ ...base, connect_token_hash: "h" })).toBe(
+      false
+    );
   });
 });

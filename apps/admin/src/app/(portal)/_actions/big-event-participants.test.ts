@@ -163,6 +163,8 @@ const formValues: ParticipantFormValues = {
 
 const allRows: ParticipantFilters = {
   campus: "all",
+  needsNewLink: false,
+  noBus: false,
   noRoom: false,
   pile: "all",
   search: "",
@@ -307,6 +309,84 @@ describe("listParticipants", () => {
     ]) {
       expect(byId.get("p1")).not.toHaveProperty(hidden);
     }
+  });
+
+  test("shows bus names for Travel events, home only when it differs", async () => {
+    routeListRows({
+      big_event_group_members: () =>
+        rows([
+          { $id: "m1", group_id: "g-a", leg: "out", participant_id: "p1" },
+          { $id: "m2", group_id: "g-a", leg: "home", participant_id: "p1" },
+          { $id: "m3", group_id: "g-a", leg: "out", participant_id: "p2" },
+          { $id: "m4", group_id: "g-b", leg: "home", participant_id: "p2" },
+        ]),
+      big_event_groups: () =>
+        rows([
+          { $id: "g-a", name: "Bus 2" },
+          { $id: "g-b", name: "Bus 3" },
+        ]),
+      big_event_participants: () =>
+        rows([
+          participantRow({ $id: "p1" }),
+          participantRow({ $id: "p2", first_name: "Ola" }),
+          participantRow({ $id: "p3", first_name: "Per" }),
+        ]),
+      big_events: () => rows([bigEventRow()]),
+    });
+
+    const list = await listParticipants("b1");
+
+    expect(list.hasBuses).toBe(true);
+    expect(
+      queriesFor("big_event_groups").some((q) =>
+        q.includes(Query.equal("kind", ["bus"]))
+      )
+    ).toBe(true);
+    const byId = new Map(list.rows.map((row) => [row.$id, row]));
+    expect(byId.get("p1")).toMatchObject({
+      busName: "Bus 2",
+      homeBusName: null,
+    });
+    expect(byId.get("p2")).toMatchObject({
+      busName: "Bus 2",
+      homeBusName: "Bus 3",
+    });
+    expect(byId.get("p3")).toMatchObject({ busName: null, homeBusName: null });
+  });
+
+  test("loads no buses when Travel is off", async () => {
+    routeListRows({
+      big_event_participants: () => rows([participantRow()]),
+      big_events: () => rows([bigEventRow({ travel_enabled: false })]),
+    });
+
+    const list = await listParticipants("b1");
+
+    expect(list.hasBuses).toBe(false);
+    expect(
+      queriesFor("big_event_groups").some((q) =>
+        q.includes(Query.equal("kind", ["bus"]))
+      )
+    ).toBe(false);
+  });
+
+  test("flags people whose connect link was cleared after a send", async () => {
+    routeListRows({
+      big_event_participants: () =>
+        rows([
+          participantRow({
+            $id: "p1",
+            connect_sent_at: "2026-12-03T09:00:00.000+00:00",
+            connect_token_hash: null,
+          }),
+          participantRow({ $id: "p2" }),
+        ]),
+      big_events: () => rows([bigEventRow()]),
+    });
+
+    const list = await listParticipants("b1");
+
+    expect(list.rows.map((row) => row.needsNewLink)).toEqual([true, false]);
   });
 
   test("a possible match shows the account's name and email, not its id", async () => {
@@ -613,7 +693,14 @@ describe("exportParticipantsCsv", () => {
 
     const csv = await exportParticipantsCsv(
       "b1",
-      { campus: "2", noRoom: true, pile: "email", search: " KARI " },
+      {
+        campus: "2",
+        needsNewLink: false,
+        noBus: false,
+        noRoom: true,
+        pile: "email",
+        search: " KARI ",
+      },
       csvHeaders
     );
 

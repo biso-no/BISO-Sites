@@ -11,6 +11,8 @@ import type {
 } from "./tables";
 
 export interface BigEventRow extends Models.Row {
+  bus_lists_published_at: string | null;
+  bus_lists_published_by: string | null;
   campus_id: string;
   created_by: string | null;
   department_id: string | null;
@@ -29,6 +31,8 @@ export interface BigEventRow extends Models.Row {
 
 export interface BigEventParticipantRow extends Models.Row {
   big_event_id: string;
+  bus_notice_due_at: string | null;
+  bus_notified_at: string | null;
   campus_id: string | null;
   connect_nonce: string | null;
   connect_reminded_at: string | null;
@@ -60,9 +64,18 @@ export interface BigEventGroupRow extends Models.Row {
   contact_name: string | null;
   contact_phone: string | null;
   contact_user_id: string | null;
+  home_arrival_note: string | null;
+  home_bus_id: string | null;
+  home_departs_at: string | null;
+  home_maps_url: string | null;
+  home_meeting_point: string | null;
   kind: GroupKind;
   name: string;
   note: string | null;
+  out_bus_id: string | null;
+  out_departs_at: string | null;
+  out_maps_url: string | null;
+  out_meeting_point: string | null;
   room_number: string | null;
   source_key: string | null;
 }

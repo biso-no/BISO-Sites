@@ -4,10 +4,13 @@ import type { UserAuthContext } from "@/lib/authorization";
 import { NATIONAL_CAMPUS_ID, withNationalEventScope } from "@/lib/event-scope";
 import { NO_MATCH_FILTER } from "@/lib/utils/authorization";
 import {
+  type BigEventAccess,
   bigEventAccess,
   canCreateBigEvent,
   canEditBigEventSettings,
+  canManageGroup,
   canSeeParticipant,
+  manageableGroupCampuses,
   participantCampusFilter,
   visibleBigEventFilters,
 } from "./access";
@@ -268,5 +271,61 @@ describe("campus admin scoping (R16)", () => {
         level: "campus",
       })
     ).toEqual([NO_MATCH_FILTER]);
+  });
+});
+
+describe("canManageGroup (N8)", () => {
+  const bergenAccess: BigEventAccess = {
+    campusIds: [BERGEN],
+    canEditSettings: false,
+    level: "campus",
+  };
+
+  test("full access manages every group, with or without a campus", () => {
+    expect(canManageGroup({ level: "full" }, { campus_id: OSLO })).toBe(true);
+    expect(
+      canManageGroup({ level: "full" }, { campus_id: NATIONAL_CAMPUS_ID })
+    ).toBe(true);
+    expect(canManageGroup({ level: "full" }, { campus_id: null })).toBe(true);
+  });
+
+  test("a campus admin manages groups on their own campus", () => {
+    expect(canManageGroup(bergenAccess, { campus_id: BERGEN })).toBe(true);
+  });
+
+  test("a campus admin can't manage another campus's group", () => {
+    expect(canManageGroup(bergenAccess, { campus_id: OSLO })).toBe(false);
+    expect(
+      canManageGroup(bergenAccess, { campus_id: NATIONAL_CAMPUS_ID })
+    ).toBe(false);
+  });
+
+  test("a group with no campus is for full access only", () => {
+    expect(canManageGroup(bergenAccess, { campus_id: null })).toBe(false);
+    expect(canManageGroup(null, { campus_id: null })).toBe(false);
+    expect(canManageGroup(null, { campus_id: BERGEN })).toBe(false);
+  });
+});
+
+describe("manageableGroupCampuses (R6)", () => {
+  test("full access on a National event offers every campus, National last", () => {
+    expect(
+      manageableGroupCampuses(
+        { level: "full" },
+        { campus_id: NATIONAL_CAMPUS_ID }
+      )
+    ).toEqual(["1", "2", "3", "4", NATIONAL_CAMPUS_ID]);
+  });
+
+  test("full access on a campus event offers that campus", () => {
+    expect(manageableGroupCampuses({ level: "full" }, osloEvent)).toEqual([
+      OSLO,
+    ]);
+  });
+
+  test("campus access offers its own campuses, never National", () => {
+    const access = bigEventAccess(bergenAdmin, nationalNoDept);
+    expect(manageableGroupCampuses(access, nationalNoDept)).toEqual([BERGEN]);
+    expect(manageableGroupCampuses(null, nationalNoDept)).toEqual([]);
   });
 });

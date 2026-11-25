@@ -6,6 +6,8 @@ covers:
   - apps/admin/src/app/(portal)/big-events/**
   - apps/admin/src/app/(portal)/_actions/big-event*.ts
   - apps/admin/src/lib/big-events/**
+  - apps/admin/src/lib/big-events/buses/**
+  - apps/admin/src/app/(portal)/big-events/[id]/groups/**
   - apps/web/src/lib/big-events/**
   - packages/shared/big-events/**
   - apps/web/src/app/(public)/connect/**
@@ -25,7 +27,8 @@ The screens follow your admin language. This guide gives the Norwegian label fir
 - Create a big event and keep its settings.
 - Import the ticket list and the hosts' sheet.
 - See how you can reach each person.
-- Connect each ticket to a student's BI account, so the student sees the big event in the BISO app.
+- Connect each ticket to a student's BI account, so the person on the ticket is tied to an account and you can reach them.
+- Add buses, rooms and groups, fill the buses, and publish the bus lists. See [Buses and groups](/guide/big-events/buses-and-groups).
 
 ## Who can use big events
 
@@ -87,7 +90,7 @@ Everyone is in one of the three, so you can reach the whole list.
 
 - It links a ticket to an account when the ticket's email belongs to a BI account and that email is on exactly one ticket.
 - It sends the connect emails you queue, a few at a time, and one reminder 4 days later to people who haven't connected.
-- It deletes personal data 30 days after the big event ends: ticket emails, phone numbers and the connections to accounts. Rooms and groups stay without names: a room named after its buyer gets its room number, or **Rom**, as its name, and buses and groups lose their contact person.
+- It deletes personal data 30 days after the big event ends: ticket emails, phone numbers and the connections to accounts. Rooms and groups stay without names: a room named after its buyer gets its room number, or **Rom**, as its name, and buses and groups lose their contact person and their note.
 
 ## Common mistakes
 

@@ -4,6 +4,7 @@ import type {
   BigEventGroupRow,
   BigEventParticipantRow,
 } from "@repo/shared/big-events/types";
+import { roomBusRemovals } from "./plan-buses";
 import {
   type ImportMapping,
   type ImportOptions,
@@ -14,7 +15,7 @@ import {
   sameIdentity,
 } from "./plan-import";
 import { existingGroupKey } from "./plan-import-rooms";
-import { replacedMemberships } from "./plan-summary";
+import { replacedMemberships, summarizePlan } from "./plan-summary";
 
 const ROW_META = {
   $sequence: "1",
@@ -33,6 +34,8 @@ function participant(
     ...ROW_META,
     $id: id,
     big_event_id: "ev",
+    bus_notice_due_at: null,
+    bus_notified_at: null,
     campus_id: null,
     connect_nonce: null,
     connect_reminded_at: null,
@@ -72,9 +75,18 @@ function group(
     contact_name: null,
     contact_phone: null,
     contact_user_id: null,
+    home_arrival_note: null,
+    home_bus_id: null,
+    home_departs_at: null,
+    home_maps_url: null,
+    home_meeting_point: null,
     kind: "room",
     name: "",
     note: null,
+    out_bus_id: null,
+    out_departs_at: null,
+    out_maps_url: null,
+    out_meeting_point: null,
     room_number: null,
     source_key: null,
     ...fields,
@@ -83,17 +95,19 @@ function group(
 
 function member(
   groupId: string,
-  participantId: string
+  participantId: string,
+  fields: Partial<BigEventGroupMemberRow> = {}
 ): BigEventGroupMemberRow {
   return {
     ...ROW_META,
-    $id: `${groupId}-${participantId}`,
+    $id: `${groupId}-${participantId}${fields.leg ? `-${fields.leg}` : ""}`,
     assigned_at: null,
     big_event_id: "ev",
     group_id: groupId,
     leg: null,
     participant_id: participantId,
     pinned: null,
+    ...fields,
   };
 }
 
@@ -159,6 +173,8 @@ function plan(
     existing: existing.participants ?? [],
     groups: existing.groups ?? [],
     members: existing.members ?? [],
+    travelEnabled: true,
+    unseenGroupKinds: new Map(),
   });
 }
 
@@ -664,6 +680,22 @@ describe("planImport: room bookings", () => {
     expect(result.newGroups).toEqual([]);
     // Ola is already the room's member: nothing to place.
     expect(result.placements).toEqual([]);
+    // Same size as before: nothing to update.
+    expect(result.groupUpdates).toEqual([]);
+  });
+
+  test("a reused booking room takes the size on the ticket", () => {
+    const result = plan(
+      tickster(OLA_ROW),
+      TICKSTER_HEADER_ROW,
+      TICKSTER_MAPPING,
+      BOOKINGS,
+      { ...WITH_OLA_ROOM, groups: [{ ...OLA_ROOM, capacity: 2 }] }
+    );
+    expect(result.newGroups).toEqual([]);
+    expect(result.groupUpdates).toEqual([
+      { groupKey: "booking:A-1", capacity: 4 },
+    ]);
   });
 
   test("a booking row without a reference never takes someone else's room", () => {
@@ -1333,5 +1365,364 @@ describe("replacedMemberships", () => {
         (membership) => membership.group_id
       )
     ).toEqual(["g-102"]);
+  });
+});
+
+describe("planImport: pins (R31)", () => {
+  const room101 = group("g-101", {
+    name: "101",
+    source_key: "col:room:-:101",
+  });
+  const kari = participant("p-kari", {
+    first_name: "Kari",
+    last_name: "Nordmann",
+    ticket_email: "kari@gmail.com",
+  });
+
+  test("import never moves a pinned person", () => {
+    // The organizers moved Kari into room 101 by hand; the file says 103.
+    const existing = {
+      groups: [room101],
+      members: [member("g-101", "p-kari", { pinned: true })],
+      participants: [kari],
+    };
+    const options = { ...NO_OPTIONS, groupKind: "room" as const };
+    const result = plan(
+      sheet(["Kari Nordmann", "kari@gmail.com", "", "", "103"]),
+      0,
+      SHEET_WITH_ROOM,
+      options,
+      existing
+    );
+
+    // No new room 103 for her, no new place, nothing to replace.
+    expect(result.newGroups).toEqual([]);
+    expect(result.placements).toEqual([]);
+    expect(result.columnTargets).toEqual([]);
+    expect(result.keptPinned).toEqual(["p-kari"]);
+    expect(
+      replacedMemberships(result, existing.groups, existing.members)
+    ).toEqual([]);
+    // A target elsewhere never takes a pinned place either.
+    const room102 = group("g-102", {
+      name: "102",
+      source_key: "col:room:-:102",
+    });
+    const groups = [room101, room102];
+    expect(
+      replacedMemberships(
+        {
+          ...result,
+          columnTargets: [
+            { groupKey: "col:room:-:102", participantId: "p-kari" },
+          ],
+        },
+        groups,
+        existing.members
+      )
+    ).toEqual([]);
+
+    const preview = summarizePlan(result, {
+      busListsPublished: false,
+      existing: existing.participants,
+      groupColumn: true,
+      groups: existing.groups,
+      members: existing.members,
+      options,
+      outsideYourCampus: 0,
+    });
+    expect(preview).toMatchObject({ keptPinned: 1, moved: 0, placed: 0 });
+  });
+
+  test("a bus leg moved by hand keeps the person on their buses", () => {
+    const bus = (id: string, name: string) =>
+      group(id, {
+        kind: "bus",
+        name,
+        source_key: `col:bus:-:${name.toLowerCase()}`,
+      });
+    const existing = {
+      groups: [bus("g-b1", "Buss 1"), bus("g-b2", "Buss 2")],
+      members: [
+        member("g-b1", "p-kari", { leg: "out", pinned: true }),
+        member("g-b1", "p-kari", { leg: "home" }),
+      ],
+      participants: [kari],
+    };
+    const result = plan(
+      sheet(["Kari Nordmann", "kari@gmail.com", "", "", "Buss 2"]),
+      0,
+      SHEET_WITH_ROOM,
+      { ...NO_OPTIONS, groupKind: "bus" },
+      existing
+    );
+    expect(result.placements).toEqual([]);
+    expect(result.keptPinned).toEqual(["p-kari"]);
+    expect(
+      replacedMemberships(result, existing.groups, existing.members)
+    ).toEqual([]);
+  });
+});
+
+describe("planImport: overfull rooms", () => {
+  test("overfull counts leave out people who move out", () => {
+    // Room 101 holds two and is full: Kari moves to 102, Per takes her place.
+    const room101 = group("g-101", {
+      name: "101",
+      source_key: "col:room:-:101",
+      capacity: 2,
+    });
+    const kari = participant("p-kari", {
+      first_name: "Kari",
+      last_name: "Nordmann",
+      ticket_email: "kari@gmail.com",
+    });
+    const result = plan(
+      sheet(
+        ["Kari Nordmann", "kari@gmail.com", "", "", "102"],
+        ["Per Hansen", "per@gmail.com", "", "", "101"]
+      ),
+      0,
+      SHEET_WITH_ROOM,
+      { ...NO_OPTIONS, groupKind: "room" },
+      {
+        groups: [room101],
+        members: [member("g-101", "p-kari"), member("g-101", "p-ola")],
+        participants: [kari],
+      }
+    );
+    expect(result.placements.map((placement) => placement.groupKey)).toEqual([
+      "col:room:-:102",
+      "col:room:-:101",
+    ]);
+    expect(result.overfullRooms).toEqual([]);
+  });
+});
+
+describe("planImport: room buses (N2)", () => {
+  const bus1 = group("g-b1", { kind: "bus", name: "Buss 1" });
+  const bus2 = group("g-b2", { kind: "bus", name: "Buss 2" });
+  const room101 = group("g-101", {
+    name: "101",
+    source_key: "col:room:-:101",
+    out_bus_id: "g-b1",
+    home_bus_id: "g-b1",
+  });
+  const kari = participant("p-kari", {
+    first_name: "Kari",
+    last_name: "Nordmann",
+    ticket_email: "kari@gmail.com",
+  });
+  const file = () =>
+    sheet(
+      ["Kari Nordmann", "kari@gmail.com", "", "", "101"],
+      ["Per Hansen", "per@gmail.com", "", "", "101"]
+    );
+  const roomImport = { ...NO_OPTIONS, groupKind: "room" as const };
+
+  test("people in a room ride its bus, except on a leg moved by hand", () => {
+    const result = plan(file(), 0, SHEET_WITH_ROOM, roomImport, {
+      groups: [bus1, bus2, room101],
+      members: [member("g-b2", "p-kari", { leg: "out", pinned: true })],
+      participants: [kari],
+    });
+    const per = result.create[0];
+    expect(result.roomBuses).toEqual([
+      // Kari's way home follows her hand-moved way out (ruling R5).
+      { busId: "g-b2", leg: "home", person: { participantId: "p-kari" } },
+      { busId: "g-b1", leg: "out", person: per },
+      { busId: "g-b1", leg: "home", person: per },
+    ]);
+  });
+
+  test("a way home moved by hand stays, with or without a pinned way out", () => {
+    const bus3 = group("g-b3", { kind: "bus", name: "Buss 3" });
+    const ola = participant("p-ola", {
+      first_name: "Ola",
+      last_name: "Hansen",
+      ticket_email: "ola@gmail.com",
+    });
+    const existing = {
+      groups: [bus1, bus2, bus3, room101],
+      members: [
+        // Kari's way home was moved to bus 2 by hand, her way out wasn't.
+        member("g-b2", "p-kari", { leg: "home", pinned: true }),
+        // Ola was moved out to bus 2 and home to bus 3, both by hand.
+        member("g-b2", "p-ola", { leg: "out", pinned: true }),
+        member("g-b3", "p-ola", { leg: "home", pinned: true }),
+      ],
+      participants: [kari, ola],
+    };
+    const result = plan(
+      sheet(
+        ["Kari Nordmann", "kari@gmail.com", "", "", "101"],
+        ["Ola Hansen", "ola@gmail.com", "", "", "101"]
+      ),
+      0,
+      SHEET_WITH_ROOM,
+      roomImport,
+      existing
+    );
+    expect(result.roomBuses).toEqual([
+      { busId: "g-b1", leg: "out", person: { participantId: "p-kari" } },
+    ]);
+    expect(roomBusRemovals(result, existing.groups, existing.members)).toEqual(
+      []
+    );
+  });
+
+  test("a room with only a bus out takes people home on it too", () => {
+    const outOnly = { ...room101, home_bus_id: null };
+    const result = plan(file(), 0, SHEET_WITH_ROOM, roomImport, {
+      groups: [bus1, bus2, outOnly],
+      // Kari's way home was moved to bus 2 by hand: it stays.
+      members: [member("g-b2", "p-kari", { leg: "home", pinned: true })],
+      participants: [kari],
+    });
+    const per = result.create[0];
+    expect(result.roomBuses).toEqual([
+      { busId: "g-b1", leg: "out", person: { participantId: "p-kari" } },
+      { busId: "g-b1", leg: "out", person: per },
+      { busId: "g-b1", leg: "home", person: per },
+    ]);
+  });
+
+  describe("campuses (R19)", () => {
+    const bergenBus = group("g-b1", {
+      campus_id: "2",
+      kind: "bus",
+      name: "Buss 1",
+    });
+    const bergenBus2 = group("g-b2", {
+      campus_id: "2",
+      kind: "bus",
+      name: "Buss 2",
+    });
+    const bergenBus3 = group("g-b3", {
+      campus_id: "2",
+      kind: "bus",
+      name: "Buss 3",
+    });
+    const osloBus = group("g-oslo", {
+      campus_id: "1",
+      kind: "bus",
+      name: "Oslo 1",
+    });
+    const bergenRoom = { ...room101, campus_id: "2" };
+    const kariIn = (campusId: string) =>
+      participant("p-kari", {
+        campus_id: campusId,
+        first_name: "Kari",
+        last_name: "Nordmann",
+        ticket_email: "kari@gmail.com",
+      });
+    const kariFile = () =>
+      sheet(["Kari Nordmann", "kari@gmail.com", "", "", "101"]);
+
+    test("room bus seats skip people of another campus", () => {
+      // A room with no campus, on a Bergen bus.
+      const sharedRoom = { ...room101, campus_id: null };
+      const existing = {
+        groups: [bergenBus, osloBus, sharedRoom],
+        members: [
+          member("g-oslo", "p-kari", { leg: "out" }),
+          member("g-oslo", "p-kari", { leg: "home" }),
+        ],
+        participants: [kariIn("1")],
+      };
+      const result = plan(
+        sheet(
+          ["Kari Nordmann", "kari@gmail.com", "", "Oslo", "101"],
+          ["Per Hansen", "per@gmail.com", "", "Bergen", "101"],
+          ["Ida Berg", "ida@gmail.com", "", "", "101"]
+        ),
+        0,
+        SHEET_WITH_CAMPUS_AND_GROUP,
+        roomImport,
+        existing
+      );
+      // Kari is on the list already: Per is the first new person.
+      const [per] = result.create;
+      expect(per?.firstName).toBe("Per");
+
+      // Only Per is from Bergen: Kari (Oslo) and Ida (no campus) stay off it.
+      expect(result.roomBuses).toEqual([
+        { busId: "g-b1", leg: "out", person: per },
+        { busId: "g-b1", leg: "home", person: per },
+      ]);
+      // Kari keeps her Oslo seats.
+      expect(
+        roomBusRemovals(result, existing.groups, existing.members)
+      ).toEqual([]);
+    });
+
+    test("home follows a pinned way out only onto a seen bus of the person's campus", () => {
+      // Kari's way out was pinned to an Oslo bus before she moved to Bergen.
+      const otherCampus = plan(kariFile(), 0, SHEET_WITH_ROOM, roomImport, {
+        groups: [bergenBus, osloBus, bergenRoom],
+        members: [member("g-oslo", "p-kari", { leg: "out", pinned: true })],
+        participants: [kariIn("2")],
+      });
+      expect(otherCampus.roomBuses).toEqual([
+        { busId: "g-b1", leg: "home", person: { participantId: "p-kari" } },
+      ]);
+
+      // Pinned to a bus the caller can't see (not among the groups).
+      const unseen = plan(kariFile(), 0, SHEET_WITH_ROOM, roomImport, {
+        groups: [bergenBus, bergenRoom],
+        members: [member("g-unseen", "p-kari", { leg: "out", pinned: true })],
+        participants: [kariIn("2")],
+      });
+      expect(unseen.roomBuses).toEqual([
+        { busId: "g-b1", leg: "home", person: { participantId: "p-kari" } },
+      ]);
+    });
+
+    test("home follows a pinned way out only when there's no way home yet", () => {
+      const homeOnB3 = member("g-b3", "p-kari", { leg: "home" });
+      const existing = {
+        groups: [bergenBus, bergenBus2, bergenBus3, bergenRoom],
+        members: [
+          member("g-b2", "p-kari", { leg: "out", pinned: true }),
+          homeOnB3,
+        ],
+        participants: [kariIn("2")],
+      };
+      const result = plan(kariFile(), 0, SHEET_WITH_ROOM, roomImport, existing);
+
+      // Her way home stays on bus 3, as auto-fill keeps it (R3c): it neither
+      // follows the pinned way out nor takes the room's bus (R10).
+      expect(result.roomBuses).toEqual([]);
+      expect(
+        roomBusRemovals(result, existing.groups, existing.members)
+      ).toEqual([]);
+    });
+  });
+
+  test("no room buses without Travel or in a bus or group import", () => {
+    const existing = {
+      groups: [bus1, room101],
+      members: [member("g-101", "p-kari")],
+      participants: [kari],
+    };
+    const parsed = parsePeople(file(), 0, SHEET_WITH_ROOM, roomImport);
+    const noTravel = planImport({
+      ...parsed,
+      options: roomImport,
+      existing: existing.participants,
+      groups: existing.groups,
+      members: existing.members,
+      travelEnabled: false,
+      unseenGroupKinds: new Map(),
+    });
+    expect(noTravel.roomBuses).toEqual([]);
+    const buddies = plan(
+      file(),
+      0,
+      SHEET_WITH_ROOM,
+      { ...NO_OPTIONS, groupKind: "buddy" },
+      existing
+    );
+    expect(buddies.roomBuses).toEqual([]);
   });
 });

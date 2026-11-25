@@ -1,0 +1,36 @@
+import { notFound } from "next/navigation";
+import { requireNavAccess } from "@/lib/authorization";
+import { canManageGroup } from "@/lib/big-events/access";
+import { listGroups } from "../../../_actions/big-event-groups";
+import { getBigEvent } from "../../../_actions/big-events";
+import { BusBoard } from "./_components/bus-board";
+import { GroupsTab } from "./_components/groups-view";
+
+// The fill, publishing and moves of many people at once write row by row.
+export const maxDuration = 300;
+
+interface BigEventGroupsPageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default async function BigEventGroupsPage({
+  params,
+}: BigEventGroupsPageProps) {
+  await requireNavAccess("portal.bigEvents");
+  const { id } = await params;
+  const found = await getBigEvent(id);
+  if (!found) {
+    notFound();
+  }
+  const view = await listGroups(id);
+
+  return (
+    <GroupsTab
+      allowsNoCampus={canManageGroup(found.access, { campus_id: null })}
+      bigEventId={found.event.$id}
+      busBoard={view.travel ? <BusBoard /> : undefined}
+      eventCampusId={found.event.campus_id}
+      view={view}
+    />
+  );
+}

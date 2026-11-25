@@ -129,6 +129,8 @@ export function ParticipantTable({
   const router = useRouter();
   const [filters, setFilters] = useState<ParticipantFilters>({
     campus: ALL_CAMPUSES,
+    needsNewLink: false,
+    noBus: false,
     noRoom: false,
     pile: "all",
     search: "",
@@ -152,6 +154,14 @@ export function ParticipantTable({
   );
   const withoutRoom = useMemo(
     () => list.rows.filter((row) => row.roomName === null).length,
+    [list.rows]
+  );
+  const withoutBus = useMemo(
+    () => list.rows.filter((row) => row.busName === null).length,
+    [list.rows]
+  );
+  const needsNewLink = useMemo(
+    () => list.rows.filter((row) => row.needsNewLink).length,
     [list.rows]
   );
   const campusNames = useMemo(
@@ -313,12 +323,15 @@ export function ParticipantTable({
         connectedCount={connectedCount}
         connectReach={connectReach}
         filters={filters}
+        hasBuses={list.hasBuses}
         hasRooms={list.hasRooms}
         isSending={isSending}
+        needsNewLink={needsNewLink}
         onFilterChange={setFilter}
         onSendConnect={(mode) => sendConnect(undefined, mode)}
         showCampusFilter={campusOptions.length > 1}
         visibleRows={visibleRows}
+        withoutBus={withoutBus}
         withoutRoom={withoutRoom}
       />
 
@@ -336,6 +349,11 @@ export function ParticipantTable({
                 {list.hasRooms && (
                   <th className={HEAD_CELL} scope="col">
                     {t("columns.room")}
+                  </th>
+                )}
+                {list.hasBuses && (
+                  <th className={HEAD_CELL} scope="col">
+                    {t("columns.bus")}
                   </th>
                 )}
                 <th className={HEAD_CELL} scope="col">
@@ -361,6 +379,7 @@ export function ParticipantTable({
                   onUnlink={setUnlinkTarget}
                   row={row}
                   sendDisabled={isSending || !isPublished}
+                  showBus={list.hasBuses}
                   showRoom={list.hasRooms}
                 />
               ))}

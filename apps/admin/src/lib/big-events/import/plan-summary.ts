@@ -1,17 +1,21 @@
-import {
-  GROUP_LEGS,
-  type GroupKind,
-  type GroupLeg,
-} from "@repo/shared/big-events/tables";
+import type { GroupKind, GroupLeg } from "@repo/shared/big-events/tables";
 import type {
   BigEventGroupMemberRow,
   BigEventGroupRow,
   BigEventParticipantRow,
 } from "@repo/shared/big-events/types";
 import { participantName } from "../participant-list";
+import {
+  freeLegs,
+  roomBusRemovals,
+  roomBusSeatsToAdd,
+  unseenSeatLegs,
+} from "./plan-buses";
 import type {
   ImportOptions,
   ImportPlan,
+  ParsedPerson,
+  Placement,
   PlacementTarget,
   SkippedRow,
 } from "./plan-import";
@@ -19,12 +23,19 @@ import { existingGroupKey } from "./plan-import-rooms";
 
 /** What the wizard's "Check and save" step shows. Names only, never contact details. */
 export interface ImportPreview {
+  /**
+   * After the bus lists are published: people whose out or home bus this
+   * import changes. Each is marked for a message about their bus (N1, N7).
+   */
+  busNotices: number;
   created: number;
   /** The first new people, by name. */
   createdNames: string[];
   duplicatesInFile: number;
   /** The kind of group this import creates and fills. */
   groupKind: GroupKind;
+  /** People the file would move, left where they were moved by hand (R31). */
+  keptPinned: number;
   /** On the list but not in this file. Shown, never removed automatically. */
   missing: number;
   missingNames: string[];
@@ -33,11 +44,17 @@ export interface ImportPreview {
   newGroups: number;
   /** People from this file without a campus. */
   noCampus: number;
+  /** Saving would change nothing: no person, group, place or seat. */
+  nothingNew: boolean;
   /** Rows for a campus the caller can't see; left out. */
   outsideYourCampus: number;
   /** Names of rooms with more people than places. */
   overfullRooms: string[];
   placed: number;
+  /** Booked rooms whose ticket now says another size. */
+  resizedRooms: number;
+  /** People who move to their room's bus (spec D5). */
+  roomBusMoves: number;
   skipped: number;
   skippedRows: SkippedRow[];
   unchanged: number;
@@ -49,6 +66,8 @@ export interface ImportPreview {
 
 /** What the plan was made from. */
 export interface PlanContext {
+  /** The big event's bus lists are published: bus moves owe a notice. */
+  busListsPublished: boolean;
   existing: BigEventParticipantRow[];
   /** From `parsePeople`: a group column is mapped. */
   groupColumn: boolean;
@@ -101,7 +120,8 @@ function kindsByKey(plan: ImportPlan, groups: BigEventGroupRow[]) {
  * clears a stale place a failed save left behind. The new file is the
  * organizers' latest word. Groups are compared by plan key, as planning does:
  * a place in any group with the target's key counts as already there, so a
- * second group with the same key never costs someone their only place.
+ * second group with the same key never costs someone their only place. A
+ * place someone was moved into by hand (pinned) is never removed (R31).
  */
 export function replacedMemberships(
   plan: ImportPlan,
@@ -122,6 +142,7 @@ export function replacedMemberships(
     for (const membership of members) {
       if (
         membership.participant_id === participantId &&
+        membership.pinned !== true &&
         keyById.get(membership.group_id) !== groupKey &&
         kindById.get(membership.group_id) === kind
       ) {
@@ -143,6 +164,7 @@ export interface MissingLeg {
  * Bus legs to add (ruling R34): someone already on their target bus for one
  * leg gets the other one too, so a seat half-written by a failed save is
  * completed. Someone not yet on the bus gets both legs from their placement.
+ * A leg held on a bus the caller can't see is never doubled (ruling R13).
  */
 export function missingBusLegs(
   plan: ImportPlan,
@@ -150,6 +172,7 @@ export function missingBusLegs(
   members: BigEventGroupMemberRow[]
 ): MissingLeg[] {
   const byKey = groupsByKey(groups);
+  const unseen = unseenSeatLegs(groups, members);
   const missing: MissingLeg[] = [];
   for (const { groupKey, participantId } of plan.columnTargets) {
     const bus = byKey.get(groupKey);
@@ -168,13 +191,104 @@ export function missingBusLegs(
     if (legs.size === 0) {
       continue;
     }
-    for (const leg of GROUP_LEGS) {
+    for (const leg of freeLegs(unseen, participantId)) {
       if (!legs.has(leg)) {
         missing.push({ groupKey, leg, participantId });
       }
     }
   }
   return missing;
+}
+
+/**
+ * Placements that write a place: every one, except a bus place whose legs
+ * are both held on buses the caller can't see (ruling R13), which writes
+ * nothing and so is no new place.
+ */
+export function writtenPlacements(
+  plan: ImportPlan,
+  groups: BigEventGroupRow[],
+  members: BigEventGroupMemberRow[]
+): Placement[] {
+  const kinds = kindsByKey(plan, groups);
+  const unseen = unseenSeatLegs(groups, members);
+  return plan.placements.filter(({ groupKey, person }) => {
+    const participantId = isExistingTarget(person)
+      ? person.participantId
+      : null;
+    return (
+      kinds.get(groupKey) !== "bus" ||
+      freeLegs(unseen, participantId).length > 0
+    );
+  });
+}
+
+/** People whose out or home bus the import changes: new people by their row. */
+export interface BusMovers {
+  participantIds: Set<string>;
+  people: Set<ParsedPerson>;
+}
+
+function addMover(movers: BusMovers, person: PlacementTarget): void {
+  if (isExistingTarget(person)) {
+    movers.participantIds.add(person.participantId);
+  } else {
+    movers.people.add(person);
+  }
+}
+
+function moverCount(movers: BusMovers): number {
+  return movers.participantIds.size + movers.people.size;
+}
+
+/**
+ * People who move to their room's bus (spec D5): given a seat on it, or
+ * losing another seat on a leg they now ride with their room.
+ */
+export function roomBusMovers(
+  plan: ImportPlan,
+  groups: BigEventGroupRow[],
+  members: BigEventGroupMemberRow[]
+): BusMovers {
+  const movers: BusMovers = { participantIds: new Set(), people: new Set() };
+  for (const seat of roomBusSeatsToAdd(plan, members)) {
+    addMover(movers, seat.person);
+  }
+  for (const membership of roomBusRemovals(plan, groups, members)) {
+    movers.participantIds.add(membership.participant_id);
+  }
+  return movers;
+}
+
+/**
+ * Everyone given a bus seat or losing one: bus placements with a leg left to
+ * write and their missing legs, replaced bus seats, and room bus moves.
+ * After publishing each of them owes a notice (N1, N7).
+ */
+export function busMovers(
+  plan: ImportPlan,
+  groups: BigEventGroupRow[],
+  members: BigEventGroupMemberRow[]
+): BusMovers {
+  const movers = roomBusMovers(plan, groups, members);
+  const kinds = kindsByKey(plan, groups);
+  for (const { groupKey, person } of writtenPlacements(plan, groups, members)) {
+    if (kinds.get(groupKey) === "bus") {
+      addMover(movers, person);
+    }
+  }
+  const buses = new Set(
+    groups.filter((group) => group.kind === "bus").map((group) => group.$id)
+  );
+  for (const membership of replacedMemberships(plan, groups, members)) {
+    if (buses.has(membership.group_id)) {
+      movers.participantIds.add(membership.participant_id);
+    }
+  }
+  for (const { participantId } of missingBusLegs(plan, groups, members)) {
+    movers.participantIds.add(participantId);
+  }
+  return movers;
 }
 
 function fullName(person: { firstName: string; lastName: string | null }) {
@@ -190,15 +304,48 @@ function overfullNames(plan: ImportPlan, groups: BigEventGroupRow[]): string[] {
   });
 }
 
+type ChangeCounts = Pick<
+  ImportPreview,
+  | "busNotices"
+  | "created"
+  | "moved"
+  | "newGroups"
+  | "placed"
+  | "resizedRooms"
+  | "roomBusMoves"
+  | "updated"
+>;
+
+/** What saving would write, as counts (a preview can't say "nothing new" while any is above 0). */
+function changeCounts(plan: ImportPlan, context: PlanContext): ChangeCounts {
+  const { groups, members } = context;
+  return {
+    busNotices: context.busListsPublished
+      ? moverCount(busMovers(plan, groups, members))
+      : 0,
+    created: plan.create.length,
+    moved: new Set(
+      replacedMemberships(plan, groups, members).map(
+        (membership) => membership.participant_id
+      )
+    ).size,
+    newGroups: plan.newGroups.length,
+    placed: writtenPlacements(plan, groups, members).length,
+    resizedRooms: plan.groupUpdates.length,
+    roomBusMoves: moverCount(roomBusMovers(plan, groups, members)),
+    updated: plan.update.filter(
+      (entry) => Object.keys(entry.changes).length > 0
+    ).length,
+  };
+}
+
 /** Counts and short name lists for the preview. */
 export function summarizePlan(
   plan: ImportPlan,
   context: PlanContext
 ): ImportPreview {
-  const { existing, groups, members, options } = context;
-  const updated = plan.update.filter(
-    (entry) => Object.keys(entry.changes).length > 0
-  ).length;
+  const { existing, groups, options } = context;
+  const counts = changeCounts(plan, context);
   const byId = new Map(existing.map((row) => [row.$id, row]));
   const missingNames = plan.missingFromFile
     .flatMap((id) => {
@@ -215,30 +362,26 @@ export function summarizePlan(
     groups.some((group) => group.kind === "room") ||
     plan.newGroups.some((group) => group.kind === "room");
   const unplaced = roomsInPlay ? plan.unplaced : [];
-  const moved = new Set(
-    replacedMemberships(plan, groups, members).map(
-      (membership) => membership.participant_id
-    )
-  ).size;
 
   return {
-    created: plan.create.length,
+    ...counts,
     createdNames: plan.create.slice(0, NAME_LIST_LIMIT).map(fullName),
     duplicatesInFile: plan.duplicatesInFile,
     groupKind,
+    keptPinned: plan.keptPinned.length,
     missing: plan.missingFromFile.length,
     missingNames: missingNames.slice(0, MISSING_LIST_LIMIT),
-    moved,
-    newGroups: plan.newGroups.length,
     noCampus: plan.noCampus,
+    // A missing bus leg (R34) is written too, though no count shows it.
+    nothingNew:
+      Object.values(counts).every((count) => count === 0) &&
+      missingBusLegs(plan, groups, context.members).length === 0,
     outsideYourCampus: context.outsideYourCampus,
     overfullRooms: overfullNames(plan, groups),
-    placed: plan.placements.length,
     skipped: plan.skipped.length,
     skippedRows: plan.skipped.slice(0, SKIPPED_LIST_LIMIT),
-    unchanged: plan.update.length - updated,
+    unchanged: plan.update.length - counts.updated,
     unplaced: unplaced.length,
     unplacedNames: unplaced.slice(0, NAME_LIST_LIMIT).map(fullName),
-    updated,
   };
 }

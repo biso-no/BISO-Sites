@@ -23,18 +23,20 @@ const rows = (prefix: string, count: number) => ({
   rows: Array.from({ length: count }, (_, i) => ({ $id: `${prefix}${i}` })),
   total: count,
 });
-const NO_CONTACT = {
+/** What retention clears on every group: buyer, contact person and note. */
+const CLEARED = {
   booking_participant_id: null,
   contact_name: null,
   contact_phone: null,
   contact_user_id: null,
+  note: null,
 };
 const group = (id: string, fields: Record<string, unknown>) => ({
   $id: id,
   kind: "room",
   name: "Rom",
   room_number: null,
-  ...NO_CONTACT,
+  ...CLEARED,
   ...fields,
 });
 const groupUpdates = () =>
@@ -141,14 +143,9 @@ describe("POST /api/cron/cleanup-big-events", () => {
 
     expect(body.groupsAnonymised).toBe(3);
     expect(groupUpdates()).toEqual([
-      ["app", "big_event_groups", "g-booked", { ...NO_CONTACT, name: "214" }],
-      [
-        "app",
-        "big_event_groups",
-        "g-unnumbered",
-        { ...NO_CONTACT, name: "Rom" },
-      ],
-      ["app", "big_event_groups", "g-bus", NO_CONTACT],
+      ["app", "big_event_groups", "g-booked", { ...CLEARED, name: "214" }],
+      ["app", "big_event_groups", "g-unnumbered", { ...CLEARED, name: "Rom" }],
+      ["app", "big_event_groups", "g-bus", CLEARED],
     ]);
     const groupQuery = JSON.stringify(
       listRows.mock.calls.find(([, table]) => table === "big_event_groups")
@@ -159,6 +156,46 @@ describe("POST /api/cron/cleanup-big-events", () => {
       "big_event_groups",
       expect.anything()
     );
+  });
+
+  it("clears a group's note, which can name people", async () => {
+    listRows.mockImplementation((_db: string, table: string) => {
+      if (table === "big_event_groups") {
+        return Promise.resolve({
+          rows: [
+            group("g-bus", {
+              kind: "bus",
+              name: "Buss 1",
+              note: "Kari Nordmann sits up front",
+            }),
+            group("g-214", {
+              name: "214",
+              note: "Ola needs a ground floor room",
+              room_number: "214",
+            }),
+          ],
+          total: 2,
+        });
+      }
+      return Promise.resolve(
+        table === "big_events" ? rows("e", 1) : { rows: [], total: 0 }
+      );
+    });
+
+    const body = await (
+      await POST(request({ "x-cron-secret": SECRET }))
+    ).json();
+
+    expect(body.groupsAnonymised).toBe(2);
+    expect(groupUpdates()).toEqual([
+      ["app", "big_event_groups", "g-bus", CLEARED],
+      ["app", "big_event_groups", "g-214", CLEARED],
+    ]);
+    // The note is read, so a cleared one is seen as done on the next run.
+    const groupQuery = JSON.stringify(
+      listRows.mock.calls.find(([, table]) => table === "big_event_groups")
+    );
+    expect(groupQuery).toContain("note");
   });
 
   it("leaves groups that are already anonymised alone", async () => {
