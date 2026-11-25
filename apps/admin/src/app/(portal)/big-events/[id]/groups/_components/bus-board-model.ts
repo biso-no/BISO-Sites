@@ -1,6 +1,7 @@
 import type { Leg } from "@/lib/big-events/buses/seats";
 import { NATIONAL_CAMPUS_ID } from "@/lib/event-scope";
 import type {
+  GroupMemberView,
   GroupsView,
   GroupView,
 } from "../../../../_actions/big-event-groups";
@@ -215,5 +216,69 @@ export function movingPeople(
   return ids.filter((id) => {
     const column = columnOf.get(id);
     return column !== undefined && column !== targetId;
+  });
+}
+
+interface LegSeat {
+  busId: string;
+  pinned: boolean;
+}
+
+/**
+ * A person's bus per leg on the buses the caller sees. With two seats on a
+ * leg the pinned one wins, as on the server (`busOf`).
+ */
+function legSeats(
+  buses: GroupView[],
+  participantId: string
+): Record<Leg, LegSeat | null> {
+  const seats: Record<Leg, LegSeat | null> = { home: null, out: null };
+  for (const bus of buses) {
+    for (const member of bus.members) {
+      if (member.participantId !== participantId || member.leg === null) {
+        continue;
+      }
+      const current = seats[member.leg];
+      if (current === null || (member.pinned && !current.pinned)) {
+        seats[member.leg] = { busId: bus.$id, pinned: member.pinned };
+      }
+    }
+  }
+  return seats;
+}
+
+/**
+ * Whether moving someone into `room` changes their bus, as `moveToGroup`
+ * would (D5, rulings R5, R10, R12): each leg takes the room's bus (home
+ * falls back to out) unless the leg is pinned, and a pinned way out keeps
+ * the way home on that bus when it's a bus of the person's campus. Only
+ * then does a move after publishing ask about telling them (ruling R14).
+ */
+export function roomMoveChangesBus(
+  groups: GroupView[],
+  room: Pick<GroupView, "home_bus_id" | "kind" | "out_bus_id"> | null,
+  person: Pick<GroupMemberView, "campusId" | "participantId">
+): boolean {
+  if (room?.kind !== "room") {
+    return false;
+  }
+  const buses = groups.filter((group) => group.kind === "bus");
+  const campusOf = new Map(buses.map((bus) => [bus.$id, bus.campus_id]));
+  const seats = legSeats(buses, person.participantId);
+  const pinnedOut =
+    seats.out?.pinned && campusOf.get(seats.out.busId) === person.campusId
+      ? seats.out.busId
+      : null;
+  const rides: [Leg, string | null][] = [
+    ["out", room.out_bus_id],
+    ["home", room.home_bus_id ?? room.out_bus_id],
+  ];
+  return rides.some(([leg, busId]) => {
+    const seat = seats[leg];
+    if (busId === null || !campusOf.has(busId) || seat?.pinned) {
+      return false;
+    }
+    const target = leg === "home" && pinnedOut ? pinnedOut : busId;
+    return (seat?.busId ?? null) !== target;
   });
 }

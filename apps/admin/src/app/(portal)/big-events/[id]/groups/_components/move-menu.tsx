@@ -19,21 +19,13 @@ import type {
   GroupView,
 } from "../../../../_actions/big-event-groups";
 import { STUDIO } from "../../../../_components/studio";
+import { roomMoveChangesBus } from "./bus-board-model";
+import { useGroupsTabData } from "./groups-view";
 import { useMoveConfirm } from "./move-confirm";
 
 /** A group for people of every campus: no campus, or National. */
 function isCampusWide(group: Pick<GroupView, "campus_id">): boolean {
   return group.campus_id === null || group.campus_id === NATIONAL_CAMPUS_ID;
-}
-
-/** A room with a bus: moving someone into it may change their bus (D5). */
-export function roomHasBus(
-  group: Pick<GroupView, "home_bus_id" | "kind" | "out_bus_id"> | null
-): boolean {
-  return (
-    group?.kind === "room" &&
-    (group.out_bus_id !== null || group.home_bus_id !== null)
-  );
 }
 
 /**
@@ -73,7 +65,9 @@ export function MoveMenu({
 }: MoveMenuProps) {
   const t = useTranslations("adminPortal.bigEvents.groups");
   const tb = useTranslations("adminPortal.bigEvents");
+  const tp = useTranslations("adminPortal.bigEvents.participants");
   const router = useRouter();
+  const { view } = useGroupsTabData();
   const { confirmMove, pending } = useMoveConfirm();
   const { kind } = from;
   if (kind === "bus") {
@@ -104,14 +98,22 @@ export function MoveMenu({
       ? group.name
       : `${group.name} · ${campusLabel(group.campus_id)}`;
 
-  // After publishing, a move into a room with a bus asks first, like a bus
-  // move (ruling R14).
+  /** "Room · Ola Nordmann" for a room, the group's name otherwise. */
+  const summary = (to: GroupView | null) => {
+    if (!to) {
+      return t("takeOut");
+    }
+    return to.kind === "room" ? tp("roomName", { name: label(to) }) : label(to);
+  };
+
+  // After publishing, a room move that changes the person's bus asks first,
+  // like a bus move (ruling R14).
   const move = (to: GroupView | null) =>
     confirmMove({
-      ask: roomHasBus(to),
+      ask: roomMoveChangesBus(view.groups, to, person),
       names: [person.name],
       run: (notify) => save(to, notify),
-      summary: to ? label(to) : t("takeOut"),
+      summary: summary(to),
     });
 
   return (

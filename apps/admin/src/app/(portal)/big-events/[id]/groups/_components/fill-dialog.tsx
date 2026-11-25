@@ -33,20 +33,51 @@ type Loaded =
   | { preview: AutoFillPreview; scope: string }
   | { failed: true; scope: string };
 
-/** Seats a room needs, by the label the preview names it with. */
-function roomSeats(
+/** The most names a preview lists per reason (`NAMES_SHOWN` on the server). */
+const NAMES_SHOWN = 10;
+
+interface RoomSize {
+  /** People named in it that the caller sees. */
+  named: number;
+  /** Seats it needs: its places, or the people in it when more. */
+  seats: number;
+}
+
+/** Each room by the label the preview names it with. */
+function roomSizes(
   groups: GroupView[],
   label: (name: string) => string
-): Map<string, number> {
-  const seats = new Map<string, number>();
+): Map<string, RoomSize> {
+  const sizes = new Map<string, RoomSize>();
   for (const room of groups) {
-    if (room.kind !== "room" || seats.has(label(room.name))) {
+    if (room.kind !== "room" || sizes.has(label(room.name))) {
       continue;
     }
     const named = new Set(room.members.map((member) => member.participantId));
-    seats.set(label(room.name), Math.max(room.capacity ?? 0, named.size));
+    sizes.set(label(room.name), {
+      named: named.size,
+      seats: Math.max(room.capacity ?? 0, named.size),
+    });
   }
-  return seats;
+  return sizes;
+}
+
+/**
+ * How many people the names leave out: only when the preview cut the list
+ * off. A room stands for the people named in it (at least one).
+ */
+function notNamed(
+  entry: AutoFillPreview["unplaced"][number],
+  rooms: Map<string, RoomSize>
+): number {
+  if (entry.names.length < NAMES_SHOWN) {
+    return 0;
+  }
+  const covered = entry.names.reduce(
+    (sum, name) => sum + Math.max(rooms.get(name)?.named ?? 1, 1),
+    0
+  );
+  return Math.max(entry.count - covered, 0);
 }
 
 /** Why people are left without a seat, one line each (spec D5). */
@@ -54,22 +85,29 @@ function UnplacedList({ preview }: { preview: AutoFillPreview }) {
   const t = useTranslations("adminPortal.bigEvents.buses.fill");
   const tp = useTranslations("adminPortal.bigEvents.participants");
   const { view } = useGroupsTabData();
-  const seats = useMemo(
-    () => roomSeats(view.groups, (name) => tp("roomName", { name })),
+  const rooms = useMemo(
+    () => roomSizes(view.groups, (name) => tp("roomName", { name })),
     [view.groups, tp]
   );
+  const noSeatLine = (entry: AutoFillPreview["unplaced"][number]) => {
+    const headline = t("noSeat", { count: entry.count });
+    if (entry.names.length === 0) {
+      return headline;
+    }
+    const names = entry.names.join(", ");
+    const more = notNamed(entry, rooms);
+    const listed = more > 0 ? t("andMore", { count: more, names }) : names;
+    return `${headline} ${t("including", { names: listed })}`;
+  };
   const lines = preview.unplaced.flatMap((entry) => {
     if (entry.reason === "no_seat") {
-      const names = entry.names.join(", ");
-      return [
-        [t("noSeat", { count: entry.count }), names].filter(Boolean).join(" "),
-      ];
+      return [noSeatLine(entry)];
     }
     if (entry.reason === "split_room") {
       return entry.names.map((room) => t("splitRoom", { room }));
     }
     return entry.names.map((room) => {
-      const needed = seats.get(room);
+      const needed = rooms.get(room)?.seats;
       return needed
         ? t("tooBig", { room, seats: needed })
         : t("tooBigUnknown", { room });

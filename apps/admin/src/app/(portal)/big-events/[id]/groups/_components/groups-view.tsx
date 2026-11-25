@@ -98,6 +98,11 @@ function seatsTaken(group: GroupView): number {
   return group.seats ? group.seats.out + group.seats.home : 0;
 }
 
+/** People riding a bus either way, also those the caller can't see. */
+function ridersOn(group: GroupView): number {
+  return group.riders ? group.riders.out + group.riders.home : 0;
+}
+
 /** People are in it, or (a bus) seats are held for a room. */
 function isInUse(group: GroupView): boolean {
   return group.members.length > 0 || seatsTaken(group) > 0;
@@ -207,11 +212,12 @@ export function GroupsTab({
     []
   );
 
-  // Seats, not the people shown: someone the caller can't see counts too.
+  // People riding, not the people shown: someone the caller can't see
+  // counts too, a room's open places don't (the server checks the same).
   const deleteBlocked =
     deleteTarget?.kind === "bus" &&
     view.publishedAt !== null &&
-    seatsTaken(deleteTarget) > 0;
+    ridersOn(deleteTarget) > 0;
   const tabData = useMemo(() => ({ bigEventId, view }), [bigEventId, view]);
 
   function confirmDelete() {

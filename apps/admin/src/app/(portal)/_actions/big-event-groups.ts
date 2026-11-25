@@ -61,6 +61,11 @@ export type GroupView = BigEventGroupRow & {
   members: GroupMemberView[];
   /** Rooms with a capacity: places nobody is named in yet. Null otherwise. */
   openPlaces: number | null;
+  /**
+   * Buses: people riding per leg, also those the caller can't see (a count
+   * only), without rooms' open places. Null otherwise.
+   */
+  riders: SeatUse | null;
   /** Buses: seats taken per leg, including rooms' open places. Null otherwise. */
   seats: SeatUse | null;
 };
@@ -283,6 +288,23 @@ function membersByGroup(
   return byGroup;
 }
 
+/** Seat rows per bus and leg: the people riding, also those the caller can't see. */
+function ridersByBus(
+  buses: BigEventGroupRow[],
+  members: BigEventGroupMemberRow[]
+): Map<string, SeatUse> {
+  const riders = new Map<string, SeatUse>(
+    buses.map((bus) => [bus.$id, { home: 0, out: 0 }])
+  );
+  for (const member of members) {
+    const bus = riders.get(member.group_id);
+    if (bus && member.leg !== null) {
+      bus[member.leg] += 1;
+    }
+  }
+  return riders;
+}
+
 /** People with a seat on any bus, per leg they ride. */
 function seatedPeople(
   buses: BigEventGroupRow[],
@@ -335,6 +357,7 @@ function buildGroupsView(
   const buses = groups.filter((group) => group.kind === "bus");
   const rooms = groups.filter((group) => group.kind === "room");
   const seats = busSeatUse({ buses, members, rooms });
+  const riders = ridersByBus(buses, members);
   const openPlaces = roomOpenPlaces(rooms, members);
 
   const visible = groups.filter((group) => canManageGroup(access, group));
@@ -375,6 +398,7 @@ function buildGroupsView(
           group.kind === "room" && group.capacity !== null
             ? (openPlaces.get(group.$id) ?? 0)
             : null,
+        riders: group.kind === "bus" ? (riders.get(group.$id) ?? null) : null,
         seats: group.kind === "bus" ? (seats.get(group.$id) ?? null) : null,
       })
     ),

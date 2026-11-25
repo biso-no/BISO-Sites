@@ -13,6 +13,7 @@ import {
   defaultBoardCampus,
   movingPeople,
   NO_BUS,
+  roomMoveChangesBus,
 } from "./bus-board-model";
 
 function seat(
@@ -44,7 +45,14 @@ function view(
   row: BigEventGroupRow,
   overrides: Partial<GroupView> = {}
 ): GroupView {
-  return { ...row, members: [], openPlaces: null, seats: null, ...overrides };
+  return {
+    ...row,
+    members: [],
+    openPlaces: null,
+    riders: null,
+    seats: null,
+    ...overrides,
+  };
 }
 
 function groupsView(overrides: Partial<GroupsView> = {}): GroupsView {
@@ -186,5 +194,78 @@ describe("movingPeople", () => {
     expect(
       movingPeople("p1", new Set(["p1", "gone"]), columnOf, "bus-3")
     ).toEqual(["p1"]);
+  });
+});
+
+describe("roomMoveChangesBus", () => {
+  const busA = view({ ...bus("bus-a", 50, "2"), name: "Bus A" });
+  const busB = view({ ...bus("bus-b", 50, "2"), name: "Bus B" });
+  const roomOn = (busId: string | null, homeBusId: string | null = null) =>
+    view(
+      room("room-x", 4, {
+        campus_id: "2",
+        home_bus_id: homeBusId,
+        out_bus_id: busId,
+      })
+    );
+  const riding = (seats: [string, "out" | "home", boolean][]): GroupView[] =>
+    [busA, busB].map((one) => ({
+      ...one,
+      members: seats
+        .filter(([busId]) => busId === one.$id)
+        .map(([, leg, pinned]) => seat("p1", "Ola", leg, { pinned })),
+    }));
+  const ola = { campusId: "2", participantId: "p1" };
+
+  test("no prompt for a room on the bus they already ride", () => {
+    const groups = riding([
+      ["bus-a", "out", false],
+      ["bus-a", "home", false],
+    ]);
+    expect(roomMoveChangesBus(groups, roomOn("bus-a"), ola)).toBe(false);
+    expect(roomMoveChangesBus(groups, roomOn("bus-a", "bus-a"), ola)).toBe(
+      false
+    );
+  });
+
+  test("a room on another bus, or a first bus, changes it", () => {
+    const groups = riding([
+      ["bus-a", "out", false],
+      ["bus-a", "home", false],
+    ]);
+    expect(roomMoveChangesBus(groups, roomOn("bus-b"), ola)).toBe(true);
+    // Same way out, other way home.
+    expect(roomMoveChangesBus(groups, roomOn("bus-a", "bus-b"), ola)).toBe(
+      true
+    );
+    expect(roomMoveChangesBus(riding([]), roomOn("bus-a"), ola)).toBe(true);
+  });
+
+  test("pinned legs stay, and a pinned way out keeps the way home with it", () => {
+    const pinnedBoth = riding([
+      ["bus-a", "out", true],
+      ["bus-a", "home", true],
+    ]);
+    expect(roomMoveChangesBus(pinnedBoth, roomOn("bus-b"), ola)).toBe(false);
+    // Out pinned on A, home unpinned on A: home follows the pinned way out.
+    const pinnedOut = riding([
+      ["bus-a", "out", true],
+      ["bus-a", "home", false],
+    ]);
+    expect(roomMoveChangesBus(pinnedOut, roomOn("bus-b"), ola)).toBe(false);
+    // But not onto a bus of another campus.
+    const elsewhere = { campusId: "3", participantId: "p1" };
+    expect(roomMoveChangesBus(pinnedOut, roomOn("bus-b"), elsewhere)).toBe(
+      true
+    );
+  });
+
+  test("no bus change without a room bus the caller sees", () => {
+    const groups = riding([["bus-a", "out", false]]);
+    expect(roomMoveChangesBus(groups, roomOn(null), ola)).toBe(false);
+    expect(roomMoveChangesBus(groups, roomOn("bus-gone"), ola)).toBe(false);
+    expect(roomMoveChangesBus(groups, null, ola)).toBe(false);
+    const buddy = { ...roomOn("bus-b"), kind: "buddy" as const };
+    expect(roomMoveChangesBus(groups, buddy, ola)).toBe(false);
   });
 });

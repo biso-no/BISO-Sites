@@ -541,14 +541,14 @@
       },
       "drag": {
         "instructions": "For å flytte noen: trykk mellomrom eller enter på håndtaket, velg buss med piltastene og trykk mellomrom eller enter igjen. Trykk escape for å avbryte.",
-        "pickedUp": "Tok opp {name}.",
-        "over": "{name} er over {target}.",
+        "pickedUp": "{name} er plukket opp.",
+        "over": "{name} holdes over {target}.",
         "dropped": "{name} ble sluppet på {target}.",
         "cancelled": "{name} ble lagt tilbake."
       },
       "fill": {
         "open": "Fyll bussene automatisk",
-        "description": "Fordeler folk jevnt på bussene til campusen sin og holder alle på samme rom på samme buss. De som er flyttet for hånd, blir der de er.",
+        "description": "Fordeler folkene på hver campus jevnt på campusens busser og holder alle på samme rom på samme buss. De som er flyttet for hånd, blir der de er.",
         "afterPublishing": "Busslistene er publisert, så nå får bare de uten buss plass. Ingen som allerede har buss, blir flyttet.",
         "scope": "Hvilken campus",
         "allCampuses": "Alle campuser",
@@ -559,6 +559,8 @@
         "noBuses": "Det er ingen busser å fylle ennå. Legg til en buss først.",
         "missingCapacity": "Legg inn antall seter på {names} først.",
         "noSeat": "{count, plural, one {# person har ikke plass.} other {# personer har ikke plass.}} Legg til en buss.",
+        "including": "Blant dem: {names}",
+        "andMore": "{names} og {count} til",
         "tooBig": "{room} trenger {seats} seter, og ingen buss har så mange.",
         "tooBigUnknown": "{room} får ikke plass på noen buss.",
         "splitRoom": "{room} er delt på flere busser.",

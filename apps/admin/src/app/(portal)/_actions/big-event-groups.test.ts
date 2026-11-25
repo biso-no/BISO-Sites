@@ -678,6 +678,42 @@ describe("listGroups", () => {
     expect(view.canPublish).toBe(true);
   });
 
+  test("an emptied published bus can be deleted even if a room still points at it", async () => {
+    currentCtx = bergenAdmin;
+    seed(
+      {
+        [GROUPS]: [
+          group("bus-empty", "bus", { capacity: 50 }),
+          group("bus-hidden", "bus", { capacity: 50 }),
+          group("room-b", "room", {
+            capacity: 4,
+            home_bus_id: "bus-empty",
+            out_bus_id: "bus-empty",
+          }),
+        ],
+        [MEMBERS]: [member("bus-hidden", "p-o1", "out")],
+        [PARTICIPANTS]: [participant("p-o1", "1", "Ola", "Hansen")],
+      },
+      bigEvent({ bus_lists_published_at: "2026-11-20T10:00:00.000Z" })
+    );
+
+    const view = await listGroups("b1");
+    const busById = (id: string) => view.groups.find((row) => row.$id === id);
+    // The room's open places hold seats, but nobody rides the bus.
+    expect(busById("bus-empty")?.seats).toEqual({ home: 4, out: 4 });
+    expect(busById("bus-empty")?.riders).toEqual({ home: 0, out: 0 });
+    // A rider the caller can't see counts, by number only.
+    expect(busById("bus-hidden")?.riders).toEqual({ home: 0, out: 1 });
+    expect(busById("bus-hidden")?.members).toEqual([]);
+    expect(view.groups.find((row) => row.kind === "room")?.riders).toBeNull();
+
+    await deleteGroup("bus-empty");
+    expect(fake.rows(GROUPS).map((row) => row.$id)).toEqual([
+      "bus-hidden",
+      "room-b",
+    ]);
+  });
+
   test("can't publish twice or without Travel", async () => {
     seed({}, bigEvent({ bus_lists_published_at: "2026-11-20T10:00:00.000Z" }));
     const published = await listGroups("b1");

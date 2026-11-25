@@ -14,10 +14,13 @@ import type { BigEventGroupRow } from "@repo/shared/big-events/types";
 import { IntlMessageFormat } from "intl-messageformat";
 import {
   act,
+  cloneElement,
   createContext,
   createElement,
+  type ReactElement,
   type ReactNode,
   useContext,
+  useState,
 } from "react";
 import type { Root } from "react-dom/client";
 import type { AutoFillPreview } from "@/lib/big-events/buses/fill-run";
@@ -151,8 +154,64 @@ mock.module("@repo/ui/components/ui/dialog", () => ({
   DialogTitle: passThrough("h2"),
 }));
 
+// Radix menus measure the page to place themselves, which this harness
+// can't: a stand-in that is closed until its trigger is clicked, like the
+// real one, and whose items are buttons.
+interface MenuState {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}
+const MenuOpen = createContext<MenuState>({
+  open: false,
+  setOpen: () => undefined,
+});
+const actualMenu = await import("@repo/ui/components/ui/dropdown-menu");
+mock.module("@repo/ui/components/ui/dropdown-menu", () => ({
+  ...actualMenu,
+  DropdownMenu({ children }: Slot) {
+    const [open, setOpen] = useState(false);
+    return createElement(
+      MenuOpen.Provider,
+      { value: { open, setOpen } },
+      children
+    );
+  },
+  DropdownMenuContent: ({ children }: Slot) =>
+    useContext(MenuOpen).open
+      ? createElement("div", { role: "menu" }, children)
+      : null,
+  DropdownMenuItem({ children, disabled, onSelect }: Slot) {
+    const { setOpen } = useContext(MenuOpen);
+    return createElement(
+      "button",
+      {
+        disabled,
+        onClick: () => {
+          setOpen(false);
+          (onSelect as (() => void) | undefined)?.();
+        },
+        role: "menuitem",
+        type: "button",
+      },
+      children
+    );
+  },
+  DropdownMenuLabel: passThrough("div"),
+  DropdownMenuSeparator: () => null,
+  DropdownMenuTrigger({ children }: Slot) {
+    const { open, setOpen } = useContext(MenuOpen);
+    return cloneElement(children as ReactElement<{ onClick: () => void }>, {
+      onClick: () => setOpen(!open),
+    });
+  },
+}));
+
 // The server actions are replaced on their module, so the components' own
 // imports see the stand-ins; restored after the suite.
+const groupActions = await import("../../../../_actions/big-event-groups");
+const deleteGroup = spyOn(groupActions, "deleteGroup").mockImplementation(
+  async () => undefined
+);
 const busActions = await import("../../../../_actions/big-event-buses");
 const emptyPreview: AutoFillPreview = {
   missingCapacity: [],
@@ -175,8 +234,13 @@ const applyAutoFill = spyOn(busActions, "applyAutoFill").mockImplementation(
 const publishBusLists = spyOn(busActions, "publishBusLists").mockImplementation(
   async () => ({ notices: 142 })
 );
+const moveToGroup = spyOn(busActions, "moveToGroup").mockImplementation(
+  async () => ({ moved: 1 })
+);
 const spies = [
+  deleteGroup,
   moveToBus,
+  moveToGroup,
   setPinned,
   previewAutoFill,
   applyAutoFill,
@@ -191,7 +255,6 @@ afterAll(() => {
 const { GroupsTab } = await import("./groups-view");
 const { BusBoard } = await import("./bus-board");
 const { MoveConfirmProvider, useMoveConfirm } = await import("./move-confirm");
-const { roomHasBus } = await import("./move-menu");
 
 const installedDom = installReactDom();
 let createRoot: typeof import("react-dom/client")["createRoot"];
@@ -238,7 +301,14 @@ function view(
   row: BigEventGroupRow,
   overrides: Partial<GroupView> = {}
 ): GroupView {
-  return { ...row, members: [], openPlaces: null, seats: null, ...overrides };
+  return {
+    ...row,
+    members: [],
+    openPlaces: null,
+    riders: null,
+    seats: null,
+    ...overrides,
+  };
 }
 
 const bus1 = view(
@@ -253,13 +323,18 @@ const bus1 = view(
       seat("p1", "Ola Nordmann", "out", { pinned: true }),
       seat("p1", "Ola Nordmann", "home", { pinned: true }),
     ],
+    riders: { home: 37, out: 38 },
     seats: { home: 37, out: 38 },
   }
 );
 // Three people on two seats out: some the caller can't see.
 const bus2 = view(
   { ...bus("bus-2", 2, "2"), name: "Bus 2" },
-  { members: [seat("p2", "Kari Nordmann", "out")], seats: { home: 0, out: 3 } }
+  {
+    members: [seat("p2", "Kari Nordmann", "out")],
+    riders: { home: 0, out: 3 },
+    seats: { home: 0, out: 3 },
+  }
 );
 const bigRoom = view(
   room("room-1", 4, { campus_id: "2", name: "Ola Nordmann" }),
@@ -510,7 +585,23 @@ describe("BusBoard", () => {
       ],
       placed: 142,
       unplaced: [
-        { count: 12, names: ["Kari N.", "Per H."], reason: "no_seat" },
+        // Ten names is all the preview gives: two rooms and eight people.
+        {
+          count: 12,
+          names: [
+            "Room · Ola Nordmann",
+            "Room · Kari Nordmann",
+            "Anne B.",
+            "Bo L.",
+            "Eva S.",
+            "Ida L.",
+            "Kari N.",
+            "Nils H.",
+            "Oda L.",
+            "Per H.",
+          ],
+          reason: "no_seat",
+        },
         { count: 4, names: ["Room · Ola Nordmann"], reason: "too_big" },
         { count: 2, names: ["Room · Kari Nordmann"], reason: "split_room" },
       ],
@@ -522,8 +613,10 @@ describe("BusBoard", () => {
     expect(previewAutoFill).toHaveBeenCalledWith("b1", "2");
     expect(dialog.textContent).toContain("142 people on 3 buses");
     expect(dialog.textContent).toContain("50 of 50");
+    // A room stands for the people named in it (at least one): both rooms
+    // here show nobody, so the ten names cover ten of twelve.
     expect(dialog.textContent).toContain(
-      "12 people have no seat. Add a bus. Kari N., Per H."
+      "12 people have no seat. Add a bus. Including: Room · Ola Nordmann, Room · Kari Nordmann, Anne B., Bo L., Eva S., Ida L., Kari N., Nils H., Oda L., Per H. and 2 more"
     );
     expect(dialog.textContent).toContain(
       "Room · Ola Nordmann needs 4 seats; no bus has that many."
@@ -542,6 +635,8 @@ describe("BusBoard", () => {
     previewAutoFill.mockImplementationOnce(async () => ({
       ...emptyPreview,
       missingCapacity: ["Bus 1", "Bus 2"],
+      // Under ten names the list is whole, even if a room holds two people.
+      unplaced: [{ count: 3, names: ["Kari N.", "Per H."], reason: "no_seat" }],
       perBus: [
         {
           busId: "bus-1",
@@ -567,6 +662,10 @@ describe("BusBoard", () => {
     expect(dialog.textContent).toContain(
       "Add a seat count to Bus 1 and Bus 2 first."
     );
+    expect(dialog.textContent).toContain(
+      "3 people have no seat. Add a bus. Including: Kari N., Per H."
+    );
+    expect(dialog.textContent).not.toContain("more");
     expect(dialog.textContent).toContain(
       "The bus lists are published, so this only gives a seat to people without a bus."
     );
@@ -596,10 +695,26 @@ describe("BusBoard", () => {
     expect(container.textContent).not.toContain("Publish bus lists");
   });
 
-  test("after publishing, a bus with seats taken by people the caller can't see can't be deleted", async () => {
+  test("an emptied published bus can be deleted even if a room still points at it", async () => {
+    // The room's open places still hold seats on it, but nobody rides it.
+    const emptied = view(
+      { ...bus("bus-9", 50, "2"), name: "Bus 9" },
+      { riders: { home: 0, out: 0 }, seats: { home: 4, out: 4 } }
+    );
+    const container = await mount(
+      groupsView({ ...PUBLISHED, groups: [bus1, emptied] })
+    );
+    await click(findByAriaLabel(container, "Delete Bus 9"));
+    const dialog = byRole(container, "alertdialog");
+    expect(dialog.textContent).toContain("Everyone in it is taken out of it.");
+    await click(findButton(dialog, "Delete"));
+    expect(deleteGroup).toHaveBeenCalledWith("bus-9");
+  });
+
+  test("after publishing, a bus with people the caller can't see can't be deleted", async () => {
     const hidden = view(
       { ...bus("bus-9", 50, "2"), name: "Bus 9" },
-      { seats: { home: 1, out: 1 } }
+      { riders: { home: 1, out: 1 }, seats: { home: 1, out: 1 } }
     );
     const container = await mount(
       groupsView({ ...PUBLISHED, groups: [bus1, hidden] })
@@ -612,11 +727,71 @@ describe("BusBoard", () => {
 });
 
 describe("moves into a room (ruling R14)", () => {
-  test("only a room with a bus may change someone's bus", () => {
-    expect(roomHasBus(bigRoom)).toBe(false);
-    expect(roomHasBus({ ...bigRoom, out_bus_id: "bus-1" })).toBe(true);
-    expect(roomHasBus({ ...bigRoom, home_bus_id: "bus-1" })).toBe(true);
-    expect(roomHasBus(null)).toBe(false);
+  // Kari rides Bus 2 both ways and is in Hall A; Hall B rides Bus 2, Hall C Bus 1.
+  const kariOnBus2 = view(
+    { ...bus("bus-2", 50, "2"), name: "Bus 2" },
+    {
+      members: [
+        seat("p2", "Kari Nordmann", "out"),
+        seat("p2", "Kari Nordmann", "home"),
+      ],
+      riders: { home: 1, out: 1 },
+      seats: { home: 1, out: 1 },
+    }
+  );
+  const hall = (id: string, name: string, busId: string | null) =>
+    view(room(id, 4, { campus_id: "2", name, out_bus_id: busId }), {
+      members:
+        id === "hall-a"
+          ? [{ ...seat("p2", "Kari Nordmann", "out"), leg: null }]
+          : [],
+      openPlaces: 3,
+    });
+  const halls = groupsView({
+    ...PUBLISHED,
+    groups: [
+      bus1,
+      kariOnBus2,
+      hall("hall-a", "Hall A", null),
+      hall("hall-b", "Hall B", "bus-2"),
+      hall("hall-c", "Hall C", "bus-1"),
+    ],
+  });
+
+  async function moveKariTo(container: TestElement, label: string) {
+    await click(findByAriaLabel(container, "More for Kari Nordmann"));
+    await click(findButton(container, label));
+  }
+
+  test("after publishing, a room move onto another bus asks with the room's name", async () => {
+    const container = await mount(halls);
+    await moveKariTo(container, "Hall C");
+
+    expect(moveToGroup).not.toHaveBeenCalled();
+    const confirm = byRole(container, "alertdialog");
+    expect(confirm.textContent).toContain("Move Kari Nordmann?");
+    expect(confirm.textContent).toContain("Room · Hall C");
+    expect(checkbox(confirm).checked).toBe(true);
+    await click(findButton(confirm, "Move"));
+    expect(moveToGroup).toHaveBeenCalledWith("b1", {
+      groupId: "hall-c",
+      kind: "room",
+      notify: true,
+      participantIds: ["p2"],
+    });
+  });
+
+  test("a room move that keeps the bus doesn't ask", async () => {
+    const container = await mount(halls);
+    await moveKariTo(container, "Hall B");
+
+    expect(
+      findElements(container, (el) => el.getAttribute("role") === "alertdialog")
+    ).toHaveLength(0);
+    expect(moveToGroup.mock.calls[0]?.[1]).toMatchObject({
+      groupId: "hall-b",
+      notify: false,
+    });
   });
 
   function Mover({ ask }: { ask: boolean }) {
@@ -661,12 +836,6 @@ describe("moves into a room (ruling R14)", () => {
     });
     return container as unknown as TestElement;
   }
-
-  const moveToGroup = spyOn(busActions, "moveToGroup").mockImplementation(
-    async () => ({ moved: 1 })
-  );
-  afterAll(() => moveToGroup.mockRestore());
-  beforeEach(() => moveToGroup.mockClear());
 
   test("after publishing, the same confirm asks before a room move that changes the bus", async () => {
     const container = await mountMover(true, true);

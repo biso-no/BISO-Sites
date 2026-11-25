@@ -211,7 +211,14 @@ function view(
   row: BigEventGroupRow,
   overrides: Partial<GroupView> = {}
 ): GroupView {
-  return { ...row, members: [], openPlaces: null, seats: null, ...overrides };
+  return {
+    ...row,
+    members: [],
+    openPlaces: null,
+    riders: null,
+    seats: null,
+    ...overrides,
+  };
 }
 
 const bergenRoom = view(
@@ -232,6 +239,7 @@ const bergenBus = view(bus("bus-1", 50, "2"), {
     person("p1", "Ola Nordmann", { leg: "home" }),
     person("p3", "Per Hansen", { leg: "out" }),
   ],
+  riders: { home: 1, out: 2 },
   seats: { home: 1, out: 2 },
 });
 

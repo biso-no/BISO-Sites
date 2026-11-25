@@ -559,6 +559,8 @@
         "noBuses": "There are no buses to fill yet. Add a bus first.",
         "missingCapacity": "Add a seat count to {names} first.",
         "noSeat": "{count, plural, one {# person has no seat.} other {# people have no seat.}} Add a bus.",
+        "including": "Including: {names}",
+        "andMore": "{names} and {count} more",
         "tooBig": "{room} needs {seats} seats; no bus has that many.",
         "tooBigUnknown": "{room} doesn't fit on any bus.",
         "splitRoom": "{room} is split across buses.",
