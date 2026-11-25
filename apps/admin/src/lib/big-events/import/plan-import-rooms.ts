@@ -702,7 +702,9 @@ function overfullRooms(board: Board): string[] {
 function roomStays(board: Board): RoomStay[] {
   return [...board.roomOf].flatMap(([subject, key]) => {
     const room = board.groups.get(key)?.row;
-    return room ? [{ person: targetOf(subject), room }] : [];
+    return room
+      ? [{ campusId: subject.campusId, person: targetOf(subject), room }]
+      : [];
   });
 }
 

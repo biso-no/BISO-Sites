@@ -1085,9 +1085,10 @@ describe("applyImport: pins, room buses and notices (N7)", () => {
     );
 
     expect(result).toMatchObject({ complete: true, placed: 2 });
-    // Home follows the hand-moved way out (ruling R5), not the room's bus.
+    // Kari has no way home: it follows her hand-moved way out (ruling R5).
+    // Ola keeps the way home he has, as auto-fill would (rulings R3c, R19).
     expect(seats("p1")).toEqual(["g-101:null", "g-b2:home", "g-b2:out"]);
-    expect(seats("p2")).toEqual(["g-101:null", "g-b2:home", "g-b2:out"]);
+    expect(seats("p2")).toEqual(["g-101:null", "g-b1:home", "g-b2:out"]);
   });
 
   test("a re-import updates a booking room's capacity", async () => {

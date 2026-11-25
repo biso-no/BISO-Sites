@@ -9,6 +9,12 @@ import {
   test,
 } from "bun:test";
 import type { UserAuthContext } from "@/lib/authorization";
+import {
+  busSeatUse,
+  type SeatMember,
+  type SeatRoom,
+  type SeatUse,
+} from "@/lib/big-events/buses/seats";
 import { createFakeTablesDb, type FakeRow } from "@/test/fake-tables-db";
 
 mock.module("server-only", () => ({}));
@@ -211,6 +217,19 @@ function placesOf(participantId: string): string[] {
 function roomBuses(roomId: string): [unknown, unknown] {
   const room = fake.rows(GROUPS).find((row) => row.$id === roomId);
   return [room?.out_bus_id, room?.home_bus_id];
+}
+
+/** Seats taken per bus and leg, room open places included. */
+function seatsNow(): Record<string, SeatUse> {
+  const groups = fake.rows(GROUPS) as unknown as (SeatRoom & {
+    kind: string;
+  })[];
+  const use = busSeatUse({
+    buses: groups.filter((row) => row.kind === "bus"),
+    members: fake.rows(MEMBERS) as unknown as SeatMember[],
+    rooms: groups.filter((row) => row.kind === "room"),
+  });
+  return Object.fromEntries(use);
 }
 
 function noticeOf(participantId: string): unknown {
@@ -870,10 +889,10 @@ describe("moving into groups", () => {
       "bus-a:out:true",
       "room-1:-:true",
     ]);
-    // A pinned way out stays, and takes the way home with it (R10): p2's
-    // home seat stays on bus-b and gets pinned, so p2's bus didn't change.
+    // A pinned way out stays, and so does p2's way home (R10, R3c/R19):
+    // p2's bus didn't change.
     expect(placesOf("p2")).toEqual([
-      "bus-b:home:true",
+      "bus-b:home:false",
       "bus-b:out:true",
       "room-1:-:true",
     ]);
@@ -1047,7 +1066,7 @@ describe("moving into groups", () => {
     expect(auditCalls("big_event.group.move")).toHaveLength(0);
   });
 
-  test("a room move keeps the way home with a pinned way out", async () => {
+  test("a pinned way out takes the way home with it only when there's no way home yet", async () => {
     seed({
       [GROUPS]: [
         bus("bus-a", 8),
@@ -1059,10 +1078,11 @@ describe("moving into groups", () => {
           out_bus_id: "bus-a",
         }),
       ],
-      [PARTICIPANTS]: [participant("p1")],
+      [PARTICIPANTS]: [participant("p1"), participant("p2")],
       [MEMBERS]: [
         member("bus-b", "p1", "out", true),
         member("bus-c", "p1", "home"),
+        member("bus-b", "p2", "out", true),
       ],
     });
 
@@ -1070,15 +1090,91 @@ describe("moving into groups", () => {
       groupId: "room-1",
       kind: "room",
       notify: false,
-      participantIds: ["p1"],
+      participantIds: ["p1", "p2"],
     });
 
-    // R10: home follows the pinned way out, not the room's home bus.
+    // p1 keeps the way home they have, as auto-fill would (R3c, R19), and
+    // never takes the room's (R10); p2 has none, so home follows the pinned
+    // way out (R5).
     expect(placesOf("p1")).toEqual([
+      "bus-b:out:true",
+      "bus-c:home:false",
+      "room-1:-:true",
+    ]);
+    expect(placesOf("p2")).toEqual([
       "bus-b:home:true",
       "bus-b:out:true",
       "room-1:-:true",
     ]);
+  });
+
+  test("someone of another campus joins the room but not its bus", async () => {
+    seed({
+      [GROUPS]: [
+        bus("bus-a", 8),
+        bus("bus-oslo", 8, "1"),
+        group("room-1", "room", {
+          campus_id: null,
+          capacity: 4,
+          home_bus_id: "bus-a",
+          out_bus_id: "bus-a",
+        }),
+      ],
+      [PARTICIPANTS]: [
+        participant("p1"),
+        participant("o1", "1"),
+        participant("n1", null),
+      ],
+      [MEMBERS]: [...bothWays("bus-oslo", "o1")],
+    });
+
+    // R19: no refusal; each person rides the room's bus only on their campus.
+    await moveToGroup("b1", {
+      groupId: "room-1",
+      kind: "room",
+      notify: false,
+      participantIds: ["p1", "o1", "n1"],
+    });
+
+    expect(placesOf("p1")).toEqual([
+      "bus-a:home:true",
+      "bus-a:out:true",
+      "room-1:-:true",
+    ]);
+    expect(placesOf("o1")).toEqual([
+      "bus-oslo:home:false",
+      "bus-oslo:out:false",
+      "room-1:-:true",
+    ]);
+    expect(placesOf("n1")).toEqual(["room-1:-:true"]);
+    // The room's people ride different buses: it keeps its own.
+    expect(roomBuses("room-1")).toEqual(["bus-a", "bus-a"]);
+  });
+
+  test("a campus admin's people join a room on another campus's bus without riding it", async () => {
+    currentCtx = bergenAdmin;
+    seed({
+      [GROUPS]: [
+        bus("bus-oslo", 8, "1"),
+        group("room-2", "room", {
+          capacity: 4,
+          home_bus_id: "bus-oslo",
+          out_bus_id: "bus-oslo",
+        }),
+      ],
+      [PARTICIPANTS]: [participant("p1")],
+    });
+
+    // The Oslo bus isn't Bergen's to change, but p1 wouldn't ride it anyway.
+    await moveToGroup("b1", {
+      groupId: "room-2",
+      kind: "room",
+      notify: false,
+      participantIds: ["p1"],
+    });
+
+    expect(placesOf("p1")).toEqual(["room-2:-:true"]);
+    expect(roomBuses("room-2")).toEqual(["bus-oslo", "bus-oslo"]);
   });
 
   test("a room move follows a pinned way out only onto a bus you can change", async () => {
@@ -1094,11 +1190,9 @@ describe("moving into groups", () => {
           }),
         ],
         [PARTICIPANTS]: [participant("p1")],
-        // Pinned to another campus's bus (e.g. before a campus change, R4).
-        [MEMBERS]: [
-          member("bus-oslo", "p1", "out", true),
-          member("bus-oslo", "p1", "home"),
-        ],
+        // Pinned to another campus's bus (e.g. before a campus change, R4),
+        // with no way home yet.
+        [MEMBERS]: [member("bus-oslo", "p1", "out", true)],
       });
     const move = {
       groupId: "room-1",
@@ -1143,6 +1237,259 @@ describe("moving into groups", () => {
       "bus-a:out:true",
       "room-1:-:true",
     ]);
+  });
+});
+
+describe("room buses follow hand moves (R18)", () => {
+  /** A Payment 1 room: four places, only its buyer named so far. */
+  const bookedRoom = (busId: string | null = "bus-a") =>
+    group("room-1", "room", {
+      capacity: 4,
+      home_bus_id: busId,
+      out_bus_id: busId,
+    });
+
+  test("moving a room's only named member moves the room's open places", async () => {
+    seed(
+      {
+        [GROUPS]: [bus("bus-a", 8), bus("bus-b", 8), bookedRoom()],
+        [PARTICIPANTS]: [participant("p1"), participant("p2")],
+        [MEMBERS]: [member("room-1", "p1"), ...bothWays("bus-a", "p1")],
+      },
+      bigEvent(PUBLISHED)
+    );
+
+    await moveToBus("b1", {
+      busId: "bus-b",
+      legs: "both",
+      notify: true,
+      participantIds: ["p1"],
+    });
+
+    expect(roomBuses("room-1")).toEqual(["bus-b", "bus-b"]);
+    // The buyer and the three open places all sit on bus-b now.
+    expect(seatsNow()).toEqual({
+      "bus-a": { home: 0, out: 0 },
+      "bus-b": { home: 4, out: 4 },
+    });
+    // The room moving owes nobody a notice; p1's own move does.
+    expect(noticeOf("p1")).toBe(NOW);
+    expect(noticeOf("p2")).toBeNull();
+
+    // A roommate named later takes the room's new bus.
+    await moveToGroup("b1", {
+      groupId: "room-1",
+      kind: "room",
+      notify: false,
+      participantIds: ["p2"],
+    });
+    expect(placesOf("p2")).toEqual([
+      "bus-b:home:true",
+      "bus-b:out:true",
+      "room-1:-:true",
+    ]);
+    expect(seatsNow()).toEqual({
+      "bus-a": { home: 0, out: 0 },
+      "bus-b": { home: 4, out: 4 },
+    });
+  });
+
+  test("a room stays put while its members are split", async () => {
+    seed({
+      [GROUPS]: [bus("bus-a", 8), bus("bus-b", 8), bookedRoom()],
+      [PARTICIPANTS]: [participant("p1"), participant("p2")],
+      [MEMBERS]: [
+        member("room-1", "p1"),
+        member("room-1", "p2"),
+        ...bothWays("bus-a", "p1"),
+        ...bothWays("bus-a", "p2"),
+      ],
+    });
+
+    await moveToBus("b1", {
+      busId: "bus-b",
+      legs: "both",
+      notify: false,
+      participantIds: ["p1"],
+    });
+    expect(roomBuses("room-1")).toEqual(["bus-a", "bus-a"]);
+    // p2 and the two open places stay on bus-a.
+    expect(seatsNow()).toEqual({
+      "bus-a": { home: 3, out: 3 },
+      "bus-b": { home: 1, out: 1 },
+    });
+
+    // Once everyone named rides bus-b, the room follows.
+    await moveToBus("b1", {
+      busId: "bus-b",
+      legs: "both",
+      notify: false,
+      participantIds: ["p2"],
+    });
+    expect(roomBuses("room-1")).toEqual(["bus-b", "bus-b"]);
+    expect(seatsNow()).toEqual({
+      "bus-a": { home: 0, out: 0 },
+      "bus-b": { home: 4, out: 4 },
+    });
+  });
+
+  test("each leg follows on its own, and off the bus the room keeps its bus", async () => {
+    seed({
+      [GROUPS]: [bus("bus-a", 8), bus("bus-b", 8), bookedRoom()],
+      [PARTICIPANTS]: [participant("p1")],
+      [MEMBERS]: [member("room-1", "p1"), ...bothWays("bus-a", "p1")],
+    });
+
+    await moveToBus("b1", {
+      busId: "bus-b",
+      legs: "home",
+      notify: false,
+      participantIds: ["p1"],
+    });
+    expect(roomBuses("room-1")).toEqual(["bus-a", "bus-b"]);
+    expect(seatsNow()).toEqual({
+      "bus-a": { home: 0, out: 4 },
+      "bus-b": { home: 4, out: 0 },
+    });
+
+    // Nobody named rides a bus now: the room's open places stay held.
+    await moveToBus("b1", {
+      busId: null,
+      legs: "both",
+      notify: false,
+      participantIds: ["p1"],
+    });
+    expect(roomBuses("room-1")).toEqual(["bus-a", "bus-b"]);
+  });
+
+  test("a room without a bus gets the bus its people are moved onto", async () => {
+    seed({
+      [GROUPS]: [bus("bus-a", 8), bookedRoom(null)],
+      [PARTICIPANTS]: [participant("p1")],
+      [MEMBERS]: [member("room-1", "p1")],
+    });
+
+    await moveToBus("b1", {
+      busId: "bus-a",
+      legs: "out",
+      notify: false,
+      participantIds: ["p1"],
+    });
+
+    // No way home yet, so home came with the way out (R5).
+    expect(roomBuses("room-1")).toEqual(["bus-a", "bus-a"]);
+    expect(seatsNow()).toEqual({ "bus-a": { home: 4, out: 4 } });
+  });
+
+  test("someone leaving or joining a room lets the room follow the people in it", async () => {
+    seed({
+      [GROUPS]: [
+        bus("bus-a", 8),
+        bus("bus-b", 8),
+        bus("bus-c", 8),
+        bookedRoom(),
+        group("room-2", "room", { capacity: 2 }),
+      ],
+      [PARTICIPANTS]: [participant("p1"), participant("p2")],
+      // p1 and p2 ride different buses: room-1 is split and holds bus-a.
+      [MEMBERS]: [
+        member("room-1", "p1"),
+        member("room-1", "p2"),
+        ...bothWays("bus-b", "p1"),
+        ...bothWays("bus-c", "p2"),
+      ],
+    });
+
+    await moveToGroup("b1", {
+      groupId: "room-2",
+      kind: "room",
+      notify: false,
+      participantIds: ["p2"],
+    });
+    // room-1 now names only p1, room-2 only p2.
+    expect(roomBuses("room-1")).toEqual(["bus-b", "bus-b"]);
+    expect(roomBuses("room-2")).toEqual(["bus-c", "bus-c"]);
+
+    // The last person out: an empty room keeps its bus.
+    await moveToGroup("b1", {
+      groupId: null,
+      kind: "room",
+      notify: false,
+      participantIds: ["p1"],
+    });
+    expect(roomBuses("room-1")).toEqual(["bus-b", "bus-b"]);
+  });
+
+  test("a room the caller can't change keeps its bus", async () => {
+    currentCtx = bergenAdmin;
+    seed({
+      [GROUPS]: [
+        bus("bus-a", 8),
+        bus("bus-b", 8),
+        group("room-national", "room", {
+          campus_id: "5",
+          capacity: 4,
+          home_bus_id: "bus-a",
+          out_bus_id: "bus-a",
+        }),
+      ],
+      [PARTICIPANTS]: [participant("p1")],
+      [MEMBERS]: [member("room-national", "p1"), ...bothWays("bus-a", "p1")],
+    });
+
+    await moveToBus("b1", {
+      busId: "bus-b",
+      legs: "both",
+      notify: false,
+      participantIds: ["p1"],
+    });
+
+    expect(placesOf("p1")).toEqual([
+      "bus-b:home:true",
+      "bus-b:out:true",
+      "room-national:-:false",
+    ]);
+    expect(roomBuses("room-national")).toEqual(["bus-a", "bus-a"]);
+  });
+
+  test("a room write that fails is made by moving again", async () => {
+    seed({
+      [GROUPS]: [bus("bus-a", 8), bus("bus-b", 8), bookedRoom()],
+      [PARTICIPANTS]: [participant("p1")],
+      [MEMBERS]: [member("room-1", "p1"), ...bothWays("bus-a", "p1")],
+    });
+    let failures = 1;
+    fake.setBeforeWrite((write) => {
+      if (write.tableId === GROUPS && failures > 0) {
+        failures -= 1;
+        throw new Error("network");
+      }
+    });
+    const quiet = spyOn(console, "error").mockImplementation(() => undefined);
+    const move = {
+      busId: "bus-b",
+      legs: "both" as const,
+      notify: false,
+      participantIds: ["p1"],
+    };
+
+    await expect(moveToBus("b1", move)).rejects.toThrow("Try again");
+    quiet.mockRestore();
+    expect(roomBuses("room-1")).toEqual(["bus-a", "bus-a"]);
+    expect(auditPayload("big_event.bus.move")).toMatchObject({
+      complete: false,
+    });
+
+    await moveToBus("b1", move);
+    expect(roomBuses("room-1")).toEqual(["bus-b", "bus-b"]);
+    expect(placesOf("p1")).toEqual([
+      "bus-b:home:true",
+      "bus-b:out:true",
+      "room-1:-:false",
+    ]);
+    expect(auditPayload("big_event.bus.move")).toMatchObject({
+      complete: true,
+    });
   });
 });
 

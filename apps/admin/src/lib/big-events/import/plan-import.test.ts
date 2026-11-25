@@ -1587,6 +1587,118 @@ describe("planImport: room buses (N2)", () => {
     ]);
   });
 
+  describe("campuses (R19)", () => {
+    const bergenBus = group("g-b1", {
+      campus_id: "2",
+      kind: "bus",
+      name: "Buss 1",
+    });
+    const bergenBus2 = group("g-b2", {
+      campus_id: "2",
+      kind: "bus",
+      name: "Buss 2",
+    });
+    const bergenBus3 = group("g-b3", {
+      campus_id: "2",
+      kind: "bus",
+      name: "Buss 3",
+    });
+    const osloBus = group("g-oslo", {
+      campus_id: "1",
+      kind: "bus",
+      name: "Oslo 1",
+    });
+    const bergenRoom = { ...room101, campus_id: "2" };
+    const kariIn = (campusId: string) =>
+      participant("p-kari", {
+        campus_id: campusId,
+        first_name: "Kari",
+        last_name: "Nordmann",
+        ticket_email: "kari@gmail.com",
+      });
+    const kariFile = () =>
+      sheet(["Kari Nordmann", "kari@gmail.com", "", "", "101"]);
+
+    test("room bus seats skip people of another campus", () => {
+      // A room with no campus, on a Bergen bus.
+      const sharedRoom = { ...room101, campus_id: null };
+      const existing = {
+        groups: [bergenBus, osloBus, sharedRoom],
+        members: [
+          member("g-oslo", "p-kari", { leg: "out" }),
+          member("g-oslo", "p-kari", { leg: "home" }),
+        ],
+        participants: [kariIn("1")],
+      };
+      const result = plan(
+        sheet(
+          ["Kari Nordmann", "kari@gmail.com", "", "Oslo", "101"],
+          ["Per Hansen", "per@gmail.com", "", "Bergen", "101"],
+          ["Ida Berg", "ida@gmail.com", "", "", "101"]
+        ),
+        0,
+        SHEET_WITH_CAMPUS_AND_GROUP,
+        roomImport,
+        existing
+      );
+      // Kari is on the list already: Per is the first new person.
+      const [per] = result.create;
+      expect(per?.firstName).toBe("Per");
+
+      // Only Per is from Bergen: Kari (Oslo) and Ida (no campus) stay off it.
+      expect(result.roomBuses).toEqual([
+        { busId: "g-b1", leg: "out", person: per },
+        { busId: "g-b1", leg: "home", person: per },
+      ]);
+      // Kari keeps her Oslo seats.
+      expect(
+        roomBusRemovals(result, existing.groups, existing.members)
+      ).toEqual([]);
+    });
+
+    test("home follows a pinned way out only onto a seen bus of the person's campus", () => {
+      // Kari's way out was pinned to an Oslo bus before she moved to Bergen.
+      const otherCampus = plan(kariFile(), 0, SHEET_WITH_ROOM, roomImport, {
+        groups: [bergenBus, osloBus, bergenRoom],
+        members: [member("g-oslo", "p-kari", { leg: "out", pinned: true })],
+        participants: [kariIn("2")],
+      });
+      expect(otherCampus.roomBuses).toEqual([
+        { busId: "g-b1", leg: "home", person: { participantId: "p-kari" } },
+      ]);
+
+      // Pinned to a bus the caller can't see (not among the groups).
+      const unseen = plan(kariFile(), 0, SHEET_WITH_ROOM, roomImport, {
+        groups: [bergenBus, bergenRoom],
+        members: [member("g-unseen", "p-kari", { leg: "out", pinned: true })],
+        participants: [kariIn("2")],
+      });
+      expect(unseen.roomBuses).toEqual([
+        { busId: "g-b1", leg: "home", person: { participantId: "p-kari" } },
+      ]);
+    });
+
+    test("home follows a pinned way out only when there's no way home yet", () => {
+      const homeOnB3 = member("g-b3", "p-kari", { leg: "home" });
+      const existing = {
+        groups: [bergenBus, bergenBus2, bergenBus3, bergenRoom],
+        members: [
+          member("g-b2", "p-kari", { leg: "out", pinned: true }),
+          homeOnB3,
+        ],
+        participants: [kariIn("2")],
+      };
+      const result = plan(kariFile(), 0, SHEET_WITH_ROOM, roomImport, existing);
+
+      // Her way home stays on bus 3, as auto-fill keeps it (R3c): it neither
+      // follows the pinned way out nor takes the room's bus (R10).
+      expect(result.roomBuses).toEqual([]);
+      expect(
+        roomBusRemovals(result, existing.groups, existing.members)
+      ).toEqual([]);
+    });
+  });
+
   test("no room buses without Travel or in a bus or group import", () => {
     const existing = {
       groups: [bus1, room101],

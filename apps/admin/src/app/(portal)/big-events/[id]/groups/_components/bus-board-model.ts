@@ -249,10 +249,11 @@ function legSeats(
 
 /**
  * Whether moving someone into `room` changes their bus, as `moveToGroup`
- * would (D5, rulings R5, R10, R12): each leg takes the room's bus (home
- * falls back to out) unless the leg is pinned, and a pinned way out keeps
- * the way home on that bus when it's a bus of the person's campus. Only
- * then does a move after publishing ask about telling them (ruling R14).
+ * would (D5, rulings R3c, R5, R10, R12, R19): each leg takes the room's bus
+ * (home falls back to out) when it's a bus of the person's campus and the
+ * leg isn't pinned. With a pinned way out, a way home they have stays; one
+ * they don't have yet is a change whichever bus it goes on. Only then does
+ * a move after publishing ask about telling them (ruling R14).
  */
 export function roomMoveChangesBus(
   groups: GroupView[],
@@ -264,21 +265,21 @@ export function roomMoveChangesBus(
   }
   const buses = groups.filter((group) => group.kind === "bus");
   const campusOf = new Map(buses.map((bus) => [bus.$id, bus.campus_id]));
+  const onCampus = (busId: string | null): busId is string =>
+    busId !== null &&
+    campusOf.has(busId) &&
+    campusOf.get(busId) === person.campusId;
   const seats = legSeats(buses, person.participantId);
-  const pinnedOut =
-    seats.out?.pinned && campusOf.get(seats.out.busId) === person.campusId
-      ? seats.out.busId
-      : null;
+  const keepsHome = seats.out?.pinned === true && seats.home !== null;
   const rides: [Leg, string | null][] = [
     ["out", room.out_bus_id],
     ["home", room.home_bus_id ?? room.out_bus_id],
   ];
   return rides.some(([leg, busId]) => {
     const seat = seats[leg];
-    if (busId === null || !campusOf.has(busId) || seat?.pinned) {
+    if (!onCampus(busId) || seat?.pinned || (leg === "home" && keepsHome)) {
       return false;
     }
-    const target = leg === "home" && pinnedOut ? pinnedOut : busId;
-    return (seat?.busId ?? null) !== target;
+    return seat?.busId !== busId;
   });
 }

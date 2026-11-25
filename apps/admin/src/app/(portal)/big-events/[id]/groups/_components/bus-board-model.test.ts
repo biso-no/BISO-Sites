@@ -241,22 +241,34 @@ describe("roomMoveChangesBus", () => {
     expect(roomMoveChangesBus(riding([]), roomOn("bus-a"), ola)).toBe(true);
   });
 
-  test("pinned legs stay, and a pinned way out keeps the way home with it", () => {
+  test("pinned legs stay, and with a pinned way out the way home they have stays", () => {
     const pinnedBoth = riding([
       ["bus-a", "out", true],
       ["bus-a", "home", true],
     ]);
     expect(roomMoveChangesBus(pinnedBoth, roomOn("bus-b"), ola)).toBe(false);
-    // Out pinned on A, home unpinned on A: home follows the pinned way out.
+    // Out pinned on A, no way home: they get one, which is a change.
+    const pinnedOutOnly = riding([["bus-a", "out", true]]);
+    expect(roomMoveChangesBus(pinnedOutOnly, roomOn("bus-b"), ola)).toBe(true);
+    // Out pinned on A, home unpinned on B: the way home stays (R3c, R19).
     const pinnedOut = riding([
       ["bus-a", "out", true],
+      ["bus-b", "home", false],
+    ]);
+    expect(roomMoveChangesBus(pinnedOut, roomOn("bus-a"), ola)).toBe(false);
+    expect(roomMoveChangesBus(pinnedOut, roomOn("bus-b"), ola)).toBe(false);
+  });
+
+  test("a room's bus never takes someone of another campus", () => {
+    const groups = riding([
+      ["bus-a", "out", false],
       ["bus-a", "home", false],
     ]);
-    expect(roomMoveChangesBus(pinnedOut, roomOn("bus-b"), ola)).toBe(false);
-    // But not onto a bus of another campus.
     const elsewhere = { campusId: "3", participantId: "p1" };
-    expect(roomMoveChangesBus(pinnedOut, roomOn("bus-b"), elsewhere)).toBe(
-      true
+    expect(roomMoveChangesBus(groups, roomOn("bus-b"), elsewhere)).toBe(false);
+    const noCampus = { campusId: null, participantId: "p1" };
+    expect(roomMoveChangesBus(riding([]), roomOn("bus-b"), noCampus)).toBe(
+      false
     );
   });
 

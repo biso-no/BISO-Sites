@@ -1,4 +1,7 @@
-import type { BigEventGroupMemberRow } from "@repo/shared/big-events/types";
+import type {
+  BigEventGroupMemberRow,
+  BigEventGroupRow,
+} from "@repo/shared/big-events/types";
 import { busOf, type Leg } from "./seats";
 
 /* What moving people by hand writes, worked out on rows in memory. */
@@ -20,6 +23,19 @@ export interface NewPlace {
   participantId: string;
 }
 
+/** The room fields a room's bus follow reads. */
+export type RoomBusRow = Pick<
+  BigEventGroupRow,
+  "$id" | "home_bus_id" | "out_bus_id"
+>;
+
+/** A room whose buses change. */
+export interface RoomBusChange {
+  homeBusId: string | null;
+  outBusId: string | null;
+  roomId: string;
+}
+
 /** The writes of a batch of hand moves. */
 export interface HandChanges {
   /** People whose bus changed on a leg: a change they may be told about. */
@@ -31,6 +47,8 @@ export interface HandChanges {
   pin: string[];
   /** Memberships to delete. */
   remove: string[];
+  /** Rooms whose buses follow their people (ruling R18). */
+  rooms: RoomBusChange[];
 }
 
 export function emptyHandChanges(): HandChanges {
@@ -40,6 +58,7 @@ export function emptyHandChanges(): HandChanges {
     moved: new Set(),
     pin: [],
     remove: [],
+    rooms: [],
   };
 }
 
@@ -122,11 +141,13 @@ export function seatByHand(
 
 /**
  * Puts one person on their room's buses by hand (D5: a person named into a
- * room takes its bus), leg by leg: a pinned leg stays where it is, and a
- * pinned way out takes the way home with it instead of the room's home bus
- * (rulings R5, R10), but only onto a bus `canFollow` allows (one the caller
- * may change, of the person's campus); otherwise home takes the room's bus.
- * `seats` are the person's bus seats.
+ * room takes its bus), leg by leg: a pinned leg stays where it is. With a
+ * pinned way out, the way home doesn't take the room's home bus (ruling
+ * R10): a way home they have stays as it is, as auto-fill keeps it (rulings
+ * R3c, R19); without one they get it on the way-out bus (ruling R5), but
+ * only onto a bus `canFollow` allows (one the caller may change, of the
+ * person's campus), otherwise on the room's bus. `seats` are the person's
+ * bus seats.
  */
 export function rideWithRoom(
   changes: HandChanges,
@@ -141,13 +162,17 @@ export function rideWithRoom(
   const pinnedOutBus = seats.find(
     (seat) => seat.leg === "out" && seat.pinned === true
   )?.group_id;
+  const hasHome = seats.some((seat) => seat.leg === "home");
+  const keepsHome = Boolean(pinnedOutBus) && hasHome;
   const pinnedOut =
-    pinnedOutBus && move.canFollow(pinnedOutBus) ? pinnedOutBus : null;
+    pinnedOutBus && !hasHome && move.canFollow(pinnedOutBus)
+      ? pinnedOutBus
+      : null;
   for (const { busId, leg } of move.rides) {
-    const pinnedLeg = seats.some(
-      (seat) => seat.leg === leg && seat.pinned === true
-    );
-    if (!pinnedLeg) {
+    const held =
+      (leg === "home" && keepsHome) ||
+      seats.some((seat) => seat.leg === leg && seat.pinned === true);
+    if (!held) {
       seatByHand(changes, {
         busId: leg === "home" && pinnedOut ? pinnedOut : busId,
         legs: [leg],
@@ -186,5 +211,76 @@ export function placeByHand(
   if (groupId !== null && !keeper) {
     changes.create.push({ groupId, leg: null, participantId });
     changes.moved.add(participantId);
+  }
+}
+
+/** Every place once `changes` are written: removed rows gone, new ones added. */
+function placesAfter(
+  changes: HandChanges,
+  places: readonly PlaceRow[]
+): Map<string, PlaceRow[]> {
+  const removed = new Set(changes.remove);
+  const created = changes.create.map((place, index) => ({
+    // Real row ids never contain a colon.
+    $id: `new:${index}`,
+    group_id: place.groupId,
+    leg: place.leg,
+    participant_id: place.participantId,
+    pinned: true,
+  }));
+  const byPerson = new Map<string, PlaceRow[]>();
+  for (const place of [...places, ...created]) {
+    if (!removed.has(place.$id)) {
+      const own = byPerson.get(place.participant_id) ?? [];
+      own.push(place);
+      byPerson.set(place.participant_id, own);
+    }
+  }
+  return byPerson;
+}
+
+/**
+ * Ruling R18: a room's bus follows its people. Once the hand moves are
+ * written, each leg on which every person named in the room rides the same
+ * bus takes that bus, so the room's open places are held there and someone
+ * named into it later rides with the others. A leg whose people are split,
+ * or not all on a bus, keeps its bus, and so does a room nobody is named in.
+ * Nobody is owed a notice for it. Adds the rooms that change to
+ * `changes.rooms`. `places` are every membership of everyone named in
+ * `rooms`, before the moves.
+ */
+export function followRooms(
+  changes: HandChanges,
+  input: {
+    busIds: ReadonlySet<string>;
+    places: readonly PlaceRow[];
+    rooms: readonly RoomBusRow[];
+  }
+): void {
+  const after = placesAfter(changes, input.places);
+  const namedIn = new Map<string, string[]>();
+  for (const [personId, own] of after) {
+    for (const place of own) {
+      if (place.leg === null) {
+        const named = namedIn.get(place.group_id) ?? [];
+        named.push(personId);
+        namedIn.set(place.group_id, named);
+      }
+    }
+  }
+  for (const room of input.rooms) {
+    const named = namedIn.get(room.$id) ?? [];
+    const sharedBus = (leg: Leg): string | null => {
+      const buses = new Set(
+        named.map((id) => busOf(id, leg, after.get(id) ?? [], input.busIds))
+      );
+      const [only = null] = buses;
+      return buses.size === 1 ? only : null;
+    };
+    const outBusId = sharedBus("out") ?? room.out_bus_id;
+    const homeBusId = sharedBus("home") ?? room.home_bus_id;
+    if (outBusId !== room.out_bus_id || homeBusId !== room.home_bus_id) {
+      changes.rooms.push({ homeBusId, outBusId, roomId: room.$id });
+    }
   }
 }

@@ -38,10 +38,12 @@ import {
   BUS_LEGS,
   type BusLegs,
   emptyHandChanges,
+  followRooms,
   type HandChanges,
   handLegs,
   type PlaceRow,
   placeByHand,
+  type RoomBusChange,
   rideWithRoom,
   seatByHand,
 } from "@/lib/big-events/buses/hand-moves";
@@ -185,6 +187,20 @@ function assertComplete(log: WriteLog): void {
   }
 }
 
+/** Rooms whose buses change (auto-fill, or ruling R18 after hand moves). */
+function writeRoomBuses(
+  db: AdminDb,
+  log: WriteLog,
+  rooms: RoomBusChange[]
+): Promise<RoomBusChange[] | null> {
+  return writePhase(log, "rooms", rooms, (room) =>
+    db.updateRow<BigEventGroupRow>(DATABASE_ID, GROUPS, room.roomId, {
+      home_bus_id: room.homeBusId,
+      out_bus_id: room.outBusId,
+    })
+  );
+}
+
 /** Owed bus notices (N1): one timestamp per person, overwritten, never added up. */
 function markNotices(
   db: AdminDb,
@@ -215,6 +231,10 @@ async function loadBoard(db: AdminDb, bigEventId: string): Promise<FillBoard> {
     ]),
   ]);
   return { groups, members, people };
+}
+
+function loadGroups(db: AdminDb, bigEventId: string) {
+  return listAllRows<BigEventGroupRow>(db, GROUPS, [inEvent(bigEventId)]);
 }
 
 function loadBuses(db: AdminDb, bigEventId: string) {
@@ -277,6 +297,70 @@ function seatsOn(places: PlaceRow[], busIds: Set<string>): PlaceRow[] {
   return places.filter(
     (place) => place.leg !== null && busIds.has(place.group_id)
   );
+}
+
+/**
+ * Ruling R18: the rooms these people are in, join or leave follow their
+ * people's buses (`followRooms`). Reads everyone named in those rooms and
+ * their seats; only rooms the caller may change are touched. `places` are
+ * every membership of the people moved.
+ */
+async function followRoomBuses(
+  db: AdminDb,
+  bigEventId: string,
+  changes: HandChanges,
+  input: {
+    access: GrantedAccess;
+    busIds: Set<string>;
+    groups: BigEventGroupRow[];
+    places: Map<string, PlaceRow[]>;
+  }
+): Promise<void> {
+  const rooms = new Map(
+    input.groups
+      .filter(
+        (group) => group.kind === "room" && canManageGroup(input.access, group)
+      )
+      .map((group) => [group.$id, group])
+  );
+  const touched = new Set([
+    ...[...input.places.values()]
+      .flat()
+      .map((place) => place.group_id)
+      .filter((groupId) => rooms.has(groupId)),
+    ...changes.create
+      .map((place) => place.groupId)
+      .filter((groupId) => rooms.has(groupId)),
+  ]);
+  if (touched.size === 0) {
+    return;
+  }
+  const scope = [inEvent(bigEventId), Query.select(MEMBER_COLUMNS)];
+  const named = await listRowsByIds<BigEventGroupMemberRow>(
+    db,
+    MEMBERS,
+    "group_id",
+    [...touched],
+    scope
+  );
+  const others = named
+    .map((row) => row.participant_id)
+    .filter((id) => !input.places.has(id));
+  const theirs =
+    others.length > 0
+      ? await listRowsByIds<BigEventGroupMemberRow>(
+          db,
+          MEMBERS,
+          "participant_id",
+          others,
+          scope
+        )
+      : [];
+  followRooms(changes, {
+    busIds: input.busIds,
+    places: [...[...input.places.values()].flat(), ...theirs],
+    rooms: [...touched].flatMap((id) => rooms.get(id) ?? []),
+  });
 }
 
 /** A bus seats only people of its own campus (refuse otherwise). */
@@ -351,13 +435,7 @@ async function writeFill(
     return 0;
   }
   const people = new Set(seated.map((seat) => seat.participantId)).size;
-  const rooms = await writePhase(log, "rooms", changes.rooms, (room) =>
-    db.updateRow<BigEventGroupRow>(DATABASE_ID, GROUPS, room.roomId, {
-      home_bus_id: room.homeBusId,
-      out_bus_id: room.outBusId,
-    })
-  );
-  if (!rooms) {
+  if (!(await writeRoomBuses(db, log, changes.rooms))) {
     return people;
   }
   const removed = await writePhase(log, "removed", changes.remove, (row) =>
@@ -424,8 +502,10 @@ export async function applyAutoFill(
  * After publishing, when asked, the notices of people whose bus changes
  * first (ruling R11: a retry after a partial failure finds them on the new
  * bus and would owe them nothing; a notice for a move that then failed is
- * harmless, Stage 3 words it from the current bus). Then new places, pins
- * and the old places, each phase only once the one before wrote everything.
+ * harmless, Stage 3 words it from the current bus). Then new places, pins,
+ * the rooms that follow their people (ruling R18: worked out from the state
+ * after the moves, so a retry writes them again) and the old places, each
+ * phase only once the one before wrote everything.
  */
 async function writeHandChanges(
   db: AdminDb,
@@ -458,7 +538,7 @@ async function writeHandChanges(
       pinned: true,
     })
   );
-  if (!pinned) {
+  if (!(pinned && (await writeRoomBuses(db, log, changes.rooms)))) {
     return;
   }
   const removed = await writePhase(log, "removed", changes.remove, (id) =>
@@ -502,8 +582,9 @@ async function saveHandChanges(
  * or one. Moving by hand pins the legs moved (D5); someone put on a bus for
  * the way out who has no way home also gets the same bus home (ruling R5).
  * Each person must be visible to the caller and on the bus's campus, and the
- * bus the caller's (refused otherwise). After publishing, people whose bus
- * changed are owed a notice when `notify` is on (N1).
+ * bus the caller's (refused otherwise). Their rooms follow them when
+ * everyone in the room ends up on one bus (ruling R18). After publishing,
+ * people whose bus changed are owed a notice when `notify` is on (N1).
  */
 export async function moveToBus(
   bigEventId: string,
@@ -514,7 +595,8 @@ export async function moveToBus(
   const { access, event } = await requireBigEvent(bigEventId);
   assertTravel(event);
   const { db } = await createAdminClient();
-  const buses = await loadBuses(db, bigEventId);
+  const groups = await loadGroups(db, bigEventId);
+  const buses = groups.filter((row) => row.kind === "bus");
   const bus = buses.find((row) => row.$id === data.busId) ?? null;
   if (data.busId !== null && !bus) {
     throw new Error("This bus no longer exists");
@@ -538,6 +620,12 @@ export async function moveToBus(
       seats,
     });
   }
+  await followRoomBuses(db, bigEventId, changes, {
+    access,
+    busIds,
+    groups,
+    places,
+  });
   const notices =
     data.notify && isPublished(event) ? [...changes.busMoved] : [];
   await saveHandChanges(
@@ -605,9 +693,12 @@ function roomRides(
  * person. A new place is pinned (ruling R9), so an import can't undo it. A
  * room with a bus also puts them on that bus by hand (pinned) on
  * each leg they aren't pinned on (D5: a person named into a room takes its
- * bus), except that a pinned way out keeps the way home on that bus (ruling
- * R10), with the same campus checks as `moveToBus`. After publishing, people
- * whose bus changed are owed a notice unless `notify` is false (N1).
+ * bus), except that a pinned way out takes the way home with it when they
+ * have no way home yet (rulings R10, R19). Someone of another campus than
+ * the room's bus joins the room but not its bus (ruling R19). The rooms
+ * people leave and join follow their people's buses (ruling R18). After
+ * publishing, people whose bus changed are owed a notice unless `notify` is
+ * false (N1).
  */
 export async function moveToGroup(
   bigEventId: string,
@@ -617,9 +708,7 @@ export async function moveToGroup(
   const data = moveToGroupSchema.parse(input);
   const { access, event } = await requireBigEvent(bigEventId);
   const { db } = await createAdminClient();
-  const groups = await listAllRows<BigEventGroupRow>(db, GROUPS, [
-    inEvent(bigEventId),
-  ]);
+  const groups = await loadGroups(db, bigEventId);
   const group =
     groups.find((row) => row.$id === data.groupId && row.kind === data.kind) ??
     null;
@@ -632,11 +721,15 @@ export async function moveToGroup(
   const people = await loadPeople(db, bigEventId, data.participantIds, access);
   const buses = groups.filter((row) => row.kind === "bus");
   const rides = roomRides(group, buses, event);
-  for (const { bus } of rides) {
-    if (!canManageGroup(access, bus)) {
-      throw new Error("You can only move people onto buses on your own campus");
-    }
-    assertOnBusCampus(people, bus);
+  // A bus seats only its own campus's people (ruling R19): the others join
+  // the room but not its bus.
+  const ridesOf = (person: FillPerson) =>
+    rides.filter(({ bus }) => bus.campus_id === person.campus_id);
+  const blocked = people.some((person) =>
+    ridesOf(person).some(({ bus }) => !canManageGroup(access, bus))
+  );
+  if (blocked) {
+    throw new Error("You can only move people onto buses on your own campus");
   }
   const places = await loadPlaces(db, bigEventId, people);
   const ofKind = new Map(
@@ -673,8 +766,16 @@ export async function moveToGroup(
         );
       },
       participantId: person.$id,
-      rides: rides.map(({ bus, leg }) => ({ busId: bus.$id, leg })),
+      rides: ridesOf(person).map(({ bus, leg }) => ({ busId: bus.$id, leg })),
       seats: seatsOn(own, busIds),
+    });
+  }
+  if (data.kind === "room" && event.travel_enabled === true) {
+    await followRoomBuses(db, bigEventId, changes, {
+      access,
+      busIds,
+      groups,
+      places,
     });
   }
   const notices =

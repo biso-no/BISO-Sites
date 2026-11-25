@@ -14,6 +14,8 @@ export interface RoomBusSeat {
 
 /** Someone in a room once the import is saved, from the list or from the plan. */
 export interface RoomStay {
+  /** Their campus once the import is saved. */
+  campusId: string | null;
   person: PlacementTarget;
   room: BigEventGroupRow;
 }
@@ -83,49 +85,67 @@ function roomBusOn(room: BigEventGroupRow, leg: GroupLeg): string | null {
 }
 
 /**
- * The bus someone rides on a leg with their room. A way out moved by hand
- * (a pinned out seat) takes the way home with it, as in the auto-fill
- * planner (ruling R5): home follows out, not the room's home bus.
+ * What a way out moved by hand (a pinned out seat) does to the way home:
+ * never the room's home bus (ruling R10). A way home they have stays as it
+ * is, as auto-fill keeps it (`keep`, rulings R3c, R19); without one it
+ * follows the way out when `canRide` allows that bus (`follow`, ruling R5),
+ * otherwise it takes the room's bus.
  */
-function busFor(
-  room: BigEventGroupRow,
-  leg: GroupLeg,
-  pinnedOut: string | null
-): string | null {
-  const roomBus = roomBusOn(room, leg);
-  return leg === "home" && roomBus && pinnedOut ? pinnedOut : roomBus;
+function homeWithPinnedOut(
+  own: BigEventGroupMemberRow[],
+  canRide: (busId: string | null) => busId is string
+): { follow: string | null; keep: boolean } {
+  const pinnedOut =
+    own.find((seat) => seat.leg === "out" && seat.pinned === true)?.group_id ??
+    null;
+  const hasHome = own.some((seat) => seat.leg === "home");
+  return {
+    follow: !hasHome && canRide(pinnedOut) ? pinnedOut : null,
+    keep: pinnedOut !== null && hasHome,
+  };
 }
 
 /**
  * The legs people ride with their room (spec D5: a person named into a room
- * takes the room's bus): each leg the room has a bus for, unless the person
- * is held on that leg: moved by hand onto another bus (a pinned seat), or
- * seated on a bus the caller can't see (ruling R13). Home follows a
- * hand-moved way out (ruling R5).
+ * takes the room's bus): each leg the room has a bus for, when that bus is
+ * one the caller can see on the person's campus (ruling R19), unless the
+ * person is held on that leg: moved by hand onto another bus (a pinned
+ * seat), or seated on a bus the caller can't see (ruling R13). A way out
+ * moved by hand decides the way home (`homeWithPinnedOut`).
  */
 export function roomBusSeats(
   stays: RoomStay[],
   groups: BigEventGroupRow[],
   members: BigEventGroupMemberRow[]
 ): RoomBusSeat[] {
-  const buses = seenBuses(groups);
+  const busCampus = new Map(
+    groups
+      .filter((group) => group.kind === "bus")
+      .map((group) => [group.$id, group.campus_id])
+  );
   const seats = seatsByPerson(members);
   const wanted: RoomBusSeat[] = [];
-  for (const { person, room } of stays) {
+  for (const { campusId, person, room } of stays) {
+    const canRide = (busId: string | null): busId is string =>
+      busId !== null &&
+      busCampus.has(busId) &&
+      busCampus.get(busId) === campusId;
     const participantId = participantIdOf(person);
     const own = participantId ? (seats.get(participantId) ?? []) : [];
-    const pinnedOut =
-      own.find((seat) => seat.leg === "out" && seat.pinned === true)
-        ?.group_id ?? null;
+    const home = homeWithPinnedOut(own, canRide);
     for (const leg of GROUP_LEGS) {
-      const busId = busFor(room, leg, pinnedOut);
+      const roomBus = roomBusOn(room, leg);
+      if (!canRide(roomBus) || (leg === "home" && home.keep)) {
+        continue;
+      }
+      const busId = leg === "home" && home.follow ? home.follow : roomBus;
       const held = own.some(
         (seat) =>
           seat.leg === leg &&
           ((seat.pinned === true && seat.group_id !== busId) ||
-            !buses.has(seat.group_id))
+            !busCampus.has(seat.group_id))
       );
-      if (busId && buses.has(busId) && !held) {
+      if (!held) {
         wanted.push({ busId, leg, person });
       }
     }
@@ -151,8 +171,9 @@ export function roomBusSeatsToAdd(
 /**
  * Other seats on a leg someone rides with their room, on any bus the caller
  * can see, removed with the old places (ruling R3a). Pinned seats are never
- * removed. Driven by the room, not by new seats, so a re-import repairs a
- * half-saved move (ruling R34).
+ * removed, nor seats of someone the room's bus doesn't take (another
+ * campus, ruling R19: `roomBusSeats` leaves them out). Driven by the room,
+ * not by new seats, so a re-import repairs a half-saved move (ruling R34).
  */
 export function roomBusRemovals(
   plan: ImportPlan,
