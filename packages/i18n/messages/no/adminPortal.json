@@ -492,6 +492,87 @@
         "confirm": "Slett",
         "deleted": "{name} er slettet"
       }
+    },
+    "buses": {
+      "campus": "Campus",
+      "notOnBus": "Ikke på buss ennå ({count})",
+      "notOnBusName": "Ikke på buss ennå",
+      "noBuses": "Ingen busser for {campus} ennå. Legg til en med «Legg til buss».",
+      "everyoneSeated": "Alle her har buss.",
+      "emptyBus": "Ingen på denne bussen ennå. Dra folk hit, eller velg dem og trykk «Flytt til…».",
+      "leaves": "Går {when}",
+      "seats": "Ut {out} · Hjem {home}",
+      "seatsOf": "Ut {out}/{capacity} · Hjem {home}/{capacity}",
+      "overCapacity": "Flere folk enn seter",
+      "homeBus": "Hjem: {bus}",
+      "onlyOut": "Bare utreise",
+      "onlyHome": "Bare hjemreise",
+      "select": "Velg {name}",
+      "dragHandle": "Flytt {name}",
+      "unpin": "Løsne {name}",
+      "pinnedHint": "Plassert for hånd: når du fyller bussene, blir {name} der de er. Klikk for å løsne.",
+      "unpinned": "Automatisk fylling kan flytte {name} igjen",
+      "people": "{count, plural, one {# person} other {# personer}}",
+      "legs": {
+        "both": "Begge veier",
+        "out": "Bare utreise",
+        "home": "Bare hjemreise"
+      },
+      "moved": "{count, plural, one {{name} er nå på {bus}} other {# personer er nå på {bus}}}",
+      "takenOff": "{count, plural, one {{name} er tatt av bussen} other {# personer er tatt av bussen}}",
+      "selection": {
+        "count": "{count, plural, one {# person valgt} other {# personer valgt}}",
+        "moveTo": "Flytt til…",
+        "takeOff": "Ta av bussen",
+        "clear": "Fjern valget"
+      },
+      "moveDialog": {
+        "title": "{count, plural, one {Flytt {name}} other {Flytt # personer}}",
+        "description": "Den som flyttes for hånd, blir på den bussen når du fyller bussene.",
+        "bus": "Buss",
+        "legs": "Hvilken vei",
+        "move": "Flytt"
+      },
+      "confirm": {
+        "title": "{count, plural, one {Flytte {name}?} other {Flytte # personer?}}",
+        "published": "Busslistene er publisert.",
+        "tell": "{count, plural, one {Gi beskjed til {name} om endringen} other {Gi beskjed til # personer om endringen}}",
+        "move": "Flytt"
+      },
+      "drag": {
+        "instructions": "For å flytte noen: trykk mellomrom eller enter på håndtaket, velg buss med piltastene og trykk mellomrom eller enter igjen. Trykk escape for å avbryte.",
+        "pickedUp": "Tok opp {name}.",
+        "over": "{name} er over {target}.",
+        "dropped": "{name} ble sluppet på {target}.",
+        "cancelled": "{name} ble lagt tilbake."
+      },
+      "fill": {
+        "open": "Fyll bussene automatisk",
+        "description": "Fordeler folk jevnt på bussene til campusen sin og holder alle på samme rom på samme buss. De som er flyttet for hånd, blir der de er.",
+        "afterPublishing": "Busslistene er publisert, så nå får bare de uten buss plass. Ingen som allerede har buss, blir flyttet.",
+        "scope": "Hvilken campus",
+        "allCampuses": "Alle campuser",
+        "loading": "Regner ut plassene…",
+        "loadFailed": "Kunne ikke regne ut plassene. Prøv igjen.",
+        "summary": "{people, plural, one {# person} other {# personer}} på {buses, plural, one {# buss} other {# busser}}",
+        "busSeats": "{out} av {capacity}",
+        "noBuses": "Det er ingen busser å fylle ennå. Legg til en buss først.",
+        "missingCapacity": "Legg inn antall seter på {names} først.",
+        "noSeat": "{count, plural, one {# person har ikke plass.} other {# personer har ikke plass.}} Legg til en buss.",
+        "tooBig": "{room} trenger {seats} seter, og ingen buss har så mange.",
+        "tooBigUnknown": "{room} får ikke plass på noen buss.",
+        "splitRoom": "{room} er delt på flere busser.",
+        "apply": "Fyll bussene",
+        "done": "{count, plural, =0 {Ingen trengte ny plass} one {# person fikk plass} other {# personer fikk plass}}"
+      },
+      "publish": {
+        "open": "Publiser busslistene",
+        "title": "Publisere busslistene?",
+        "description": "{count, plural, one {# person får en melding om hvilken buss de skal med.} other {# personer får en melding om hvilken buss de skal med.}} Du kan fortsatt flytte folk etterpå.",
+        "confirm": "Publiser",
+        "done": "Busslistene er publisert",
+        "published": "Publisert {date}"
+      }
     }
   },
   "sidebar": {

@@ -241,8 +241,10 @@ function groupsView(overrides: Partial<GroupsView> = {}): GroupsView {
     canPublish: true,
     groups: [bergenBus, bergenRoom],
     manageableCampuses: ["2"],
+    outRiders: 2,
     publishedAt: null,
     travel: true,
+    unseated: [],
     ...overrides,
   };
 }

@@ -51,6 +51,12 @@ export interface GroupMemberView {
   roomName: string | null;
 }
 
+/** A person as the bus board lists them before they have a bus. */
+export type BoardPerson = Pick<
+  GroupMemberView,
+  "campusId" | "name" | "participantId" | "roomName"
+>;
+
 export type GroupView = BigEventGroupRow & {
   members: GroupMemberView[];
   /** Rooms with a capacity: places nobody is named in yet. Null otherwise. */
@@ -66,8 +72,12 @@ export interface GroupsView {
   groups: GroupView[];
   /** Campuses the caller may create groups on, even with no groups or people yet (R6). */
   manageableCampuses: string[];
+  /** Everyone with a seat on the way out, also people the caller can't see: whom publishing tells (N1). */
+  outRiders: number;
   publishedAt: string | null;
   travel: boolean;
+  /** While Travel is on: the people the caller may see with no bus either way, by name. */
+  unseated: BoardPerson[];
 }
 
 const DATABASE_ID = "app";
@@ -273,6 +283,47 @@ function membersByGroup(
   return byGroup;
 }
 
+/** People with a seat on any bus, per leg they ride. */
+function seatedPeople(
+  buses: BigEventGroupRow[],
+  members: BigEventGroupMemberRow[]
+): { any: Set<string>; out: Set<string> } {
+  const busIds = new Set(buses.map((bus) => bus.$id));
+  const any = new Set<string>();
+  const out = new Set<string>();
+  for (const member of members) {
+    if (member.leg === null || !busIds.has(member.group_id)) {
+      continue;
+    }
+    any.add(member.participant_id);
+    if (member.leg === "out") {
+      out.add(member.participant_id);
+    }
+  }
+  return { any, out };
+}
+
+/** The visible people with no bus seat either way, by name. */
+function unseatedPeople(
+  participants: BigEventParticipantRow[],
+  seated: Set<string>,
+  rooms: Map<string, string>
+): BoardPerson[] {
+  return participants
+    .filter((row) => !seated.has(row.$id))
+    .map((row) => ({
+      campusId: row.campus_id,
+      name: personName(row),
+      participantId: row.$id,
+      roomName: rooms.get(row.$id) ?? null,
+    }))
+    .sort(
+      (a, b) =>
+        NAME_COLLATOR.compare(a.name, b.name) ||
+        a.participantId.localeCompare(b.participantId)
+    );
+}
+
 function buildGroupsView(
   event: BigEventRow,
   access: GrantedAccess,
@@ -298,6 +349,8 @@ function buildGroupsView(
     members
   );
   const people = membersByGroup(members, visiblePeople, roomNames);
+  const seated = seatedPeople(buses, members);
+  const travel = event.travel_enabled === true;
 
   const appearing = new Set<string>();
   for (const row of [...groups, ...participants]) {
@@ -312,7 +365,7 @@ function buildGroupsView(
       .sort(),
     canPublish:
       canEditBigEventSettings(access) &&
-      event.travel_enabled === true &&
+      travel &&
       !event.bus_lists_published_at,
     groups: visible.sort(byGroupOrder).map(
       (group): GroupView => ({
@@ -326,8 +379,10 @@ function buildGroupsView(
       })
     ),
     manageableCampuses: manageableGroupCampuses(access, event),
+    outRiders: seated.out.size,
     publishedAt: event.bus_lists_published_at,
-    travel: event.travel_enabled === true,
+    travel,
+    unseated: travel ? unseatedPeople(participants, seated.any, roomNames) : [],
   };
 }
 

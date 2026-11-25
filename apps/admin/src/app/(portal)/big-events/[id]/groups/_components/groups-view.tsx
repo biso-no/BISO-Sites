@@ -35,6 +35,7 @@ import { PortalButton } from "../../../../_components/portal-button";
 import { SERIF_STACK, STUDIO } from "../../../../_components/studio";
 import { defaultGroupCampus, GroupDialog } from "./group-dialog";
 import { GroupList } from "./group-list";
+import { MoveConfirmProvider } from "./move-confirm";
 
 /** What the tab can open from anywhere inside it, e.g. from the bus board. */
 export interface GroupActions {
@@ -45,6 +46,14 @@ export interface GroupActions {
 
 const GroupActionsContext = createContext<GroupActions | null>(null);
 
+/** The tab's data, for a component in a slot: it isn't sent to the browser twice. */
+interface GroupsTabData {
+  bigEventId: string;
+  view: GroupsView;
+}
+
+const GroupsTabDataContext = createContext<GroupsTabData | null>(null);
+
 /** The tab's group dialog and delete confirm, for a component in a slot. */
 export function useGroupActions(): GroupActions {
   const actions = useContext(GroupActionsContext);
@@ -52,6 +61,15 @@ export function useGroupActions(): GroupActions {
     throw new Error("useGroupActions is only available inside GroupsTab");
   }
   return actions;
+}
+
+/** The big event and the groups view the tab shows, e.g. for the bus board. */
+export function useGroupsTabData(): GroupsTabData {
+  const data = useContext(GroupsTabDataContext);
+  if (!data) {
+    throw new Error("useGroupsTabData is only available inside GroupsTab");
+  }
+  return data;
 }
 
 interface GroupsTabProps {
@@ -75,10 +93,14 @@ type DialogState = {
   kind: GroupKind;
 } | null;
 
+/** Seats taken on a bus, also by people the caller can't see and rooms' open places. */
+function seatsTaken(group: GroupView): number {
+  return group.seats ? group.seats.out + group.seats.home : 0;
+}
+
 /** People are in it, or (a bus) seats are held for a room. */
 function isInUse(group: GroupView): boolean {
-  const held = group.seats ? group.seats.out + group.seats.home : 0;
-  return group.members.length > 0 || held > 0;
+  return group.members.length > 0 || seatsTaken(group) > 0;
 }
 
 interface DeleteGroupDialogProps {
@@ -185,10 +207,12 @@ export function GroupsTab({
     []
   );
 
+  // Seats, not the people shown: someone the caller can't see counts too.
   const deleteBlocked =
     deleteTarget?.kind === "bus" &&
     view.publishedAt !== null &&
-    deleteTarget.members.length > 0;
+    seatsTaken(deleteTarget) > 0;
+  const tabData = useMemo(() => ({ bigEventId, view }), [bigEventId, view]);
 
   function confirmDelete() {
     const group = deleteTarget;
@@ -208,81 +232,87 @@ export function GroupsTab({
   }
 
   return (
-    <GroupActionsContext.Provider value={actions}>
-      <div className="flex flex-col gap-10">
-        {sections.map((kind) => (
-          <section aria-labelledby={`groups-${kind}`} key={kind}>
-            <div
-              className="mb-4 flex flex-wrap items-end justify-between gap-3 border-b pb-3"
-              style={{ borderColor: STUDIO.rule }}
-            >
-              <h2
-                className="text-3xl leading-none"
-                id={`groups-${kind}`}
-                style={{ color: STUDIO.ink, fontFamily: SERIF_STACK }}
-              >
-                {t(`sections.${kind}`)}
-              </h2>
-              <PortalButton onClick={() => actions.add(kind)} size="sm">
-                <Plus aria-hidden size={14} />
-                {t(`add.${kind}`)}
-              </PortalButton>
-            </div>
-            {kind === "bus" && busBoard ? (
-              busBoard
-            ) : (
-              <GroupList
-                bigEventId={bigEventId}
-                campusLabel={campusLabel}
-                groups={byKind.get(kind) ?? []}
-                kind={kind}
-                onDelete={actions.remove}
-                onEdit={actions.edit}
-              />
-            )}
-          </section>
-        ))}
-      </div>
+    <GroupsTabDataContext.Provider value={tabData}>
+      <GroupActionsContext.Provider value={actions}>
+        <MoveConfirmProvider
+          published={view.travel && view.publishedAt !== null}
+        >
+          <div className="flex flex-col gap-10">
+            {sections.map((kind) => (
+              <section aria-labelledby={`groups-${kind}`} key={kind}>
+                <div
+                  className="mb-4 flex flex-wrap items-end justify-between gap-3 border-b pb-3"
+                  style={{ borderColor: STUDIO.rule }}
+                >
+                  <h2
+                    className="text-3xl leading-none"
+                    id={`groups-${kind}`}
+                    style={{ color: STUDIO.ink, fontFamily: SERIF_STACK }}
+                  >
+                    {t(`sections.${kind}`)}
+                  </h2>
+                  <PortalButton onClick={() => actions.add(kind)} size="sm">
+                    <Plus aria-hidden size={14} />
+                    {t(`add.${kind}`)}
+                  </PortalButton>
+                </div>
+                {kind === "bus" && busBoard ? (
+                  busBoard
+                ) : (
+                  <GroupList
+                    bigEventId={bigEventId}
+                    campusLabel={campusLabel}
+                    groups={byKind.get(kind) ?? []}
+                    kind={kind}
+                    onDelete={actions.remove}
+                    onEdit={actions.edit}
+                  />
+                )}
+              </section>
+            ))}
+          </div>
 
-      {dialog && (
-        <GroupDialog
-          bigEventId={bigEventId}
-          campusChoices={campusChoices}
-          group={dialog.group ?? undefined}
-          initial={
-            dialog.group
-              ? groupFormInitial(dialog.group)
-              : emptyGroupForm(
-                  dialog.kind,
-                  defaultGroupCampus(
-                    dialog.kind,
-                    view.manageableCampuses,
-                    eventCampusId
-                  )
-                )
-          }
-          key={dialog.key}
-          locked={dialog.group ? isInUse(dialog.group) : false}
-          onOpenChange={(open) => {
-            if (!open) {
-              setDialog(null);
-            }
-          }}
-          open
-          travel={view.travel}
-        />
-      )}
-      <DeleteGroupDialog
-        blocked={deleteBlocked}
-        group={deleteTarget}
-        onConfirm={confirmDelete}
-        onOpenChange={(open) => {
-          if (!(open || isDeleting)) {
-            setDeleteTarget(null);
-          }
-        }}
-        pending={isDeleting}
-      />
-    </GroupActionsContext.Provider>
+          {dialog && (
+            <GroupDialog
+              bigEventId={bigEventId}
+              campusChoices={campusChoices}
+              group={dialog.group ?? undefined}
+              initial={
+                dialog.group
+                  ? groupFormInitial(dialog.group)
+                  : emptyGroupForm(
+                      dialog.kind,
+                      defaultGroupCampus(
+                        dialog.kind,
+                        view.manageableCampuses,
+                        eventCampusId
+                      )
+                    )
+              }
+              key={dialog.key}
+              locked={dialog.group ? isInUse(dialog.group) : false}
+              onOpenChange={(open) => {
+                if (!open) {
+                  setDialog(null);
+                }
+              }}
+              open
+              travel={view.travel}
+            />
+          )}
+          <DeleteGroupDialog
+            blocked={deleteBlocked}
+            group={deleteTarget}
+            onConfirm={confirmDelete}
+            onOpenChange={(open) => {
+              if (!(open || isDeleting)) {
+                setDeleteTarget(null);
+              }
+            }}
+            pending={isDeleting}
+          />
+        </MoveConfirmProvider>
+      </GroupActionsContext.Provider>
+    </GroupsTabDataContext.Provider>
   );
 }

@@ -11,7 +11,6 @@ import {
 import { MoreHorizontal } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useTransition } from "react";
 import { toast } from "sonner";
 import { NATIONAL_CAMPUS_ID } from "@/lib/event-scope";
 import { moveToGroup } from "../../../../_actions/big-event-buses";
@@ -20,10 +19,21 @@ import type {
   GroupView,
 } from "../../../../_actions/big-event-groups";
 import { STUDIO } from "../../../../_components/studio";
+import { useMoveConfirm } from "./move-confirm";
 
 /** A group for people of every campus: no campus, or National. */
 function isCampusWide(group: Pick<GroupView, "campus_id">): boolean {
   return group.campus_id === null || group.campus_id === NATIONAL_CAMPUS_ID;
+}
+
+/** A room with a bus: moving someone into it may change their bus (D5). */
+export function roomHasBus(
+  group: Pick<GroupView, "home_bus_id" | "kind" | "out_bus_id"> | null
+): boolean {
+  return (
+    group?.kind === "room" &&
+    (group.out_bus_id !== null || group.home_bus_id !== null)
+  );
 }
 
 /**
@@ -64,35 +74,45 @@ export function MoveMenu({
   const t = useTranslations("adminPortal.bigEvents.groups");
   const tb = useTranslations("adminPortal.bigEvents");
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const { confirmMove, pending } = useMoveConfirm();
   const { kind } = from;
   if (kind === "bus") {
     return null;
   }
 
-  const move = (to: GroupView | null) =>
-    startTransition(async () => {
-      try {
-        await moveToGroup(bigEventId, {
-          groupId: to?.$id ?? null,
-          kind,
-          participantIds: [person.participantId],
-        });
-        toast.success(
-          to
-            ? t("moved", { group: to.name, name: person.name })
-            : t("takenOut", { group: from.name, name: person.name })
-        );
-        router.refresh();
-      } catch {
-        toast.error(tb("form.saveFailed"));
-      }
-    });
+  const save = async (to: GroupView | null, notify: boolean) => {
+    try {
+      await moveToGroup(bigEventId, {
+        groupId: to?.$id ?? null,
+        kind,
+        notify,
+        participantIds: [person.participantId],
+      });
+      toast.success(
+        to
+          ? t("moved", { group: to.name, name: person.name })
+          : t("takenOut", { group: from.name, name: person.name })
+      );
+      router.refresh();
+    } catch {
+      toast.error(tb("form.saveFailed"));
+    }
+  };
 
   const label = (group: GroupView) =>
     group.campus_id === person.campusId
       ? group.name
       : `${group.name} · ${campusLabel(group.campus_id)}`;
+
+  // After publishing, a move into a room with a bus asks first, like a bus
+  // move (ruling R14).
+  const move = (to: GroupView | null) =>
+    confirmMove({
+      ask: roomHasBus(to),
+      names: [person.name],
+      run: (notify) => save(to, notify),
+      summary: to ? label(to) : t("takeOut"),
+    });
 
   return (
     <DropdownMenu modal={false}>
@@ -100,7 +120,7 @@ export function MoveMenu({
         <button
           aria-label={t("personMenu", { name: person.name })}
           className="rounded-md p-1 transition-colors hover:bg-black/5 disabled:opacity-50"
-          disabled={isPending}
+          disabled={pending}
           style={{ color: STUDIO.ink3 }}
           type="button"
         >

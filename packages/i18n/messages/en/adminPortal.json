@@ -492,6 +492,87 @@
         "confirm": "Delete",
         "deleted": "{name} was deleted"
       }
+    },
+    "buses": {
+      "campus": "Campus",
+      "notOnBus": "Not on a bus yet ({count})",
+      "notOnBusName": "Not on a bus yet",
+      "noBuses": "No buses for {campus} yet. Add one with “Add bus”.",
+      "everyoneSeated": "Everyone here has a bus.",
+      "emptyBus": "No one on this bus yet. Drag people here, or select them and choose “Move to…”.",
+      "leaves": "Leaves {when}",
+      "seats": "Out {out} · Home {home}",
+      "seatsOf": "Out {out}/{capacity} · Home {home}/{capacity}",
+      "overCapacity": "More people than seats",
+      "homeBus": "Home: {bus}",
+      "onlyOut": "Only out",
+      "onlyHome": "Only home",
+      "select": "Select {name}",
+      "dragHandle": "Move {name}",
+      "unpin": "Unpin {name}",
+      "pinnedHint": "Placed by hand: filling the buses leaves {name} where they are. Click to unpin.",
+      "unpinned": "Filling the buses may move {name} again",
+      "people": "{count, plural, one {# person} other {# people}}",
+      "legs": {
+        "both": "Both ways",
+        "out": "Only out",
+        "home": "Only home"
+      },
+      "moved": "{count, plural, one {{name} is now on {bus}} other {# people are now on {bus}}}",
+      "takenOff": "{count, plural, one {{name} was taken off the bus} other {# people were taken off the bus}}",
+      "selection": {
+        "count": "{count, plural, one {# person selected} other {# people selected}}",
+        "moveTo": "Move to…",
+        "takeOff": "Take off the bus",
+        "clear": "Clear selection"
+      },
+      "moveDialog": {
+        "title": "{count, plural, one {Move {name}} other {Move # people}}",
+        "description": "People moved by hand stay on that bus when you fill the buses.",
+        "bus": "Bus",
+        "legs": "Which way",
+        "move": "Move"
+      },
+      "confirm": {
+        "title": "{count, plural, one {Move {name}?} other {Move # people?}}",
+        "published": "The bus lists are published.",
+        "tell": "{count, plural, one {Tell {name} about the change} other {Tell # people about the change}}",
+        "move": "Move"
+      },
+      "drag": {
+        "instructions": "To move someone, press space or enter on their handle, choose a bus with the arrow keys, then press space or enter again. Press escape to cancel.",
+        "pickedUp": "Picked up {name}.",
+        "over": "{name} is over {target}.",
+        "dropped": "{name} was dropped on {target}.",
+        "cancelled": "{name} was put back."
+      },
+      "fill": {
+        "open": "Fill buses automatically",
+        "description": "Spreads each campus's people evenly over its buses and keeps everyone in a room on the same bus. People moved by hand stay where they are.",
+        "afterPublishing": "The bus lists are published, so this only gives a seat to people without a bus. Nobody who has a bus is moved.",
+        "scope": "Which campus",
+        "allCampuses": "All campuses",
+        "loading": "Working out the seats…",
+        "loadFailed": "Couldn't work out the seats. Try again.",
+        "summary": "{people, plural, one {# person} other {# people}} on {buses, plural, one {# bus} other {# buses}}",
+        "busSeats": "{out} of {capacity}",
+        "noBuses": "There are no buses to fill yet. Add a bus first.",
+        "missingCapacity": "Add a seat count to {names} first.",
+        "noSeat": "{count, plural, one {# person has no seat.} other {# people have no seat.}} Add a bus.",
+        "tooBig": "{room} needs {seats} seats; no bus has that many.",
+        "tooBigUnknown": "{room} doesn't fit on any bus.",
+        "splitRoom": "{room} is split across buses.",
+        "apply": "Fill the buses",
+        "done": "{count, plural, =0 {Nobody needed a new seat} one {# person got a seat} other {# people got a seat}}"
+      },
+      "publish": {
+        "open": "Publish bus lists",
+        "title": "Publish the bus lists?",
+        "description": "{count, plural, one {# person will get a message saying which bus they're on.} other {# people will get a message saying which bus they're on.}} You can still move people afterwards.",
+        "confirm": "Publish",
+        "done": "The bus lists are published",
+        "published": "Published {date}"
+      }
     }
   },
   "sidebar": {

@@ -3,6 +3,7 @@ import { requireNavAccess } from "@/lib/authorization";
 import { canManageGroup } from "@/lib/big-events/access";
 import { listGroups } from "../../../_actions/big-event-groups";
 import { getBigEvent } from "../../../_actions/big-events";
+import { BusBoard } from "./_components/bus-board";
 import { GroupsTab } from "./_components/groups-view";
 
 interface BigEventGroupsPageProps {
@@ -24,6 +25,7 @@ export default async function BigEventGroupsPage({
     <GroupsTab
       allowsNoCampus={canManageGroup(found.access, { campus_id: null })}
       bigEventId={found.event.$id}
+      busBoard={view.travel ? <BusBoard /> : undefined}
       eventCampusId={found.event.campus_id}
       view={view}
     />

@@ -690,6 +690,58 @@ describe("listGroups", () => {
     expect(noTravel.travel).toBe(false);
   });
 
+  test("lists the visible people with no bus and counts everyone riding out", async () => {
+    currentCtx = bergenAdmin;
+    seed({
+      [GROUPS]: [
+        group("bus-b", "bus", { capacity: 50, name: "Bus 1" }),
+        group("bus-o", "bus", { campus_id: "1", name: "Oslo bus" }),
+        group("room-b", "room", { capacity: 2, name: "Kari Nordmann" }),
+      ],
+      [MEMBERS]: [
+        member("bus-b", "p-out", "out"),
+        member("bus-b", "p-home", "home"),
+        member("bus-o", "p-oslo", "out"),
+        member("room-b", "p-free"),
+      ],
+      [PARTICIPANTS]: [
+        participant("p-out", "2", "Ola", "Nordmann"),
+        participant("p-home", "2", "Per", "Hansen"),
+        participant("p-free", "2", "Kari", "Nordmann"),
+        participant("p-none", "2", "Anne", "Berg"),
+        participant("p-oslo", "1", "Oda", "Lie"),
+        participant("p-oslo-free", "1", "Ida", "Lie"),
+      ],
+    });
+
+    const view = await listGroups("b1");
+
+    // Only Bergen people the caller may see, with no seat either way.
+    expect(view.unseated).toEqual([
+      {
+        campusId: "2",
+        name: "Anne Berg",
+        participantId: "p-none",
+        roomName: null,
+      },
+      {
+        campusId: "2",
+        name: "Kari Nordmann",
+        participantId: "p-free",
+        roomName: "Kari Nordmann",
+      },
+    ]);
+    // Everyone with a seat out, also on buses the caller can't see.
+    expect(view.outRiders).toBe(2);
+
+    seed(
+      { [PARTICIPANTS]: [participant("p1", "2", "Ola", null)] },
+      bigEvent({ travel_enabled: false })
+    );
+    const noTravel = await listGroups("b1");
+    expect(noTravel.unseated).toEqual([]);
+  });
+
   test("a new event still offers the campuses the caller can use", async () => {
     // Full access on a National event: every campus, National last.
     const national = await listGroups("b1");
