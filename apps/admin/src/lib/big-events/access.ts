@@ -1,5 +1,6 @@
 import { Query } from "@repo/api";
 import type {
+  BigEventGroupRow,
   BigEventParticipantRow,
   BigEventRow,
 } from "@repo/shared/big-events/types";
@@ -132,4 +133,22 @@ export function canSeeParticipant(
     participant.campus_id !== null &&
     access.campusIds.includes(participant.campus_id)
   );
+}
+
+/**
+ * Whether the caller may create, edit, fill or delete a group (N8): full
+ * access manages every group; campus access only groups on its campuses, so a
+ * group with no campus is for full access only (same rule as participants).
+ */
+export function canManageGroup(
+  access: BigEventAccess,
+  group: Pick<BigEventGroupRow, "campus_id">
+): boolean {
+  if (access === null) {
+    return false;
+  }
+  if (access.level === "full") {
+    return true;
+  }
+  return group.campus_id !== null && access.campusIds.includes(group.campus_id);
 }
