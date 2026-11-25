@@ -42,6 +42,7 @@ import {
   handLegs,
   type PlaceRow,
   placeByHand,
+  rideWithRoom,
   seatByHand,
 } from "@/lib/big-events/buses/hand-moves";
 import type { Leg } from "@/lib/big-events/buses/seats";
@@ -604,7 +605,8 @@ function roomRides(
  * person. A new place is pinned (ruling R9), so an import can't undo it. A
  * room with a bus also puts them on that bus by hand (pinned) on
  * each leg they aren't pinned on (D5: a person named into a room takes its
- * bus), with the same campus checks as `moveToBus`. After publishing, people
+ * bus), except that a pinned way out keeps the way home on that bus (ruling
+ * R10), with the same campus checks as `moveToBus`. After publishing, people
  * whose bus changed are owed a notice unless `notify` is false (N1).
  */
 export async function moveToGroup(
@@ -659,20 +661,11 @@ export async function moveToGroup(
       participantId: person.$id,
       places: placesOfKind(person),
     });
-    const seats = seatsOn(own, busIds);
-    for (const { bus, leg } of rides) {
-      const pinnedLeg = seats.some(
-        (seat) => seat.leg === leg && seat.pinned === true
-      );
-      if (!pinnedLeg) {
-        seatByHand(changes, {
-          busId: bus.$id,
-          legs: [leg],
-          participantId: person.$id,
-          seats,
-        });
-      }
-    }
+    rideWithRoom(changes, {
+      participantId: person.$id,
+      rides: rides.map(({ bus, leg }) => ({ busId: bus.$id, leg })),
+      seats: seatsOn(own, busIds),
+    });
   }
   const notices =
     data.notify && isPublished(event) ? [...changes.busMoved] : [];

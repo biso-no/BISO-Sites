@@ -121,6 +121,39 @@ export function seatByHand(
 }
 
 /**
+ * Puts one person on their room's buses by hand (D5: a person named into a
+ * room takes its bus), leg by leg: a pinned leg stays where it is, and a
+ * pinned way out takes the way home with it instead of the room's home bus
+ * (rulings R5, R10). `seats` are the person's bus seats.
+ */
+export function rideWithRoom(
+  changes: HandChanges,
+  move: {
+    participantId: string;
+    rides: readonly { busId: string; leg: Leg }[];
+    seats: readonly PlaceRow[];
+  }
+): void {
+  const { participantId, seats } = move;
+  const pinnedOut = seats.find(
+    (seat) => seat.leg === "out" && seat.pinned === true
+  )?.group_id;
+  for (const { busId, leg } of move.rides) {
+    const pinnedLeg = seats.some(
+      (seat) => seat.leg === leg && seat.pinned === true
+    );
+    if (!pinnedLeg) {
+      seatByHand(changes, {
+        busId: leg === "home" && pinnedOut ? pinnedOut : busId,
+        legs: [leg],
+        participantId,
+        seats,
+      });
+    }
+  }
+}
+
+/**
  * Puts one person in `groupId`, or in no group of this kind when null: one
  * group per kind per person. A place already in that group stays and is
  * pinned, as a new one would be (rulings R9, R12). `places` are the

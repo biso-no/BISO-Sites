@@ -870,14 +870,15 @@ describe("moving into groups", () => {
       "bus-a:out:true",
       "room-1:-:true",
     ]);
-    // A pinned leg stays where it was.
+    // A pinned way out stays, and takes the way home with it (R10): p2's
+    // home seat stays on bus-b and gets pinned, so p2's bus didn't change.
     expect(placesOf("p2")).toEqual([
-      "bus-a:home:true",
+      "bus-b:home:true",
       "bus-b:out:true",
       "room-1:-:true",
     ]);
     expect(noticeOf("p1")).toBe(NOW);
-    expect(noticeOf("p2")).toBe(NOW);
+    expect(noticeOf("p2")).toBeNull();
     expect(result).toEqual({ moved: 2 });
   });
 
@@ -1044,6 +1045,40 @@ describe("moving into groups", () => {
     expect(placesOf("p1")).toEqual(["team-national:-:false"]);
     expect(placesOf("p2")).toEqual(["team-none:-:false"]);
     expect(auditCalls("big_event.group.move")).toHaveLength(0);
+  });
+
+  test("a room move keeps the way home with a pinned way out", async () => {
+    seed({
+      [GROUPS]: [
+        bus("bus-a", 8),
+        bus("bus-b", 8),
+        bus("bus-c", 8),
+        group("room-1", "room", {
+          capacity: 4,
+          home_bus_id: "bus-a",
+          out_bus_id: "bus-a",
+        }),
+      ],
+      [PARTICIPANTS]: [participant("p1")],
+      [MEMBERS]: [
+        member("bus-b", "p1", "out", true),
+        member("bus-c", "p1", "home"),
+      ],
+    });
+
+    await moveToGroup("b1", {
+      groupId: "room-1",
+      kind: "room",
+      notify: false,
+      participantIds: ["p1"],
+    });
+
+    // R10: home follows the pinned way out, not the room's home bus.
+    expect(placesOf("p1")).toEqual([
+      "bus-b:home:true",
+      "bus-b:out:true",
+      "room-1:-:true",
+    ]);
   });
 
   test("a room with only a bus out gives the way home on the same bus", async () => {
