@@ -12,17 +12,25 @@ import type {
   BigEventParticipantRow,
   BigEventRow,
 } from "@repo/shared/big-events/types";
-import { mapAllSettledWithConcurrency } from "@repo/shared/utils/concurrency";
-import { revalidatePath } from "next/cache";
 import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { requireAuth } from "@/lib/authorization";
 import {
-  type BigEventAccess,
   canEditBigEventSettings,
   canManageGroup,
   canSeeParticipant,
 } from "@/lib/big-events/access";
+import {
+  type AdminDb,
+  assertComplete,
+  type GrantedAccess,
+  markNotices,
+  newWriteLog,
+  requireBigEvent,
+  revalidateBigEvent,
+  type WriteLog,
+  writePhase,
+} from "@/lib/big-events/action-helpers";
 import type { FillChanges } from "@/lib/big-events/buses/fill-changes";
 import {
   type AutoFillPreview,
@@ -50,10 +58,6 @@ import {
 import type { Leg } from "@/lib/big-events/buses/seats";
 import { listAllRows, listRowsByIds } from "@/lib/big-events/list-rows";
 import { logAuditEvent } from "./audit-log";
-import { getBigEvent } from "./big-events";
-
-type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
-type GrantedAccess = Exclude<BigEventAccess, null>;
 
 export interface MoveToBusInput {
   /** Null takes the people off every bus on those legs. */
@@ -78,7 +82,6 @@ const EVENTS = BIG_EVENT_TABLES.events;
 const GROUPS = BIG_EVENT_TABLES.groups;
 const MEMBERS = BIG_EVENT_TABLES.groupMembers;
 const PARTICIPANTS = BIG_EVENT_TABLES.participants;
-const WRITE_CONCURRENCY = 8;
 const MAX_PEOPLE = 1000;
 const MEMBER_COLUMNS = ["$id", "group_id", "leg", "participant_id", "pinned"];
 const PERSON_COLUMNS = ["$id", "campus_id", "first_name", "last_name"];
@@ -102,19 +105,6 @@ const setPinnedSchema = z.object({
   pinned: z.boolean(),
 });
 
-async function requireBigEvent(bigEventId: string) {
-  const found = await getBigEvent(bigEventId);
-  if (!found) {
-    throw new Error("This big event doesn't exist or you can't see it");
-  }
-  return found;
-}
-
-function revalidateBigEvent(bigEventId: string): void {
-  revalidatePath("/big-events");
-  revalidatePath(`/big-events/${bigEventId}`, "layout");
-}
-
 /** Buses exist only while Travel is on (D5). */
 function assertTravel(event: BigEventRow): void {
   if (event.travel_enabled !== true) {
@@ -131,62 +121,6 @@ const inEvent = (bigEventId: string) =>
 
 /* ---------- Writes: phase by phase, counts for the audit log ---------- */
 
-interface PhaseCount {
-  failed: number;
-  written: number;
-}
-
-/** What the writes did; `complete` only when every phase wrote everything. */
-interface WriteLog {
-  complete: boolean;
-  phases: Record<string, PhaseCount>;
-}
-
-function newWriteLog(): WriteLog {
-  return { complete: false, phases: {} };
-}
-
-/**
- * Runs every write of one phase to the end, even when some fail, and logs
- * the counts. Returns the items written, or null when any write failed so
- * the caller stops before the next phase.
- */
-async function writePhase<T>(
-  log: WriteLog,
-  name: string,
-  items: T[],
-  write: (item: T) => Promise<unknown>
-): Promise<T[] | null> {
-  if (items.length === 0) {
-    return [];
-  }
-  const results = await mapAllSettledWithConcurrency(
-    items,
-    WRITE_CONCURRENCY,
-    write
-  );
-  const done = items.filter(
-    (_, index) => results[index]?.status === "fulfilled"
-  );
-  const failed = items.length - done.length;
-  log.phases[name] = { failed, written: done.length };
-  if (failed === 0) {
-    return done;
-  }
-  const first = results.find((result) => result.status === "rejected");
-  console.error(
-    `[big-events] ${failed} bus board writes failed; the first:`,
-    first?.status === "rejected" ? first.reason : undefined
-  );
-  return null;
-}
-
-function assertComplete(log: WriteLog): void {
-  if (!log.complete) {
-    throw new Error("Some changes couldn't be saved. Try again.");
-  }
-}
-
 /** Rooms whose buses change (auto-fill, or ruling R18 after hand moves). */
 function writeRoomBuses(
   db: AdminDb,
@@ -197,20 +131,6 @@ function writeRoomBuses(
     db.updateRow<BigEventGroupRow>(DATABASE_ID, GROUPS, room.roomId, {
       home_bus_id: room.homeBusId,
       out_bus_id: room.outBusId,
-    })
-  );
-}
-
-/** Owed bus notices (N1): one timestamp per person, overwritten, never added up. */
-function markNotices(
-  db: AdminDb,
-  log: WriteLog,
-  participantIds: string[],
-  now: string
-): Promise<string[] | null> {
-  return writePhase(log, "notices", participantIds, (id) =>
-    db.updateRow<BigEventParticipantRow>(DATABASE_ID, PARTICIPANTS, id, {
-      bus_notice_due_at: now,
     })
   );
 }

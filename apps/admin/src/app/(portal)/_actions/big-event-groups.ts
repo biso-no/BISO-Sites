@@ -9,16 +9,20 @@ import type {
   BigEventParticipantRow,
   BigEventRow,
 } from "@repo/shared/big-events/types";
-import { mapAllSettledWithConcurrency } from "@repo/shared/utils/concurrency";
-import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/authorization";
 import {
-  type BigEventAccess,
   canEditBigEventSettings,
   canManageGroup,
   manageableGroupCampuses,
   participantCampusFilter,
 } from "@/lib/big-events/access";
+import {
+  type AdminDb,
+  type GrantedAccess,
+  requireBigEvent,
+  revalidateBigEvent,
+  settleWrites,
+} from "@/lib/big-events/action-helpers";
 import {
   type GroupFormValues,
   groupColumns,
@@ -33,10 +37,6 @@ import {
 import { listAllRows } from "@/lib/big-events/list-rows";
 import { NATIONAL_CAMPUS_ID } from "@/lib/event-scope";
 import { logAuditEvent } from "./audit-log";
-import { getBigEvent } from "./big-events";
-
-type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
-type GrantedAccess = Exclude<BigEventAccess, null>;
 
 /** One person's place in a group, as the Groups tab shows it: a name, no contact details. */
 export interface GroupMemberView {
@@ -89,26 +89,12 @@ const DATABASE_ID = "app";
 const GROUPS = BIG_EVENT_TABLES.groups;
 const MEMBERS = BIG_EVENT_TABLES.groupMembers;
 const PARTICIPANTS = BIG_EVENT_TABLES.participants;
-const WRITE_CONCURRENCY = 8;
 const MEMBER_COLUMNS = ["$id", "group_id", "leg", "participant_id", "pinned"];
 const NAME_COLUMNS = ["$id", "campus_id", "first_name", "last_name"];
 const DATE_COLUMNS = new Set(["home_departs_at", "out_departs_at"]);
 const LEG_ORDER: Record<Leg, number> = { home: 1, out: 0 };
 const NO_LEG = 2;
 const NAME_COLLATOR = new Intl.Collator("nb");
-
-async function requireBigEvent(bigEventId: string) {
-  const found = await getBigEvent(bigEventId);
-  if (!found) {
-    throw new Error("This big event doesn't exist or you can't see it");
-  }
-  return found;
-}
-
-function revalidateBigEvent(bigEventId: string): void {
-  revalidatePath("/big-events");
-  revalidatePath(`/big-events/${bigEventId}`, "layout");
-}
 
 async function findGroup(
   db: AdminDb,
@@ -510,34 +496,6 @@ export async function updateGroup(
   revalidateBigEvent(group.big_event_id);
 }
 
-/** What one write phase did. Counts only: they go into the audit log. */
-interface PhaseCount {
-  failed: number;
-  written: number;
-}
-
-/** Runs every write to the end, even when some fail, and counts them. */
-async function settleWrites<T>(
-  items: T[],
-  write: (item: T) => Promise<unknown>
-): Promise<PhaseCount> {
-  const results = await mapAllSettledWithConcurrency(
-    items,
-    WRITE_CONCURRENCY,
-    write
-  );
-  const errors = results.flatMap((result) =>
-    result.status === "rejected" ? [result.reason] : []
-  );
-  if (errors.length > 0) {
-    console.error(
-      `[big-events] ${errors.length} group delete writes failed; the first:`,
-      errors[0]
-    );
-  }
-  return { failed: errors.length, written: results.length - errors.length };
-}
-
 interface DeleteOutcome {
   complete: boolean;
   failed: number;
@@ -556,27 +514,34 @@ async function removeGroup(
   riders: Pick<BigEventGroupRow, "$id" | "home_bus_id" | "out_bus_id">[],
   outcome: DeleteOutcome
 ): Promise<void> {
-  const removed = await settleWrites(memberships, (membership) =>
-    db.deleteRow(DATABASE_ID, MEMBERS, membership.$id)
+  const { count: removed } = await settleWrites(
+    memberships,
+    (membership) => db.deleteRow(DATABASE_ID, MEMBERS, membership.$id),
+    "group delete"
   );
   outcome.memberships_removed = removed.written;
   outcome.failed = removed.failed;
   if (removed.failed > 0) {
     return;
   }
-  const cleared = await settleWrites(riders, (room) =>
-    db.updateRow(DATABASE_ID, GROUPS, room.$id, {
-      ...(room.out_bus_id === group.$id ? { out_bus_id: null } : {}),
-      ...(room.home_bus_id === group.$id ? { home_bus_id: null } : {}),
-    })
+  const { count: cleared } = await settleWrites(
+    riders,
+    (room) =>
+      db.updateRow(DATABASE_ID, GROUPS, room.$id, {
+        ...(room.out_bus_id === group.$id ? { out_bus_id: null } : {}),
+        ...(room.home_bus_id === group.$id ? { home_bus_id: null } : {}),
+      }),
+    "group delete"
   );
   outcome.rooms_cleared = cleared.written;
   outcome.failed = cleared.failed;
   if (cleared.failed > 0) {
     return;
   }
-  const deleted = await settleWrites([group], (row) =>
-    db.deleteRow(DATABASE_ID, GROUPS, row.$id)
+  const { count: deleted } = await settleWrites(
+    [group],
+    (row) => db.deleteRow(DATABASE_ID, GROUPS, row.$id),
+    "group delete"
   );
   outcome.failed = deleted.failed;
   outcome.complete = deleted.failed === 0;

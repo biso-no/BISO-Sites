@@ -16,14 +16,18 @@ import type {
 } from "@repo/shared/big-events/types";
 import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
 import { mapWithConcurrency } from "@repo/shared/utils/concurrency";
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAuth } from "@/lib/authorization";
 import {
-  type BigEventAccess,
   canSeeParticipant,
   participantCampusFilter,
 } from "@/lib/big-events/access";
+import {
+  type AdminDb,
+  type GrantedAccess,
+  requireBigEvent,
+  revalidateBigEvent,
+} from "@/lib/big-events/action-helpers";
 import { normalizeEmail } from "@/lib/big-events/import/normalize";
 import { kickDeliveries } from "@/lib/big-events/kick-deliveries";
 import { listAllRows, listRowsByIds } from "@/lib/big-events/list-rows";
@@ -52,10 +56,6 @@ import { REACH_PILES, type ReachPile, reachPile } from "@/lib/big-events/reach";
 import { getPushReach } from "@/lib/big-events/reach.server";
 import { getScanMembershipStatus } from "@/lib/member-pass/membership-lookup";
 import { logAuditEvent } from "./audit-log";
-import { getBigEvent } from "./big-events";
-
-type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
-type GrantedAccess = Exclude<BigEventAccess, null>;
 
 const DATABASE_ID = "app";
 const PARTICIPANTS = BIG_EVENT_TABLES.participants;
@@ -82,14 +82,6 @@ const csvHeadersSchema = z.object({
   phone: z.string().max(100),
   room: z.string().max(100),
 });
-
-async function requireBigEvent(bigEventId: string) {
-  const found = await getBigEvent(bigEventId);
-  if (!found) {
-    throw new Error("This big event doesn't exist or you can't see it");
-  }
-  return found;
-}
 
 function visibleParticipants(
   bigEventId: string,
@@ -298,11 +290,6 @@ function changedColumns(
       ([key, value]) => before[key as keyof BigEventParticipantRow] !== value
     )
     .map(([key]) => key);
-}
-
-function revalidateBigEvent(bigEventId: string): void {
-  revalidatePath("/big-events");
-  revalidatePath(`/big-events/${bigEventId}`, "layout");
 }
 
 /** Everyone on the big event the caller may see, with reach pile, room and account. */
