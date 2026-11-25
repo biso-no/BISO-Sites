@@ -122,8 +122,9 @@ export function seatByHand(
 
 /**
  * Puts one person in `groupId`, or in no group of this kind when null: one
- * group per kind per person. `places` are the person's places in groups of
- * this kind.
+ * group per kind per person. A place already in that group stays and is
+ * pinned, as a new one would be (rulings R9, R12). `places` are the
+ * person's places in groups of this kind.
  */
 export function placeByHand(
   changes: HandChanges,
@@ -140,6 +141,9 @@ export function placeByHand(
       changes.remove.push(place.$id);
       changes.moved.add(participantId);
     }
+  }
+  if (keeper && keeper.pinned !== true) {
+    changes.pin.push(keeper.$id);
   }
   if (groupId !== null && !keeper) {
     changes.create.push({ groupId, leg: null, participantId });

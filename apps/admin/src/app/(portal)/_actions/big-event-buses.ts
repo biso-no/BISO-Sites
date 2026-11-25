@@ -314,9 +314,11 @@ export async function previewAutoFill(
 }
 
 /**
- * Seats first, then (after publishing) the notices of the people seated,
- * then room buses, then the old seats, each phase only once the one before
- * wrote everything. Returns how many people got a new seat.
+ * After publishing, the notices of the people the fill seats first (ruling
+ * R11: a retry finds them seated and would owe them nothing, and a notice
+ * for a seat that then failed is harmless), then seats, then room buses,
+ * then the old seats, each phase only once the one before wrote everything.
+ * Returns how many people got a new seat.
  */
 async function writeFill(
   db: AdminDb,
@@ -326,6 +328,14 @@ async function writeFill(
   log: WriteLog
 ): Promise<number> {
   const now = new Date().toISOString();
+  // After publishing, the fill only seats people without a bus (N4): each
+  // of them is owed a notice, or nobody would tell them (N1).
+  const seating = [
+    ...new Set(changes.create.map((seat) => seat.participantId)),
+  ];
+  if (notify && !(await markNotices(db, log, seating, now))) {
+    return 0;
+  }
   const seated = await writePhase(log, "seats", changes.create, (seat) =>
     db.createRow<BigEventGroupMemberRow>(DATABASE_ID, MEMBERS, ID.unique(), {
       assigned_at: now,
@@ -339,12 +349,7 @@ async function writeFill(
   if (!seated) {
     return 0;
   }
-  const people = [...new Set(seated.map((seat) => seat.participantId))];
-  // After publishing, the fill only seats people without a bus (N4): each
-  // of them is owed a notice, or nobody would tell them (N1).
-  if (notify && !(await markNotices(db, log, people, now))) {
-    return people.length;
-  }
+  const people = new Set(seated.map((seat) => seat.participantId)).size;
   const rooms = await writePhase(log, "rooms", changes.rooms, (room) =>
     db.updateRow<BigEventGroupRow>(DATABASE_ID, GROUPS, room.roomId, {
       home_bus_id: room.homeBusId,
@@ -352,13 +357,13 @@ async function writeFill(
     })
   );
   if (!rooms) {
-    return people.length;
+    return people;
   }
   const removed = await writePhase(log, "removed", changes.remove, (row) =>
     db.deleteRow(DATABASE_ID, MEMBERS, row.$id)
   );
   log.complete = removed !== null;
-  return people.length;
+  return people;
 }
 
 /**
@@ -415,9 +420,11 @@ export async function applyAutoFill(
 /* ---------- Moving by hand ---------- */
 
 /**
- * New places first, then pins, then (after publishing, when asked) the
- * notices of people whose bus changed, then the old places, each phase only
- * once the one before wrote everything.
+ * After publishing, when asked, the notices of people whose bus changes
+ * first (ruling R11: a retry after a partial failure finds them on the new
+ * bus and would owe them nothing; a notice for a move that then failed is
+ * harmless, Stage 3 words it from the current bus). Then new places, pins
+ * and the old places, each phase only once the one before wrote everything.
  */
 async function writeHandChanges(
   db: AdminDb,
@@ -427,6 +434,9 @@ async function writeHandChanges(
   log: WriteLog
 ): Promise<void> {
   const now = new Date().toISOString();
+  if (!(await markNotices(db, log, notices, now))) {
+    return;
+  }
   const created = await writePhase(log, "created", changes.create, (place) =>
     db.createRow<BigEventGroupMemberRow>(DATABASE_ID, MEMBERS, ID.unique(), {
       assigned_at: now,
@@ -447,7 +457,7 @@ async function writeHandChanges(
       pinned: true,
     })
   );
-  if (!(pinned && (await markNotices(db, log, notices, now)))) {
+  if (!pinned) {
     return;
   }
   const removed = await writePhase(log, "removed", changes.remove, (id) =>
@@ -545,7 +555,30 @@ export async function moveToBus(
   return { moved: changes.moved.size };
 }
 
-/** The room's bus per leg, while Travel is on. */
+/**
+ * Ruling R12: one group per kind means leaving the others, so every place a
+ * group move would remove must be in a group the caller may manage. Checked
+ * before any write.
+ */
+function assertMayLeave(
+  places: PlaceRow[],
+  targetId: string | null,
+  groupOf: (groupId: string) => BigEventGroupRow | undefined,
+  access: GrantedAccess
+): void {
+  const blocked = places.some((place) => {
+    if (place.group_id === targetId) {
+      return false;
+    }
+    const group = groupOf(place.group_id);
+    return !(group && canManageGroup(access, group));
+  });
+  if (blocked) {
+    throw new Error("Someone here is in a group you can't change.");
+  }
+}
+
+/** The room's bus per leg, while Travel is on; home follows out when unset. */
 function roomRides(
   group: BigEventGroupRow | null,
   buses: BigEventGroupRow[],
@@ -554,9 +587,10 @@ function roomRides(
   if (group?.kind !== "room" || event.travel_enabled !== true) {
     return [];
   }
+  // A room with only a bus out rides it home too (ruling R12, R5).
   const legs: [Leg, string | null][] = [
     ["out", group.out_bus_id],
-    ["home", group.home_bus_id],
+    ["home", group.home_bus_id ?? group.out_bus_id],
   ];
   return legs.flatMap(([leg, busId]) => {
     const bus = buses.find((row) => row.$id === busId);
@@ -603,8 +637,18 @@ export async function moveToGroup(
     assertOnBusCampus(people, bus);
   }
   const places = await loadPlaces(db, bigEventId, people);
-  const ofKind = new Set(
-    groups.filter((row) => row.kind === data.kind).map((row) => row.$id)
+  const ofKind = new Map(
+    groups.filter((row) => row.kind === data.kind).map((row) => [row.$id, row])
+  );
+  const placesOfKind = (person: FillPerson) =>
+    (places.get(person.$id) ?? []).filter((place) =>
+      ofKind.has(place.group_id)
+    );
+  assertMayLeave(
+    people.flatMap(placesOfKind),
+    data.groupId,
+    (groupId) => ofKind.get(groupId),
+    access
   );
   const busIds = new Set(buses.map((row) => row.$id));
   const changes = emptyHandChanges();
@@ -613,7 +657,7 @@ export async function moveToGroup(
     placeByHand(changes, {
       groupId: data.groupId,
       participantId: person.$id,
-      places: own.filter((place) => ofKind.has(place.group_id)),
+      places: placesOfKind(person),
     });
     const seats = seatsOn(own, busIds);
     for (const { bus, leg } of rides) {
@@ -719,7 +763,8 @@ async function outRiders(db: AdminDb, bigEventId: string): Promise<string[]> {
  * Publishes the bus lists of the whole big event (N3, needs settings
  * access): participants see their bus from now on, and everyone with a bus
  * out is owed the "You're on Bus 2" notice (N1). There is no unpublish, so
- * it runs once.
+ * once it has published it refuses to run again; a failed run hasn't
+ * published and can be run again.
  */
 export async function publishBusLists(
   bigEventId: string
@@ -740,14 +785,19 @@ export async function publishBusLists(
   const now = new Date().toISOString();
   const log = newWriteLog();
   try {
-    const published = await writePhase(log, "published", [bigEventId], (id) =>
-      db.updateRow<BigEventRow>(DATABASE_ID, EVENTS, id, {
-        bus_lists_published_at: now,
-        bus_lists_published_by: ctx.userId,
-      })
-    );
-    log.complete =
-      published !== null && (await markNotices(db, log, riders, now)) !== null;
+    // Notices first, the stamp last (ruling R11): a failed publish isn't
+    // published yet, so it can run again and mark everyone. Stage 3 sends
+    // bus notices only once the lists are published.
+    const marked = await markNotices(db, log, riders, now);
+    const published =
+      marked &&
+      (await writePhase(log, "published", [bigEventId], (id) =>
+        db.updateRow<BigEventRow>(DATABASE_ID, EVENTS, id, {
+          bus_lists_published_at: now,
+          bus_lists_published_by: ctx.userId,
+        })
+      ));
+    log.complete = Boolean(published);
   } finally {
     await logAuditEvent(ctx, "big_event.bus.publish", {
       payload: {

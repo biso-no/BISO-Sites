@@ -499,6 +499,28 @@ describe("auto-fill", () => {
     });
   });
 
+  test("a failed fill after publishing still leaves the notices", async () => {
+    seed(
+      {
+        [GROUPS]: [bus("bus-a", 4)],
+        [PARTICIPANTS]: [participant("p1")],
+      },
+      bigEvent(PUBLISHED)
+    );
+    fake.setBeforeWrite((write) => {
+      if (write.kind === "create") {
+        throw new Error("network");
+      }
+    });
+    const quiet = spyOn(console, "error").mockImplementation(() => undefined);
+
+    await expect(applyAutoFill("b1", "2")).rejects.toThrow("Try again");
+    quiet.mockRestore();
+
+    expect(placesOf("p1")).toEqual([]);
+    expect(noticeOf("p1")).toBe(NOW);
+  });
+
   test("refuses bus work when Travel is off", async () => {
     seed(
       {
@@ -731,6 +753,55 @@ describe("moving by hand", () => {
     expect(placesOf("p1")).toEqual(["bus-a:out:true", "bus-b:home:true"]);
   });
 
+  test("a failed hand move still leaves the notice", async () => {
+    seed(
+      {
+        [GROUPS]: [bus("bus-a", 4), bus("bus-b", 4)],
+        [PARTICIPANTS]: [participant("p1"), participant("p2")],
+        [MEMBERS]: [...bothWays("bus-a", "p1"), ...bothWays("bus-a", "p2")],
+      },
+      bigEvent(PUBLISHED)
+    );
+    // p2's new seats fail once; p1's are written.
+    let failures = 2;
+    fake.setBeforeWrite((write) => {
+      if (
+        write.kind === "create" &&
+        write.data?.participant_id === "p2" &&
+        failures > 0
+      ) {
+        failures -= 1;
+        throw new Error("network");
+      }
+    });
+    const quiet = spyOn(console, "error").mockImplementation(() => undefined);
+
+    const move = {
+      busId: "bus-b",
+      legs: "both" as const,
+      notify: true,
+      participantIds: ["p1", "p2"],
+    };
+    await expect(moveToBus("b1", move)).rejects.toThrow("Try again");
+    quiet.mockRestore();
+
+    // R11: notices are written before any seat changes.
+    expect(noticeOf("p1")).toBe(NOW);
+    expect(noticeOf("p2")).toBe(NOW);
+    expect(auditPayload("big_event.bus.move")).toMatchObject({
+      complete: false,
+    });
+
+    // The retry finds p1 already on bus-b, so it owes p1 nothing new; the
+    // notice from the first try is still there.
+    setSystemTime(new Date(LATER));
+    await moveToBus("b1", move);
+    expect(placesOf("p1")).toEqual(["bus-b:home:true", "bus-b:out:true"]);
+    expect(placesOf("p2")).toEqual(["bus-b:home:true", "bus-b:out:true"]);
+    expect(noticeOf("p1")).toBe(NOW);
+    expect(noticeOf("p2")).toBe(LATER);
+  });
+
   test("setPinned pins and unpins every bus seat of the people", async () => {
     seed({
       [GROUPS]: [bus("bus-a", 4), bus("bus-b", 4), group("room-1", "room")],
@@ -917,6 +988,87 @@ describe("moving into groups", () => {
     ).rejects.toThrow("own campus");
     expect(writeCount()).toBe(0);
   });
+
+  test("already in the room → that place gets pinned", async () => {
+    seed({
+      [GROUPS]: [group("room-1", "room")],
+      [PARTICIPANTS]: [participant("p1")],
+      [MEMBERS]: [member("room-1", "p1")],
+    });
+
+    const result = await moveToGroup("b1", {
+      groupId: "room-1",
+      kind: "room",
+      notify: false,
+      participantIds: ["p1"],
+    });
+
+    // R9/R12: the place stays (same row) and is pinned; nobody moved.
+    expect(placesOf("p1")).toEqual(["room-1:-:true"]);
+    expect(fake.rows(MEMBERS).map((row) => row.$id)).toEqual(["room-1-p1-x"]);
+    expect(fake.db.createRow).not.toHaveBeenCalled();
+    expect(result).toEqual({ moved: 0 });
+  });
+
+  test("campus admins can't take people out of groups they can't change", async () => {
+    currentCtx = bergenAdmin;
+    seed({
+      [GROUPS]: [
+        group("team-national", "team", { campus_id: "5" }),
+        group("team-none", "team", { campus_id: null }),
+        group("team-bergen", "team"),
+      ],
+      [PARTICIPANTS]: [participant("p1"), participant("p2")],
+      [MEMBERS]: [member("team-national", "p1"), member("team-none", "p2")],
+    });
+
+    // Out of a National team: refused.
+    await expect(
+      moveToGroup("b1", {
+        groupId: null,
+        kind: "team",
+        notify: false,
+        participantIds: ["p1"],
+      })
+    ).rejects.toThrow("Someone here is in a group you can't change.");
+    // Into their campus's team while in a team with no campus: refused.
+    await expect(
+      moveToGroup("b1", {
+        groupId: "team-bergen",
+        kind: "team",
+        notify: false,
+        participantIds: ["p2"],
+      })
+    ).rejects.toThrow("Someone here is in a group you can't change.");
+    expect(writeCount()).toBe(0);
+    expect(placesOf("p1")).toEqual(["team-national:-:false"]);
+    expect(placesOf("p2")).toEqual(["team-none:-:false"]);
+    expect(auditCalls("big_event.group.move")).toHaveLength(0);
+  });
+
+  test("a room with only a bus out gives the way home on the same bus", async () => {
+    seed({
+      [GROUPS]: [
+        bus("bus-a", 8),
+        group("room-1", "room", { capacity: 4, out_bus_id: "bus-a" }),
+      ],
+      [PARTICIPANTS]: [participant("p1")],
+    });
+
+    await moveToGroup("b1", {
+      groupId: "room-1",
+      kind: "room",
+      notify: false,
+      participantIds: ["p1"],
+    });
+
+    // R12 (R5: home follows out).
+    expect(placesOf("p1")).toEqual([
+      "bus-a:home:true",
+      "bus-a:out:true",
+      "room-1:-:true",
+    ]);
+  });
 });
 
 describe("publishing", () => {
@@ -954,6 +1106,39 @@ describe("publishing", () => {
 
     await expect(publishBusLists("b1")).rejects.toThrow("already published");
     expect(auditCalls("big_event.bus.publish")).toHaveLength(1);
+  });
+
+  test("a failed publish can be retried and marks everyone", async () => {
+    seed({
+      [GROUPS]: [bus("bus-a", 4)],
+      [PARTICIPANTS]: [participant("p1"), participant("p2")],
+      [MEMBERS]: [...bothWays("bus-a", "p1"), ...bothWays("bus-a", "p2")],
+    });
+    // p2's notice fails once.
+    let failures = 1;
+    fake.setBeforeWrite((write) => {
+      if (write.rowId === "p2" && failures > 0) {
+        failures -= 1;
+        throw new Error("network");
+      }
+    });
+    const quiet = spyOn(console, "error").mockImplementation(() => undefined);
+
+    await expect(publishBusLists("b1")).rejects.toThrow("Try again");
+    quiet.mockRestore();
+
+    // R11: notices first, the stamp last, so nothing is published yet.
+    expect(fake.rows(EVENTS)[0]?.bus_lists_published_at).toBeNull();
+    expect(noticeOf("p1")).toBe(NOW);
+    expect(auditPayload("big_event.bus.publish")).toMatchObject({
+      complete: false,
+    });
+
+    setSystemTime(new Date(LATER));
+    await expect(publishBusLists("b1")).resolves.toEqual({ notices: 2 });
+    expect(noticeOf("p1")).toBe(LATER);
+    expect(noticeOf("p2")).toBe(LATER);
+    expect(fake.rows(EVENTS)[0]?.bus_lists_published_at).toBe(LATER);
   });
 
   test("publishing needs settings access", async () => {
