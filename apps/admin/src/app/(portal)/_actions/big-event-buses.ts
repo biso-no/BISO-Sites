@@ -662,6 +662,16 @@ export async function moveToGroup(
       places: placesOfKind(person),
     });
     rideWithRoom(changes, {
+      // R10 follows a pinned way out only onto a bus the caller may change,
+      // of the person's campus (as the import follows only known buses).
+      canFollow: (busId) => {
+        const bus = buses.find((row) => row.$id === busId);
+        return Boolean(
+          bus &&
+            canManageGroup(access, bus) &&
+            bus.campus_id === person.campus_id
+        );
+      },
       participantId: person.$id,
       rides: rides.map(({ bus, leg }) => ({ busId: bus.$id, leg })),
       seats: seatsOn(own, busIds),

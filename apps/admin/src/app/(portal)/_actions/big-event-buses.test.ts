@@ -1081,6 +1081,46 @@ describe("moving into groups", () => {
     ]);
   });
 
+  test("a room move follows a pinned way out only onto a bus you can change", async () => {
+    const roomOnBusA = () =>
+      seed({
+        [GROUPS]: [
+          bus("bus-a", 8),
+          bus("bus-oslo", 8, "1"),
+          group("room-1", "room", {
+            capacity: 4,
+            home_bus_id: "bus-a",
+            out_bus_id: "bus-a",
+          }),
+        ],
+        [PARTICIPANTS]: [participant("p1")],
+        // Pinned to another campus's bus (e.g. before a campus change, R4).
+        [MEMBERS]: [
+          member("bus-oslo", "p1", "out", true),
+          member("bus-oslo", "p1", "home"),
+        ],
+      });
+    const move = {
+      groupId: "room-1",
+      kind: "room" as const,
+      notify: false,
+      participantIds: ["p1"],
+    };
+    const expected = ["bus-a:home:true", "bus-oslo:out:true", "room-1:-:true"];
+
+    // A campus admin can't change the Oslo bus: home takes the room's bus.
+    currentCtx = bergenAdmin;
+    roomOnBusA();
+    await moveToGroup("b1", move);
+    expect(placesOf("p1")).toEqual(expected);
+
+    // Full access can change it, but it isn't p1's campus's bus.
+    currentCtx = globalAdmin;
+    roomOnBusA();
+    await moveToGroup("b1", move);
+    expect(placesOf("p1")).toEqual(expected);
+  });
+
   test("a room with only a bus out gives the way home on the same bus", async () => {
     seed({
       [GROUPS]: [

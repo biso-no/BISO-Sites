@@ -27,7 +27,7 @@ export interface HandChanges {
   create: NewPlace[];
   /** People with any change. */
   moved: Set<string>;
-  /** Bus seats that stay and get pinned. */
+  /** Places that stay and get pinned: bus seats and group places. */
   pin: string[];
   /** Memberships to delete. */
   remove: string[];
@@ -124,20 +124,25 @@ export function seatByHand(
  * Puts one person on their room's buses by hand (D5: a person named into a
  * room takes its bus), leg by leg: a pinned leg stays where it is, and a
  * pinned way out takes the way home with it instead of the room's home bus
- * (rulings R5, R10). `seats` are the person's bus seats.
+ * (rulings R5, R10), but only onto a bus `canFollow` allows (one the caller
+ * may change, of the person's campus); otherwise home takes the room's bus.
+ * `seats` are the person's bus seats.
  */
 export function rideWithRoom(
   changes: HandChanges,
   move: {
+    canFollow: (busId: string) => boolean;
     participantId: string;
     rides: readonly { busId: string; leg: Leg }[];
     seats: readonly PlaceRow[];
   }
 ): void {
   const { participantId, seats } = move;
-  const pinnedOut = seats.find(
+  const pinnedOutBus = seats.find(
     (seat) => seat.leg === "out" && seat.pinned === true
   )?.group_id;
+  const pinnedOut =
+    pinnedOutBus && move.canFollow(pinnedOutBus) ? pinnedOutBus : null;
   for (const { busId, leg } of move.rides) {
     const pinnedLeg = seats.some(
       (seat) => seat.leg === leg && seat.pinned === true
