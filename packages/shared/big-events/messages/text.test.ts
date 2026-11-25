@@ -64,6 +64,42 @@ describe("message text", () => {
     );
   });
 
+  it("drops orphan punctuation after a removed placeholder at a line start", () => {
+    const push = { forPush: true };
+    expect(renderText("{fornavn}, bussen din går kl. 14", {}, push)).toBe(
+      "bussen din går kl. 14"
+    );
+    expect(renderText("Hello\n{fornavn}, hi", {}, push)).toBe("Hello\nhi");
+    expect(renderText("Hello\n  {fornavn}: hi", {}, push)).toBe("Hello\n  hi");
+  });
+
+  it("keeps newlines and strips blanks left before them", () => {
+    expect(renderText("Hei {fornavn}\nBuss {buss}", { bus: "3" }, {})).toBe(
+      "Hei\nBuss 3"
+    );
+    expect(renderText("Buss {buss} \nNeste", {})).toBe("Buss\nNeste");
+    expect(renderText("\nHei {fornavn}\n", {})).toBe("\nHei\n");
+  });
+
+  it("handles adjacent placeholders and missing keys", () => {
+    expect(renderText("{fornavn}{buss}", {})).toBe("");
+    expect(
+      renderText("A {fornavn}{buss} B", { bus: "3" }, { forPush: true })
+    ).toBe("A 3 B");
+    expect(renderText("Fra {oppmøtested}.", { meeting_point: undefined })).toBe(
+      "Fra."
+    );
+    expect(renderText("Fra {oppmøtested}.", { meeting_point: "" })).toBe(
+      "Fra."
+    );
+  });
+
+  it("leaves intentional spacing elsewhere alone", () => {
+    expect(renderText("A  b\n    c {buss} d  e ", {})).toBe(
+      "A  b\n    c d  e "
+    );
+  });
+
   it("defaults exist for every automatic kind in both languages", () => {
     for (const kind of [
       "bus_assigned",
@@ -78,8 +114,45 @@ describe("message text", () => {
         expect(findPlaceholders(texts[locale].body).unknown).toEqual([]);
       }
     }
-    expect(defaultAutoTexts("bus_assigned").no.body).toBe(
-      "Hei {fornavn}! Du skal med {buss}. Den går {avgang} fra {oppmøtested}."
-    );
+    expect(defaultAutoTexts("bus_assigned")).toEqual({
+      no: {
+        title: "Bussen din",
+        body: "Hei {fornavn}! Du skal med {buss}. Den går {avgang} fra {oppmøtested}.",
+      },
+      en: {
+        title: "Your bus",
+        body: "Hi {first name}! You're on {bus}. It leaves {departure} from {meeting point}.",
+      },
+    });
+    expect(defaultAutoTexts("bus_moved")).toEqual({
+      no: {
+        title: "Ny buss",
+        body: "Hei {fornavn}! Du er flyttet til {buss}. Den går {avgang} fra {oppmøtested}.",
+      },
+      en: {
+        title: "New bus",
+        body: "Hi {first name}! You've been moved to {bus}. It leaves {departure} from {meeting point}.",
+      },
+    });
+    expect(defaultAutoTexts("bus_none")).toEqual({
+      no: {
+        title: "Bussplassen din",
+        body: "Hei {fornavn}! Du har ikke plass på noen buss akkurat nå. Arrangørene gir deg beskjed.",
+      },
+      en: {
+        title: "Your bus seat",
+        body: "Hi {first name}! You don't have a seat on a bus right now. The organizers will let you know.",
+      },
+    });
+    expect(defaultAutoTexts("departure_reminder")).toEqual({
+      no: {
+        title: "Bussen går snart",
+        body: "{buss} går {avgang} fra {oppmøtested}. Ha medlemsbeviset klart.",
+      },
+      en: {
+        title: "Your bus leaves soon",
+        body: "{bus} leaves {departure} from {meeting point}. Have your member pass ready.",
+      },
+    });
   });
 });

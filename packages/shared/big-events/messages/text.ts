@@ -43,8 +43,6 @@ export const PLACEHOLDER_LABELS: Record<Locale, Record<Placeholder, string>> = {
 
 const TOKEN_PATTERN = /\{\s*([\p{L}\p{N}_-]+(?:\s+[\p{L}\p{N}_-]+)*)\s*\}/gu;
 const WHITESPACE_RUN = /\s+/g;
-const DOUBLE_SPACE = /[ \t]{2,}/g;
-const SPACE_BEFORE_PUNCTUATION = /[ \t]+([.,!?;:])/g;
 
 const normalizeLabel = (raw: string): string =>
   raw.trim().replace(WHITESPACE_RUN, " ").toLowerCase();
@@ -78,31 +76,61 @@ export function findPlaceholders(text: string): {
   return { known, unknown };
 }
 
+const LINE_START = /(?:^|\n)[ \t]*$/;
+const TRAILING_BLANKS = /[ \t]+$/;
+const LEADING_BLANKS = /^[ \t]+/;
+const LEADING_LINE_PUNCTUATION = /^[,;:][ \t]*/;
+const CLOSING_PUNCTUATION_OR_BREAK = /^(?:[.,!?;:]|\n|\r|$)/;
+
+/**
+ * Tidies the spacing around one removed placeholder. `out` is the text
+ * produced so far, `rest` the original text after the token. Returns the
+ * adjusted `out` and `rest`. Only whitespace and punctuation touching the
+ * removal change; the rest of the text is left alone.
+ */
+function closeGap(out: string, rest: string): { out: string; rest: string } {
+  const afterBlanks = rest.replace(LEADING_BLANKS, "");
+  if (LINE_START.test(out)) {
+    const orphan = LEADING_LINE_PUNCTUATION.exec(afterBlanks);
+    return {
+      out,
+      rest: orphan ? afterBlanks.slice(orphan[0].length) : afterBlanks,
+    };
+  }
+  if (CLOSING_PUNCTUATION_OR_BREAK.test(afterBlanks)) {
+    return { out: out.replace(TRAILING_BLANKS, ""), rest: afterBlanks };
+  }
+  return { out, rest: afterBlanks };
+}
+
 export function renderText(
   text: string,
   vars: MessageVars,
   opts?: { forPush?: boolean }
 ): string {
-  let removed = false;
-  const out = text.replace(TOKEN_PATTERN, (whole, raw: string) => {
-    const key = LABEL_TO_KEY.get(normalizeLabel(raw));
+  let out = "";
+  let cursor = 0;
+  for (const match of text.matchAll(TOKEN_PATTERN)) {
+    const start = match.index ?? 0;
+    const key = LABEL_TO_KEY.get(normalizeLabel(match[1] ?? ""));
+    out += text.slice(cursor, start);
+    cursor = start + match[0].length;
     if (!key) {
-      return whole;
+      out += match[0];
+      continue;
     }
     const value = opts?.forPush && key === "first_name" ? "" : vars[key];
-    if (value === undefined || value.trim() === "") {
-      removed = true;
-      return "";
+    if (value !== undefined && value.trim() !== "") {
+      out += value;
+      continue;
     }
-    return value;
-  });
-  if (!removed) {
-    return out;
+    // Continue from the tidied remainder; matchAll offsets stay valid
+    // because we only skip forward over text already consumed.
+    const gap = closeGap(out, text.slice(cursor));
+    out = gap.out;
+    cursor = text.length - gap.rest.length;
   }
-  return out
-    .replace(DOUBLE_SPACE, " ")
-    .replace(SPACE_BEFORE_PUNCTUATION, "$1")
-    .trim();
+  return out + text.slice(cursor);
 }
 
 type AutoKind =
