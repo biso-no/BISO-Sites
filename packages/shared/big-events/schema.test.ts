@@ -9,6 +9,8 @@ import {
   GROUP_KINDS,
   GROUP_LEGS,
   LINK_METHODS,
+  MESSAGE_KINDS,
+  MESSAGE_STATUSES,
   SUGGESTION_REASONS,
 } from "./tables";
 
@@ -65,6 +67,10 @@ const EXPECTED_COLUMNS: Record<string, string[]> = {
     "created_by",
     "bus_lists_published_at",
     "bus_lists_published_by",
+    "auto_bus_assigned",
+    "auto_bus_moved",
+    "auto_departure_reminder",
+    "auto_texts",
   ],
   big_event_participants: [
     "big_event_id",
@@ -114,6 +120,8 @@ const EXPECTED_COLUMNS: Record<string, string[]> = {
     "home_arrival_note",
     "out_bus_id",
     "home_bus_id",
+    "out_reminder_sent_at",
+    "home_reminder_sent_at",
   ],
   big_event_group_members: [
     "big_event_id",
@@ -137,6 +145,40 @@ const EXPECTED_COLUMNS: Record<string, string[]> = {
     "claimed_at",
     "sent_at",
     "scheduled_for",
+  ],
+  big_event_messages: [
+    "big_event_id",
+    "kind",
+    "status",
+    "title_no",
+    "title_en",
+    "body_no",
+    "body_en",
+    "audience",
+    "campus_ids",
+    "leg",
+    "important",
+    "pinned",
+    "also_sms",
+    "scheduled_at",
+    "sent_at",
+    "created_by",
+    "recipients",
+    "push_count",
+    "email_count",
+    "sms_count",
+    "failed_count",
+  ],
+  big_event_message_recipients: [
+    "big_event_id",
+    "message_id",
+    "participant_id",
+    "user_id",
+    "vars",
+    "push",
+    "email",
+    "sms",
+    "pushed_at",
   ],
 };
 
@@ -165,6 +207,11 @@ describe("big events schema", () => {
     expect(elements("big_event_deliveries", "status")).toEqual([
       ...DELIVERY_STATUSES,
     ]);
+    expect(elements("big_event_messages", "kind")).toEqual([...MESSAGE_KINDS]);
+    expect(elements("big_event_messages", "status")).toEqual([
+      ...MESSAGE_STATUSES,
+    ]);
+    expect(elements("big_event_messages", "leg")).toEqual([...GROUP_LEGS]);
     expect(elements("big_event_group_members", "leg")).toEqual([...GROUP_LEGS]);
     expect(elements("big_event_participants", "suggested_reason")).toEqual([
       ...SUGGESTION_REASONS,

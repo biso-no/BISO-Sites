@@ -4,6 +4,8 @@ export const BIG_EVENT_TABLES = {
   groups: "big_event_groups",
   groupMembers: "big_event_group_members",
   deliveries: "big_event_deliveries",
+  messages: "big_event_messages",
+  messageRecipients: "big_event_message_recipients",
 } as const;
 
 export const BIG_EVENT_STATUSES = ["draft", "published", "archived"] as const;
@@ -39,3 +41,20 @@ export type GroupLeg = (typeof GROUP_LEGS)[number];
 
 export const SUGGESTION_REASONS = ["phone", "name"] as const;
 export type SuggestionReason = (typeof SUGGESTION_REASONS)[number];
+
+export const MESSAGE_KINDS = [
+  "manual",
+  "bus_assigned",
+  "bus_moved",
+  "bus_none",
+  "departure_reminder",
+] as const;
+export type MessageKind = (typeof MESSAGE_KINDS)[number];
+
+export const MESSAGE_STATUSES = [
+  "scheduled",
+  "sending",
+  "sent",
+  "failed",
+] as const;
+export type MessageStatus = (typeof MESSAGE_STATUSES)[number];

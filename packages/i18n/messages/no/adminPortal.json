@@ -1872,7 +1872,8 @@
     "groups": {
       "expenses": "Refusjoner",
       "payments": "Nettbutikkbetaling",
-      "ai": "KI"
+      "ai": "KI",
+      "big_events": "Store arrangementer"
     },
     "toggleError": "Kunne ikke oppdatere bryter",
     "toggleSuccess": "Bryter oppdatert"

@@ -15,7 +15,12 @@
  * client components. The runtime reader lives in `feature-flags-server.ts`.
  */
 
-export const FEATURE_FLAG_GROUPS = ["expenses", "payments", "ai"] as const;
+export const FEATURE_FLAG_GROUPS = [
+  "expenses",
+  "payments",
+  "ai",
+  "big_events",
+] as const;
 export type FeatureFlagGroup = (typeof FEATURE_FLAG_GROUPS)[number];
 
 export interface FeatureFlagDef {
@@ -87,6 +92,15 @@ export const FEATURE_FLAGS = [
       "(clearing account against the sales type's revenue account). Off by " +
       "default; turn on once sales types and shop accounting settings are " +
       "saved. When off, paid orders wait and are posted after it is turned on.",
+    defaultEnabled: false,
+  },
+  {
+    key: "big_events_sms",
+    group: "big_events",
+    title: "Big events: SMS",
+    description:
+      'Show "Also send as SMS" on big event messages. No SMS provider is ' +
+      "connected yet.",
     defaultEnabled: false,
   },
   {

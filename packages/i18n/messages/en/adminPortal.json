@@ -1872,7 +1872,8 @@
     "groups": {
       "expenses": "Reimbursements",
       "payments": "Webshop payments",
-      "ai": "AI"
+      "ai": "AI",
+      "big_events": "Big events"
     },
     "toggleError": "Failed to update flag",
     "toggleSuccess": "Flag updated"
