@@ -31,6 +31,7 @@ import {
   type SeatUse,
 } from "@/lib/big-events/buses/seats";
 import { listAllRows } from "@/lib/big-events/list-rows";
+import { NATIONAL_CAMPUS_ID } from "@/lib/event-scope";
 import { logAuditEvent } from "./audit-log";
 import { getBigEvent } from "./big-events";
 
@@ -109,7 +110,32 @@ function assertKindAllowed(
   event: BigEventRow
 ): void {
   if (kind === "bus" && event.travel_enabled !== true) {
-    throw new Error("Turn on Travel to add buses");
+    throw new Error("Turn on Travel to use buses");
+  }
+}
+
+/**
+ * Ruling R7: a bus belongs to one campus (never National or none), and a new
+ * campus must be one the caller may use on this big event. A campus that
+ * isn't changing was already checked with `canManageGroup`.
+ */
+function assertGroupCampus(
+  access: GrantedAccess,
+  event: BigEventRow,
+  data: GroupFormValues,
+  campusChanged: boolean
+): void {
+  const noRealCampus =
+    data.campus_id === null || data.campus_id === NATIONAL_CAMPUS_ID;
+  if (data.kind === "bus" && noRealCampus) {
+    throw new Error("Buses belong to a campus.");
+  }
+  if (
+    campusChanged &&
+    data.campus_id !== null &&
+    !manageableGroupCampuses(access, event).includes(data.campus_id)
+  ) {
+    throw new Error("Groups on this big event belong to its campus.");
   }
 }
 
@@ -176,12 +202,25 @@ function byMemberOrder(a: GroupMemberView, b: GroupMemberView): number {
   );
 }
 
+/** Campus ids in order, with no campus last. */
+function byCampus(a: string | null, b: string | null): number {
+  if (a === b) {
+    return 0;
+  }
+  if (a === null) {
+    return 1;
+  }
+  if (b === null) {
+    return -1;
+  }
+  return a.localeCompare(b);
+}
+
 /** Bus, room, buddy, team, other; then campus (none last); then name. */
 function byGroupOrder(a: BigEventGroupRow, b: BigEventGroupRow): number {
-  const campus = (row: BigEventGroupRow) => row.campus_id ?? "~";
   return (
     GROUP_KINDS.indexOf(a.kind) - GROUP_KINDS.indexOf(b.kind) ||
-    campus(a).localeCompare(campus(b)) ||
+    byCampus(a.campus_id, b.campus_id) ||
     NAME_COLLATOR.compare(a.name, b.name) ||
     a.$id.localeCompare(b.$id)
   );
@@ -318,6 +357,7 @@ export async function createGroup(
   if (!canManageGroup(access, data)) {
     throw new Error("You can only add groups on your own campus");
   }
+  assertGroupCampus(access, event, data, true);
   const { db } = await createAdminClient();
   const row = await db.createRow(DATABASE_ID, GROUPS, ID.unique(), {
     big_event_id: bigEventId,
@@ -334,7 +374,8 @@ export async function createGroup(
 
 /**
  * Saves the dialog. A group with people in it (or a bus a room rides) keeps
- * its campus and kind; a group that changes either leaves the bus it rode.
+ * its campus and kind; a group that changes either leaves the bus it rode,
+ * and one that changes kind also drops its import links.
  */
 export async function updateGroup(
   groupId: string,
@@ -355,6 +396,7 @@ export async function updateGroup(
   assertKindAllowed(data.kind, event);
   const campusChanged = data.campus_id !== group.campus_id;
   const kindChanged = data.kind !== group.kind;
+  assertGroupCampus(access, event, data, campusChanged);
   if ((campusChanged || kindChanged) && (await isInUse(db, group))) {
     throw new Error(
       campusChanged
@@ -367,6 +409,7 @@ export async function updateGroup(
     ...(campusChanged || kindChanged
       ? { home_bus_id: null, out_bus_id: null }
       : {}),
+    ...(kindChanged ? { booking_participant_id: null, source_key: null } : {}),
   };
   await db.updateRow(DATABASE_ID, GROUPS, groupId, columns);
   await logAuditEvent(ctx, "big_event.group.update", {

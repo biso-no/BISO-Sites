@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
 import type { UserAuthContext } from "@/lib/authorization";
 import type { GroupFormValues } from "@/lib/big-events/buses/group-form";
 import { createFakeTablesDb, type FakeRow } from "@/test/fake-tables-db";
@@ -203,15 +203,11 @@ describe("createGroup", () => {
 
   test("a campus admin can't create a group on another campus", async () => {
     currentCtx = bergenAdmin;
-    await expect(
-      createGroup("b1", values({ campus_id: "1" }))
-    ).rejects.toThrow();
-    await expect(
-      createGroup("b1", values({ campus_id: null }))
-    ).rejects.toThrow();
-    await expect(
-      createGroup("b1", values({ campus_id: "5" }))
-    ).rejects.toThrow();
+    for (const campusId of ["1", null, "5"] as const) {
+      await expect(
+        createGroup("b1", values({ campus_id: campusId }))
+      ).rejects.toThrow("You can only add groups on your own campus");
+    }
     expect(fake.rows(GROUPS)).toHaveLength(0);
 
     const { id } = await createGroup("b1", values({ campus_id: "2" }));
@@ -220,6 +216,35 @@ describe("createGroup", () => {
       campus_id: "2",
       kind: "room",
     });
+  });
+
+  test("refuses a bus with no campus or on National", async () => {
+    seed({ [GROUPS]: [group("bus1", "bus", { capacity: 50 })] });
+    for (const campusId of [null, "5"] as const) {
+      await expect(
+        createGroup("b1", values({ campus_id: campusId, kind: "bus" }))
+      ).rejects.toThrow("Buses belong to a campus.");
+    }
+    await expect(
+      updateGroup("bus1", values({ campus_id: null, kind: "bus" }))
+    ).rejects.toThrow("Buses belong to a campus.");
+    expect(fake.rows(GROUPS)).toHaveLength(1);
+    expect(groupRow("bus1")?.campus_id).toBe("2");
+
+    // Other kinds may be National or (full access only) have no campus (N8).
+    await createGroup("b1", values({ campus_id: "5", kind: "room" }));
+    await createGroup("b1", values({ campus_id: null, kind: "buddy" }));
+    expect(fake.rows(GROUPS)).toHaveLength(3);
+  });
+
+  test("full access on a campus event only uses that campus", async () => {
+    seed({}, bigEvent({ campus_id: "2" }));
+    await expect(createGroup("b1", values({ campus_id: "1" }))).rejects.toThrow(
+      "Groups on this big event belong to its campus."
+    );
+    expect(fake.rows(GROUPS)).toHaveLength(0);
+    const { id } = await createGroup("b1", values({ campus_id: "2" }));
+    expect(groupRow(id)?.campus_id).toBe("2");
   });
 
   test("stores a bus's times in UTC, a tidy phone number and no room number", async () => {
@@ -282,7 +307,9 @@ describe("updateGroup", () => {
     });
     await expect(
       updateGroup("r1", values({ campus_id: "3", name: "r1" }))
-    ).rejects.toThrow();
+    ).rejects.toThrow(
+      "Move everyone out of this group before changing its campus"
+    );
     expect(groupRow("r1")?.campus_id).toBe("2");
 
     await updateGroup("r2", values({ campus_id: "3", name: "Room 2" }));
@@ -304,12 +331,102 @@ describe("updateGroup", () => {
     });
     await expect(
       updateGroup("oslo", values({ campus_id: "2" }))
-    ).rejects.toThrow();
-    await expect(
-      updateGroup("r2", values({ campus_id: "1" }))
-    ).rejects.toThrow();
+    ).rejects.toThrow("You can only change groups on your own campus");
+    await expect(updateGroup("r2", values({ campus_id: "1" }))).rejects.toThrow(
+      "You can only change groups on your own campus"
+    );
     expect(groupRow("oslo")?.campus_id).toBe("1");
     expect(groupRow("r2")?.campus_id).toBe("2");
+  });
+
+  test("refuses to change the kind of a group with people in it", async () => {
+    seed({
+      [GROUPS]: [group("r1", "room")],
+      [MEMBERS]: [member("r1", "p1")],
+    });
+    await expect(
+      updateGroup("r1", values({ kind: "buddy", name: "r1" }))
+    ).rejects.toThrow(
+      "Move everyone out of this group before changing its kind"
+    );
+    expect(groupRow("r1")?.kind).toBe("room");
+  });
+
+  test("a bus that rooms ride counts as in use", async () => {
+    seed({
+      [GROUPS]: [
+        group("bus1", "bus", { capacity: 50 }),
+        group("r1", "room", { capacity: 4, home_bus_id: "bus1" }),
+      ],
+    });
+    await expect(
+      updateGroup("bus1", values({ campus_id: "3", kind: "bus", name: "bus1" }))
+    ).rejects.toThrow(
+      "Move everyone out of this group before changing its campus"
+    );
+    await expect(
+      updateGroup("bus1", values({ kind: "team", name: "bus1" }))
+    ).rejects.toThrow(
+      "Move everyone out of this group before changing its kind"
+    );
+    expect(groupRow("bus1")).toMatchObject({ campus_id: "2", kind: "bus" });
+  });
+
+  test("a group that changes campus or kind leaves its bus and import links", async () => {
+    const importLinks = { booking_participant_id: "p9", source_key: "room:k" };
+    seed({
+      [GROUPS]: [
+        group("bus1", "bus", { capacity: 50 }),
+        group("moved", "room", { home_bus_id: "bus1", out_bus_id: "bus1" }),
+        group("rekind", "room", {
+          home_bus_id: "bus1",
+          out_bus_id: "bus1",
+          ...importLinks,
+        }),
+        group("renamed", "room", {
+          home_bus_id: "bus1",
+          out_bus_id: "bus1",
+          ...importLinks,
+        }),
+      ],
+    });
+
+    await updateGroup("moved", values({ campus_id: "3", name: "moved" }));
+    await updateGroup("rekind", values({ kind: "buddy", name: "rekind" }));
+    await updateGroup("renamed", values({ name: "New name" }));
+
+    expect(groupRow("moved")).toMatchObject({
+      campus_id: "3",
+      home_bus_id: null,
+      out_bus_id: null,
+    });
+    expect(groupRow("rekind")).toMatchObject({
+      booking_participant_id: null,
+      home_bus_id: null,
+      kind: "buddy",
+      out_bus_id: null,
+      source_key: null,
+    });
+    expect(groupRow("renamed")).toMatchObject({
+      home_bus_id: "bus1",
+      name: "New name",
+      out_bus_id: "bus1",
+      ...importLinks,
+    });
+  });
+
+  test("refuses to save a bus while Travel is off", async () => {
+    seed(
+      { [GROUPS]: [group("bus1", "bus", { capacity: 50, name: "Bus 1" })] },
+      bigEvent({ travel_enabled: false })
+    );
+    await expect(
+      updateGroup("bus1", values({ kind: "bus", name: "Bus 2" }))
+    ).rejects.toThrow("Turn on Travel to use buses");
+    await expect(
+      updateGroup("bus1", values({ kind: "room", name: "Bus 1" }))
+    ).resolves.toBeUndefined();
+    expect(groupRow("bus1")).toMatchObject({ kind: "room", name: "Bus 1" });
   });
 });
 
@@ -414,7 +531,15 @@ describe("deleteGroup", () => {
         throw new Error("Appwrite is down");
       }
     });
-    await expect(deleteGroup("r1")).rejects.toThrow();
+    const logged = spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      await expect(deleteGroup("r1")).rejects.toThrow(
+        "The group couldn't be fully deleted. Try again."
+      );
+      expect(logged).toHaveBeenCalledTimes(1);
+    } finally {
+      logged.mockRestore();
+    }
     expect(groupRow("r1")).toBeDefined();
     const [call] = auditCalls("big_event.group.delete");
     expect(call?.[2]).toMatchObject({
@@ -431,8 +556,12 @@ describe("deleteGroup", () => {
         group("none", "buddy", { campus_id: null }),
       ],
     });
-    await expect(deleteGroup("oslo")).rejects.toThrow();
-    await expect(deleteGroup("none")).rejects.toThrow();
+    await expect(deleteGroup("oslo")).rejects.toThrow(
+      "You can only delete groups on your own campus"
+    );
+    await expect(deleteGroup("none")).rejects.toThrow(
+      "You can only delete groups on your own campus"
+    );
     expect(fake.rows(GROUPS)).toHaveLength(2);
   });
 });
@@ -517,6 +646,7 @@ describe("listGroups", () => {
         group("bus-n", "bus", { campus_id: "5", name: "Bus N" }),
         group("bus-2", "bus", { capacity: 50, name: "Bus 2" }),
         group("buddy", "buddy", { campus_id: null, name: "Buddies" }),
+        group("buddy-2", "buddy", { name: "Zeta" }),
       ],
       [MEMBERS]: [
         member("room-z", "p1"),
@@ -533,6 +663,7 @@ describe("listGroups", () => {
       "bus-n",
       "room-a",
       "room-z",
+      "buddy-2",
       "buddy",
       "team-a",
       "other",
