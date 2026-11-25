@@ -23,7 +23,7 @@ covers:
 - The big event exists and **Reise (busser)** (Travel (buses)) is on in its settings. Without it you can't add buses.
 - The people are on the list. See [Import people and connect tickets](/guide/big-events/import-and-connect).
 - Every bus belongs to a campus, and every bus needs a seat count before it can be filled.
-- Campus admins work only with their own campus. Publishing the bus lists is for whoever can change the big event's settings: global admins and the board that runs it.
+- Campus admins work only with their own campus. Publishing the bus lists is for whoever can change the big event's settings.
 - The screens follow your admin language. Each label is given in Norwegian first, with the English in brackets.
 
 </BeforeYouStart>
@@ -65,7 +65,7 @@ Choose **Legg til** (Add). Seat counts are a warning only: if more people are on
 
 - **Legg til rom** (Add room) takes a name, a campus, **Plasser** (Places) and **Romnummer** (Room number). The room number is shown to the people in the room, and you can change it here at any time.
 - A room with more places than people shows **ledige plasser** (open places). Those places hold seats on the room's bus.
-- A room has a bus. People named into a room ride its bus.
+- A room has a bus. A room gets its bus from filling the buses automatically, from an import that names buses, or when you move people by hand. People named into a room ride its bus.
 - Buddy groups, teams and other groups take a name, a campus and optional places.
 - Only the name is required. To change the type or the campus of a group, take everyone out of it first: the form says **Ta alle ut av gruppen for å endre dette** (Take everyone out of the group to change this).
 
@@ -77,7 +77,7 @@ On a person's row in a group, the menu has **Flytt til …** (Move to…) and **
 
 - In the move box, **Hvilken vei** (Which way) is **Begge veier** (Both ways), **Bare utreise** (Only out) or **Bare hjemreise** (Only home).
 - Someone you move by hand is pinned. The automatic fill leaves them where they are, and so does an import. This goes for buses, rooms and the other groups.
-- To let the fill move a person again, choose **Løsne** (Unpin) on them.
+- To let the fill move a person again, click the pin icon on the person. Its screen-reader label is **Løsne** followed by their name (Unpin).
 - If you move a person to a bus for the way out only, they keep their way home on that bus. Moving a person onto a room with only an out bus takes them home on the same bus.
 
 Dragging is also possible from the keyboard: press space or enter on the handle, choose a bus with the arrow keys, and press space or enter again.
@@ -98,7 +98,7 @@ Before the bus lists are published, a fill places everyone who isn't moved by ha
 
 Choose **Publiser busslistene** (Publish bus lists). It publishes for the whole big event at once. The box says how many people will be marked for a message.
 
-- Connected participants see their bus in the BISO app from then on.
+- Publishing doesn't show buses to anyone by itself. Students don't see buses anywhere yet.
 - Everyone with a seat on a bus out is marked to get a message about their bus. Publishing marks them. It doesn't send anything by itself.
 - You can still move people afterwards.
 - There is no way to unpublish. The page then shows **Publisert** (Published) with the date.
@@ -122,7 +122,7 @@ An import follows the same rules. See [Importing again](/guide/big-events/import
 
 ## What the student sees
 
-Once the lists are published and the ticket is connected, the student's bus, room and room number show in the BISO app. The student sees only their own.
+Students don't see their bus anywhere yet. Publishing and later moves only mark who is owed a message about their bus.
 
 ## Common mistakes
 
