@@ -42,9 +42,24 @@ function roomBusOn(room: BigEventGroupRow, leg: GroupLeg): string | null {
 }
 
 /**
+ * The bus someone rides on a leg with their room. A way out moved by hand
+ * (a pinned out seat) takes the way home with it, as in the auto-fill
+ * planner (ruling R5): home follows out, not the room's home bus.
+ */
+function busFor(
+  room: BigEventGroupRow,
+  leg: GroupLeg,
+  pinnedOut: string | null
+): string | null {
+  const roomBus = roomBusOn(room, leg);
+  return leg === "home" && roomBus && pinnedOut ? pinnedOut : roomBus;
+}
+
+/**
  * The legs people ride with their room (spec D5: a person named into a room
  * takes the room's bus): each leg the room has a bus for, unless the person
- * was moved by hand onto another bus on that leg (a pinned seat).
+ * was moved by hand onto another bus on that leg (a pinned seat). Home
+ * follows a hand-moved way out (ruling R5).
  */
 export function roomBusSeats(
   stays: RoomStay[],
@@ -59,8 +74,11 @@ export function roomBusSeats(
   for (const { person, room } of stays) {
     const participantId = participantIdOf(person);
     const own = participantId ? (seats.get(participantId) ?? []) : [];
+    const pinnedOut =
+      own.find((seat) => seat.leg === "out" && seat.pinned === true)
+        ?.group_id ?? null;
     for (const leg of GROUP_LEGS) {
-      const busId = roomBusOn(room, leg);
+      const busId = busFor(room, leg, pinnedOut);
       const movedByHand = own.some(
         (seat) =>
           seat.leg === leg && seat.pinned === true && seat.group_id !== busId

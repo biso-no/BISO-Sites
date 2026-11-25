@@ -1526,7 +1526,8 @@ describe("planImport: room buses (N2)", () => {
     });
     const per = result.create[0];
     expect(result.roomBuses).toEqual([
-      { busId: "g-b1", leg: "home", person: { participantId: "p-kari" } },
+      // Kari's way home follows her hand-moved way out (ruling R5).
+      { busId: "g-b2", leg: "home", person: { participantId: "p-kari" } },
       { busId: "g-b1", leg: "out", person: per },
       { busId: "g-b1", leg: "home", person: per },
     ]);

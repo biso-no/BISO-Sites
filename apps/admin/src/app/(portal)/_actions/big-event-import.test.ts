@@ -1028,14 +1028,59 @@ describe("applyImport: pins, room buses and notices (N7)", () => {
     expect(result).toMatchObject({ complete: true, placed: 3 });
     const per = byName(fake.rows(PARTICIPANTS), "Per");
     expect(seats("p1")).toEqual(["g-101:null", "g-b1:home", "g-b1:out"]);
-    // The hand-moved leg stays; the other one follows the room.
-    expect(seats("p2")).toEqual(["g-101:null", "g-b1:home", "g-b2:out"]);
+    // Ola stays where he was moved by hand, and rides home on that bus too.
+    expect(seats("p2")).toEqual(["g-101:null", "g-b2:home", "g-b2:out"]);
     expect(seats(per?.$id)).toEqual(["g-101:null", "g-b1:home", "g-b1:out"]);
     expect(
       fake
         .rows(MEMBERS)
         .every((member) => member.pinned === (member.$id === "m-g-b2-p2-out"))
     ).toBe(true);
+  });
+
+  test("a pinned out seat takes the home seat with it on import", async () => {
+    seed({
+      [GROUPS]: [
+        busRow("g-b1", "Buss 1"),
+        busRow("g-b2", "Buss 2"),
+        {
+          $id: "g-101",
+          big_event_id: "b1",
+          booking_participant_id: null,
+          campus_id: null,
+          capacity: 4,
+          home_bus_id: "g-b1",
+          kind: "room",
+          name: "101",
+          out_bus_id: "g-b1",
+          source_key: "col:room:-:101",
+        },
+      ],
+      [MEMBERS]: [
+        // Both were moved onto bus 2 by hand on the way out only. Kari has
+        // no way home yet; Ola still rides home on bus 1.
+        seatRow("g-b2", "p1", "out", true),
+        seatRow("g-b2", "p2", "out", true),
+        seatRow("g-b1", "p2", "home"),
+      ],
+      [PARTICIPANTS]: [participantRow({ campus_id: null }), ola()],
+    });
+
+    const result = await applyImport(
+      "b1",
+      pasteForm([
+        ["Navn", "Etternavn", "Mobilnr", "Rom"],
+        ["Kari", "Nordmann", "91234567", "101"],
+        ["Ola", "Hansen", "92345678", "101"],
+      ]),
+      groupMapping,
+      { ...PLAIN, groupKind: "room" }
+    );
+
+    expect(result).toMatchObject({ complete: true, placed: 2 });
+    // Home follows the hand-moved way out (ruling R5), not the room's bus.
+    expect(seats("p1")).toEqual(["g-101:null", "g-b2:home", "g-b2:out"]);
+    expect(seats("p2")).toEqual(["g-101:null", "g-b2:home", "g-b2:out"]);
   });
 
   test("a re-import updates a booking room's capacity", async () => {
