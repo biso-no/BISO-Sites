@@ -13,6 +13,7 @@ import {
   parseRoomSize,
   splitFullName,
 } from "./normalize";
+import type { RoomBusSeat } from "./plan-buses";
 import { type PlanSubject, planRooms } from "./plan-import-rooms";
 
 /** What each header cell holds, one entry per column. */
@@ -92,22 +93,41 @@ export interface ColumnTarget {
   participantId: string;
 }
 
+/** A reused booking room whose ticket now says another size. */
+export interface GroupUpdate {
+  capacity: number;
+  groupKey: string;
+}
+
 export interface ImportPlan {
   /**
    * The group each person already on the list belongs in by the group
    * column, also when they are in it already: their other groups of that
-   * kind are removed, and a bus seat gets both legs (ruling R34).
+   * kind are removed, and a bus seat gets both legs (ruling R34). Never
+   * someone moved by hand (see `keptPinned`).
    */
   columnTargets: ColumnTarget[];
   create: ParsedPerson[];
   duplicatesInFile: number;
+  groupUpdates: GroupUpdate[];
+  /**
+   * Participant ids the group column would move out of a group they were
+   * moved into by hand (a pinned place). They stay where they are (R31).
+   */
+  keptPinned: string[];
   /** Existing participant ids not seen in this file. */
   missingFromFile: string[];
   newGroups: NewGroup[];
   noCampus: number;
-  /** Group keys. */
+  /** Group keys, counted after the plan's moves. */
   overfullRooms: string[];
   placements: Placement[];
+  /**
+   * Bus legs people in this file ride with their room (spec D5, N2), also
+   * when they have the seat already. Empty unless Travel is on and the
+   * import is about rooms.
+   */
+  roomBuses: RoomBusSeat[];
   skipped: SkippedRow[];
   /** Land in "Not in a room yet". */
   unplaced: ParsedPerson[];
@@ -494,6 +514,8 @@ export function planImport(input: {
   existing: BigEventParticipantRow[];
   groups: BigEventGroupRow[];
   members: BigEventGroupMemberRow[];
+  /** Buses exist only with Travel on (spec D5): rooms' buses count only then. */
+  travelEnabled: boolean;
 }): ImportPlan {
   const { options, existing } = input;
   const { pairs, duplicates, seen } = matchExisting(input.people, existing);
@@ -523,6 +545,7 @@ export function planImport(input: {
     existing,
     groups: input.groups,
     members: input.members,
+    travelEnabled: input.travelEnabled,
   });
 
   return {

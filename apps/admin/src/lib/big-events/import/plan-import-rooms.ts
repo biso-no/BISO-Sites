@@ -10,6 +10,7 @@ import {
   normalizePhone,
   parseRoomCount,
 } from "./normalize";
+import { type RoomStay, roomBusSeats } from "./plan-buses";
 import type {
   ColumnTarget,
   ImportOptions,
@@ -43,8 +44,14 @@ interface Board {
   /** Group-column targets of people already on the list (ruling R34). */
   columnTargets: ColumnTarget[];
   groups: Map<string, BoardGroup>;
+  /** Reused booking room key → the size on its ticket, when that changed. */
+  groupUpdates: Map<string, number>;
+  /** People the group column leaves where they were moved by hand (R31). */
+  keptPinned: string[];
   /** Participant id → keys of the groups they are already in. */
   memberOf: Map<string, Set<string>>;
+  /** Participant id → keys of the groups they were moved into by hand. */
+  pinnedIn: Map<string, Set<string>>;
   placements: ImportPlan["placements"];
   /** The room each subject is in, from the list or from this plan. */
   roomOf: Map<PlanSubject, string>;
@@ -111,8 +118,11 @@ function buildBoard(
 ): Board {
   const board: Board = {
     columnTargets: [],
+    groupUpdates: new Map(),
     groups: new Map(),
+    keptPinned: [],
     memberOf: new Map(),
+    pinnedIn: new Map(),
     roomOf: new Map(),
     placements: [],
   };
@@ -134,6 +144,11 @@ function buildBoard(
   }
   for (const membership of members) {
     const key = keyById.get(membership.group_id);
+    if (key && membership.pinned === true) {
+      const pinned = board.pinnedIn.get(membership.participant_id) ?? new Set();
+      pinned.add(key);
+      board.pinnedIn.set(membership.participant_id, pinned);
+    }
     const keys = board.memberOf.get(membership.participant_id) ?? new Set();
     // A bus member has a row per leg; count each person once.
     if (key && !keys.has(key)) {
@@ -254,6 +269,21 @@ function findColumnGroup(
   return namedGroup(board, kind, value, campusId);
 }
 
+/**
+ * Someone moved by hand into another group of this kind (a pinned place,
+ * on any leg): the import never moves them (ruling R31).
+ */
+function pinnedElsewhere(
+  board: Board,
+  participantId: string,
+  kind: GroupKind,
+  key: string
+): boolean {
+  return [...(board.pinnedIn.get(participantId) ?? [])].some(
+    (pinned) => pinned !== key && board.groups.get(pinned)?.kind === kind
+  );
+}
+
 /** One group per value and campus: the same value on two campuses is two groups. */
 function placeByColumn(
   board: Board,
@@ -265,10 +295,16 @@ function placeByColumn(
     if (value === null) {
       continue;
     }
-    const key =
-      findColumnGroup(board, kind, value, subject.campusId) ??
+    const found = findColumnGroup(board, kind, value, subject.campusId);
+    const key = found ?? columnKey(kind, subject.campusId, value);
+    const participantId = subject.participant?.$id;
+    if (participantId && pinnedElsewhere(board, participantId, kind, key)) {
+      board.keptPinned.push(participantId);
+      continue;
+    }
+    if (!found) {
       createGroup(board, {
-        key: columnKey(kind, subject.campusId, value),
+        key,
         kind,
         name: value,
         campusId: subject.campusId,
@@ -276,12 +312,10 @@ function placeByColumn(
         bookingRowNumber: null,
         booker: null,
       });
+    }
     place(board, subject, key, "group_column");
-    if (subject.participant) {
-      board.columnTargets.push({
-        groupKey: key,
-        participantId: subject.participant.$id,
-      });
+    if (participantId) {
+      board.columnTargets.push({ groupKey: key, participantId });
     }
   }
 }
@@ -430,12 +464,28 @@ function rowRoomKeys(
   return keys;
 }
 
+/** A reused booking room takes the size on its ticket; a ticket without one changes nothing. */
+function resizeBookingRoom(board: Board, key: string, size: number | null) {
+  const room = board.groups.get(key);
+  if (
+    room?.row &&
+    room.kind === "room" &&
+    size !== null &&
+    room.capacity !== size &&
+    !board.groupUpdates.has(key)
+  ) {
+    board.groupUpdates.set(key, size);
+    room.capacity = size;
+  }
+}
+
 function ensureBookingRooms(
   board: Board,
   booking: Booking,
   keys: string[]
 ): void {
   for (const key of keys) {
+    resizeBookingRoom(board, key, booking.roomSize);
     if (!board.groups.has(key)) {
       createGroup(board, {
         key,
@@ -583,22 +633,51 @@ function newGroups(board: Board): NewGroup[] {
   );
 }
 
+/**
+ * People leaving each group: everyone with a column target leaves their
+ * other groups of its kind (rulings R8, R34). Their pins are all in the
+ * target, or they would have been kept (R31), so every such place goes.
+ */
+function leaversByKey(board: Board): Map<string, number> {
+  const leaving = new Map<string, number>();
+  for (const { groupKey, participantId } of board.columnTargets) {
+    const kind = board.groups.get(groupKey)?.kind;
+    for (const key of board.memberOf.get(participantId) ?? []) {
+      if (key !== groupKey && board.groups.get(key)?.kind === kind) {
+        leaving.set(key, (leaving.get(key) ?? 0) + 1);
+      }
+    }
+  }
+  return leaving;
+}
+
+/** Rooms with more people than places once the plan's moves are done. */
 function overfullRooms(board: Board): string[] {
+  const leaving = leaversByKey(board);
   return [...board.groups.values()]
     .filter(
       (group) =>
         group.kind === "room" &&
         group.capacity !== null &&
-        group.count > group.capacity
+        group.count - (leaving.get(group.key) ?? 0) > group.capacity
     )
     .map((group) => group.key);
+}
+
+/** Everyone in this file who is in an existing room once the plan is saved. */
+function roomStays(board: Board): RoomStay[] {
+  return [...board.roomOf].flatMap(([subject, key]) => {
+    const room = board.groups.get(key)?.row;
+    return room ? [{ person: targetOf(subject), room }] : [];
+  });
 }
 
 /**
  * Groups and placements for an import. A mapped group column decides (spec
  * rule 1); without one, "each row is a room booking" makes a room per row.
  * When the import is about rooms, everyone still without a room is tried
- * against existing rooms (spec rules 2–3), else listed as unplaced.
+ * against existing rooms (spec rules 2–3), else listed as unplaced, and
+ * everyone in a room with a bus rides it (spec D5).
  */
 export function planRooms(input: {
   subjects: PlanSubject[];
@@ -608,9 +687,17 @@ export function planRooms(input: {
   existing: BigEventParticipantRow[];
   groups: BigEventGroupRow[];
   members: BigEventGroupMemberRow[];
+  travelEnabled: boolean;
 }): Pick<
   ImportPlan,
-  "columnTargets" | "newGroups" | "placements" | "unplaced" | "overfullRooms"
+  | "columnTargets"
+  | "groupUpdates"
+  | "keptPinned"
+  | "newGroups"
+  | "overfullRooms"
+  | "placements"
+  | "roomBuses"
+  | "unplaced"
 > {
   const { subjects, options } = input;
   const board = buildBoard(input.groups, input.members);
@@ -628,11 +715,22 @@ export function planRooms(input: {
   const unplaced = aboutRooms
     ? placeIntoExistingRooms(board, subjects, input.existing)
     : [];
+  // A bus or group import never moves people between buses by room.
+  const roomBuses =
+    aboutRooms && input.travelEnabled
+      ? roomBusSeats(roomStays(board), input.groups, input.members)
+      : [];
 
   return {
     columnTargets: board.columnTargets,
+    groupUpdates: [...board.groupUpdates].map(([groupKey, capacity]) => ({
+      groupKey,
+      capacity,
+    })),
+    keptPinned: board.keptPinned,
     newGroups: newGroups(board),
     placements: board.placements,
+    roomBuses,
     unplaced,
     overfullRooms: overfullRooms(board),
   };

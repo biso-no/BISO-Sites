@@ -17,6 +17,7 @@ import type {
   BigEventGroupMemberRow,
   BigEventGroupRow,
   BigEventParticipantRow,
+  BigEventRow,
 } from "@repo/shared/big-events/types";
 import { mapAllSettledWithConcurrency } from "@repo/shared/utils/concurrency";
 import { revalidatePath } from "next/cache";
@@ -40,6 +41,11 @@ import {
 import type { ImportResult } from "@/lib/big-events/import/import-result";
 import { parseImportFile } from "@/lib/big-events/import/parse-file.server";
 import {
+  type RoomBusSeat,
+  roomBusRemovals,
+  roomBusSeatsToAdd,
+} from "@/lib/big-events/import/plan-buses";
+import {
   type ImportMapping,
   type ImportOptions,
   type ImportPlan,
@@ -50,6 +56,8 @@ import {
   planImport,
 } from "@/lib/big-events/import/plan-import";
 import {
+  type BusMovers,
+  busMovers,
   groupsByKey,
   type ImportPreview,
   isExistingTarget,
@@ -163,12 +171,13 @@ interface PreparedImport extends PlanContext {
  */
 async function prepareImport(
   db: AdminDb,
-  bigEventId: string,
+  event: Pick<BigEventRow, "$id" | "bus_lists_published_at" | "travel_enabled">,
   access: GrantedAccess,
   rows: string[][],
   mapping: ImportMapping,
   options: ImportOptions
 ): Promise<PreparedImport> {
+  const bigEventId = event.$id;
   const headerRow = findHeaderRow(rows);
   if (headerRow === -1) {
     throw new Error("The file has no rows");
@@ -199,8 +208,10 @@ async function prepareImport(
     existing,
     groups,
     members,
+    travelEnabled: event.travel_enabled === true,
   });
   return {
+    busListsPublished: Boolean(event.bus_lists_published_at),
     existing,
     groupColumn: parsed.groupColumn,
     groups,
@@ -229,7 +240,7 @@ async function loadImport(
   const { db } = await createAdminClient();
   const prepared = await prepareImport(
     db,
-    bigEventId,
+    event,
     access,
     rows,
     checkedMapping,
@@ -364,6 +375,8 @@ interface WriteOutcome {
   created: BigEventParticipantRow[];
   moved: number;
   newGroups: number;
+  /** People marked for a bus notice (N7). */
+  notices: number;
   phases: Partial<Record<PhaseName, PhaseCount>>;
   placed: number;
   /** Everyone created or updated: who may be linked by email. */
@@ -378,6 +391,7 @@ function emptyOutcome(): WriteOutcome {
     created: [],
     moved: 0,
     newGroups: 0,
+    notices: 0,
     phases: {},
     placed: 0,
     seen: [],
@@ -386,44 +400,67 @@ function emptyOutcome(): WriteOutcome {
   };
 }
 
+/**
+ * After the bus lists are published, everyone whose bus the import changes
+ * owes a notice (N1, N7): `bus_notice_due_at` is set (overwritten) with the
+ * person's own write, before the seats change, so a failed later phase never
+ * loses a notice; the next import finishes the move (R34) and marks it again.
+ */
+interface Notices {
+  at: string;
+  movers: BusMovers;
+}
+
+function noticeColumns(
+  notices: Notices | null,
+  owes: boolean
+): { bus_notice_due_at?: string } {
+  return notices && owes ? { bus_notice_due_at: notices.at } : {};
+}
+
 function createParticipants(
   db: AdminDb,
   bigEventId: string,
   plan: ImportPlan,
   importId: string,
-  targets: TargetIds
+  targets: TargetIds,
+  notices: Notices | null
 ) {
   return settleWrites(plan.create, async (person) => {
+    const owes = notices?.movers.people.has(person) === true;
     // Appwrite returns every column, unset ones as null.
-    const row = (await db.createRow(
-      DATABASE_ID,
-      PARTICIPANTS,
-      ID.unique(),
-      newParticipantColumns(bigEventId, person, importId)
-    )) as unknown as BigEventParticipantRow;
+    const row = (await db.createRow(DATABASE_ID, PARTICIPANTS, ID.unique(), {
+      ...newParticipantColumns(bigEventId, person, importId),
+      ...noticeColumns(notices, owes),
+    })) as unknown as BigEventParticipantRow;
     targets.add(person, row.$id);
-    return row;
+    return { notified: owes, row };
   });
 }
 
 function updateParticipants(
   db: AdminDb,
   prepared: PreparedImport,
-  importId: string
+  importId: string,
+  notices: Notices | null
 ) {
   const byId = new Map(prepared.existing.map((row) => [row.$id, row]));
   return settleWrites(
     prepared.plan.update,
     async ({ changes, participantId }) => {
+      const owes = notices?.movers.participantIds.has(participantId) === true;
       // A new ticket email kills the old connect link (ruling R36).
       const columns = {
         ...changes,
         ...("ticket_email" in changes ? CLEARED_CONNECT_LINK : {}),
+        ...noticeColumns(notices, owes),
         last_import_id: importId,
       };
       await db.updateRow(DATABASE_ID, PARTICIPANTS, participantId, columns);
       return {
+        // A notice alone isn't a change to the person.
         changed: Object.keys(changes).length > 0,
+        notified: owes,
         row: {
           ...byId.get(participantId),
           ...columns,
@@ -450,6 +487,28 @@ function createGroups(
   });
 }
 
+/** A reused booking room takes the size on its ticket. */
+function resizeRooms(db: AdminDb, prepared: PreparedImport) {
+  const byKey = groupsByKey(prepared.groups);
+  const updates = prepared.plan.groupUpdates.flatMap(
+    ({ groupKey, capacity }) => {
+      const room = byKey.get(groupKey);
+      return room ? [{ capacity, id: room.$id }] : [];
+    }
+  );
+  return settleWrites(updates, async ({ capacity, id }) => {
+    await db.updateRow(DATABASE_ID, GROUPS, id, { capacity });
+    return id;
+  });
+}
+
+function sumCounts(...counts: PhaseCount[]): PhaseCount {
+  return {
+    failed: counts.reduce((sum, count) => sum + count.failed, 0),
+    written: counts.reduce((sum, count) => sum + count.written, 0),
+  };
+}
+
 type GroupIds = Map<string, { id: string; kind: GroupKind }>;
 
 /** Every group id by plan key, existing or just created, with its kind. */
@@ -469,13 +528,14 @@ function groupIdsByKey(
 
 /**
  * One membership per placement (a bus seat both ways), plus the missing leg
- * of a bus seat someone already half has (ruling R34).
+ * of a bus seat someone already half has (ruling R34) and the seats people
+ * take on their room's bus (spec D5).
  */
 function createPlaces(
   db: AdminDb,
   bigEventId: string,
   plan: ImportPlan,
-  missingLegs: MissingLeg[],
+  extra: { missingLegs: MissingLeg[]; roomSeats: RoomBusSeat[] },
   groupIds: GroupIds,
   targets: TargetIds
 ) {
@@ -499,31 +559,57 @@ function createPlaces(
       },
     }));
   });
-  const legRows = missingLegs.flatMap(({ groupKey, leg, participantId }) => {
-    const group = groupIds.get(groupKey);
-    return group
-      ? [
-          {
-            index: null,
-            row: {
-              assigned_at: assignedAt,
-              big_event_id: bigEventId,
-              group_id: group.id,
-              leg,
-              participant_id: participantId,
-              pinned: false,
-            },
-          },
-        ]
-      : [];
+  const seat = (groupId: string, leg: GroupLeg, participantId: string) => ({
+    index: null,
+    row: {
+      assigned_at: assignedAt,
+      big_event_id: bigEventId,
+      group_id: groupId,
+      leg,
+      participant_id: participantId,
+      pinned: false,
+    },
+  });
+  const legRows = extra.missingLegs.flatMap(
+    ({ groupKey, leg, participantId }) => {
+      const group = groupIds.get(groupKey);
+      return group ? [seat(group.id, leg, participantId)] : [];
+    }
+  );
+  const roomSeatRows = extra.roomSeats.flatMap(({ busId, leg, person }) => {
+    const participantId = targets.of(person);
+    return participantId ? [seat(busId, leg, participantId)] : [];
   });
   return settleWrites(
-    [...placementRows, ...legRows],
+    [...placementRows, ...legRows, ...roomSeatRows],
     async ({ index, row }) => {
       await db.createRow(DATABASE_ID, MEMBERS, ID.unique(), row);
       return index;
     }
   );
+}
+
+/**
+ * Old places of moved people (R8) and other seats on the legs people now
+ * ride with their room (spec D5). Only the first count as moves in the
+ * result; pinned places are never in either (R31).
+ */
+function removePlaces(db: AdminDb, prepared: PreparedImport) {
+  const { groups, members, plan } = prepared;
+  const removals = new Map<
+    string,
+    { membership: BigEventGroupMemberRow; move: boolean }
+  >();
+  for (const membership of roomBusRemovals(plan, members)) {
+    removals.set(membership.$id, { membership, move: false });
+  }
+  for (const membership of replacedMemberships(plan, groups, members)) {
+    removals.set(membership.$id, { membership, move: true });
+  }
+  return settleWrites([...removals.values()], async ({ membership, move }) => {
+    await db.deleteRow(DATABASE_ID, MEMBERS, membership.$id);
+    return move ? membership.participant_id : null;
+  });
 }
 
 /**
@@ -544,31 +630,41 @@ async function writePlan(
     outcome.phases[phase] = count;
     return count.failed === 0;
   };
+  const notices: Notices | null = prepared.busListsPublished
+    ? {
+        at: new Date().toISOString(),
+        movers: busMovers(plan, prepared.groups, prepared.members),
+      }
+    : null;
 
   const created = await createParticipants(
     db,
     bigEventId,
     plan,
     importId,
-    targets
+    targets,
+    notices
   );
-  outcome.created = created.done;
-  outcome.seen.push(...created.done);
+  outcome.created = created.done.map((entry) => entry.row);
+  outcome.seen.push(...outcome.created);
+  outcome.notices += created.done.filter((entry) => entry.notified).length;
   if (!finished("created", created.count)) {
     return outcome;
   }
 
-  const updated = await updateParticipants(db, prepared, importId);
+  const updated = await updateParticipants(db, prepared, importId, notices);
   outcome.seen.push(...updated.done.map((entry) => entry.row));
   outcome.updated = updated.done.filter((entry) => entry.changed).length;
   outcome.unchanged = updated.done.length - outcome.updated;
+  outcome.notices += updated.done.filter((entry) => entry.notified).length;
   if (!finished("updated", updated.count)) {
     return outcome;
   }
 
   const groups = await createGroups(db, bigEventId, prepared, targets);
+  const resized = await resizeRooms(db, prepared);
   outcome.newGroups = groups.done.length;
-  if (!finished("groups", groups.count)) {
+  if (!finished("groups", sumCounts(groups.count, resized.count))) {
     return outcome;
   }
 
@@ -577,7 +673,10 @@ async function writePlan(
     db,
     bigEventId,
     plan,
-    missingBusLegs(plan, prepared.groups, prepared.members),
+    {
+      missingLegs: missingBusLegs(plan, prepared.groups, prepared.members),
+      roomSeats: roomBusSeatsToAdd(plan, prepared.members),
+    },
     groupIds,
     targets
   );
@@ -586,12 +685,8 @@ async function writePlan(
     return outcome;
   }
 
-  const replaced = replacedMemberships(plan, prepared.groups, prepared.members);
-  const removed = await settleWrites(replaced, async (membership) => {
-    await db.deleteRow(DATABASE_ID, MEMBERS, membership.$id);
-    return membership.participant_id;
-  });
-  outcome.moved = new Set(removed.done).size;
+  const removed = await removePlaces(db, prepared);
+  outcome.moved = new Set(removed.done.filter((id) => id !== null)).size;
   if (!finished("removed_places", removed.count)) {
     return outcome;
   }
@@ -786,6 +881,7 @@ export async function applyImport(
     // Counts only: no names, emails or phones in the audit log.
     await logAuditEvent(ctx, "big_event.import", {
       payload: {
+        bus_notices: outcome.notices,
         complete,
         import_id: importId,
         linked: linked.size,

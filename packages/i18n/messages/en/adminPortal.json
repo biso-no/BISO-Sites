@@ -317,6 +317,8 @@
           "team": "{count, plural, one {# person changes team} other {# people change team}}",
           "other": "{count, plural, one {# person changes group} other {# people change group}}"
         },
+        "keptPinned": "{count} kept where they were moved by hand",
+        "busNotices": "{count} will get a \"you've been moved\" message",
         "unplaced": "{count, plural, one {# person isn't in a room yet} other {# people aren't in a room yet}}",
         "unplacedHelp": "They show under \"Not in a room yet\" on the participants list.",
         "overfull": "{count, plural, one {# room has} other {# rooms have}} more people than places: {names}",

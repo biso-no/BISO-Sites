@@ -14,7 +14,7 @@ import {
   sameIdentity,
 } from "./plan-import";
 import { existingGroupKey } from "./plan-import-rooms";
-import { replacedMemberships } from "./plan-summary";
+import { replacedMemberships, summarizePlan } from "./plan-summary";
 
 const ROW_META = {
   $sequence: "1",
@@ -94,17 +94,19 @@ function group(
 
 function member(
   groupId: string,
-  participantId: string
+  participantId: string,
+  fields: Partial<BigEventGroupMemberRow> = {}
 ): BigEventGroupMemberRow {
   return {
     ...ROW_META,
-    $id: `${groupId}-${participantId}`,
+    $id: `${groupId}-${participantId}${fields.leg ? `-${fields.leg}` : ""}`,
     assigned_at: null,
     big_event_id: "ev",
     group_id: groupId,
     leg: null,
     participant_id: participantId,
     pinned: null,
+    ...fields,
   };
 }
 
@@ -170,6 +172,7 @@ function plan(
     existing: existing.participants ?? [],
     groups: existing.groups ?? [],
     members: existing.members ?? [],
+    travelEnabled: true,
   });
 }
 
@@ -675,6 +678,22 @@ describe("planImport: room bookings", () => {
     expect(result.newGroups).toEqual([]);
     // Ola is already the room's member: nothing to place.
     expect(result.placements).toEqual([]);
+    // Same size as before: nothing to update.
+    expect(result.groupUpdates).toEqual([]);
+  });
+
+  test("a reused booking room takes the size on the ticket", () => {
+    const result = plan(
+      tickster(OLA_ROW),
+      TICKSTER_HEADER_ROW,
+      TICKSTER_MAPPING,
+      BOOKINGS,
+      { ...WITH_OLA_ROOM, groups: [{ ...OLA_ROOM, capacity: 2 }] }
+    );
+    expect(result.newGroups).toEqual([]);
+    expect(result.groupUpdates).toEqual([
+      { groupKey: "booking:A-1", capacity: 4 },
+    ]);
   });
 
   test("a booking row without a reference never takes someone else's room", () => {
@@ -1344,5 +1363,198 @@ describe("replacedMemberships", () => {
         (membership) => membership.group_id
       )
     ).toEqual(["g-102"]);
+  });
+});
+
+describe("planImport: pins (R31)", () => {
+  const room101 = group("g-101", {
+    name: "101",
+    source_key: "col:room:-:101",
+  });
+  const kari = participant("p-kari", {
+    first_name: "Kari",
+    last_name: "Nordmann",
+    ticket_email: "kari@gmail.com",
+  });
+
+  test("import never moves a pinned person", () => {
+    // The organizers moved Kari into room 101 by hand; the file says 103.
+    const existing = {
+      groups: [room101],
+      members: [member("g-101", "p-kari", { pinned: true })],
+      participants: [kari],
+    };
+    const options = { ...NO_OPTIONS, groupKind: "room" as const };
+    const result = plan(
+      sheet(["Kari Nordmann", "kari@gmail.com", "", "", "103"]),
+      0,
+      SHEET_WITH_ROOM,
+      options,
+      existing
+    );
+
+    // No new room 103 for her, no new place, nothing to replace.
+    expect(result.newGroups).toEqual([]);
+    expect(result.placements).toEqual([]);
+    expect(result.columnTargets).toEqual([]);
+    expect(result.keptPinned).toEqual(["p-kari"]);
+    expect(
+      replacedMemberships(result, existing.groups, existing.members)
+    ).toEqual([]);
+    // A target elsewhere never takes a pinned place either.
+    const room102 = group("g-102", {
+      name: "102",
+      source_key: "col:room:-:102",
+    });
+    const groups = [room101, room102];
+    expect(
+      replacedMemberships(
+        {
+          ...result,
+          columnTargets: [
+            { groupKey: "col:room:-:102", participantId: "p-kari" },
+          ],
+        },
+        groups,
+        existing.members
+      )
+    ).toEqual([]);
+
+    const preview = summarizePlan(result, {
+      busListsPublished: false,
+      existing: existing.participants,
+      groupColumn: true,
+      groups: existing.groups,
+      members: existing.members,
+      options,
+      outsideYourCampus: 0,
+    });
+    expect(preview).toMatchObject({ keptPinned: 1, moved: 0, placed: 0 });
+  });
+
+  test("a bus leg moved by hand keeps the person on their buses", () => {
+    const bus = (id: string, name: string) =>
+      group(id, {
+        kind: "bus",
+        name,
+        source_key: `col:bus:-:${name.toLowerCase()}`,
+      });
+    const existing = {
+      groups: [bus("g-b1", "Buss 1"), bus("g-b2", "Buss 2")],
+      members: [
+        member("g-b1", "p-kari", { leg: "out", pinned: true }),
+        member("g-b1", "p-kari", { leg: "home" }),
+      ],
+      participants: [kari],
+    };
+    const result = plan(
+      sheet(["Kari Nordmann", "kari@gmail.com", "", "", "Buss 2"]),
+      0,
+      SHEET_WITH_ROOM,
+      { ...NO_OPTIONS, groupKind: "bus" },
+      existing
+    );
+    expect(result.placements).toEqual([]);
+    expect(result.keptPinned).toEqual(["p-kari"]);
+    expect(
+      replacedMemberships(result, existing.groups, existing.members)
+    ).toEqual([]);
+  });
+});
+
+describe("planImport: overfull rooms", () => {
+  test("overfull counts leave out people who move out", () => {
+    // Room 101 holds two and is full: Kari moves to 102, Per takes her place.
+    const room101 = group("g-101", {
+      name: "101",
+      source_key: "col:room:-:101",
+      capacity: 2,
+    });
+    const kari = participant("p-kari", {
+      first_name: "Kari",
+      last_name: "Nordmann",
+      ticket_email: "kari@gmail.com",
+    });
+    const result = plan(
+      sheet(
+        ["Kari Nordmann", "kari@gmail.com", "", "", "102"],
+        ["Per Hansen", "per@gmail.com", "", "", "101"]
+      ),
+      0,
+      SHEET_WITH_ROOM,
+      { ...NO_OPTIONS, groupKind: "room" },
+      {
+        groups: [room101],
+        members: [member("g-101", "p-kari"), member("g-101", "p-ola")],
+        participants: [kari],
+      }
+    );
+    expect(result.placements.map((placement) => placement.groupKey)).toEqual([
+      "col:room:-:102",
+      "col:room:-:101",
+    ]);
+    expect(result.overfullRooms).toEqual([]);
+  });
+});
+
+describe("planImport: room buses (N2)", () => {
+  const bus1 = group("g-b1", { kind: "bus", name: "Buss 1" });
+  const bus2 = group("g-b2", { kind: "bus", name: "Buss 2" });
+  const room101 = group("g-101", {
+    name: "101",
+    source_key: "col:room:-:101",
+    out_bus_id: "g-b1",
+    home_bus_id: "g-b1",
+  });
+  const kari = participant("p-kari", {
+    first_name: "Kari",
+    last_name: "Nordmann",
+    ticket_email: "kari@gmail.com",
+  });
+  const file = () =>
+    sheet(
+      ["Kari Nordmann", "kari@gmail.com", "", "", "101"],
+      ["Per Hansen", "per@gmail.com", "", "", "101"]
+    );
+  const roomImport = { ...NO_OPTIONS, groupKind: "room" as const };
+
+  test("people in a room ride its bus, except on a leg moved by hand", () => {
+    const result = plan(file(), 0, SHEET_WITH_ROOM, roomImport, {
+      groups: [bus1, bus2, room101],
+      members: [member("g-b2", "p-kari", { leg: "out", pinned: true })],
+      participants: [kari],
+    });
+    const per = result.create[0];
+    expect(result.roomBuses).toEqual([
+      { busId: "g-b1", leg: "home", person: { participantId: "p-kari" } },
+      { busId: "g-b1", leg: "out", person: per },
+      { busId: "g-b1", leg: "home", person: per },
+    ]);
+  });
+
+  test("no room buses without Travel or in a bus or group import", () => {
+    const existing = {
+      groups: [bus1, room101],
+      members: [member("g-101", "p-kari")],
+      participants: [kari],
+    };
+    const parsed = parsePeople(file(), 0, SHEET_WITH_ROOM, roomImport);
+    const noTravel = planImport({
+      ...parsed,
+      options: roomImport,
+      existing: existing.participants,
+      groups: existing.groups,
+      members: existing.members,
+      travelEnabled: false,
+    });
+    expect(noTravel.roomBuses).toEqual([]);
+    const buddies = plan(
+      file(),
+      0,
+      SHEET_WITH_ROOM,
+      { ...NO_OPTIONS, groupKind: "buddy" },
+      existing
+    );
+    expect(buddies.roomBuses).toEqual([]);
   });
 });

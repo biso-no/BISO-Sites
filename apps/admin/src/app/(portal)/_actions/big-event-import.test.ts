@@ -936,6 +936,183 @@ describe("applyImport: repairing places (R34)", () => {
   });
 });
 
+describe("applyImport: pins, room buses and notices (N7)", () => {
+  function busRow(id: string, name: string): FakeRow {
+    return {
+      $id: id,
+      big_event_id: "b1",
+      booking_participant_id: null,
+      campus_id: null,
+      capacity: 50,
+      home_bus_id: null,
+      kind: "bus",
+      name,
+      out_bus_id: null,
+      source_key: `col:bus:-:${name.toLowerCase()}`,
+    };
+  }
+  function seatRow(
+    groupId: string,
+    participantId: string,
+    leg: "out" | "home" | null,
+    pinned = false
+  ): FakeRow {
+    return {
+      $id: `m-${groupId}-${participantId}-${leg}`,
+      big_event_id: "b1",
+      group_id: groupId,
+      leg,
+      participant_id: participantId,
+      pinned,
+    };
+  }
+  const ola = () =>
+    participantRow({
+      $id: "p2",
+      campus_id: null,
+      first_name: "Ola",
+      last_name: "Hansen",
+      phone: "+4792345678",
+      ticket_email: "ola@example.com",
+    });
+  function seats(participantId: string | undefined): string[] {
+    return fake
+      .rows(MEMBERS)
+      .filter((member) => member.participant_id === participantId)
+      .map((member) => `${member.group_id}:${member.leg}`)
+      .sort();
+  }
+  const groupMapping = mappingFor("first_name", "last_name", "phone", "group");
+
+  test("a person named into a room takes the room's bus", async () => {
+    seed({
+      [GROUPS]: [
+        busRow("g-b1", "Buss 1"),
+        busRow("g-b2", "Buss 2"),
+        {
+          $id: "g-101",
+          big_event_id: "b1",
+          booking_participant_id: null,
+          campus_id: null,
+          capacity: 4,
+          home_bus_id: "g-b1",
+          kind: "room",
+          name: "101",
+          out_bus_id: "g-b1",
+          source_key: "col:room:-:101",
+        },
+      ],
+      [MEMBERS]: [
+        // Kari got a seat on bus 2 before she had a room.
+        seatRow("g-b2", "p1", "out"),
+        seatRow("g-b2", "p1", "home"),
+        // Ola was moved onto bus 2 by hand on the way out.
+        seatRow("g-b2", "p2", "out", true),
+        seatRow("g-b2", "p2", "home"),
+      ],
+      [PARTICIPANTS]: [participantRow({ campus_id: null }), ola()],
+    });
+
+    const result = await applyImport(
+      "b1",
+      pasteForm([
+        ["Navn", "Etternavn", "Mobilnr", "Rom"],
+        ["Kari", "Nordmann", "91234567", "101"],
+        ["Ola", "Hansen", "92345678", "101"],
+        ["Per", "Dahl", "93456789", "101"],
+      ]),
+      groupMapping,
+      { ...PLAIN, groupKind: "room" }
+    );
+
+    expect(result).toMatchObject({ complete: true, placed: 3 });
+    const per = byName(fake.rows(PARTICIPANTS), "Per");
+    expect(seats("p1")).toEqual(["g-101:null", "g-b1:home", "g-b1:out"]);
+    // The hand-moved leg stays; the other one follows the room.
+    expect(seats("p2")).toEqual(["g-101:null", "g-b1:home", "g-b2:out"]);
+    expect(seats(per?.$id)).toEqual(["g-101:null", "g-b1:home", "g-b1:out"]);
+    expect(
+      fake
+        .rows(MEMBERS)
+        .every((member) => member.pinned === (member.$id === "m-g-b2-p2-out"))
+    ).toBe(true);
+  });
+
+  test("a re-import updates a booking room's capacity", async () => {
+    await applyImport("b1", ticksterForm(), TICKSTER_MAPPING, ROOM_BOOKINGS);
+    const room = () =>
+      fake.rows(GROUPS).find((group) => group.source_key === "booking:A100");
+    expect(room()?.capacity).toBe(4);
+    // An older file sold Ola's room as a 2-person room.
+    Object.assign(room() ?? {}, { capacity: 2 });
+    fake.db.updateRow.mockClear();
+
+    const again = await applyImport(
+      "b1",
+      ticksterForm(),
+      TICKSTER_MAPPING,
+      ROOM_BOOKINGS
+    );
+
+    expect(again).toMatchObject({ complete: true, newGroups: 0 });
+    expect(room()?.capacity).toBe(4);
+    // Only the room whose size changed is written.
+    const roomWrites = fake.db.updateRow.mock.calls.filter(
+      ([, tableId]) => tableId === GROUPS
+    );
+    expect(roomWrites).toEqual([
+      ["app", GROUPS, String(room()?.$id), { capacity: 4 }],
+    ]);
+  });
+
+  test("import bus moves after publishing mark notices", async () => {
+    const seedBuses = (published: string | null) =>
+      seed({
+        big_events: [{ ...bigEvent, bus_lists_published_at: published }],
+        [GROUPS]: [busRow("g-b1", "Buss 1"), busRow("g-b2", "Buss 2")],
+        [MEMBERS]: [
+          seatRow("g-b1", "p1", "out"),
+          seatRow("g-b1", "p1", "home"),
+          seatRow("g-b1", "p2", "out"),
+          seatRow("g-b1", "p2", "home"),
+        ],
+        [PARTICIPANTS]: [participantRow({ campus_id: null }), ola()],
+      });
+    // Kari moves to bus 2, Ola stays on bus 1, Per is new on bus 2.
+    const form = () =>
+      pasteForm([
+        ["Navn", "Etternavn", "Mobilnr", "Buss"],
+        ["Kari", "Nordmann", "91234567", "Buss 2"],
+        ["Ola", "Hansen", "92345678", "Buss 1"],
+        ["Per", "Dahl", "93456789", "Buss 2"],
+      ]);
+    const busImport = { ...PLAIN, groupKind: "bus" as const };
+    const noticeOf = (firstName: string) =>
+      byName(fake.rows(PARTICIPANTS), firstName)?.bus_notice_due_at ?? null;
+
+    // Before publishing, nobody has been told anything: no notices.
+    seedBuses(null);
+    expect(
+      await previewImport("b1", form(), groupMapping, busImport)
+    ).toMatchObject({ busNotices: 0, moved: 1 });
+    await applyImport("b1", form(), groupMapping, busImport);
+    expect(["Kari", "Ola", "Per"].map(noticeOf)).toEqual([null, null, null]);
+
+    seedBuses("2027-01-10T10:00:00.000Z");
+    expect(
+      await previewImport("b1", form(), groupMapping, busImport)
+    ).toMatchObject({ busNotices: 2, moved: 1 });
+    const result = await applyImport("b1", form(), groupMapping, busImport);
+    expect(result).toMatchObject({ complete: true, moved: 1 });
+    expect(seats("p1")).toEqual(["g-b2:home", "g-b2:out"]);
+    expect(noticeOf("Kari")).toEqual(expect.any(String));
+    expect(noticeOf("Ola")).toBeNull();
+    expect(noticeOf("Per")).toEqual(expect.any(String));
+    const [, , audit] = logAuditEvent.mock.calls.at(-1) ?? [];
+    expect(audit).toMatchObject({ payload: { bus_notices: 2 } });
+  });
+});
+
 describe("previewImport", () => {
   test("counts new, updated, unchanged, missing and skipped people", async () => {
     seed({

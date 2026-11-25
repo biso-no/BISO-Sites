@@ -9,9 +9,11 @@ import type {
   BigEventParticipantRow,
 } from "@repo/shared/big-events/types";
 import { participantName } from "../participant-list";
+import { roomBusRemovals, roomBusSeatsToAdd } from "./plan-buses";
 import type {
   ImportOptions,
   ImportPlan,
+  ParsedPerson,
   PlacementTarget,
   SkippedRow,
 } from "./plan-import";
@@ -19,12 +21,19 @@ import { existingGroupKey } from "./plan-import-rooms";
 
 /** What the wizard's "Check and save" step shows. Names only, never contact details. */
 export interface ImportPreview {
+  /**
+   * After the bus lists are published: people whose out or home bus this
+   * import changes. Each gets a "you've been moved" notice (N1, N7).
+   */
+  busNotices: number;
   created: number;
   /** The first new people, by name. */
   createdNames: string[];
   duplicatesInFile: number;
   /** The kind of group this import creates and fills. */
   groupKind: GroupKind;
+  /** People the file would move, left where they were moved by hand (R31). */
+  keptPinned: number;
   /** On the list but not in this file. Shown, never removed automatically. */
   missing: number;
   missingNames: string[];
@@ -49,6 +58,8 @@ export interface ImportPreview {
 
 /** What the plan was made from. */
 export interface PlanContext {
+  /** The big event's bus lists are published: bus moves owe a notice. */
+  busListsPublished: boolean;
   existing: BigEventParticipantRow[];
   /** From `parsePeople`: a group column is mapped. */
   groupColumn: boolean;
@@ -101,7 +112,8 @@ function kindsByKey(plan: ImportPlan, groups: BigEventGroupRow[]) {
  * clears a stale place a failed save left behind. The new file is the
  * organizers' latest word. Groups are compared by plan key, as planning does:
  * a place in any group with the target's key counts as already there, so a
- * second group with the same key never costs someone their only place.
+ * second group with the same key never costs someone their only place. A
+ * place someone was moved into by hand (pinned) is never removed (R31).
  */
 export function replacedMemberships(
   plan: ImportPlan,
@@ -122,6 +134,7 @@ export function replacedMemberships(
     for (const membership of members) {
       if (
         membership.participant_id === participantId &&
+        membership.pinned !== true &&
         keyById.get(membership.group_id) !== groupKey &&
         kindById.get(membership.group_id) === kind
       ) {
@@ -177,6 +190,57 @@ export function missingBusLegs(
   return missing;
 }
 
+/** People whose out or home bus the import changes: new people by their row. */
+export interface BusMovers {
+  participantIds: Set<string>;
+  people: Set<ParsedPerson>;
+}
+
+/**
+ * Everyone given a bus seat or losing one: bus placements and their missing
+ * legs, replaced bus seats, and seats taken from or left for a room's bus.
+ * After publishing each of them owes a notice (N1, N7).
+ */
+export function busMovers(
+  plan: ImportPlan,
+  groups: BigEventGroupRow[],
+  members: BigEventGroupMemberRow[]
+): BusMovers {
+  const movers: BusMovers = { participantIds: new Set(), people: new Set() };
+  const add = (person: PlacementTarget) => {
+    if (isExistingTarget(person)) {
+      movers.participantIds.add(person.participantId);
+    } else {
+      movers.people.add(person);
+    }
+  };
+  const kinds = kindsByKey(plan, groups);
+  for (const placement of plan.placements) {
+    if (kinds.get(placement.groupKey) === "bus") {
+      add(placement.person);
+    }
+  }
+  for (const seat of roomBusSeatsToAdd(plan, members)) {
+    add(seat.person);
+  }
+  const buses = new Set(
+    groups.filter((group) => group.kind === "bus").map((group) => group.$id)
+  );
+  const removed = [
+    ...replacedMemberships(plan, groups, members),
+    ...roomBusRemovals(plan, members),
+  ];
+  for (const membership of removed) {
+    if (buses.has(membership.group_id)) {
+      movers.participantIds.add(membership.participant_id);
+    }
+  }
+  for (const { participantId } of missingBusLegs(plan, groups, members)) {
+    movers.participantIds.add(participantId);
+  }
+  return movers;
+}
+
 function fullName(person: { firstName: string; lastName: string | null }) {
   return [person.firstName, person.lastName].filter(Boolean).join(" ");
 }
@@ -220,12 +284,17 @@ export function summarizePlan(
       (membership) => membership.participant_id
     )
   ).size;
+  const movers = context.busListsPublished
+    ? busMovers(plan, groups, members)
+    : null;
 
   return {
+    busNotices: movers ? movers.participantIds.size + movers.people.size : 0,
     created: plan.create.length,
     createdNames: plan.create.slice(0, NAME_LIST_LIMIT).map(fullName),
     duplicatesInFile: plan.duplicatesInFile,
     groupKind,
+    keptPinned: plan.keptPinned.length,
     missing: plan.missingFromFile.length,
     missingNames: missingNames.slice(0, MISSING_LIST_LIMIT),
     moved,
