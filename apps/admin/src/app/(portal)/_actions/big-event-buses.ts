@@ -357,6 +357,11 @@ async function followRoomBuses(
         )
       : [];
   followRooms(changes, {
+    busCampus: new Map(
+      input.groups
+        .filter((group) => group.kind === "bus")
+        .map((group) => [group.$id, group.campus_id])
+    ),
     busIds: input.busIds,
     places: [...[...input.places.values()].flat(), ...theirs],
     rooms: [...touched].flatMap((id) => rooms.get(id) ?? []),

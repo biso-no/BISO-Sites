@@ -1452,6 +1452,56 @@ describe("room buses follow hand moves (R18)", () => {
     expect(roomBuses("room-national")).toEqual(["bus-a", "bus-a"]);
   });
 
+  test("a room never follows a bus of another campus (R23)", async () => {
+    // Full access puts an Oslo person into an empty Bergen room on bus-a.
+    seed({
+      [GROUPS]: [
+        bus("bus-a", 8),
+        bus("bus-oslo", 8, "1"),
+        bookedRoom(),
+      ],
+      [PARTICIPANTS]: [participant("p-oslo", "1")],
+      [MEMBERS]: [...bothWays("bus-oslo", "p-oslo")],
+    });
+
+    await moveToGroup("b1", {
+      groupId: "room-1",
+      kind: "room",
+      notify: false,
+      participantIds: ["p-oslo"],
+    });
+
+    // The Oslo person keeps their own campus's bus, and the Bergen room's
+    // open places stay on the Bergen bus.
+    expect(placesOf("p-oslo")).toEqual([
+      "bus-oslo:home:false",
+      "bus-oslo:out:false",
+      "room-1:-:true",
+    ]);
+    expect(roomBuses("room-1")).toEqual(["bus-a", "bus-a"]);
+  });
+
+  test("a National room never takes a campus bus by hand moves (R23)", async () => {
+    seed({
+      [GROUPS]: [
+        bus("bus-a", 8),
+        bus("bus-b", 8),
+        group("room-national", "room", { campus_id: "5", capacity: 4 }),
+      ],
+      [PARTICIPANTS]: [participant("p1")],
+      [MEMBERS]: [member("room-national", "p1"), ...bothWays("bus-a", "p1")],
+    });
+
+    await moveToBus("b1", {
+      busId: "bus-b",
+      legs: "both",
+      notify: false,
+      participantIds: ["p1"],
+    });
+
+    expect(roomBuses("room-national")).toEqual([null, null]);
+  });
+
   test("a room write that fails is made by moving again", async () => {
     seed({
       [GROUPS]: [bus("bus-a", 8), bus("bus-b", 8), bookedRoom()],

@@ -26,7 +26,7 @@ export interface NewPlace {
 /** The room fields a room's bus follow reads. */
 export type RoomBusRow = Pick<
   BigEventGroupRow,
-  "$id" | "home_bus_id" | "out_bus_id"
+  "$id" | "campus_id" | "home_bus_id" | "out_bus_id"
 >;
 
 /** A room whose buses change. */
@@ -248,10 +248,16 @@ function placesAfter(
  * Nobody is owed a notice for it. Adds the rooms that change to
  * `changes.rooms`. `places` are every membership of everyone named in
  * `rooms`, before the moves.
+ *
+ * Ruling R23: a room only ever takes a bus of its own campus, so nobody is
+ * seated on another campus's bus through their room. A room on National or
+ * with no campus never follows (the fill never gives those a bus either).
+ * `busCampus` maps every bus id to its campus.
  */
 export function followRooms(
   changes: HandChanges,
   input: {
+    busCampus: ReadonlyMap<string, string | null>;
     busIds: ReadonlySet<string>;
     places: readonly PlaceRow[];
     rooms: readonly RoomBusRow[];
@@ -275,7 +281,10 @@ export function followRooms(
         named.map((id) => busOf(id, leg, after.get(id) ?? [], input.busIds))
       );
       const [only = null] = buses;
-      return buses.size === 1 ? only : null;
+      if (buses.size !== 1 || only === null) {
+        return null;
+      }
+      return input.busCampus.get(only) === room.campus_id ? only : null;
     };
     const outBusId = sharedBus("out") ?? room.out_bus_id;
     const homeBusId = sharedBus("home") ?? room.home_bus_id;
