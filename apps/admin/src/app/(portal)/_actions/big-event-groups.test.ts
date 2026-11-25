@@ -556,4 +556,22 @@ describe("listGroups", () => {
     expect(noTravel.canPublish).toBe(false);
     expect(noTravel.travel).toBe(false);
   });
+
+  test("a new event still offers the campuses the caller can use", async () => {
+    // Full access on a National event: every campus, National last.
+    const national = await listGroups("b1");
+    expect(national.campuses).toEqual([]);
+    expect(national.manageableCampuses).toEqual(["1", "2", "3", "4", "5"]);
+
+    // Campus level: only the caller's campuses, never National.
+    currentCtx = bergenAdmin;
+    const bergenOnNational = await listGroups("b1");
+    expect(bergenOnNational.manageableCampuses).toEqual(["2"]);
+
+    // Full access on a campus event: that campus.
+    currentCtx = globalAdmin;
+    seed({}, bigEvent({ campus_id: "3" }));
+    const campusEvent = await listGroups("b1");
+    expect(campusEvent.manageableCampuses).toEqual(["3"]);
+  });
 });

@@ -16,6 +16,7 @@ import {
   type BigEventAccess,
   canEditBigEventSettings,
   canManageGroup,
+  manageableGroupCampuses,
   participantCampusFilter,
 } from "@/lib/big-events/access";
 import {
@@ -60,6 +61,8 @@ export interface GroupsView {
   campuses: string[];
   canPublish: boolean;
   groups: GroupView[];
+  /** Campuses the caller may create groups on, even with no groups or people yet (R6). */
+  manageableCampuses: string[];
   publishedAt: string | null;
   travel: boolean;
 }
@@ -275,6 +278,7 @@ function buildGroupsView(
         seats: group.kind === "bus" ? (seats.get(group.$id) ?? null) : null,
       })
     ),
+    manageableCampuses: manageableGroupCampuses(access, event),
     publishedAt: event.bus_lists_published_at,
     travel: event.travel_enabled === true,
   };

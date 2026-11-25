@@ -10,6 +10,7 @@ import {
   canEditBigEventSettings,
   canManageGroup,
   canSeeParticipant,
+  manageableGroupCampuses,
   participantCampusFilter,
   visibleBigEventFilters,
 } from "./access";
@@ -303,5 +304,28 @@ describe("canManageGroup (N8)", () => {
     expect(canManageGroup(bergenAccess, { campus_id: null })).toBe(false);
     expect(canManageGroup(null, { campus_id: null })).toBe(false);
     expect(canManageGroup(null, { campus_id: BERGEN })).toBe(false);
+  });
+});
+
+describe("manageableGroupCampuses (R6)", () => {
+  test("full access on a National event offers every campus, National last", () => {
+    expect(
+      manageableGroupCampuses(
+        { level: "full" },
+        { campus_id: NATIONAL_CAMPUS_ID }
+      )
+    ).toEqual(["1", "2", "3", "4", NATIONAL_CAMPUS_ID]);
+  });
+
+  test("full access on a campus event offers that campus", () => {
+    expect(manageableGroupCampuses({ level: "full" }, osloEvent)).toEqual([
+      OSLO,
+    ]);
+  });
+
+  test("campus access offers its own campuses, never National", () => {
+    const access = bigEventAccess(bergenAdmin, nationalNoDept);
+    expect(manageableGroupCampuses(access, nationalNoDept)).toEqual([BERGEN]);
+    expect(manageableGroupCampuses(null, nationalNoDept)).toEqual([]);
   });
 });
