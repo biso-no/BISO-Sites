@@ -797,17 +797,41 @@ describe("moving into groups", () => {
     expect(placesOf("p1")).toEqual([
       "bus-a:home:true",
       "bus-a:out:true",
-      "room-1:-:false",
+      "room-1:-:true",
     ]);
     // A pinned leg stays where it was.
     expect(placesOf("p2")).toEqual([
       "bus-a:home:true",
       "bus-b:out:true",
-      "room-1:-:false",
+      "room-1:-:true",
     ]);
     expect(noticeOf("p1")).toBe(NOW);
     expect(noticeOf("p2")).toBe(NOW);
     expect(result).toEqual({ moved: 2 });
+  });
+
+  test("moving someone into a room by hand pins that room place", async () => {
+    seed({
+      [GROUPS]: [group("room-1", "room"), group("room-2", "room")],
+      [PARTICIPANTS]: [participant("p1")],
+      [MEMBERS]: [member("room-2", "p1")],
+    });
+
+    await moveToGroup("b1", {
+      groupId: "room-1",
+      kind: "room",
+      notify: false,
+      participantIds: ["p1"],
+    });
+
+    // Ruling R9: an import (which respects pins) can't undo the hand move.
+    expect(placesOf("p1")).toEqual(["room-1:-:true"]);
+    const created = fake.db.createRow.mock.calls.map(
+      (call) => call[3] as Record<string, unknown>
+    );
+    expect(created).toEqual([
+      expect.objectContaining({ group_id: "room-1", leg: null, pinned: true }),
+    ]);
   });
 
   test("moving between buddy groups keeps one group per kind and leaves buses alone", async () => {
@@ -836,7 +860,7 @@ describe("moving into groups", () => {
       participantIds: ["p1"],
     });
     expect(placesOf("p1")).toEqual([
-      "buddy-2:-:false",
+      "buddy-2:-:true",
       "bus-a:home:false",
       "bus-a:out:false",
       "team-1:-:false",
@@ -850,7 +874,7 @@ describe("moving into groups", () => {
       participantIds: ["p1"],
     });
     expect(placesOf("p1")).toEqual([
-      "buddy-2:-:false",
+      "buddy-2:-:true",
       "bus-a:home:false",
       "bus-a:out:false",
     ]);

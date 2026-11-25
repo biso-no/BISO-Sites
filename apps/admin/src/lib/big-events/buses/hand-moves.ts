@@ -13,7 +13,7 @@ export type PlaceRow = Pick<
   "$id" | "group_id" | "leg" | "participant_id" | "pinned"
 >;
 
-/** A place to create: a pinned bus seat (with a leg) or a group place (no leg). */
+/** A place to create, always pinned: a bus seat (with a leg) or a group place (no leg). */
 export interface NewPlace {
   groupId: string;
   leg: Leg | null;

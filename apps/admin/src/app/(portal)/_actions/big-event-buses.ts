@@ -434,8 +434,9 @@ async function writeHandChanges(
       group_id: place.groupId,
       leg: place.leg,
       participant_id: place.participantId,
-      // Moving by hand pins the bus seat (D5).
-      pinned: place.leg !== null,
+      // Moving by hand pins the person (D5): bus seats and group places
+      // alike (ruling R9), so an import can't undo it.
+      pinned: true,
     })
   );
   if (!created) {
@@ -566,7 +567,8 @@ function roomRides(
 /**
  * Puts people in a room, buddy group, team or other group, or takes them out
  * of every group of that kind with `groupId` null: one group per kind per
- * person. A room with a bus also puts them on that bus by hand (pinned) on
+ * person. A new place is pinned (ruling R9), so an import can't undo it. A
+ * room with a bus also puts them on that bus by hand (pinned) on
  * each leg they aren't pinned on (D5: a person named into a room takes its
  * bus), with the same campus checks as `moveToBus`. After publishing, people
  * whose bus changed are owed a notice unless `notify` is false (N1).
