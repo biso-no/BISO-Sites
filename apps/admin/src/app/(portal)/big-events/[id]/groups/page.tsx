@@ -6,6 +6,9 @@ import { getBigEvent } from "../../../_actions/big-events";
 import { BusBoard } from "./_components/bus-board";
 import { GroupsTab } from "./_components/groups-view";
 
+// The fill, publishing and moves of many people at once write row by row.
+export const maxDuration = 300;
+
 interface BigEventGroupsPageProps {
   params: Promise<{ id: string }>;
 }

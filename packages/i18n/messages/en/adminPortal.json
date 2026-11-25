@@ -549,6 +549,7 @@
       "fill": {
         "open": "Fill buses automatically",
         "description": "Spreads each campus's people evenly over its buses and keeps everyone in a room on the same bus. People moved by hand stay where they are.",
+        "seatedAgain": "People you take off a bus get a seat again the next time you fill.",
         "afterPublishing": "The bus lists are published, so this only gives a seat to people without a bus. Nobody who has a bus is moved.",
         "scope": "Which campus",
         "allCampuses": "All campuses",

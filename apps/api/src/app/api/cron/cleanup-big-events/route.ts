@@ -13,8 +13,9 @@ import { hasValidCronSecret } from "@/lib/cron-auth";
  * Deletes participants, group memberships and email deliveries 30 days after a
  * big event ends. The event and its groups stay, without names (ruling R35):
  * a room takes its room number, or "Rom", in place of the buyer's name, and
- * every group loses its buyer and contact person. Bounded per run (1000 rows
- * deleted or groups changed); the next run picks up whatever is left.
+ * every group loses its buyer, contact person and note (a note can name
+ * people, ruling R20). Bounded per run (1000 rows deleted or groups
+ * changed); the next run picks up whatever is left.
  */
 
 export const runtime = "nodejs";
@@ -38,12 +39,15 @@ const GROUP_FIELDS = [
   "contact_name",
   "contact_phone",
   "contact_user_id",
+  "note",
 ];
-const NO_CONTACT = {
+/** What every group loses: its buyer, contact person and note. */
+const CLEARED = {
   booking_participant_id: null,
   contact_name: null,
   contact_phone: null,
   contact_user_id: null,
+  note: null,
 } as const;
 
 type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
@@ -91,10 +95,11 @@ type GroupFields = Pick<
   | "contact_user_id"
   | "kind"
   | "name"
+  | "note"
   | "room_number"
 >;
 
-type GroupPatch = typeof NO_CONTACT & { name?: string };
+type GroupPatch = typeof CLEARED & { name?: string };
 
 /** What still has to change on a group; null when it is already anonymous. */
 function anonymised(group: GroupFields): GroupPatch | null {
@@ -103,15 +108,16 @@ function anonymised(group: GroupFields): GroupPatch | null {
       ? group.room_number?.trim() || ANONYMOUS_ROOM_NAME
       : group.name;
   const renamed = name !== group.name;
-  const hasContact =
+  const hasDetails =
     group.booking_participant_id != null ||
     group.contact_name != null ||
     group.contact_phone != null ||
-    group.contact_user_id != null;
-  if (!(renamed || hasContact)) {
+    group.contact_user_id != null ||
+    group.note != null;
+  if (!(renamed || hasDetails)) {
     return null;
   }
-  return renamed ? { ...NO_CONTACT, name } : { ...NO_CONTACT };
+  return renamed ? { ...CLEARED, name } : { ...CLEARED };
 }
 
 async function anonymiseGroups(

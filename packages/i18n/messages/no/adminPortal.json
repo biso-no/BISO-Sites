@@ -549,6 +549,7 @@
       "fill": {
         "open": "Fyll bussene automatisk",
         "description": "Fordeler folkene på hver campus jevnt på campusens busser og holder alle på samme rom på samme buss. De som er flyttet for hånd, blir der de er.",
+        "seatedAgain": "Folk du tar av en buss får plass igjen neste gang du fyller bussene.",
         "afterPublishing": "Busslistene er publisert, så nå får bare de uten buss plass. Ingen som allerede har buss, blir flyttet.",
         "scope": "Hvilken campus",
         "allCampuses": "Alle campuser",

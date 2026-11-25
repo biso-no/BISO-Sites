@@ -267,7 +267,7 @@ export function FillDialog({
             {t("open")}
           </DialogTitle>
           <DialogDescription style={{ color: STUDIO.ink3 }}>
-            {t("description")}
+            {t("description")} {t("seatedAgain")}
           </DialogDescription>
         </DialogHeader>
         {view.publishedAt && (

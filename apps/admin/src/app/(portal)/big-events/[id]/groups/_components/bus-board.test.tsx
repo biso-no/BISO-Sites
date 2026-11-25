@@ -611,6 +611,10 @@ describe("BusBoard", () => {
     const dialog = byRole(container, "dialog");
 
     expect(previewAutoFill).toHaveBeenCalledWith("b1", "2");
+    // Ruling R21: taking someone off a bus doesn't keep them off it.
+    expect(dialog.textContent).toContain(
+      "People you take off a bus get a seat again the next time you fill."
+    );
     expect(dialog.textContent).toContain("142 people on 3 buses");
     expect(dialog.textContent).toContain("50 of 50");
     // A room stands for the people named in it (at least one): both rooms
@@ -788,9 +792,12 @@ describe("moves into a room (ruling R14)", () => {
     expect(
       findElements(container, (el) => el.getAttribute("role") === "alertdialog")
     ).toHaveLength(0);
+    // Ruling R20: after publishing it still runs with notify on, so a bus
+    // change the board didn't foresee is told; the server marks only real
+    // changes.
     expect(moveToGroup.mock.calls[0]?.[1]).toMatchObject({
       groupId: "hall-b",
-      notify: false,
+      notify: true,
     });
   });
 
@@ -852,6 +859,8 @@ describe("moves into a room (ruling R14)", () => {
     let container = await mountMover(false, true);
     await click(findButton(container, "Go"));
     expect(moveToGroup).toHaveBeenCalledTimes(1);
+    // After publishing, notify stays on (ruling R20).
+    expect(moveToGroup.mock.calls[0]?.[1]).toMatchObject({ notify: true });
     await act(async () => root?.unmount());
     root = null;
 

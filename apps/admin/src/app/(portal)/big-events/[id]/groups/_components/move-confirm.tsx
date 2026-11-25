@@ -24,7 +24,10 @@ import { SERIF_STACK, STUDIO } from "../../../../_components/studio";
 
 /** A move that may change someone's bus. */
 export interface MoveRequest {
-  /** False when the move can't change anyone's bus: it runs without asking. */
+  /**
+   * False when the move shouldn't change anyone's bus: it runs without
+   * asking, with notify on after publishing (ruling R20).
+   */
   ask?: boolean;
   /** The people moved, by name. */
   names: string[];
@@ -107,7 +110,10 @@ export function MoveConfirmProvider({
           setRequest(next);
           return;
         }
-        startMove(() => next.run(false));
+        // Ruling R20: after publishing, a move that isn't asked about still
+        // runs with notify on, so a bus change the board didn't foresee is
+        // told; the server marks only people whose bus really changed.
+        startMove(() => next.run(published));
       },
       pending,
       published,

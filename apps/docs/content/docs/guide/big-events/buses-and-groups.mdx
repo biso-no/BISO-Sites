@@ -65,7 +65,8 @@ Choose **Legg til** (Add). Seat counts are a warning only: if more people are on
 
 - **Legg til rom** (Add room) takes a name, a campus, **Plasser** (Places) and **Romnummer** (Room number). The room number is shown to the people in the room, and you can change it here at any time.
 - A room with more places than people shows **ledige plasser** (open places). Those places hold seats on the room's bus.
-- A room has a bus. A room gets its bus from filling the buses automatically, from an import that names buses, or when you move people by hand. People named into a room ride its bus.
+- A room has a bus. A room gets its bus when you fill the buses automatically, or when you move everyone named in it onto the same bus by hand. Its open places then move to that bus too. The way out and the way home each follow on their own. While the people in a room are on different buses, the room keeps the bus it had, and so does a room with nobody named in it.
+- People named into a room ride its bus, if the bus belongs to their campus. Someone from another campus joins the room and keeps their own bus.
 - Buddy groups, teams and other groups take a name, a campus and optional places.
 - Only the name is required. To change the type or the campus of a group, take everyone out of it first: the form says **Ta alle ut av gruppen for å endre dette** (Take everyone out of the group to change this).
 
@@ -78,7 +79,9 @@ On a person's row in a group, the menu has **Flytt til …** (Move to…) and **
 - In the move box, **Hvilken vei** (Which way) is **Begge veier** (Both ways), **Bare utreise** (Only out) or **Bare hjemreise** (Only home).
 - Someone you move by hand is pinned. The automatic fill leaves them where they are, and so does an import. This goes for buses, rooms and the other groups.
 - To let the fill move a person again, click the pin icon on the person. Its screen-reader label is **Løsne** followed by their name (Unpin).
-- If you move a person to a bus for the way out only, they keep their way home on that bus. Moving a person onto a room with only an out bus takes them home on the same bus.
+- If you move a person to a bus for the way out only and they have no way home yet, they get the way home on the same bus. A way home they already have stays as it is.
+- Moving a person into a room puts them on the room's bus for each trip that isn't pinned. A room with only an out bus takes them home on the same bus. If their way out is pinned, a way home they have stays where it is. If they have no way home yet, it goes on their way-out bus when that bus belongs to their campus.
+- **Ta av bussen** (Take off the bus) doesn't keep anyone off the buses. The next automatic fill gives them a seat again.
 
 Dragging is also possible from the keyboard: press space or enter on the handle, choose a bus with the arrow keys, and press space or enter again.
 
@@ -89,6 +92,8 @@ Choose **Fyll bussene automatisk** (Fill buses automatically). The box shows the
 - It works per campus. Pick one under **Hvilken campus** (Which campus), or **Alle campuser** (All campuses).
 - It spreads the people evenly over the campus's buses and keeps everyone in a room on the same bus.
 - People you moved by hand stay where they are.
+- People you took off a bus get a seat again. The box says **Folk du tar av en buss får plass igjen neste gang du fyller bussene.** (People you take off a bus get a seat again the next time you fill.)
+- People with no campus are never placed, and the bus board doesn't show them. Give them a campus on the participants list first.
 - It tells you what it couldn't do: **… har ikke plass** (… has no seat), **… trenger … seter, og ingen buss har så mange** (… needs … seats; no bus has that many), **… er delt på flere busser** (… is split across buses), and which buses need a seat count first.
 - Choose **Fyll bussene** (Fill the buses) to save it.
 
@@ -111,6 +116,7 @@ Choose **Publiser busslistene** (Publish bus lists). It publishes for the whole 
 ## What happens next
 
 - When you move someone, the move box shows **Busslistene er publisert** (The bus lists are published) and a tick box: **Gi beskjed til \{name} om endringen** (Tell … about the change). It is ticked by default. Untick it to move someone without them being marked for a message. This applies to bus moves and to moves onto a room that has a bus.
+- A move into a room that won't change the person's bus doesn't ask. If it changes their bus anyway, they are marked for a message.
 - A person you tell is marked to get a message about their bus. The page doesn't say the message has been sent.
 - A bus that is published and has people on it can't be deleted. The box says **Busslistene er publisert. Flytt folkene av bussen først.** (The bus lists are published. Move the people off this bus first.) Move everyone off, then delete it.
 
@@ -129,5 +135,6 @@ Students don't see their bus anywhere yet. Publishing and later moves only mark 
 - Running the automatic fill with a bus that has no seat count. Add the seats first.
 - Adding a bus without a campus, or on the wrong campus. A bus is filled only with its own campus's people.
 - Expecting the fill to move people who already have a bus after publishing. It only seats people without one.
+- Expecting **Ta av bussen** (Take off the bus) to keep someone off the buses. The next fill gives them a seat again.
 - Reading "marked for a message" as "sent". Publishing and moving mark people. They don't send anything themselves.
 - Trying to delete a published bus with people on it. Move them off first.
