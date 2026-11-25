@@ -13989,6 +13989,23 @@
                     "size": 36,
                     "default": null,
                     "encrypt": false
+                },
+                {
+                    "key": "bus_lists_published_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "bus_lists_published_by",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
                 }
             ],
             "indexes": [
@@ -14236,6 +14253,22 @@
                     "size": 36,
                     "default": null,
                     "encrypt": false
+                },
+                {
+                    "key": "bus_notice_due_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "bus_notified_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
                 }
             ],
             "indexes": [
@@ -14284,6 +14317,16 @@
                     "status": "available",
                     "columns": [
                         "connect_token_hash"
+                    ],
+                    "orders": []
+                },
+                {
+                    "key": "big_event_bus_notice_idx",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "big_event_id",
+                        "bus_notice_due_at"
                     ],
                     "orders": []
                 }
@@ -14410,6 +14453,85 @@
                     "size": 36,
                     "default": null,
                     "encrypt": false
+                },
+                {
+                    "key": "out_departs_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "out_meeting_point",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 300,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "out_maps_url",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 1000,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "home_departs_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "home_meeting_point",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 300,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "home_maps_url",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 1000,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "home_arrival_note",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 200,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "out_bus_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "home_bus_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
                 }
             ],
             "indexes": [
@@ -14439,6 +14561,15 @@
                     "columns": [
                         "big_event_id",
                         "source_key"
+                    ],
+                    "orders": []
+                },
+                {
+                    "key": "out_bus_id_idx",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "out_bus_id"
                     ],
                     "orders": []
                 }
