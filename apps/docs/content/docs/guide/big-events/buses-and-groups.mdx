@@ -1,0 +1,133 @@
+---
+title: Buses and groups
+description: How to add buses, rooms and groups, fill the buses automatically, move people by hand, publish the bus lists, and what changes after publishing.
+who: Global admins, members of the board that runs the big event, and campus admins for their own campus's people.
+covers:
+  - apps/admin/src/app/(portal)/big-events/**
+  - apps/admin/src/app/(portal)/_actions/big-event*.ts
+  - apps/admin/src/lib/big-events/**
+  - apps/admin/src/lib/big-events/buses/**
+  - apps/admin/src/app/(portal)/big-events/[id]/groups/**
+  - apps/web/src/lib/big-events/**
+  - packages/shared/big-events/**
+  - apps/web/src/app/(public)/connect/**
+  - apps/web/src/app/actions/big-event-connect.ts
+  - apps/api/src/app/api/cron/big-event-deliveries/**
+  - apps/api/src/app/api/cron/cleanup-big-events/**
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- The big event exists and **Reise (busser)** (Travel (buses)) is on in its settings. Without it you can't add buses.
+- The people are on the list. See [Import people and connect tickets](/guide/big-events/import-and-connect).
+- Every bus belongs to a campus, and every bus needs a seat count before it can be filled.
+- Campus admins work only with their own campus. Publishing the bus lists is for whoever can change the big event's settings: global admins and the board that runs it.
+- The screens follow your admin language. Each label is given in Norwegian first, with the English in brackets.
+
+</BeforeYouStart>
+
+## The Groups tab
+
+Open the big event and go to **Grupper** (Groups). It has one section per kind: **Busser** (Buses), **Rom** (Rooms), **Faddergrupper** (Buddy groups), **Lag** (Teams) and **Andre** (Other). Each section has its own button, such as **Legg til buss** (Add bus) or **Legg til rom** (Add room). A group with no campus sits under **Uten campus** (No campus).
+
+Choose the menu on a group to edit it with **Rediger** (Edit), or delete it with **Slett** (Delete). Deleting a group takes everyone out of it. The people stay on the list.
+
+## Add a bus
+
+<Steps>
+<Step title="Open the form">
+
+Choose **Legg til buss** (Add bus). Fill in **Navn** (Name) and **Campus**. A bus needs a campus.
+
+</Step>
+<Step title="Add the seats">
+
+Under **Seter** (Seats), write the seat count. **La stå tomt for ingen grense** (Leave empty for no limit) is allowed when you save, but the automatic fill can't use a bus with no seat count. It asks you to add one first.
+
+</Step>
+<Step title="Fill in the way out and the way home">
+
+**Utreise** (Out) and **Hjemreise** (Home) each have **Avgang** (Leaves) with a date and a time, **Oppmøtested** (Meeting point) and **Kartlenke** (Map link). **Hjemreise** also has **Fremme ca.** (Arrives around). You can leave all of it empty and fill it in later. The date and the time go together: choose both or neither.
+
+A bus can also have **Kontaktperson** (Contact person), **Telefon til kontaktpersonen** (Contact person's phone) and **Notat** (Note).
+
+</Step>
+<Step title="Save">
+
+Choose **Legg til** (Add). Seat counts are a warning only: if more people are on a bus than it has seats, the bus shows **Flere folk enn seter** (More people than seats), and you can still put people on it.
+
+</Step>
+</Steps>
+
+## Rooms, buddy groups and teams
+
+- **Legg til rom** (Add room) takes a name, a campus, **Plasser** (Places) and **Romnummer** (Room number). The room number is shown to the people in the room, and you can change it here at any time.
+- A room with more places than people shows **ledige plasser** (open places). Those places hold seats on the room's bus.
+- A room has a bus. People named into a room ride its bus.
+- Buddy groups, teams and other groups take a name, a campus and optional places.
+- Only the name is required. To change the type or the campus of a group, take everyone out of it first: the form says **Ta alle ut av gruppen for å endre dette** (Take everyone out of the group to change this).
+
+Rooms booked through an import are created for you. See [Room bookings](/guide/big-events/import-and-connect#room-bookings).
+
+## Move people by hand
+
+On a person's row in a group, the menu has **Flytt til …** (Move to…) and **Ta ut av gruppen** (Take out of the group). On the bus board you can also drag a person to a bus, or select several people and choose **Flytt til…** (Move to…) or **Ta av bussen** (Take off the bus).
+
+- In the move box, **Hvilken vei** (Which way) is **Begge veier** (Both ways), **Bare utreise** (Only out) or **Bare hjemreise** (Only home).
+- Someone you move by hand is pinned. The automatic fill leaves them where they are, and so does an import. This goes for buses, rooms and the other groups.
+- To let the fill move a person again, choose **Løsne** (Unpin) on them.
+- If you move a person to a bus for the way out only, they keep their way home on that bus. Moving a person onto a room with only an out bus takes them home on the same bus.
+
+Dragging is also possible from the keyboard: press space or enter on the handle, choose a bus with the arrow keys, and press space or enter again.
+
+## Fill the buses automatically
+
+Choose **Fyll bussene automatisk** (Fill buses automatically). The box shows the result before anything is saved.
+
+- It works per campus. Pick one under **Hvilken campus** (Which campus), or **Alle campuser** (All campuses).
+- It spreads the people evenly over the campus's buses and keeps everyone in a room on the same bus.
+- People you moved by hand stay where they are.
+- It tells you what it couldn't do: **… har ikke plass** (… has no seat), **… trenger … seter, og ingen buss har så mange** (… needs … seats; no bus has that many), **… er delt på flere busser** (… is split across buses), and which buses need a seat count first.
+- Choose **Fyll bussene** (Fill the buses) to save it.
+
+Before the bus lists are published, a fill places everyone who isn't moved by hand again, so the result can differ from the last one. After publishing, a fill only gives a seat to people who don't have a bus. Nobody who already has a bus is moved. The box says so.
+
+## Publish the bus lists
+
+Choose **Publiser busslistene** (Publish bus lists). It publishes for the whole big event at once. The box says how many people will be marked for a message.
+
+- Connected participants see their bus in the BISO app from then on.
+- Everyone with a seat on a bus out is marked to get a message about their bus. Publishing marks them. It doesn't send anything by itself.
+- You can still move people afterwards.
+- There is no way to unpublish. The page then shows **Publisert** (Published) with the date.
+- If publishing fails part-way, nothing is published and you can run it again.
+
+## After publishing
+
+<WhatHappensNext>
+
+## What happens next
+
+- When you move someone, the move box shows **Busslistene er publisert** (The bus lists are published) and a tick box: **Gi beskjed til \{name} om endringen** (Tell … about the change). It is ticked by default. Untick it to move someone without them being marked for a message. This applies to bus moves and to moves onto a room that has a bus.
+- A person you tell is marked to get a message about their bus. The page doesn't say the message has been sent.
+- A bus that is published and has people on it can't be deleted. The box says **Busslistene er publisert. Flytt folkene av bussen først.** (The bus lists are published. Move the people off this bus first.) Move everyone off, then delete it.
+
+</WhatHappensNext>
+
+## Importing a new list
+
+An import follows the same rules. See [Importing again](/guide/big-events/import-and-connect#importing-again): people you moved by hand stay put, and the preview says how many get a message about their bus.
+
+## What the student sees
+
+Once the lists are published and the ticket is connected, the student's bus, room and room number show in the BISO app. The student sees only their own.
+
+## Common mistakes
+
+- Running the automatic fill with a bus that has no seat count. Add the seats first.
+- Adding a bus without a campus, or on the wrong campus. A bus is filled only with its own campus's people.
+- Expecting the fill to move people who already have a bus after publishing. It only seats people without one.
+- Reading "marked for a message" as "sent". Publishing and moving mark people. They don't send anything themselves.
+- Trying to delete a published bus with people on it. Move them off first.
