@@ -159,10 +159,14 @@ describe("planAutoFill", () => {
     expect(plan.unplaced).toEqual([
       { participantIds: ["m3"], roomId: "room-1", reason: "split_room" },
     ]);
-    expect(plan.moves).toEqual([]);
+    // m3 isn't moved; m1 and m2, pinned out only, get a way home.
+    expect(plan.moves).toEqual([
+      { participantId: "m1", busId: "bus-a", legs: ["home"] },
+      { participantId: "m2", busId: "bus-b", legs: ["home"] },
+    ]);
     expect(plan.roomBuses).toEqual([]);
     // m3 keeps the seat they had.
-    expect(plan.seatsAfter.get("bus-a")).toEqual({ out: 2, home: 1 });
+    expect(plan.seatsAfter.get("bus-a")).toEqual({ out: 2, home: 2 });
   });
 
   test("reports people without a seat", () => {
@@ -251,6 +255,131 @@ describe("planAutoFill", () => {
     ]);
     expect(plan.seatsAfter.get("bus-a")).toEqual({ out: 1, home: 0 });
     expect(plan.seatsAfter.get("bus-b")).toEqual({ out: 1, home: 2 });
+  });
+
+  test("everyone with an out bus gets a way home", () => {
+    // A repack: s1 is pinned out only; s2 is pinned out and rides home on B.
+    const repack = fill({
+      buses: [bus("bus-a", 10), bus("bus-b", 10)],
+      participants: [person("s1"), person("s2")],
+      members: [
+        onBus("bus-a", "s1", "out", true),
+        onBus("bus-a", "s2", "out", true),
+        onBus("bus-b", "s2", "home"),
+      ],
+    });
+
+    expect(repack.moves).toEqual([
+      { participantId: "s1", busId: "bus-a", legs: ["home"] },
+    ]);
+    expect(repack.seatsAfter.get("bus-a")).toEqual({ out: 2, home: 1 });
+    expect(repack.seatsAfter.get("bus-b")).toEqual({ out: 0, home: 1 });
+
+    // After publishing: an out seat but no home seat.
+    const published = fill({
+      onlyUnseated: true,
+      buses: [bus("bus-a", 10)],
+      participants: [person("s1")],
+      members: [onBus("bus-a", "s1", "out")],
+    });
+
+    expect(published.moves).toEqual([
+      { participantId: "s1", busId: "bus-a", legs: ["home"] },
+    ]);
+    expect(published.seatsAfter.get("bus-a")).toEqual({ out: 1, home: 1 });
+  });
+
+  test("after publishing a room keeps its home bus", () => {
+    const plan = fill({
+      onlyUnseated: true,
+      buses: [bus("bus-a", 10), bus("bus-b", 10)],
+      participants: [person("r1")],
+      rooms: [room("room-1", 3, { out_bus_id: "bus-a", home_bus_id: "bus-b" })],
+      members: [
+        inRoom("room-1", "r1"),
+        onBus("bus-a", "r1", "out"),
+        onBus("bus-b", "r1", "home"),
+      ],
+    });
+
+    expect(plan.roomBuses).toEqual([]);
+    expect(plan.moves).toEqual([]);
+    // r1 plus room-1's two open places, out on A and home on B.
+    expect(plan.seatsAfter.get("bus-a")).toEqual({ out: 3, home: 0 });
+    expect(plan.seatsAfter.get("bus-b")).toEqual({ out: 0, home: 3 });
+  });
+
+  test("in a repack only a pinned seat ties a room to a bus", () => {
+    // m1 is pinned to another campus's bus and has a stale seat on B.
+    const plan = fill({
+      buses: [bus("bus-a", 10), bus("bus-b", 10)],
+      participants: [person("m1"), person("m2")],
+      rooms: [room("room-1", 2)],
+      members: [
+        inRoom("room-1", "m1"),
+        inRoom("room-1", "m2"),
+        onBus("bus-z", "m1", "out", true),
+        onBus("bus-b", "m1", "out"),
+      ],
+    });
+
+    expect(plan.moves).toEqual([
+      { participantId: "m2", busId: "bus-a", legs: ["out", "home"] },
+    ]);
+    expect(plan.roomBuses).toEqual([{ roomId: "room-1", busId: "bus-a" }]);
+    expect(plan.unplaced).toEqual([]);
+  });
+
+  test("an overfilled pinned-room bus pushes later units to other buses", () => {
+    const plan = fill({
+      buses: [bus("bus-a", 3), bus("bus-b", 3)],
+      participants: [
+        person("m1"),
+        person("m2"),
+        person("m3"),
+        person("m4"),
+        ...people(3),
+      ],
+      rooms: [room("room-1", 4)],
+      members: [
+        inRoom("room-1", "m1"),
+        inRoom("room-1", "m2"),
+        inRoom("room-1", "m3"),
+        inRoom("room-1", "m4"),
+        ...bothWays("bus-a", "m1", true),
+      ],
+    });
+
+    for (const id of ["m2", "m3", "m4"]) {
+      expect(busFor(plan, id)).toBe("bus-a");
+    }
+    for (const id of ["p01", "p02", "p03"]) {
+      expect(busFor(plan, id)).toBe("bus-b");
+    }
+    expect(plan.seatsAfter.get("bus-a")).toEqual({ out: 4, home: 4 });
+    expect(plan.seatsAfter.get("bus-b")).toEqual({ out: 3, home: 3 });
+    expect(plan.unplaced).toEqual([]);
+  });
+
+  test("a pin on another campus's bus doesn't move the room there", () => {
+    const plan = fill({
+      buses: [bus("bus-a", 10), bus("bus-z", 10, "2")],
+      participants: [person("m1"), person("m2")],
+      rooms: [room("room-1", 3)],
+      members: [
+        inRoom("room-1", "m1"),
+        inRoom("room-1", "m2"),
+        ...bothWays("bus-z", "m1", true),
+      ],
+    });
+
+    expect(plan.moves).toEqual([
+      { participantId: "m2", busId: "bus-a", legs: ["out", "home"] },
+    ]);
+    expect(plan.roomBuses).toEqual([{ roomId: "room-1", busId: "bus-a" }]);
+    expect(plan.unplaced).toEqual([]);
+    // m2 and room-1's open place.
+    expect(plan.seatsAfter).toEqual(new Map([["bus-a", { out: 2, home: 2 }]]));
   });
 
   test("ignores other campuses", () => {

@@ -1,18 +1,20 @@
-import type {
-  BigEventGroupMemberRow,
-  BigEventGroupRow,
-} from "@repo/shared/big-events/types";
+import type { BigEventGroupRow } from "@repo/shared/big-events/types";
 import {
+  type AutoFillInput,
   buildUnits,
   createFill,
   type Fill,
+  fixedBus,
   isFixed,
+  keepsOwnBus,
   legsToSet,
   seatsNeeded,
   type Unit,
   type Units,
 } from "./auto-fill-units";
 import { busSeatUse, type Leg, type SeatMember, type SeatUse } from "./seats";
+
+export type { AutoFillInput } from "./auto-fill-units";
 
 export type UnplacedReason = "no_seat" | "too_big" | "split_room";
 
@@ -35,7 +37,8 @@ export interface AutoFillUnplaced {
  * What one auto-fill changes. Applying it:
  * 1. each move puts the person on `busId` for the listed legs; their other
  *    unpinned memberships on those legs (any bus) are removed;
- * 2. each room bus sets the room's `out_bus_id` and `home_bus_id`;
+ * 2. each room bus sets the room's `out_bus_id` and `home_bus_id` (after
+ *    publishing, a room already tied to a bus is never listed);
  * 3. before publishing (`onlyUnseated` false, a repack), the people and rooms
  *    of `no_seat` / `too_big` entries come off the buses: their unpinned bus
  *    memberships are removed and the room's bus ids cleared, since the
@@ -47,17 +50,6 @@ export interface AutoFillPlan {
   roomBuses: { roomId: string; busId: string }[];
   seatsAfter: Map<string, SeatUse>;
   unplaced: AutoFillUnplaced[];
-}
-
-export interface AutoFillInput {
-  /** This campus's buses, each with a seat count (the caller checks N5). */
-  buses: BigEventGroupRow[];
-  campusId: string;
-  members: BigEventGroupMemberRow[];
-  /** After publishing: seat only people without a bus, move no one (N4). */
-  onlyUnseated: boolean;
-  participants: { $id: string; campus_id: string | null }[];
-  rooms: BigEventGroupRow[];
 }
 
 /** Out seats taken before placing: the people and rooms being placed are lifted off first. */
@@ -112,17 +104,27 @@ function place(
   for (const id of unit.people) {
     plan.moves.push({ participantId: id, busId, legs: legsToSet(fill, id) });
   }
-  let open = 0;
-  if (unit.room) {
-    const { home_bus_id, out_bus_id } = unit.room;
-    const { onlyUnseated } = fill.input;
-    // After publishing a room already on this bus holds its seats already.
-    open = onlyUnseated && out_bus_id === busId ? 0 : unit.openPlaces;
-    if (!onlyUnseated || out_bus_id !== busId || home_bus_id !== busId) {
-      plan.roomBuses.push({ roomId: unit.id, busId });
+  if (unit.room && !keepsOwnBus(fill, unit.room)) {
+    plan.roomBuses.push({ roomId: unit.id, busId });
+  }
+  outUse.set(busId, (outUse.get(busId) ?? 0) + seatsNeeded(unit));
+}
+
+/**
+ * Home defaults to out (D5): someone whose out seat stays on one of this
+ * campus's buses and who has no home seat at all gets one on the same bus.
+ * People the plan moves already got their home leg with the move.
+ */
+function homeFollowsKeptOut(fill: Fill, plan: AutoFillPlan): void {
+  for (const id of fill.campusPeople) {
+    const hasHome = (fill.seatRows.get(id) ?? []).some(
+      (row) => row.leg === "home"
+    );
+    const busId = hasHome ? null : fixedBus(fill, id, "out");
+    if (busId) {
+      plan.moves.push({ participantId: id, busId, legs: ["home"] });
     }
   }
-  outUse.set(busId, (outUse.get(busId) ?? 0) + unit.people.length + open);
 }
 
 /** Seat use once the plan is applied (see `AutoFillPlan`). */
@@ -178,9 +180,11 @@ function seatsAfter(fill: Fill, plan: AutoFillPlan): Map<string, SeatUse> {
  * first. A room held to one bus by a pinned member goes there even when it
  * overfills; a room held to two is reported as split. The rest go largest
  * first to the bus with the most free out seats that fits them. The home leg
- * follows the out leg unless it's pinned. With `onlyUnseated` (after
- * publishing, N4) anyone with a bus keeps it and only people without one are
- * seated. Ties break on ids, so the same rows give the same plan.
+ * follows the out leg unless it's pinned, and anyone keeping an out seat
+ * without a home seat gets one on the same bus. With `onlyUnseated` (after
+ * publishing, N4) anyone with a bus keeps it, a room keeps both its buses, and
+ * only people without a bus are seated. Ties break on ids, so the same rows
+ * give the same plan.
  */
 export function planAutoFill(input: AutoFillInput): AutoFillPlan {
   const fill = createFill(input);
@@ -223,6 +227,7 @@ export function planAutoFill(input: AutoFillInput): AutoFillPlan {
   for (const [reason, participantIds] of roomless) {
     plan.unplaced.push({ participantIds, reason, roomId: null });
   }
+  homeFollowsKeptOut(fill, plan);
   plan.seatsAfter = seatsAfter(fill, plan);
   return plan;
 }

@@ -3,10 +3,20 @@ import type {
   BigEventGroupMemberRow,
   BigEventGroupRow,
 } from "@repo/shared/big-events/types";
-import type { AutoFillInput } from "./plan-auto-fill";
 import { busOf, type Leg, roomOpenPlaces } from "./seats";
 
 /* Who rides together in an auto-fill, and which seats it leaves alone. */
+
+export interface AutoFillInput {
+  /** This campus's buses, each with a seat count (the caller checks N5). */
+  buses: BigEventGroupRow[];
+  campusId: string;
+  members: BigEventGroupMemberRow[];
+  /** After publishing: seat only people without a bus, move no one (N4). */
+  onlyUnseated: boolean;
+  participants: { $id: string; campus_id: string | null }[];
+  rooms: BigEventGroupRow[];
+}
 
 /** A room, or one person who isn't in a room of this campus. */
 export interface Unit {
@@ -33,12 +43,14 @@ export interface Fill {
   /** This campus's buses by id. */
   buses: BigEventGroupRow[];
   busIds: Set<string>;
+  /** This campus's people by id. */
+  campusPeople: string[];
   input: AutoFillInput;
   /** Each person's bus memberships (rows with a leg), any bus. */
   seatRows: Map<string, BigEventGroupMemberRow[]>;
 }
 
-export function compareIds(a: string, b: string): number {
+function compareIds(a: string, b: string): number {
   if (a === b) {
     return 0;
   }
@@ -56,6 +68,29 @@ export function isFixed(fill: Fill, personId: string, leg: Leg): boolean {
   );
 }
 
+/**
+ * The campus bus whose seat fixes a person's leg: a pinned seat, or after
+ * publishing any seat. In a repack a stale unpinned seat never counts.
+ */
+export function fixedBus(
+  fill: Fill,
+  personId: string,
+  leg: Leg
+): string | null {
+  const rows = (fill.seatRows.get(personId) ?? []).filter(
+    (row) => fill.input.onlyUnseated || row.pinned === true
+  );
+  return busOf(personId, leg, rows, fill.busIds);
+}
+
+/** After publishing, a room tied to a bus keeps both its buses (N4). */
+export function keepsOwnBus(fill: Fill, room: BigEventGroupRow): boolean {
+  return (
+    fill.input.onlyUnseated &&
+    (room.out_bus_id !== null || room.home_bus_id !== null)
+  );
+}
+
 /** Out, and home with it unless the home leg is fixed. */
 export function legsToSet(fill: Fill, personId: string): Leg[] {
   return GROUP_LEGS.filter((leg) => !isFixed(fill, personId, leg));
@@ -69,9 +104,7 @@ function roomAnchors(
 ): string[] {
   const anchors = new Set<string>();
   for (const id of named) {
-    const busId = isFixed(fill, id, "out")
-      ? busOf(id, "out", fill.seatRows.get(id) ?? [], fill.busIds)
-      : null;
+    const busId = fixedBus(fill, id, "out");
     if (busId) {
       anchors.add(busId);
     }
@@ -86,11 +119,10 @@ function roomAnchors(
 /** Each campus person's room: the first campus room (by id) they're named in. */
 function namedPerRoom(
   fill: Fill,
-  campusPeople: string[],
   rooms: BigEventGroupRow[]
 ): { named: Map<string, string[]>; roomless: string[] } {
   const roomIds = new Set(rooms.map((room) => room.$id));
-  const isCampusPerson = new Set(campusPeople);
+  const isCampusPerson = new Set(fill.campusPeople);
   const roomOf = new Map<string, string>();
   for (const member of fill.input.members) {
     const current = roomOf.get(member.participant_id);
@@ -104,7 +136,7 @@ function namedPerRoom(
   }
   const named = new Map<string, string[]>();
   const roomless: string[] = [];
-  for (const id of campusPeople) {
+  for (const id of fill.campusPeople) {
     const roomId = roomOf.get(id);
     if (roomId === undefined) {
       roomless.push(id);
@@ -122,14 +154,10 @@ function namedPerRoom(
 
 export function buildUnits(fill: Fill): Units {
   const { input } = fill;
-  const campusPeople = input.participants
-    .filter((participant) => participant.campus_id === input.campusId)
-    .map((participant) => participant.$id)
-    .sort(compareIds);
   const rooms = fill.allRooms.filter(
     (room) => room.campus_id === input.campusId
   );
-  const { named, roomless } = namedPerRoom(fill, campusPeople, rooms);
+  const { named, roomless } = namedPerRoom(fill, rooms);
   const openPlaces = roomOpenPlaces(rooms, input.members);
   const units: Units = { anchored: [], free: [], split: [] };
   for (const id of roomless) {
@@ -141,7 +169,8 @@ export function buildUnits(fill: Fill): Units {
     const inRoom = named.get(room.$id) ?? [];
     const unit: Unit = {
       id: room.$id,
-      openPlaces: openPlaces.get(room.$id) ?? 0,
+      // A room keeping its bus holds its open places there already.
+      openPlaces: keepsOwnBus(fill, room) ? 0 : (openPlaces.get(room.$id) ?? 0),
       people: inRoom.filter((id) => !isFixed(fill, id, "out")),
       room,
     };
@@ -191,6 +220,10 @@ export function createFill(input: AutoFillInput): Fill {
       .sort((a, b) => compareIds(a.$id, b.$id)),
     busIds: new Set(buses.map((bus) => bus.$id)),
     buses,
+    campusPeople: input.participants
+      .filter((participant) => participant.campus_id === input.campusId)
+      .map((participant) => participant.$id)
+      .sort(compareIds),
     input,
     seatRows: seatRowsByPerson(input.members),
   };
