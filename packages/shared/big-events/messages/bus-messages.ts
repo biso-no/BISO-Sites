@@ -19,7 +19,6 @@ import type {
   BigEventGroupRow,
   BigEventParticipantRow,
 } from "../types";
-import type { Audience } from "./audience";
 import type { AutoEvent, AutoRun } from "./auto";
 import { listAll } from "./load";
 
@@ -117,74 +116,91 @@ async function unchangedSinceRead(
   );
 }
 
-/** People audiences, each short enough for the `audience` column. */
-function peopleAudiences(participantIds: string[]): Audience[] {
-  const empty = JSON.stringify({ participantIds: [], type: "people" }).length;
-  const audiences: Audience[] = [];
-  let ids: string[] = [];
-  let size = empty;
-  for (const id of participantIds) {
-    const cost = JSON.stringify(id).length + 1;
-    if (ids.length > 0 && size + cost > AUDIENCE_MAX_CHARS) {
-      audiences.push({ participantIds: ids, type: "people" });
-      ids = [];
-      size = empty;
-    }
-    ids.push(id);
-    size += cost;
-  }
-  if (ids.length > 0) {
-    audiences.push({ participantIds: ids, type: "people" });
-  }
-  return audiences;
+interface BusGroup {
+  campusId: string | null;
+  kind: BusKind;
+  people: DueParticipant[];
+  /** The kind's switch is on: they get a message, not just the mark. */
+  send: boolean;
 }
 
 /**
- * Who gets which message: people grouped by kind and campus, leaving out
- * anyone whose kind is switched off. "No bus" follows the moved switch for
- * someone told before, else the assigned switch (ruling R16). A switch that
- * is not set counts as on.
+ * People grouped by kind, campus and whether their kind is switched on.
+ * "No bus" follows the moved switch for someone told before, else the
+ * assigned switch (ruling R16). A switch that is not set counts as on.
  */
-function busMessagePlan(
+function busGroups(
   event: AutoEvent,
   people: DueParticipant[],
   riders: Set<string>
-): { campusId: string | null; ids: string[]; kind: BusKind }[] {
-  const groups = new Map<
-    string,
-    { campusId: string | null; ids: string[]; kind: BusKind }
-  >();
+): BusGroup[] {
+  const groups = new Map<string, BusGroup>();
   for (const person of people) {
     const toldBefore = Boolean(person.bus_notified_at);
-    const on =
+    const send =
       (toldBefore ? event.auto_bus_moved : event.auto_bus_assigned) !== false;
-    if (!on) {
-      continue;
-    }
     let kind: BusKind = "bus_none";
     if (riders.has(person.$id)) {
       kind = toldBefore ? "bus_moved" : "bus_assigned";
     }
-    const key = JSON.stringify([kind, person.campus_id]);
+    const key = JSON.stringify([kind, person.campus_id, send]);
     const group = groups.get(key) ?? {
       campusId: person.campus_id,
-      ids: [],
       kind,
+      people: [],
+      send,
     };
-    group.ids.push(person.$id);
+    group.people.push(person);
     groups.set(key, group);
   }
   return [...groups.values()];
 }
 
+const EMPTY_AUDIENCE_CHARS = JSON.stringify({
+  participantIds: [],
+  type: "people",
+}).length;
+
+/**
+ * A group's people a message at a time, sorted by id: each batch's people
+ * audience fits the `audience` column. A muted group is one batch.
+ */
+function batches(group: BusGroup): DueParticipant[][] {
+  if (!group.send) {
+    return [group.people];
+  }
+  const sorted = [...group.people].sort((a, b) => (a.$id < b.$id ? -1 : 1));
+  const out: DueParticipant[][] = [];
+  let batch: DueParticipant[] = [];
+  let size = EMPTY_AUDIENCE_CHARS;
+  for (const person of sorted) {
+    const cost = JSON.stringify(person.$id).length + 1;
+    if (batch.length > 0 && size + cost > AUDIENCE_MAX_CHARS) {
+      out.push(batch);
+      batch = [];
+      size = EMPTY_AUDIENCE_CHARS;
+    }
+    batch.push(person);
+    size += cost;
+  }
+  if (batch.length > 0) {
+    out.push(batch);
+  }
+  return out;
+}
+
 /** Marks people as told; a failed write is logged and they are told again. */
-async function markTold(db: TablesDB, ids: string[], now: Date): Promise<void> {
+async function markTold(
+  db: TablesDB,
+  people: DueParticipant[],
+  now: Date
+): Promise<void> {
   const at = now.toISOString();
   const results = await mapAllSettledWithConcurrency(
-    ids,
+    people,
     WRITE_CONCURRENCY,
-    (id) =>
-      db.updateRow<BigEventParticipantRow>(DB, PARTICIPANTS, id, {
+    (person) =>
+      db.updateRow<BigEventParticipantRow>(DB, PARTICIPANTS, person.$id, {
         bus_notice_due_at: null,
         bus_notified_at: at,
       })
@@ -192,15 +208,21 @@ async function markTold(db: TablesDB, ids: string[], now: Date): Promise<void> {
   const failed = results.filter((result) => result.status === "rejected");
   if (failed.length > 0) {
     console.error(
-      `${LOG_TAG} ${failed.length} bus notices could not be marked as sent`
+      `${LOG_TAG} ${failed.length} bus notice(s) could not be marked as sent`
     );
   }
 }
 
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : "unknown error";
+}
+
 /**
  * Step 2 for one big event (ruling R17): read who is due, re-read to keep
- * only people not moved again meanwhile, write the messages, mark the people,
- * then send. Returns how many messages it wrote.
+ * only people not moved again meanwhile, then per message write it, mark its
+ * people (checked once more, so a move made meanwhile is never wiped out)
+ * and send it. A message that fails leaves only its own people owed for the
+ * next run. Returns how many messages it wrote.
  */
 export async function sendBusMessages(
   run: AutoRun,
@@ -218,27 +240,33 @@ export async function sendBusMessages(
   }
   const riders = await outBusRiders(db, event.$id, due);
   const people = await unchangedSinceRead(db, due);
-  const created: string[] = [];
-  for (const group of busMessagePlan(event, people, riders)) {
-    for (const audience of peopleAudiences(group.ids.sort())) {
-      created.push(
-        await run.write({
-          audience,
-          campusIds: group.campusId ? [group.campusId] : [],
-          event,
-          kind: group.kind,
-          leg: "out",
-        })
-      );
+  let written = 0;
+  for (const group of busGroups(event, people, riders)) {
+    for (const batch of batches(group)) {
+      try {
+        const messageId = group.send
+          ? await run.write({
+              audience: {
+                participantIds: batch.map((person) => person.$id),
+                type: "people",
+              },
+              campusIds: group.campusId ? [group.campusId] : [],
+              event,
+              kind: group.kind,
+              leg: "out",
+            })
+          : null;
+        written += messageId ? 1 : 0;
+        await markTold(db, await unchangedSinceRead(db, batch), run.now);
+        if (messageId) {
+          await run.send(messageId);
+        }
+      } catch (error) {
+        console.error(
+          `${LOG_TAG} A bus message for big event ${event.$id} failed: ${errorText(error)}`
+        );
+      }
     }
   }
-  await markTold(
-    db,
-    people.map((person) => person.$id),
-    run.now
-  );
-  for (const id of created) {
-    await run.send(id);
-  }
-  return created.length;
+  return written;
 }

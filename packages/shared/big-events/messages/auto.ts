@@ -5,8 +5,8 @@ import "server-only";
  * behind the api's messages cron. `runDueMessages`:
  * 1. sends messages whose time has come, and finishes sends left in
  *    `sending` for 10 minutes (a run that crashed or timed out);
- * 2. bus messages (bus-messages.ts), for big events with Travel on and the
- *    bus lists published;
+ * 2. bus messages (bus-messages.ts), for published big events with Travel
+ *    on and the bus lists published;
  * 3. departure reminders (reminders.ts), for the same big events unless
  *    switched off.
  * A new message is written `scheduled` for now before anyone is marked as
@@ -239,10 +239,14 @@ async function dueMessageIds(db: TablesDB, now: Date): Promise<string[]> {
 
 // ── The run ───────────────────────────────────────────────────────────────────
 
-/** Published big events with Travel on that haven't long ended. */
+/**
+ * Published big events (ruling R26: a draft isn't live, an archived one is
+ * done) with Travel on and the bus lists published, that haven't long ended.
+ */
 async function busEvents(db: TablesDB, now: Date): Promise<AutoEvent[]> {
   const endedBefore = new Date(now.getTime() - ENDED_GRACE_MS).toISOString();
   return await listAll<BigEventRow>(db, EVENTS, [
+    Query.equal("status", "published"),
     Query.isNotNull("bus_lists_published_at"),
     Query.equal("travel_enabled", true),
     Query.greaterThanEqual("ends_at", endedBefore),
@@ -283,8 +287,8 @@ export interface DueMessagesResult {
 
 /**
  * The messages cron (plan M9): scheduled messages, bus messages, departure
- * reminders. `budgetMs` (default 40 s) bounds when sends start; messages
- * written after it wait for the next run.
+ * reminders. After `budgetMs` (default 40 s) no send starts, and no step 2
+ * or 3 for a further big event: what is left goes out on the next run.
  */
 export async function runDueMessages(
   deps: SendDeps,
@@ -292,6 +296,7 @@ export async function runDueMessages(
   options: { budgetMs?: number } = {}
 ): Promise<DueMessagesResult> {
   const deadline = Date.now() + (options.budgetMs ?? DEFAULT_BUDGET_MS);
+  const outOfTime = () => Date.now() >= deadline;
   const run: AutoRun = {
     db: deps.db,
     now,
@@ -309,10 +314,13 @@ export async function runDueMessages(
     }
   }
   for (const event of await busEvents(deps.db, now)) {
+    if (outOfTime()) {
+      break;
+    }
     result.busMessages += await isolated("Bus messages", event.$id, () =>
       sendBusMessages(run, event)
     );
-    if (event.auto_departure_reminder !== false) {
+    if (!outOfTime() && event.auto_departure_reminder !== false) {
       result.reminders += await isolated("Reminders", event.$id, () =>
         sendDueReminders(run, event)
       );

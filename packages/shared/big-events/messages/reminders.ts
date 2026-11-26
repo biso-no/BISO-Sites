@@ -3,17 +3,20 @@ import "server-only";
 /**
  * Departure reminders (plan M9b, spec D7), step 3 of the messages cron
  * (auto.ts): 2 hours before each bus leg leaves, one message to the people on
- * that bus for that leg, stamped on the bus so it goes out once.
+ * that bus for that leg, stamped on the bus so it goes out once. A leg
+ * nobody rides gets none and stays unstamped, so someone seated later in the
+ * 2 hours still gets theirs.
  */
 
 import { Query } from "@repo/api";
 import { BIG_EVENT_TABLES, type GroupLeg } from "../tables";
-import type { BigEventGroupRow } from "../types";
+import type { BigEventGroupMemberRow, BigEventGroupRow } from "../types";
 import type { AutoEvent, AutoRun } from "./auto";
 import { listAll } from "./load";
 
 const DB = "app";
 const GROUPS = BIG_EVENT_TABLES.groups;
+const MEMBERS = BIG_EVENT_TABLES.groupMembers;
 /** How long before a bus leg leaves its reminder goes out. */
 const REMINDER_LEAD_MS = 2 * 60 * 60_000;
 
@@ -49,6 +52,21 @@ function reminderDue(bus: ReminderBus, leg: GroupLeg, now: Date): boolean {
   return leaves > now.getTime() && leaves <= now.getTime() + REMINDER_LEAD_MS;
 }
 
+/** Whether anyone has a seat on `leg` of the bus. */
+async function hasRiders(
+  run: AutoRun,
+  busId: string,
+  leg: GroupLeg
+): Promise<boolean> {
+  const { rows } = await run.db.listRows<BigEventGroupMemberRow>(DB, MEMBERS, [
+    Query.equal("group_id", busId),
+    Query.equal("leg", leg),
+    Query.select(["$id"]),
+    Query.limit(1),
+  ]);
+  return rows.length > 0;
+}
+
 /**
  * Writes each due reminder, stamps its bus leg, then sends them (ruling
  * R17's order). Each one stores the leg its audience is for (ruling R13) and
@@ -74,7 +92,11 @@ export async function sendDueReminders(
   const written: string[] = [];
   for (const bus of buses) {
     for (const leg of LEGS) {
-      if (!reminderDue(bus, leg, run.now)) {
+      if (
+        !(
+          reminderDue(bus, leg, run.now) && (await hasRiders(run, bus.$id, leg))
+        )
+      ) {
         continue;
       }
       written.push(

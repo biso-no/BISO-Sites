@@ -96,6 +96,14 @@ class FakeDb {
   afterList: ((table: string, queries: string[]) => void) | null = null;
   /** Return true to fail that list (an outage). */
   failList: ((table: string, queries: string[]) => boolean) | null = null;
+  /** Runs after each create, so a test can play a change made meanwhile. */
+  afterCreate: ((table: string, row: Row) => void) | null = null;
+  /** Return true to fail that create. */
+  failCreate:
+    | ((table: string, data: Record<string, unknown>) => boolean)
+    | null = null;
+  /** Return true to fail that update. */
+  failUpdate: ((table: string, id: string) => boolean) | null = null;
 
   table(name: string): Map<string, Row> {
     let table = this.tables.get(name);
@@ -165,9 +173,26 @@ class FakeDb {
     id: string,
     data: Record<string, unknown>
   ): Promise<Row> {
+    if (this.failCreate?.(table, data)) {
+      return Promise.reject(new Error("Appwrite is down"));
+    }
     // Appwrite refuses a value longer than its column.
-    if (table === M && String(data.audience).length > 4000) {
-      return rejectWith("Invalid `audience`: longer than 4000 chars", 400);
+    if (table === M) {
+      const sizes = {
+        audience: 4000,
+        body_en: 2000,
+        body_no: 2000,
+        title_en: 200,
+        title_no: 200,
+      };
+      for (const [column, size] of Object.entries(sizes)) {
+        if (String(data[column] ?? "").length > size) {
+          return rejectWith(
+            `Invalid \`${column}\`: longer than ${size} chars`,
+            400
+          );
+        }
+      }
     }
     const duplicate =
       table === R &&
@@ -180,7 +205,9 @@ class FakeDb {
       return rejectWith("Row already exists", 409);
     }
     this.seed(table, { $id: id, ...data });
-    return Promise.resolve(structuredClone(this.table(table).get(id) as Row));
+    const created = structuredClone(this.table(table).get(id) as Row);
+    this.afterCreate?.(table, created);
+    return Promise.resolve(created);
   }
 
   updateRow(
@@ -192,6 +219,9 @@ class FakeDb {
     const row = this.table(table).get(id);
     if (!row) {
       return rejectWith("Row not found", 404);
+    }
+    if (this.failUpdate?.(table, id)) {
+      return Promise.reject(new Error("Appwrite is down"));
     }
     Object.assign(row, data, { $updatedAt: clock.toISOString() });
     return Promise.resolve(structuredClone(row));
@@ -714,8 +744,10 @@ describe("runDueMessages: bus messages", () => {
     bus("bus-1", "Buss 1", { out_departs_at: at(60) });
     person("p1", { bus: "bus-1", dueAt: at(-30) });
 
-    // Out of time: the messages are made and everyone stamped, nothing sent.
-    const first = await runAt(0, { budgetMs: 0 });
+    // A run that dies after writing: the messages are made and everyone
+    // stamped, nothing sent.
+    sendMessage.mockResolvedValue({ error: "busy", ok: false });
+    const first = await runAt(0);
     expect(first).toEqual({ busMessages: 1, reminders: 1, scheduled: 0 });
     expect(automatic().map((row) => row.status)).toEqual([
       "scheduled",
@@ -724,9 +756,160 @@ describe("runDueMessages: bus messages", () => {
     expect(participant("p1").bus_notice_due_at).toBeNull();
     expect(group("bus-1").out_reminder_sent_at).toBe(at(0));
 
+    sendMessage.mockImplementation(realSend);
     const next = await runAt(5);
     expect(next).toEqual({ busMessages: 0, reminders: 0, scheduled: 2 });
     expect(automatic().map((row) => row.status)).toEqual(["sent", "sent"]);
+  });
+
+  it("bus messages and reminders wait for the next run once the time is up", async () => {
+    event();
+    bus("bus-1", "Buss 1", { out_departs_at: at(60) });
+    person("p1", { bus: "bus-1", dueAt: at(-30) });
+
+    const late = await runAt(0, { budgetMs: 0 });
+
+    expect(late).toEqual({ busMessages: 0, reminders: 0, scheduled: 0 });
+    expect(automatic()).toHaveLength(0);
+    expect(participant("p1").bus_notice_due_at).toBe(at(-30));
+    expect(group("bus-1").out_reminder_sent_at).toBeNull();
+
+    const next = await runAt(5);
+    expect(next).toEqual({ busMessages: 1, reminders: 1, scheduled: 0 });
+  });
+
+  it("someone moved after the message was written is left for the next run", async () => {
+    event();
+    bus("bus-1", "Buss 1");
+    bus("bus-2", "Buss 2");
+    person("p1", { bus: "bus-1", dueAt: at(-20) });
+    person("p2", { bus: "bus-1", dueAt: at(-20) });
+    let moved = false;
+    db.afterCreate = (table) => {
+      if (table === M && !moved) {
+        moved = true;
+        move("p2", "bus-2", at(0));
+      }
+    };
+
+    await runAt(0);
+
+    expect(automatic()).toHaveLength(1);
+    expect(participant("p1")).toMatchObject({
+      bus_notice_due_at: null,
+      bus_notified_at: at(0),
+    });
+    // The newer move isn't wiped out: p2 is still owed a notice.
+    expect(participant("p2")).toMatchObject({
+      bus_notice_due_at: at(0),
+      bus_notified_at: null,
+    });
+
+    db.afterCreate = null;
+    await runAt(10);
+    expect(automatic()).toHaveLength(2);
+    expect(audienceOf(automatic()[1] as BigEventMessageRow)).toEqual({
+      participantIds: ["p2"],
+      type: "people",
+    });
+    expect(participant("p2").bus_notice_due_at).toBeNull();
+  });
+
+  it("a message that can't be written leaves only its own people for the next run", async () => {
+    event();
+    bus("bus-1", "Buss 1");
+    bus("bus-2", "Buss 2", { campus_id: "2" });
+    person("p1", { bus: "bus-1", dueAt: at(-20) });
+    person("p3", { bus: "bus-2", campus: "2", dueAt: at(-20) });
+    person("p4", { campus: null, dueAt: at(-20) });
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {
+      // Expected: the failure is logged.
+    });
+    db.failCreate = (table, data) =>
+      table === M && JSON.stringify(data.campus_ids) === '["2"]';
+
+    const result = await runAt(0);
+
+    expect(result.busMessages).toBe(2);
+    expect(automatic().map((row) => row.campus_ids)).toEqual([["1"], []]);
+    expect(automatic().every((row) => row.status === "sent")).toBe(true);
+    expect(participant("p1").bus_notice_due_at).toBeNull();
+    expect(participant("p4").bus_notice_due_at).toBeNull();
+    expect(participant("p3")).toMatchObject({
+      bus_notice_due_at: at(-20),
+      bus_notified_at: null,
+    });
+    expect(String(logged.mock.calls[0])).toContain("be1");
+
+    db.failCreate = null;
+    await runAt(5);
+    expect(participant("p3").bus_notified_at).toBe(at(5));
+  });
+
+  it("a failed mark is logged and the person is told on the next run", async () => {
+    event();
+    bus("bus-1", "Buss 1");
+    person("p1", { bus: "bus-1", dueAt: at(-20) });
+    person("p2", { bus: "bus-1", dueAt: at(-20) });
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {
+      // Expected: the failure is logged.
+    });
+    db.failUpdate = (table, id) => table === P && id === "p1";
+
+    await runAt(0);
+
+    expect(automatic()).toHaveLength(1);
+    expect(participant("p1").bus_notice_due_at).toBe(at(-20));
+    expect(participant("p2").bus_notice_due_at).toBeNull();
+    expect(String(logged.mock.calls[0])).toContain("1 bus notice");
+
+    db.failUpdate = null;
+    await runAt(5);
+    expect(automatic()).toHaveLength(2);
+    expect(audienceOf(automatic()[1] as BigEventMessageRow)).toEqual({
+      participantIds: ["p1"],
+      type: "people",
+    });
+    expect(participant("p1").bus_notified_at).toBe(at(5));
+  });
+
+  it("cuts long custom texts to the column sizes", async () => {
+    event({
+      auto_texts: JSON.stringify({
+        bus_assigned: {
+          no: { body: "B".repeat(2500), title: "T".repeat(250) },
+        },
+      }),
+    });
+    bus("bus-1", "Buss 1");
+    person("p1", { bus: "bus-1", dueAt: at(-20) });
+
+    await runAt(0);
+
+    const [notice] = automatic();
+    expect(notice?.title_no).toBe("T".repeat(200));
+    expect(notice?.body_no).toBe("B".repeat(2000));
+    expect(notice?.title_en).toBe("Your bus");
+    expect(participant("p1").bus_notice_due_at).toBeNull();
+  });
+
+  it("only published big events get automatic messages", async () => {
+    event({ status: "draft" });
+    event({ status: "archived" }, "be2");
+    event({}, "be3");
+    for (const id of ["be1", "be2", "be3"]) {
+      bus(`bus-${id}`, "Buss 1", { out_departs_at: at(60) }, id);
+      person(`p-${id}`, { bigEventId: id, bus: `bus-${id}`, dueAt: at(-30) });
+    }
+
+    const result = await runAt(0);
+
+    expect(result).toEqual({ busMessages: 1, reminders: 1, scheduled: 0 });
+    expect([...new Set(automatic().map((row) => row.big_event_id))]).toEqual([
+      "be3",
+    ]);
+    expect(participant("p-be1").bus_notice_due_at).toBe(at(-30));
+    expect(group("bus-be2").out_reminder_sent_at).toBeNull();
   });
 
   it("one big event failing doesn't stop the others", async () => {
@@ -819,6 +1002,9 @@ describe("runDueMessages: departure reminders", () => {
     bus("bus-now", "Buss 2", { out_departs_at: at(0) });
     bus("bus-later", "Buss 3", { out_departs_at: at(121) });
     bus("bus-none", "Buss 4", { out_departs_at: null });
+    for (const id of ["bus-gone", "bus-now", "bus-later", "bus-none"]) {
+      person(`p-${id}`, { bus: id, notifiedAt: at(-200) });
+    }
 
     const result = await runAt(0);
 
@@ -838,10 +1024,56 @@ describe("runDueMessages: departure reminders", () => {
     bus("bus-2", "Buss 2", { out_departs_at: at(60) }, "be2");
     bus("bus-3", "Buss 3", { out_departs_at: at(60) }, "be3");
     bus("bus-4", "Buss 4", { out_departs_at: at(60) }, "be4");
+    for (const id of ["1", "2", "3", "4"]) {
+      person(`p${id}`, {
+        bigEventId: id === "1" ? "be1" : `be${id}`,
+        bus: `bus-${id}`,
+        notifiedAt: at(-200),
+      });
+    }
 
     const result = await runAt(0);
 
     expect(result.reminders).toBe(1);
     expect(automatic().map((row) => row.big_event_id)).toEqual(["be4"]);
+  });
+
+  it("a departure time changed after the reminder went out gives no second reminder", async () => {
+    event();
+    bus("bus-1", "Buss 1", { out_departs_at: at(60) });
+    person("p1", { bus: "bus-1", notifiedAt: at(-200) });
+
+    await runAt(0);
+    const later = db.table(G).get("bus-1");
+    if (later) {
+      later.out_departs_at = at(100);
+    }
+    const second = await runAt(5);
+
+    expect(second.reminders).toBe(0);
+    expect(automatic()).toHaveLength(1);
+    expect(group("bus-1").out_reminder_sent_at).toBe(at(0));
+  });
+
+  it("no reminder for a bus leg nobody rides, until someone gets a seat", async () => {
+    event();
+    bus("bus-1", "Buss 1", { out_departs_at: at(60) });
+    person("p1", { notifiedAt: at(-200) });
+    seat("p1", "bus-1", "home");
+
+    const empty = await runAt(0);
+
+    expect(empty.reminders).toBe(0);
+    expect(automatic()).toHaveLength(0);
+    expect(group("bus-1").out_reminder_sent_at).toBeNull();
+
+    seat("p1", "bus-1", "out");
+    const seated = await runAt(5);
+
+    expect(seated.reminders).toBe(1);
+    expect(
+      recipientsOf(automatic()[0]?.$id ?? "").map((row) => row.participant_id)
+    ).toEqual(["p1"]);
+    expect(group("bus-1").out_reminder_sent_at).toBe(at(5));
   });
 });
