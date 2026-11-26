@@ -7,7 +7,11 @@
  */
 
 import type { GroupLeg } from "../tables";
-import type { BigEventGroupMemberRow, BigEventParticipantRow } from "../types";
+import type {
+  BigEventGroupMemberRow,
+  BigEventGroupRow,
+  BigEventParticipantRow,
+} from "../types";
 
 export type Audience =
   | { type: "everyone" }
@@ -20,31 +24,55 @@ export type AudienceMember = Pick<
   "group_id" | "leg" | "participant_id"
 >;
 
+export type AudienceParticipant = Pick<
+  BigEventParticipantRow,
+  "$id" | "campus_id"
+>;
+
 export interface ResolveAudienceInput {
   /** `"all"` for full access; otherwise only people on these campuses. */
   allowedCampusIds: string[] | "all";
   audience: Audience;
+  /** Bus groups by id; a seat counts only on a bus of the person's campus. */
+  buses: ReadonlyMap<string, Pick<BigEventGroupRow, "campus_id">>;
   members: AudienceMember[];
-  participants: Pick<BigEventParticipantRow, "$id" | "campus_id">[];
+  participants: AudienceParticipant[];
 }
 
 /**
  * Bus seats count only on the message's leg (the way out when none is
- * chosen, plan M5); places in rooms, buddy groups and teams have no leg and
- * always count.
+ * chosen, plan M5) and only on a bus of the person's own campus (nobody is
+ * messaged about another campus's bus, Stage 2 R19); a seat on a bus that no
+ * longer exists counts for nobody. Places in rooms, buddy groups and teams
+ * have no leg and always count.
  */
 function groupMemberIds(
-  members: AudienceMember[],
+  input: ResolveAudienceInput,
   groupIds: string[],
   leg: GroupLeg = "out"
 ): Set<string> {
   const groups = new Set(groupIds);
+  const campusOf = new Map(
+    input.participants.map((participant) => [
+      participant.$id,
+      participant.campus_id,
+    ])
+  );
   const ids = new Set<string>();
-  for (const member of members) {
-    if (
-      groups.has(member.group_id) &&
-      (member.leg === null || member.leg === leg)
-    ) {
+  for (const member of input.members) {
+    if (!groups.has(member.group_id)) {
+      continue;
+    }
+    if (member.leg === null) {
+      ids.add(member.participant_id);
+      continue;
+    }
+    const bus = input.buses.get(member.group_id);
+    const ownCampusBus =
+      bus !== undefined &&
+      campusOf.has(member.participant_id) &&
+      bus.campus_id === campusOf.get(member.participant_id);
+    if (member.leg === leg && ownCampusBus) {
       ids.add(member.participant_id);
     }
   }
@@ -52,9 +80,9 @@ function groupMemberIds(
 }
 
 function audienceMatcher(
-  audience: Audience,
-  members: AudienceMember[]
-): (participant: Pick<BigEventParticipantRow, "$id" | "campus_id">) => boolean {
+  input: ResolveAudienceInput
+): (participant: AudienceParticipant) => boolean {
+  const { audience } = input;
   switch (audience.type) {
     case "everyone":
       return () => true;
@@ -64,7 +92,7 @@ function audienceMatcher(
         participant.campus_id !== null && campuses.has(participant.campus_id);
     }
     case "groups": {
-      const ids = groupMemberIds(members, audience.groupIds, audience.leg);
+      const ids = groupMemberIds(input, audience.groupIds, audience.leg);
       return (participant) => ids.has(participant.$id);
     }
     case "people": {
@@ -80,7 +108,7 @@ function audienceMatcher(
 export function resolveAudience(input: ResolveAudienceInput): string[] {
   const { allowedCampusIds } = input;
   const allowed = allowedCampusIds === "all" ? null : new Set(allowedCampusIds);
-  const inAudience = audienceMatcher(input.audience, input.members);
+  const inAudience = audienceMatcher(input);
   const ids = new Set<string>();
   for (const participant of input.participants) {
     const onAllowedCampus =

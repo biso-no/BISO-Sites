@@ -13,15 +13,20 @@ const targetsByUser: Record<string, Target[]> = {
   "u-push": [{ providerType: "email" }, { providerType: "push" }],
 };
 
-const get = vi.fn(
-  async ({ userId }: { userId: string }): Promise<{ targets: Target[] }> => ({
-    targets: targetsByUser[userId] ?? [],
-  })
-);
+const lookup = async ({
+  userId,
+}: {
+  userId: string;
+}): Promise<{ targets: Target[] }> => ({
+  targets: targetsByUser[userId] ?? [],
+});
+const get = vi.fn(lookup);
 const users = { get };
 
+// Every test starts from the plain lookup, whatever an earlier test mocked.
 beforeEach(() => {
-  get.mockClear();
+  get.mockReset();
+  get.mockImplementation(lookup);
 });
 
 describe("pushTargetUsers", () => {

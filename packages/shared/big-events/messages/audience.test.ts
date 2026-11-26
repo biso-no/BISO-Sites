@@ -13,6 +13,12 @@ function seat(groupId: string, participantId: string, leg: GroupLeg | null) {
   return { group_id: groupId, leg, participant_id: participantId };
 }
 
+/** Bus groups by id: Oslo's buses. */
+const buses = new Map([
+  ["bus-1", { campus_id: "1" }],
+  ["bus-2", { campus_id: "1" }],
+]);
+
 const members = [
   seat("bus-1", "p-oslo-1", "out"),
   seat("bus-1", "p-oslo-2", "home"),
@@ -28,6 +34,7 @@ function resolve(audience: Audience, allowedCampusIds: string[] | "all") {
   return resolveAudience({
     allowedCampusIds,
     audience,
+    buses,
     members,
     participants,
   });
@@ -104,5 +111,23 @@ describe("resolveAudience", () => {
       "p-bergen-1",
     ]);
     expect(resolve({ campusIds: [], type: "campus" }, "all")).toEqual([]);
+  });
+
+  it("never reaches someone through another campus's bus", () => {
+    const withStaleSeats = resolveAudience({
+      allowedCampusIds: "all",
+      audience: { groupIds: ["bus-1", "bus-gone"], type: "groups" },
+      buses,
+      members: [
+        ...members,
+        // A Bergen participant's seat on an Oslo bus, left from before a
+        // campus change is tidied.
+        seat("bus-1", "p-bergen-1", "out"),
+        // A seat on a bus that no longer exists.
+        seat("bus-gone", "p-oslo-2", "out"),
+      ],
+      participants,
+    });
+    expect(withStaleSeats).toEqual(["p-oslo-1"]);
   });
 });

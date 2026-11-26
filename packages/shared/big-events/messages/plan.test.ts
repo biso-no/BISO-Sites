@@ -3,8 +3,10 @@ import type { GroupLeg } from "../tables";
 import type { BigEventGroupRow } from "../types";
 import {
   type DeliveryRecipient,
+  parseStoredVars,
   planDelivery,
   reachSummary,
+  serializeVars,
   type VarsBus,
   varsFor,
 } from "./plan";
@@ -31,10 +33,10 @@ const buses = new Map<string, VarsBus>([
     busRow("bus-1", {
       contact_name: "Kari Nordmann",
       contact_phone: "912 34 567",
-      // Friday 24 January 2025, 14:00 in Oslo (UTC+1 in winter).
       home_departs_at: "2025-01-26T10:30:00.000Z",
       home_meeting_point: "Hafjell hotell",
       name: "Buss 1",
+      // Friday 24 January 2025, 14:00 in Oslo (UTC+1 in winter).
       out_departs_at: "2025-01-24T13:00:00.000Z",
       out_meeting_point: "Nydalen T",
     }),
@@ -157,8 +159,13 @@ function recipient(
     },
     userEmail: fields.userEmail ?? null,
     userLocale: fields.userLocale ?? null,
-    vars: { first_name: id },
+    vars: namedIn(id),
   };
+}
+
+/** Vars in both languages; only the first name, so both are the same. */
+function namedIn(firstName: string) {
+  return { en: { first_name: firstName }, no: { first_name: firstName } };
 }
 
 const people = [
@@ -205,7 +212,7 @@ describe("planDelivery", () => {
         sms: false,
         smsTo: null,
         userId: "u-push",
-        vars: { first_name: "p-push" },
+        vars: namedIn("p-push"),
       },
       {
         email: true,
@@ -216,7 +223,7 @@ describe("planDelivery", () => {
         sms: false,
         smsTo: null,
         userId: "u-quiet",
-        vars: { first_name: "p-linked-ticket" },
+        vars: namedIn("p-linked-ticket"),
       },
       {
         email: true,
@@ -228,7 +235,7 @@ describe("planDelivery", () => {
         sms: false,
         smsTo: null,
         userId: "u-quiet-2",
-        vars: { first_name: "p-linked-account" },
+        vars: namedIn("p-linked-account"),
       },
       {
         email: true,
@@ -239,7 +246,7 @@ describe("planDelivery", () => {
         sms: false,
         smsTo: null,
         userId: null,
-        vars: { first_name: "p-unlinked" },
+        vars: namedIn("p-unlinked"),
       },
     ]);
 
@@ -307,6 +314,35 @@ describe("planDelivery", () => {
     });
   });
 
+  it("important with a push target and no email address is push only, and reached", () => {
+    const planned = planDelivery({
+      important: true,
+      pushUsers,
+      recipients: [recipient("p-app-only", { userId: "u-push" })],
+      sms: false,
+    });
+    expect(planned).toEqual([
+      {
+        email: false,
+        emailTo: null,
+        locale: "en",
+        participantId: "p-app-only",
+        push: true,
+        sms: false,
+        smsTo: null,
+        userId: "u-push",
+        vars: namedIn("p-app-only"),
+      },
+    ]);
+    expect(reachSummary(planned)).toEqual({
+      email: 0,
+      people: 1,
+      push: 1,
+      sms: 0,
+      unreachable: 0,
+    });
+  });
+
   it("sends an SMS only when asked and a phone is known", () => {
     const withPhone = recipient("p-push-phone", {
       phone: "+47 912 34 567",
@@ -326,5 +362,41 @@ describe("planDelivery", () => {
       sms: true,
     });
     expect(on).toMatchObject({ push: true, sms: true, smsTo: "+4791234567" });
+  });
+});
+
+// ── Stored vars ───────────────────────────────────────────────────────────────
+
+describe("stored vars", () => {
+  it("read back as they were", () => {
+    const vars = {
+      en: { departure: "Fri 24 Jan, 14:00", first_name: "Ola" },
+      no: { departure: "fre. 24. jan. kl. 14:00", first_name: "Ola" },
+    };
+    expect(parseStoredVars(serializeVars(vars))).toEqual(vars);
+    expect(parseStoredVars(null)).toBeNull();
+    expect(parseStoredVars("not json")).toBeNull();
+    expect(parseStoredVars(JSON.stringify({ no: {} }))).toBeNull();
+    expect(
+      parseStoredVars(JSON.stringify({ en: {}, no: { bus: 3 } }))
+    ).toBeNull();
+  });
+
+  it("long details are shortened to fit the column", () => {
+    const longest = {
+      bus: "b".repeat(200),
+      bus_contact: "c".repeat(154),
+      departure: "Fri 24 Jan, 14:00",
+      first_name: "f".repeat(100),
+      meeting_point: "m".repeat(300),
+      room: "r".repeat(207),
+    };
+    const json = serializeVars({ en: longest, no: longest });
+    expect(json.length).toBeLessThanOrEqual(1000);
+    const back = parseStoredVars(json);
+    // Short values stay whole; only the longest are cut, and say so.
+    expect(back?.no.departure).toBe("Fri 24 Jan, 14:00");
+    expect(back?.en.meeting_point?.endsWith("…")).toBe(true);
+    expect(back?.en.meeting_point?.length).toBe(back?.en.bus?.length);
   });
 });

@@ -140,6 +140,94 @@ export function varsFor(input: VarsInput): MessageVars {
 
 // ── Delivery plan ─────────────────────────────────────────────────────────────
 
+/**
+ * A person's placeholder values in each language: the departure date and the
+ * room fallback are worded per language (Stage 3 ruling R6).
+ */
+export type LocalizedVars = Record<Locale, MessageVars>;
+
+/** Size of `big_event_message_recipients.vars`. */
+const STORED_VARS_MAX = 1000;
+const ELLIPSIS = "…";
+
+function capValues(vars: MessageVars, cap: number): MessageVars {
+  const out: MessageVars = {};
+  for (const [key, value] of Object.entries(vars) as [
+    keyof MessageVars,
+    string | undefined,
+  ][]) {
+    if (value !== undefined) {
+      out[key] =
+        value.length > cap ? `${value.slice(0, cap - 1)}${ELLIPSIS}` : value;
+    }
+  }
+  return out;
+}
+
+/**
+ * The JSON for a recipient row's `vars`. When the details are too long for
+ * the column, the longest values are cut to one shared length (ending in
+ * "…") so everything shorter stays whole.
+ */
+export function serializeVars(vars: LocalizedVars): string {
+  const full = JSON.stringify(vars);
+  if (full.length <= STORED_VARS_MAX) {
+    return full;
+  }
+  const capped = (cap: number) =>
+    JSON.stringify({
+      en: capValues(vars.en, cap),
+      no: capValues(vars.no, cap),
+    });
+  // The longest cap that fits; a cap of one ("…") always does.
+  let fits = capped(1);
+  let low = 2;
+  let high = Math.max(
+    ...[...Object.values(vars.en), ...Object.values(vars.no)].map(
+      (value) => value?.length ?? 0
+    )
+  );
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    const json = capped(mid);
+    if (json.length <= STORED_VARS_MAX) {
+      fits = json;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+  return fits;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isVars(value: unknown): value is MessageVars {
+  return (
+    isRecord(value) &&
+    Object.values(value).every((entry) => typeof entry === "string")
+  );
+}
+
+/** A recipient row's `vars`, or null when it is missing or not readable. */
+export function parseStoredVars(json: string | null): LocalizedVars | null {
+  if (!json) {
+    return null;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(json);
+  } catch {
+    return null;
+  }
+  if (isRecord(parsed) && isVars(parsed.no) && isVars(parsed.en)) {
+    return { en: parsed.en, no: parsed.no };
+  }
+  return null;
+}
+
 export interface DeliveryRecipient {
   participant: Pick<
     BigEventParticipantRow,
@@ -149,7 +237,7 @@ export interface DeliveryRecipient {
   userEmail: string | null;
   /** The linked account's language, if any. */
   userLocale: Locale | null;
-  vars: MessageVars;
+  vars: LocalizedVars;
 }
 
 export interface PlannedRecipient {
@@ -163,7 +251,7 @@ export interface PlannedRecipient {
   sms: boolean;
   smsTo: string | null;
   userId: string | null;
-  vars: MessageVars;
+  vars: LocalizedVars;
 }
 
 export interface PlanDeliveryInput {
