@@ -1,6 +1,7 @@
 import { Query } from "@repo/api";
 import type {
   BigEventGroupRow,
+  BigEventMessageRow,
   BigEventParticipantRow,
   BigEventRow,
 } from "@repo/shared/big-events/types";
@@ -177,4 +178,65 @@ export function manageableGroupCampuses(
     ...BIG_EVENT_CAMPUS_IDS.filter((id) => id !== NATIONAL_CAMPUS_ID),
     NATIONAL_CAMPUS_ID,
   ];
+}
+
+/**
+ * The campuses a message from the caller is limited to (ruling R22), stored
+ * as its `campus_ids`: none for full access (every campus), the caller's own
+ * campuses for campus access (spec D2: they reach only their campus).
+ */
+export function messageCampusIds(
+  access: NonNullable<BigEventAccess>
+): string[] {
+  if (access.level === "full") {
+    return [];
+  }
+  // An empty list would mean every campus; campus access always has one.
+  if (access.campusIds.length === 0) {
+    throw new Error("Campus access without a campus can't send messages");
+  }
+  return [...access.campusIds];
+}
+
+/**
+ * Whether a message shows in the caller's history (ruling R22): full access
+ * sees every message; campus access sees messages for any of its campuses
+ * and organisation-wide ones (no campus).
+ */
+export function canSeeMessage(
+  access: BigEventAccess,
+  message: Pick<BigEventMessageRow, "campus_ids">
+): boolean {
+  if (access === null) {
+    return false;
+  }
+  if (access.level === "full") {
+    return true;
+  }
+  const campuses = message.campus_ids ?? [];
+  return (
+    campuses.length === 0 ||
+    campuses.some((id) => access.campusIds.includes(id))
+  );
+}
+
+/**
+ * Whether the caller may cancel, try again or unpin a message: full access
+ * any message; campus access only one limited to its own campuses, the
+ * messages it could have sent itself.
+ */
+export function canManageMessage(
+  access: BigEventAccess,
+  message: Pick<BigEventMessageRow, "campus_ids">
+): boolean {
+  if (access === null) {
+    return false;
+  }
+  if (access.level === "full") {
+    return true;
+  }
+  const campuses = message.campus_ids ?? [];
+  return (
+    campuses.length > 0 && campuses.every((id) => access.campusIds.includes(id))
+  );
 }

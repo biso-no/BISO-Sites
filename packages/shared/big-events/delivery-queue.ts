@@ -6,8 +6,9 @@ import "server-only";
  * relay accepts. Appwrite has no transactions, so a run claims a row
  * (`status: "sending"`, `claimed_by: runId`), reads it back and only sends
  * when its own claim stuck; a row left in `sending` by a run that died is
- * released after 10 minutes. Only `connect` / `connect_reminder` rows are
- * handled here; `message` rows wait for Stage 3.
+ * released after 10 minutes. `connect` / `connect_reminder` rows are built
+ * here; `message` emails are built by `messages/email.ts`, and `message` SMS
+ * rows are skipped (there is no SMS provider).
  */
 
 import { ID, type Models, Query } from "@repo/api";
@@ -18,9 +19,11 @@ import {
   hashConnectToken,
   newConnectNonce,
 } from "./connect-token";
+import { prepareMessageEmail } from "./messages/email";
 import { BIG_EVENT_TABLES } from "./tables";
 import type {
   BigEventDeliveryRow,
+  BigEventMessageRow,
   BigEventParticipantRow,
   BigEventRow,
 } from "./types";
@@ -103,8 +106,12 @@ const DB = "app";
 const EVENTS = BIG_EVENT_TABLES.events;
 const PARTICIPANTS = BIG_EVENT_TABLES.participants;
 const DELIVERIES = BIG_EVENT_TABLES.deliveries;
+const MESSAGES = BIG_EVENT_TABLES.messages;
 
-const CONNECT_KINDS: ConnectKind[] = ["connect", "connect_reminder"];
+const QUEUE_KINDS = ["connect", "connect_reminder", "message"];
+/** Email rows are sent; message SMS rows are picked up only to be skipped. */
+const QUEUE_CHANNELS = ["email", "sms"];
+const NO_SMS_PROVIDER = "No SMS provider";
 const BATCH_SIZE = 10;
 const PAGE_SIZE = 100;
 /** Appwrite refuses an `equal` query with more values than this. */
@@ -306,8 +313,8 @@ interface PreparedEmail {
 function dueQueries(now: Date, limit: number): string[] {
   return [
     Query.equal("status", "pending"),
-    Query.equal("channel", "email"),
-    Query.equal("kind", CONNECT_KINDS),
+    Query.equal("channel", QUEUE_CHANNELS),
+    Query.equal("kind", QUEUE_KINDS),
     Query.or([
       Query.isNull("scheduled_for"),
       Query.lessThanEqual("scheduled_for", now.toISOString()),
@@ -341,18 +348,21 @@ async function recordFailure(
     scheduled_for: final ? row.scheduled_for : retryAt.toISOString(),
     status: final ? "failed" : "pending",
   });
+  if (final) {
+    await countFailed(db, row);
+  }
 }
 
 /**
- * Connect emails a dead run left in `sending` for over 10 minutes; the
- * interruption counts as an attempt. Other kinds belong to their own sender.
+ * Rows a dead run left in `sending` for over 10 minutes; the interruption
+ * counts as an attempt.
  */
 async function releaseStuck(db: DeliveryDb, now: Date): Promise<void> {
   const cutoff = new Date(now.getTime() - STUCK_AFTER_MS).toISOString();
   const { rows } = await db.listRows<BigEventDeliveryRow>(DB, DELIVERIES, [
     Query.equal("status", "sending"),
-    Query.equal("channel", "email"),
-    Query.equal("kind", CONNECT_KINDS),
+    Query.equal("channel", QUEUE_CHANNELS),
+    Query.equal("kind", QUEUE_KINDS),
     Query.or([
       Query.isNull("claimed_at"),
       Query.lessThan("claimed_at", cutoff),
@@ -361,13 +371,41 @@ async function releaseStuck(db: DeliveryDb, now: Date): Promise<void> {
   ]);
   for (const row of rows) {
     const attempts = (row.attempts ?? 0) + 1;
+    const final = attempts >= MAX_ATTEMPTS;
     await db.updateRow(DB, DELIVERIES, row.$id, {
       attempts,
       claimed_at: null,
       claimed_by: null,
       last_error: INTERRUPTED,
-      status: attempts >= MAX_ATTEMPTS ? "failed" : "pending",
+      status: final ? "failed" : "pending",
     });
+    if (final) {
+      await countFailed(db, row);
+    }
+  }
+}
+
+/** Adds the people on a message row that failed for good to the message's `failed_count`. */
+async function countFailed(
+  db: DeliveryDb,
+  row: BigEventDeliveryRow
+): Promise<void> {
+  if (row.kind !== "message" || !row.message_id) {
+    return;
+  }
+  try {
+    const message = await db.getRow<BigEventMessageRow>(
+      DB,
+      MESSAGES,
+      row.message_id
+    );
+    await db.updateRow(DB, MESSAGES, message.$id, {
+      failed_count:
+        (message.failed_count ?? 0) +
+        Math.max(1, row.participant_ids?.length ?? 0),
+    });
+  } catch {
+    // The count is a courtesy; the row itself is already marked failed.
   }
 }
 
@@ -527,6 +565,47 @@ async function markSent(
 
 type Outcome = "failed" | "none" | "sent" | "unclaimed";
 
+/** Sends one claimed message row (an SMS row is skipped: no provider). */
+async function deliverMessage(
+  ctx: RunContext,
+  row: BigEventDeliveryRow
+): Promise<Outcome> {
+  const skip = (reason: string) =>
+    ctx.db.updateRow(DB, DELIVERIES, row.$id, {
+      last_error: reason,
+      status: "skipped",
+    });
+  if (row.channel !== "email") {
+    await skip(NO_SMS_PROVIDER);
+    return "none";
+  }
+  try {
+    const event = await loadEvent(ctx, row.big_event_id);
+    const prepared = await prepareMessageEmail({
+      db: ctx.db,
+      event,
+      loadPeople: (ids) => loadParticipants(ctx.db, ids),
+      row,
+    });
+    if ("skip" in prepared) {
+      await skip(prepared.skip);
+      return "none";
+    }
+    await ctx.beforeSend();
+    await ctx.sendEmail({
+      html: prepared.html,
+      subject: prepared.subject,
+      text: prepared.text,
+      to: row.to_address ?? "",
+    });
+  } catch (error) {
+    await recordFailure(ctx.db, row, errorMessage(error), ctx.now());
+    return "failed";
+  }
+  await markSent(ctx, row, []);
+  return "sent";
+}
+
 /**
  * Claims, builds and sends one row. A send that throws (or a failure while
  * preparing it) is recorded on the row; writes after a successful send are
@@ -543,6 +622,9 @@ async function deliverRow(ctx: RunContext, id: string): Promise<Outcome> {
   }
   if (!row) {
     return "none";
+  }
+  if (row.kind === "message") {
+    return deliverMessage(ctx, row);
   }
 
   let email: PreparedEmail | null = null;
@@ -586,7 +668,7 @@ function createPacer(perMinute: number, sleep: (ms: number) => Promise<void>) {
 }
 
 /**
- * Sends due connect emails, oldest first, waiting `60000 / perMinute` ms
+ * Sends due emails (connect and message), oldest first, waiting `60000 / perMinute` ms
  * between sends, until none are due or `budgetMs` is spent.
  */
 export async function processDeliveries(

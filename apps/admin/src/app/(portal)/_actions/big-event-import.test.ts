@@ -1183,6 +1183,52 @@ describe("applyImport: pins, room buses and notices (N7)", () => {
     };
   }
 
+  test("a campus change takes the person off the old campus's buses (M12)", async () => {
+    const seedCampusBuses = (published: string | null) =>
+      seed({
+        big_events: [{ ...bigEvent, bus_lists_published_at: published }],
+        [GROUPS]: [
+          { ...busRow("g-bergen", "Buss 1"), campus_id: "2" },
+          { ...busRow("g-oslo", "Buss 2"), campus_id: "1" },
+        ],
+        [MEMBERS]: [
+          seatRow("g-bergen", "p1", "out", true),
+          seatRow("g-bergen", "p1", "home"),
+          seatRow("g-bergen", "p2", "out"),
+        ],
+        [PARTICIPANTS]: [participantRow(), { ...ola(), campus_id: "2" }],
+      });
+    // Kari moves to Oslo; Ola stays in Bergen.
+    const form = () =>
+      pasteForm([
+        ["Navn", "Etternavn", "Mobilnr", "Campus"],
+        ["Kari", "Nordmann", "91234567", "Oslo"],
+        ["Ola", "Hansen", "92345678", "Bergen"],
+      ]);
+    const mapping = mappingFor("first_name", "last_name", "phone", "campus");
+    const kari = () => byName(fake.rows(PARTICIPANTS), "Kari");
+
+    seedCampusBuses(null);
+    await applyImport("b1", form(), mapping, PLAIN);
+    expect(kari()?.campus_id).toBe("1");
+    expect(seats("p1")).toEqual([]);
+    expect(seats("p2")).toEqual(["g-bergen:out"]);
+    expect(kari()?.bus_notice_due_at ?? null).toBeNull();
+
+    // After publishing, Kari is owed a message about her bus.
+    seedCampusBuses("2027-01-10T10:00:00.000Z");
+    expect(await previewImport("b1", form(), mapping, PLAIN)).toMatchObject({
+      busNotices: 1,
+    });
+    const result = await applyImport("b1", form(), mapping, PLAIN);
+    expect(result).toMatchObject({ complete: true });
+    expect(seats("p1")).toEqual([]);
+    expect(kari()?.bus_notice_due_at).toEqual(expect.any(String));
+    expect(
+      byName(fake.rows(PARTICIPANTS), "Ola")?.bus_notice_due_at ?? null
+    ).toBeNull();
+  });
+
   test("a campus admin's import keeps a person pinned on another campus's bus", async () => {
     // Kari and Ola moved from Oslo to Bergen. Oslo's organizers had moved
     // Kari onto their bus by hand; Ola still rides home on it.

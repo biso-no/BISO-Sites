@@ -1,5 +1,6 @@
 import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
+import { bigEventDeepLink } from "@repo/shared/big-events/messages/deep-link";
 import { BIG_EVENT_TABLES } from "@repo/shared/big-events/tables";
 import type { BigEventGroupRow } from "@repo/shared/big-events/types";
 import { NextResponse } from "next/server";
@@ -10,8 +11,12 @@ import { hasValidCronSecret } from "@/lib/cron-auth";
  * (`BIG_EVENTS_CLEANUP_URL`), which sends `x-cron-secret`; can also be hit
  * manually with `Authorization: Bearer ${CRON_SECRET}`.
  *
- * Deletes participants, group memberships and email deliveries 30 days after a
- * big event ends. The event and its groups stay, without names (ruling R35):
+ * Deletes participants, group memberships, email deliveries, the
+ * per-person copies of messages (`big_event_message_recipients`) and the
+ * pushes sent about the big event (`announcements` carrying its app link,
+ * with their app inbox rows in `user_notifications`, ruling R34) 30 days
+ * after a big event ends. The messages themselves stay for the history. The
+ * event and its groups stay, without names (ruling R35):
  * a room takes its room number, or "Rom", in place of the buyer's name, and
  * every group loses its buyer, contact person and note (a note can name
  * people, ruling R20). Bounded per run (1000 rows deleted or groups
@@ -50,23 +55,28 @@ const CLEARED = {
   note: null,
 } as const;
 
+const ANNOUNCEMENTS = "announcements";
+const USER_NOTIFICATIONS = "user_notifications";
+
 type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
 
 interface Budget {
   left: number;
 }
 
-async function deleteForEvent(
+/** Deletes the rows of `table` whose `column` is `value`, within the budget. */
+async function deleteWhere(
   db: AdminDb,
   table: string,
-  bigEventId: string,
+  column: string,
+  value: string,
   budget: Budget
 ): Promise<number> {
   let deleted = 0;
   while (budget.left > 0) {
     const limit = Math.min(BATCH_SIZE, budget.left);
     const { rows } = await db.listRows("app", table, [
-      Query.equal("big_event_id", bigEventId),
+      Query.equal(column, value),
       Query.limit(limit),
       Query.select(["$id"]),
     ]);
@@ -79,6 +89,60 @@ async function deleteForEvent(
     }
     deleted += rows.length;
     budget.left -= rows.length;
+    if (rows.length < limit) {
+      break;
+    }
+  }
+  return deleted;
+}
+
+function deleteForEvent(
+  db: AdminDb,
+  table: string,
+  bigEventId: string,
+  budget: Budget
+): Promise<number> {
+  return deleteWhere(db, table, "big_event_id", bigEventId, budget);
+}
+
+interface PushCopies {
+  announcements: number;
+  inboxRows: number;
+}
+
+/**
+ * The pushes sent about the big event (ruling R34): each announcement with
+ * its link, after its app inbox rows, so a run that runs out of budget
+ * leaves the announcement for the next run to finish.
+ */
+async function deletePushCopies(
+  db: AdminDb,
+  slug: string,
+  budget: Budget
+): Promise<PushCopies> {
+  const deleted: PushCopies = { announcements: 0, inboxRows: 0 };
+  while (budget.left > 0) {
+    const limit = Math.min(BATCH_SIZE, budget.left);
+    const { rows } = await db.listRows("app", ANNOUNCEMENTS, [
+      Query.equal("deep_link", bigEventDeepLink(slug)),
+      Query.limit(limit),
+      Query.select(["$id"]),
+    ]);
+    for (const announcement of rows) {
+      deleted.inboxRows += await deleteWhere(
+        db,
+        USER_NOTIFICATIONS,
+        "announcement_id",
+        announcement.$id,
+        budget
+      );
+      if (budget.left <= 0) {
+        return deleted;
+      }
+      await db.deleteRow("app", ANNOUNCEMENTS, announcement.$id);
+      deleted.announcements += 1;
+      budget.left -= 1;
+    }
     if (rows.length < limit) {
       break;
     }
@@ -183,6 +247,9 @@ export async function POST(request: Request) {
     let participantsDeleted = 0;
     let membersDeleted = 0;
     let deliveriesDeleted = 0;
+    let messageRecipientsDeleted = 0;
+    let pushCopiesDeleted = 0;
+    let pushInboxRowsDeleted = 0;
     let cursor: string | undefined;
     while (budget.left > 0) {
       const { rows: events } = await db.listRows(
@@ -192,7 +259,7 @@ export async function POST(request: Request) {
           Query.lessThanEqual("ends_at", cutoff.toISOString()),
           Query.orderAsc("$id"),
           Query.limit(EVENTS_PER_PAGE),
-          Query.select(["$id"]),
+          Query.select(["$id", "slug"]),
           ...(cursor ? [Query.cursorAfter(cursor)] : []),
         ]
       );
@@ -215,6 +282,17 @@ export async function POST(request: Request) {
           event.$id,
           budget
         );
+        messageRecipientsDeleted += await deleteForEvent(
+          db,
+          BIG_EVENT_TABLES.messageRecipients,
+          event.$id,
+          budget
+        );
+        if (typeof event.slug === "string" && event.slug !== "") {
+          const pushes = await deletePushCopies(db, event.slug, budget);
+          pushCopiesDeleted += pushes.announcements;
+          pushInboxRowsDeleted += pushes.inboxRows;
+        }
         groupsAnonymised += await anonymiseGroups(db, event.$id, budget);
       }
       if (events.length < EVENTS_PER_PAGE) {
@@ -224,13 +302,16 @@ export async function POST(request: Request) {
     }
 
     console.log(
-      `[Big Event Cleanup] Deleted ${participantsDeleted} participants, ${membersDeleted} group members and ${deliveriesDeleted} deliveries; anonymised ${groupsAnonymised} groups`
+      `[Big Event Cleanup] Deleted ${participantsDeleted} participants, ${membersDeleted} group members, ${deliveriesDeleted} deliveries, ${messageRecipientsDeleted} message recipients and ${pushCopiesDeleted} pushes with ${pushInboxRowsDeleted} inbox rows; anonymised ${groupsAnonymised} groups`
     );
     return NextResponse.json({
       deliveriesDeleted,
       groupsAnonymised,
       membersDeleted,
+      messageRecipientsDeleted,
       participantsDeleted,
+      pushCopiesDeleted,
+      pushInboxRowsDeleted,
     });
   } catch (error) {
     console.error("[Big Event Cleanup] Cleanup failed:", error);

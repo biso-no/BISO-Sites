@@ -15,22 +15,23 @@ import {
 } from "@repo/shared/big-events/tables";
 import type { BigEventParticipantRow } from "@repo/shared/big-events/types";
 import { mapWithConcurrency } from "@repo/shared/utils/concurrency";
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { campusNameFor } from "@/lib/announcements/audience-names";
 import { requireAuth, type UserAuthContext } from "@/lib/authorization";
 import {
-  type BigEventAccess,
   canSeeParticipant,
   participantCampusFilter,
 } from "@/lib/big-events/access";
+import {
+  type AdminDb,
+  type GrantedAccess,
+  requireBigEvent,
+  revalidateBigEvent,
+} from "@/lib/big-events/action-helpers";
 import { listAllRows, listRowsByIds } from "@/lib/big-events/list-rows";
 import { participantName } from "@/lib/big-events/participant-list";
 import { logAuditEvent } from "./audit-log";
-import { getBigEvent } from "./big-events";
 
-type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
-type GrantedAccess = Exclude<BigEventAccess, null>;
 type Account = Models.Row &
   Pick<Users, "campus_id" | "email" | "name" | "student_id">;
 
@@ -62,14 +63,6 @@ const idSchema = z.string().min(1).max(36);
 const idsSchema = z.array(idSchema);
 const querySchema = z.string().max(100);
 
-async function requireBigEvent(bigEventId: string) {
-  const found = await getBigEvent(bigEventId);
-  if (!found) {
-    throw new Error("This big event doesn't exist or you can't see it");
-  }
-  return found;
-}
-
 /** The participant, after checking the caller may see them. */
 async function requireParticipant(
   db: AdminDb,
@@ -93,10 +86,6 @@ async function requireParticipant(
 
 function isBiLinked(account: Pick<Account, "student_id">): boolean {
   return Boolean(account.student_id?.trim());
-}
-
-function revalidateBigEvent(bigEventId: string): void {
-  revalidatePath(`/big-events/${bigEventId}`, "layout");
 }
 
 async function auditLink(

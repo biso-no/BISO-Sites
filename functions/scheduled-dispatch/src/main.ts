@@ -20,8 +20,8 @@
  *
  * The overall execution time limit is the function's `timeout` setting, managed
  * in the Appwrite console — NOT controlled here. Pings run concurrently, so keep it
- * comfortably above the LARGEST per-target timeout (e.g. the 300s ledger poster),
- * not just CRON_TIMEOUT_MS.
+ * comfortably above the LARGEST per-target timeout (e.g. the 300s ledger poster
+ * and big event messages), not just CRON_TIMEOUT_MS.
  *
  * Required env vars (set on the function in the Appwrite console):
  *   CRON_SECRET                 shared secret sent to (and checked by) the endpoints
@@ -47,6 +47,8 @@
  *                               e.g. https://api.biso.no/api/cron/cleanup-recruitment
  *   BIG_EVENT_DELIVERIES_URL    e.g. https://api.biso.no/api/cron/big-event-deliveries
  *                               (defaults to a 60s timeout — the route's cap)
+ *   BIG_EVENT_MESSAGES_URL      e.g. https://api.biso.no/api/cron/big-event-messages
+ *                               (defaults to a 300s timeout — the route's cap)
  *   BIG_EVENTS_CLEANUP_URL      e.g. https://api.biso.no/api/cron/cleanup-big-events
  *   CRON_TIMEOUT_MS             default per-request timeout (default 30000)
  *   <NAME>_TIMEOUT_MS           per-target timeout override, e.g.
@@ -123,6 +125,7 @@ const TARGET_ENV_VARS = [
   "EXPENSE_CHECK_BACKSTOP_URL",
   "RECRUITMENT_RETENTION_CLEANUP_URL",
   "BIG_EVENT_DELIVERIES_URL",
+  "BIG_EVENT_MESSAGES_URL",
   "BIG_EVENTS_CLEANUP_URL",
 ] as const;
 
@@ -133,7 +136,8 @@ type TargetName = (typeof TARGET_ENV_VARS)[number];
  * runs far longer: `/api/expenses/post-pending` allows up to 300s and 24SO
  * `uploadDocument` polls ~60s per expense, so it gets a generous default.
  * `/api/cron/reconcile-orders` gets the same default — its Finago posting pass
- * makes the same 24SO calls. Override any target with `<ENV_VAR_NAME>_TIMEOUT_MS`.
+ * makes the same 24SO calls. `/api/cron/big-event-messages` may finish a long
+ * send for up to 300s too. Override any target with `<ENV_VAR_NAME>_TIMEOUT_MS`.
  * The function's overall `timeout` (Appwrite console) must be >= the largest
  * per-target timeout.
  */
@@ -143,6 +147,7 @@ const TARGET_TIMEOUT_DEFAULTS: Partial<Record<TargetName, number>> = {
   FINAGO_PROJECTS_SYNC_URL: 300_000,
   ORDERS_RECONCILE_URL: 300_000,
   BIG_EVENT_DELIVERIES_URL: 60_000,
+  BIG_EVENT_MESSAGES_URL: 300_000,
 };
 
 type LogFn = (...messages: unknown[]) => void;

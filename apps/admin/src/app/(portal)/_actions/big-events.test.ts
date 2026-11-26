@@ -316,6 +316,98 @@ describe("updateBigEvent", () => {
     });
   });
 
+  test("saves the automatic-message switches and texts", async () => {
+    currentCtx = campusAdminOf("2");
+    routeListRows({
+      big_events: () => ({ rows: [bigEventRow({ campus_id: "2" })], total: 1 }),
+    });
+    db.updateRow.mockResolvedValue({ $id: "b1" });
+
+    const result = await updateBigEvent("b1", {
+      ...formValues,
+      auto_bus_assigned: true,
+      auto_bus_moved: false,
+      auto_departure_reminder: false,
+      auto_texts: {
+        bus_moved: { en: { body: " " }, no: { title: " Ny buss! " } },
+      },
+      campus_id: "2",
+      status: "published",
+    });
+
+    expect(result).toEqual({ ok: true });
+    const data = db.updateRow.mock.calls[0]?.[3] as Record<string, unknown>;
+    expect(data).toMatchObject({
+      auto_bus_assigned: true,
+      auto_bus_moved: false,
+      auto_departure_reminder: false,
+    });
+    expect(JSON.parse(String(data.auto_texts))).toEqual({
+      bus_moved: { no: { title: "Ny buss!" } },
+    });
+  });
+
+  test("automatic-message settings stay as they are when not sent", async () => {
+    routeListRows({
+      big_events: () => ({ rows: [bigEventRow()], total: 1 }),
+    });
+    db.updateRow.mockResolvedValue({ $id: "b1" });
+
+    await updateBigEvent("b1", { ...formValues, status: "draft" });
+
+    const data = db.updateRow.mock.calls[0]?.[3] as Record<string, unknown>;
+    for (const key of [
+      "auto_bus_assigned",
+      "auto_bus_moved",
+      "auto_departure_reminder",
+      "auto_texts",
+    ]) {
+      expect(data).not.toHaveProperty(key);
+    }
+  });
+
+  test("clearing every custom text goes back to the defaults", async () => {
+    routeListRows({
+      big_events: () => ({
+        rows: [
+          bigEventRow({ auto_texts: '{"bus_none":{"no":{"title":"x"}}}' }),
+        ],
+        total: 1,
+      }),
+    });
+    db.updateRow.mockResolvedValue({ $id: "b1" });
+
+    await updateBigEvent("b1", {
+      ...formValues,
+      auto_texts: null,
+      status: "draft",
+    });
+
+    expect(db.updateRow.mock.calls[0]?.[3]).toMatchObject({ auto_texts: null });
+  });
+
+  test("custom texts with an unknown placeholder or too long are refused", async () => {
+    routeListRows({
+      big_events: () => ({ rows: [bigEventRow()], total: 1 }),
+    });
+
+    expect(
+      await updateBigEvent("b1", {
+        ...formValues,
+        auto_texts: { departure_reminder: { en: { body: "At {time}" } } },
+        status: "draft",
+      })
+    ).toEqual({ error: "unknown_placeholder", ok: false });
+    expect(
+      await updateBigEvent("b1", {
+        ...formValues,
+        auto_texts: { bus_none: { no: { title: "x".repeat(201) } } },
+        status: "draft",
+      })
+    ).toEqual({ error: "too_long", ok: false });
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+
   test("an image link must be a web address", async () => {
     await expect(
       createBigEvent({ ...formValues, hero_image_url: "javascript:alert(1)" })

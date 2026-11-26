@@ -17,12 +17,17 @@ import {
   visibleBigEventFilters,
 } from "@/lib/big-events/access";
 import {
+  autoMessageSwitches,
   type BigEventFormValues,
   type BigEventUpdateValues,
   bigEventColumns,
   bigEventFormSchema,
   bigEventUpdateSchema,
 } from "@/lib/big-events/form-schema";
+import {
+  type AutoTextsError,
+  autoTextsColumn,
+} from "@/lib/big-events/messages/auto-texts";
 import {
   bigEventSlugCandidates,
   slugifyBigEventName,
@@ -213,10 +218,15 @@ export async function createBigEvent(
   return { id: row.$id };
 }
 
+/**
+ * Saves the settings (full access, or campus access with settings rights).
+ * The automatic messages' own texts are refused with an unknown placeholder
+ * or when they don't fit (`too_long`); everything else unexpected throws.
+ */
 export async function updateBigEvent(
   id: string,
   values: BigEventUpdateValues
-): Promise<void> {
+): Promise<{ ok: true } | { error: AutoTextsError; ok: false }> {
   const ctx = await requireAuth();
   const data = bigEventUpdateSchema.parse(values);
   const { db } = await createAdminClient();
@@ -230,8 +240,18 @@ export async function updateBigEvent(
       "Only global admins can move a big event to another campus"
     );
   }
+  const autoTexts =
+    data.auto_texts === undefined ? null : autoTextsColumn(data.auto_texts);
+  if (autoTexts && !autoTexts.ok) {
+    return autoTexts;
+  }
   await assertBoardOnCampus(db, data.department_id, data.campus_id);
-  const columns = { ...bigEventColumns(data), status: data.status };
+  const columns = {
+    ...bigEventColumns(data),
+    ...autoMessageSwitches(data),
+    ...(autoTexts ? { auto_texts: autoTexts.value } : {}),
+    status: data.status,
+  };
   await db.updateRow(DATABASE_ID, BIG_EVENT_TABLES.events, id, columns);
   await logAuditEvent(ctx, "big_event.update", {
     payload: { changed: changedColumns(found.event, columns) },
@@ -240,4 +260,5 @@ export async function updateBigEvent(
   });
   revalidatePath("/big-events");
   revalidatePath(`/big-events/${id}`, "layout");
+  return { ok: true };
 }

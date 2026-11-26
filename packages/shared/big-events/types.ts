@@ -7,10 +7,16 @@ import type {
   GroupKind,
   GroupLeg,
   LinkMethod,
+  MessageKind,
+  MessageStatus,
   SuggestionReason,
 } from "./tables";
 
 export interface BigEventRow extends Models.Row {
+  auto_bus_assigned: boolean | null;
+  auto_bus_moved: boolean | null;
+  auto_departure_reminder: boolean | null;
+  auto_texts: string | null;
   bus_lists_published_at: string | null;
   bus_lists_published_by: string | null;
   campus_id: string;
@@ -69,6 +75,7 @@ export interface BigEventGroupRow extends Models.Row {
   home_departs_at: string | null;
   home_maps_url: string | null;
   home_meeting_point: string | null;
+  home_reminder_sent_at: string | null;
   kind: GroupKind;
   name: string;
   note: string | null;
@@ -76,6 +83,7 @@ export interface BigEventGroupRow extends Models.Row {
   out_departs_at: string | null;
   out_maps_url: string | null;
   out_meeting_point: string | null;
+  out_reminder_sent_at: string | null;
   room_number: string | null;
   source_key: string | null;
 }
@@ -103,4 +111,40 @@ export interface BigEventDeliveryRow extends Models.Row {
   sent_at: string | null;
   status: DeliveryStatus | null;
   to_address: string | null;
+}
+
+export interface BigEventMessageRow extends Models.Row {
+  also_sms: boolean | null;
+  audience: string | null;
+  big_event_id: string;
+  body_en: string | null;
+  body_no: string | null;
+  campus_ids: string[] | null;
+  created_by: string | null;
+  email_count: number | null;
+  failed_count: number | null;
+  important: boolean | null;
+  kind: MessageKind;
+  leg: GroupLeg | null;
+  pinned: boolean | null;
+  push_count: number | null;
+  recipients: number | null;
+  scheduled_at: string | null;
+  sent_at: string | null;
+  sms_count: number | null;
+  status: MessageStatus | null;
+  title_en: string | null;
+  title_no: string | null;
+}
+
+export interface BigEventMessageRecipientRow extends Models.Row {
+  big_event_id: string;
+  email: boolean | null;
+  message_id: string;
+  participant_id: string;
+  push: boolean | null;
+  pushed_at: string | null;
+  sms: boolean | null;
+  user_id: string | null;
+  vars: string | null;
 }

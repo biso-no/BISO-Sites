@@ -63,7 +63,8 @@
     "tabs": {
       "participants": "Deltakere",
       "groups": "Grupper",
-      "settings": "Innstillinger"
+      "settings": "Innstillinger",
+      "messages": "Meldinger"
     },
     "participants": {
       "reach": {
@@ -215,7 +216,13 @@
         "hero_image_url": "Last opp bildet på nytt.",
         "travel_enabled": "Slå reise av eller på.",
         "group_checkin_enabled": "Slå innsjekk av eller på.",
-        "status": "Velg status."
+        "status": "Velg status.",
+        "auto_bus_assigned": "Slå bussmeldingen av eller på.",
+        "auto_bus_moved": "Slå meldingen om bussendringer av eller på.",
+        "auto_departure_reminder": "Slå påminnelsen før avgang av eller på.",
+        "auto_texts": "Sjekk tekstene i de automatiske meldingene.",
+        "auto_unknown_placeholder": "En automatisk melding har noe i krøllparentes som ikke er en detalj vi kan fylle inn. Bruk knappene for å legge inn detaljer.",
+        "auto_too_long": "De automatiske meldingene er for lange. Hver tittel kan ha opptil 200 tegn og hver tekst opptil 2000. Gjør noen av dine egne tekster kortere."
       }
     },
     "import": {
@@ -574,7 +581,197 @@
         "description": "{count, plural, one {# person får en melding om hvilken buss de skal med.} other {# personer får en melding om hvilken buss de skal med.}} Du kan fortsatt flytte folk etterpå.",
         "confirm": "Publiser",
         "done": "Busslistene er publisert",
-        "published": "Publisert {date}"
+        "published": "Publisert {date}",
+        "missingIntro": "Meldingene blir uten det en buss mangler. Du kan publisere likevel.",
+        "missingDeparture": "{bus} mangler avgangstid for {leg, select, home {hjemreisen} other {utreisen}}.",
+        "missingMeetingPoint": "{bus} mangler oppmøtested for {leg, select, home {hjemreisen} other {utreisen}}.",
+        "missingBoth": "{bus} mangler avgangstid og oppmøtested for {leg, select, home {hjemreisen} other {utreisen}}."
+      }
+    },
+    "messages": {
+      "everyone": "Alle",
+      "noBus": "Ingen buss",
+      "noRoom": "Ikke på rom",
+      "warnings": {
+        "noDeparture": "{bus} har ingen avgangstid for {leg, select, home {hjemreisen} other {utreisen}} ennå",
+        "noMeetingPoint": "{bus} har ikke noe oppmøtested for {leg, select, home {hjemreisen} other {utreisen}} ennå",
+        "noContact": "{bus} har ingen busskontakt ennå",
+        "peopleWithoutBus": "{count, plural, one {# person har} other {# personer har}} ingen buss {leg, select, home {hjem} other {ut}}, så bussdetaljene i meldingen blir tomme",
+        "peopleWithoutRoom": "{count, plural, one {# person er} other {# personer er}} ikke på rom, så rommet i meldingen blir tomt"
+      },
+      "newMessage": "Ny melding",
+      "historyTitle": "Sendt og planlagt",
+      "steps": {
+        "label": "Steg",
+        "message": "Melding",
+        "who": "Hvem",
+        "check": "Sjekk og send",
+        "next": "Neste",
+        "back": "Tilbake"
+      },
+      "write": {
+        "intro": "Skriv meldingen på {language, select, no {norsk} other {engelsk}}. Det andre språket fyller du inn under Sjekk og send.",
+        "title": "Tittel på {language, select, no {norsk} other {engelsk}}",
+        "body": "Tekst på {language, select, no {norsk} other {engelsk}}",
+        "needText": "Skriv en tittel og en tekst først.",
+        "important": "Viktig",
+        "importantHelp": "Sendes både som push og e-post, og holdes festet til du løsner den.",
+        "sms": "Send også som SMS",
+        "smsHelp": "Ingen SMS-leverandør er koblet til, så ingenting sendes som SMS ennå."
+      },
+      "placeholders": {
+        "label": "Legg inn personlige detaljer",
+        "help": "Hver person får sine egne detaljer. Push-varsler tar ikke med fornavnet.",
+        "first_name": "Fornavn",
+        "bus": "Buss",
+        "departure": "Avgang",
+        "meeting_point": "Oppmøtested",
+        "bus_contact": "Busskontakt",
+        "trip_home": "Hjemreise",
+        "room": "Rom"
+      },
+      "who": {
+        "legend": "Hvem får den",
+        "everyone": "Alle",
+        "everyoneHelp": "Alle i dette arrangementet",
+        "everyoneFrom": "Alle fra {campuses}",
+        "campus": "Campus",
+        "campusHelp": "Alle fra campusene du velger",
+        "groups": "Busser, rom og grupper",
+        "groupsHelp": "De som er i dem du velger",
+        "people": "Utvalgte personer",
+        "peopleHelp": "Velg personer etter navn",
+        "campuses": "Campuser",
+        "noCampuses": "Ingen her har campus ennå.",
+        "noGroups": "Det finnes ingen busser, rom eller grupper ennå.",
+        "findGroup": "Finn en buss, et rom eller en gruppe",
+        "noGroupMatch": "Ingenting har det navnet.",
+        "leg": "Hvilken vei?",
+        "legOut": "Utreise",
+        "legHome": "Hjemreise",
+        "legHelpBus": "En melding til en buss går til dem som sitter på den den veien, med detaljene for den turen.",
+        "legHelpDetails": "Bussdetaljene i meldingen gjelder denne turen.",
+        "search": "Søk etter navn",
+        "noMatch": "Ingen med det navnet.",
+        "add": "Legg til {name}",
+        "remove": "Fjern {name}",
+        "chosen": "{count, plural, =0 {Ingen valgt ennå} one {# person valgt} other {# personer valgt}}",
+        "peopleCap": "Du kan velge opptil {max} personer. For å nå flere, velg en campus eller en gruppe i stedet.",
+        "groupCap": "Du kan velge opptil {max}. For å nå flere, send til alle eller til en campus i stedet.",
+        "needAudience": "Velg hvem som skal få meldingen."
+      },
+      "reach": {
+        "incomplete": "Velg hvem som skal få meldingen, så ser du hvor mange den når.",
+        "counting": "Teller…",
+        "summary": "{people, plural, one {# person} other {# personer}}: {push} får push, {email} får e-post",
+        "sms": "{count} får SMS",
+        "unreachable": "{count} kan ikke nås (ingen e-post)",
+        "nobody": "Ingen passer med det du valgte.",
+        "failed": "Kunne ikke telle akkurat nå. Prøv igjen om litt."
+      },
+      "check": {
+        "languages": "Begge språk",
+        "languagesHelp": "De med tilkoblet konto får den på kontoens språk, som push eller e-post. De uten konto får en e-post med begge språk.",
+        "translate": "Oversett",
+        "translating": "Oversetter…",
+        "translateHelp": "Fyller inn {target, select, no {norsk} other {engelsk}} fra {source, select, no {norsk} other {engelsk}}. Les gjennom før du sender.",
+        "translateReplaces": "Erstatter den {target, select, no {norske} other {engelske}} teksten med en oversettelse av den {source, select, no {norske} other {engelske}}. Les gjennom før du sender.",
+        "translateFailed": "Kunne ikke oversette akkurat nå. Prøv igjen, eller skriv den selv.",
+        "needBoth": "Skriv tittel og tekst på både norsk og engelsk. Oversett kan fylle inn det andre språket for deg.",
+        "preview": "Slik blir den",
+        "previewHelp": "Ett eksempel for hver buss eller hvert rom som gir en annen tekst. Push-varsler tar ikke med fornavnet.",
+        "warnings": "Sjekk dette først",
+        "when": "Når",
+        "now": "Send nå",
+        "schedule": "Planlegg",
+        "date": "Dato",
+        "time": "Klokkeslett (Oslo)",
+        "pickTime": "Velg dato og klokkeslett.",
+        "send": "Send meldingen",
+        "sendScheduled": "Planlegg meldingen",
+        "sending": "Sender…"
+      },
+      "sent": {
+        "now": "Sendt til {count, plural, one {# person} other {# personer}}",
+        "sending": "Den sendes nå. Du kan følge med i listen under.",
+        "scheduled": "Planlagt til {when}",
+        "failed": "Sendingen feilet. Du kan prøve igjen fra listen under."
+      },
+      "history": {
+        "empty": "Ingen meldinger ennå.",
+        "automatic": "Automatisk",
+        "important": "Viktig",
+        "status": {
+          "sent": "Sendt",
+          "scheduled": "Planlagt",
+          "sending": "Sendes",
+          "failed": "Feilet"
+        },
+        "sentAt": "Sendt {when}",
+        "scheduledAt": "Sendes {when}",
+        "sendingNow": "Sendes nå",
+        "failedAt": "Skulle vært sendt {when}",
+        "counts": "{people, plural, one {# person} other {# personer}} · {push} push · {email} e-post",
+        "smsCount": "{count} SMS ikke sendt (ingen SMS-leverandør)",
+        "failedCount": "{count} ikke levert",
+        "who": {
+          "everyone": "Alle",
+          "chosen": "{count, plural, one {# utvalgt person} other {# utvalgte personer}}",
+          "people": "{count, plural, one {# person} other {# personer}}",
+          "hiddenGroups": "{count, plural, one {# annen gruppe} other {# andre grupper}}",
+          "out": "utreise",
+          "home": "hjemreise",
+          "unknown": "Ukjent"
+        },
+        "pinned": "Festet",
+        "unpin": "Løsne",
+        "unpinned": "Løsnet. Den ligger ikke lenger øverst.",
+        "cancel": "Avbryt",
+        "cancelQuestion": "Vil du avbryte meldingen? Den blir ikke sendt.",
+        "cancelConfirm": "Ja, avbryt den",
+        "cancelKeep": "Behold den",
+        "cancelled": "Meldingen er avbrutt.",
+        "tooLateToCancel": "Det er for sent å avbryte: meldingen går ut innen et minutt, eller er allerede sendt.",
+        "retry": "Prøv igjen",
+        "retryHelp": "De som ikke er nådd ennå, får detaljene slik de var da den ble sendt første gang.",
+        "retried": "Sendt til dem som ikke ble nådd.",
+        "retrySending": "Den sendes nå.",
+        "retryFailed": "Sendingen feilet igjen. Du kan prøve igjen senere."
+      },
+      "errors": {
+        "already_sent": "Meldingen er allerede sendt, eller sendes nå.",
+        "in_the_past": "Det tidspunktet er passert. Velg et senere tidspunkt.",
+        "missing_translation": "Skriv tittel og tekst på både norsk og engelsk.",
+        "no_access": "Du har ikke tilgang til å gjøre dette.",
+        "no_people": "Ingen passer med det du valgte. Velg noen andre.",
+        "not_found": "Denne meldingen finnes ikke lenger. Listen er oppdatert.",
+        "unknown_placeholder": "Noe i krøllparentes er ikke en detalj vi kan fylle inn. Bruk knappene for å legge inn detaljer som fornavn eller buss.",
+        "unexpected": "Noe gikk galt. Prøv igjen.",
+        "unexpectedSend": "Noe gikk galt. Sjekk listen under før du sender igjen."
+      },
+      "auto": {
+        "title": "Automatiske meldinger",
+        "help": "Sendes av seg selv mens arrangementet er publisert og reise er slått på. Slå av dem du ikke vil ha, eller endre teksten.",
+        "travelOff": "Automatiske meldinger handler om busser, så de sendes bare når reise er slått på.",
+        "assigned": "Bussen din",
+        "assignedHelp": "Når du publiserer busslistene, får hver person vite hvilken buss de skal med.",
+        "moved": "Bussendringer",
+        "movedHelp": "Etter at busslistene er publisert, får de som flyttes til en annen buss, eller mister plassen, beskjed.",
+        "reminder": "Påminnelse før avgang",
+        "reminderHelp": "To timer før en buss går, får de som sitter på den en påminnelse.",
+        "kinds": {
+          "bus_assigned": "Tekst: bussen din",
+          "bus_moved": "Tekst: ny buss",
+          "bus_none": "Tekst: ingen bussplass",
+          "departure_reminder": "Tekst: påminnelse før avgang"
+        },
+        "own": "Egen tekst",
+        "reset": "Tilbakestill til standard",
+        "defaultHint": "La et felt stå tomt for å bruke standardteksten."
+      },
+      "languages": {
+        "no": "Norsk",
+        "en": "Engelsk"
       }
     }
   },
@@ -1872,7 +2069,8 @@
     "groups": {
       "expenses": "Refusjoner",
       "payments": "Nettbutikkbetaling",
-      "ai": "KI"
+      "ai": "KI",
+      "big_events": "Store arrangementer"
     },
     "toggleError": "Kunne ikke oppdatere bryter",
     "toggleSuccess": "Bryter oppdatert"

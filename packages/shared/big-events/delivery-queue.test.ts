@@ -736,47 +736,288 @@ describe("processDeliveries", () => {
     expect(db.rows<BigEventDeliveryRow>(D)[0]?.status).toBe("skipped");
   });
 
-  it("does not release a stuck message row", async () => {
+  it("releases a stuck message row like any other", async () => {
     db.seed(D, {
       $id: "msg",
-      attempts: 0,
+      attempts: 2,
       big_event_id: "be1",
       channel: "email",
       claimed_at: new Date(clock - 11 * MINUTE).toISOString(),
-      claimed_by: "stage-3-run",
+      claimed_by: "old-run",
       kind: "message",
-      participant_ids: ["p1"],
+      message_id: "m1",
+      participant_ids: ["p1", "p2"],
       scheduled_for: null,
       status: "sending",
       to_address: "p1@example.com",
     });
+    db.seed(MSG, { $id: "m1", failed_count: 1 });
 
     await processDeliveries(deps(), RUN);
 
     expect(db.rows<BigEventDeliveryRow>(D)[0]).toMatchObject({
-      attempts: 0,
-      claimed_by: "stage-3-run",
-      status: "sending",
+      attempts: 3,
+      status: "failed",
     });
+    expect(db.rows<Data>(MSG)[0]?.failed_count).toBe(3);
+  });
+});
+
+// ── Message rows ──────────────────────────────────────────────────────────────
+
+const MSG = BIG_EVENT_TABLES.messages;
+const RCP = BIG_EVENT_TABLES.messageRecipients;
+
+function seedMessage(): void {
+  db.seed(MSG, {
+    $id: "m1",
+    body_en: "Hi {first name}, the bus leaves at {departure}.\n\nSee you.",
+    body_no: "Hei {fornavn}, bussen går {avgang}.\n\nVi ssees.",
+    failed_count: 0,
+    title_en: "Bus news",
+    title_no: "Bussnytt",
+  });
+}
+
+function seedRecipient(
+  id: string,
+  overrides: Record<string, unknown> = {}
+): void {
+  db.seed(RCP, {
+    $id: `r-${id}`,
+    message_id: "m1",
+    participant_id: id,
+    user_id: null,
+    vars: JSON.stringify({
+      en: { departure: "Fri 24 Jan, 14:00", first_name: `First-${id}` },
+      no: {
+        avgang: "",
+        departure: "fre. 24. jan. kl. 14:00",
+        first_name: `First-${id}`,
+      },
+    }),
+    ...overrides,
+  });
+}
+
+function messageRow(overrides: Record<string, unknown> = {}) {
+  return {
+    $id: "d1",
+    attempts: 0,
+    big_event_id: "be1",
+    channel: "email",
+    kind: "message",
+    message_id: "m1",
+    participant_ids: ["p1"],
+    scheduled_for: null,
+    status: "pending",
+    to_address: "p1@example.com",
+    ...overrides,
+  };
+}
+
+interface Sent {
+  html: string;
+  subject: string;
+  text: string;
+  to: string;
+}
+const lastSent = () => sendEmail.mock.calls.at(-1)?.[0] as Sent;
+
+describe("message deliveries", () => {
+  beforeEach(() => {
+    seedMessage();
+    seedPeople([participant("p1"), participant("p2")]);
   });
 
-  it("leaves message deliveries alone", async () => {
-    db.seed(D, {
-      $id: "msg",
-      attempts: 0,
-      big_event_id: "be1",
-      channel: "email",
-      kind: "message",
-      participant_ids: ["p1"],
-      scheduled_for: null,
-      status: "pending",
-      to_address: "p1@example.com",
-    });
+  it("sends a message email in the person's language", async () => {
+    db.seed("user", { $id: "u1", locale: "no" });
+    seedRecipient("p1", { user_id: "u1" });
+    db.seed(D, messageRow());
 
     const result = await processDeliveries(deps(), RUN);
 
+    expect(result.sent).toBe(1);
+    const mail = lastSent();
+    expect(mail.to).toBe("p1@example.com");
+    expect(mail.subject).toBe("Bussnytt");
+    expect(mail.text).toContain(
+      "Hei First-p1, bussen går fre. 24. jan. kl. 14:00"
+    );
+    expect(mail.text).not.toContain("Bus news");
+    expect(mail.text).toContain(
+      "Du får denne fordi du er med på Winter Games i BISO."
+    );
+    expect(mail.text).not.toContain("Til:");
+    expect(db.rows<BigEventDeliveryRow>(D)[0]?.status).toBe("sent");
+  });
+
+  it("uses English for a linked person with another locale", async () => {
+    db.seed("user", { $id: "u1", locale: "sv" });
+    seedRecipient("p1", { user_id: "u1" });
+    db.seed(D, messageRow());
+
+    await processDeliveries(deps(), RUN);
+
+    expect(lastSent().subject).toBe("Bus news");
+    expect(lastSent().text).toContain(
+      "You get this because you're on Winter Games EN in BISO."
+    );
+  });
+
+  it("unlinked people get both languages", async () => {
+    seedRecipient("p1");
+    db.seed(D, messageRow());
+
+    await processDeliveries(deps(), RUN);
+
+    const mail = lastSent();
+    expect(mail.subject).toBe("Bussnytt · Bus news");
+    expect(mail.text.indexOf("Hei First-p1")).toBeLessThan(
+      mail.text.indexOf("Hi First-p1")
+    );
+    expect(mail.text).toContain("Du får denne fordi");
+    expect(mail.text).toContain("You get this because");
+  });
+
+  it("names the people when one row covers several", async () => {
+    seedRecipient("p1");
+    seedRecipient("p2");
+    db.seed(D, messageRow({ participant_ids: ["p1", "p2"] }));
+
+    await processDeliveries(deps(), RUN);
+
+    expect(lastSent().text).toContain(
+      "Til: First-p1 Last-p1, First-p2 Last-p2"
+    );
+    expect(lastSent().text).toContain(
+      "For: First-p1 Last-p1, First-p2 Last-p2"
+    );
+  });
+
+  it("names the person when the address has two rows for this message", async () => {
+    seedRecipient("p1");
+    seedRecipient("p2");
+    db.seed(
+      D,
+      messageRow({
+        $id: "d1",
+        participant_ids: ["p1"],
+        to_address: "same@example.com",
+      })
+    );
+    db.seed(
+      D,
+      messageRow({
+        $id: "d2",
+        participant_ids: ["p2"],
+        to_address: "same@example.com",
+      })
+    );
+
+    await processDeliveries(deps(), RUN);
+
+    expect(sendEmail.mock.calls[0]?.[0].text).toContain(
+      "Til: First-p1 Last-p1"
+    );
+    expect(sendEmail.mock.calls[1]?.[0].text).toContain(
+      "Til: First-p2 Last-p2"
+    );
+  });
+
+  it("names both people when the addresses differ only in case", async () => {
+    seedRecipient("p1");
+    seedRecipient("p2");
+    db.seed(
+      D,
+      messageRow({
+        $id: "d1",
+        participant_ids: ["p1"],
+        to_address: "Kari@x.no",
+      })
+    );
+    db.seed(
+      D,
+      messageRow({
+        $id: "d2",
+        participant_ids: ["p2"],
+        to_address: " kari@x.no",
+      })
+    );
+
+    await processDeliveries(deps(), RUN);
+
+    expect(sendEmail.mock.calls[0]?.[0].text).toContain(
+      "Til: First-p1 Last-p1"
+    );
+    expect(sendEmail.mock.calls[1]?.[0].text).toContain(
+      "Til: First-p2 Last-p2"
+    );
+  });
+
+  it("sms rows are skipped with a reason", async () => {
+    seedRecipient("p1");
+    db.seed(D, messageRow({ channel: "sms", to_address: "+4799999999" }));
+
+    const result = await processDeliveries(deps(), RUN);
+
+    expect(sendEmail).not.toHaveBeenCalled();
     expect(result).toEqual({ failed: 0, remaining: 0, sent: 0 });
+    expect(db.rows<BigEventDeliveryRow>(D)[0]).toMatchObject({
+      last_error: "No SMS provider",
+      status: "skipped",
+    });
+  });
+
+  it("skips a row whose message is gone", async () => {
+    db.table(MSG).clear();
+    seedRecipient("p1");
+    db.seed(D, messageRow());
+
+    await processDeliveries(deps(), RUN);
+
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(db.rows<BigEventDeliveryRow>(D)[0]).toMatchObject({
+      last_error: "The message no longer exists.",
+      status: "skipped",
+    });
+  });
+
+  it("skips a row whose recipient is gone", async () => {
+    db.seed(D, messageRow());
+
+    await processDeliveries(deps(), RUN);
+
+    expect(db.rows<BigEventDeliveryRow>(D)[0]).toMatchObject({
+      last_error: "The recipient no longer exists.",
+      status: "skipped",
+    });
+  });
+
+  it("counts a final failure on the message", async () => {
+    seedRecipient("p1");
+    db.seed(D, messageRow({ attempts: 2 }));
+    sendEmail.mockRejectedValueOnce(new Error("Mailbox full"));
+
+    const result = await processDeliveries(deps(), RUN);
+
+    expect(result.failed).toBe(1);
+    expect(db.rows<BigEventDeliveryRow>(D)[0]).toMatchObject({
+      last_error: "Mailbox full",
+      status: "failed",
+    });
+    expect(db.rows<Data>(MSG)[0]?.failed_count).toBe(1);
+  });
+
+  it("does not count a failure that will be retried", async () => {
+    seedRecipient("p1");
+    db.seed(D, messageRow());
+    sendEmail.mockRejectedValueOnce(new Error("Busy"));
+
+    await processDeliveries(deps(), RUN);
+
     expect(db.rows<BigEventDeliveryRow>(D)[0]?.status).toBe("pending");
+    expect(db.rows<Data>(MSG)[0]?.failed_count).toBe(0);
   });
 });
 

@@ -29,6 +29,7 @@ import {
   boardColumns,
   columnOfPeople,
   defaultBoardCampus,
+  missingBusDetails,
   movingPeople,
   NO_BUS,
 } from "./bus-board-model";
@@ -298,6 +299,7 @@ export function BusBoard() {
       {dialog === "publish" && (
         <PublishDialog
           bigEventId={bigEventId}
+          missing={missingBusDetails(view.groups)}
           onOpenChange={(open) => setDialog(open ? "publish" : null)}
           riders={view.outRiders}
         />

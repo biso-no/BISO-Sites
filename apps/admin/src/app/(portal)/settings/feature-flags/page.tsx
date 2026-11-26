@@ -22,6 +22,7 @@ export default async function FeatureFlagsPage() {
           enabled: t("enabled"),
           groups: {
             ai: t("groups.ai"),
+            big_events: t("groups.big_events"),
             expenses: t("groups.expenses"),
             payments: t("groups.payments"),
           },

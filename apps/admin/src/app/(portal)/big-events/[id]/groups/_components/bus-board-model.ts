@@ -283,3 +283,45 @@ export function roomMoveChangesBus(
     return seat?.busId !== busId;
   });
 }
+
+/** A bus detail the automatic messages would leave out. */
+export interface MissingBusDetail {
+  bus: string;
+  leg: Leg;
+  missing: "both" | "departure" | "meeting_point";
+}
+
+const blank = (value: string | null | undefined): boolean => !value?.trim();
+const byBusName = new Intl.Collator("nb", { numeric: true });
+
+/**
+ * What publishing's confirmation warns about: buses with no departure time
+ * or meeting point for the way out, and for the way home when anyone has a
+ * seat home. The messages leave those details out. In name order.
+ */
+export function missingBusDetails(groups: GroupView[]): MissingBusDetail[] {
+  const buses = groups
+    .filter((group) => group.kind === "bus")
+    .sort((a, b) => byBusName.compare(a.name, b.name));
+  const missing: MissingBusDetail[] = [];
+  for (const bus of buses) {
+    const legs: [Leg, string | null, string | null][] = [
+      ["out", bus.out_departs_at, bus.out_meeting_point],
+    ];
+    if ((bus.riders?.home ?? 0) > 0) {
+      legs.push(["home", bus.home_departs_at, bus.home_meeting_point]);
+    }
+    for (const [leg, departsAt, meetingPoint] of legs) {
+      const noTime = blank(departsAt);
+      const noPlace = blank(meetingPoint);
+      if (noTime || noPlace) {
+        let what: MissingBusDetail["missing"] = "meeting_point";
+        if (noTime) {
+          what = noPlace ? "both" : "departure";
+        }
+        missing.push({ bus: bus.name, leg, missing: what });
+      }
+    }
+  }
+  return missing;
+}

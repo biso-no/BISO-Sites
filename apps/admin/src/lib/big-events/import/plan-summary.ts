@@ -4,6 +4,7 @@ import type {
   BigEventGroupRow,
   BigEventParticipantRow,
 } from "@repo/shared/big-events/types";
+import { seatsOffCampus } from "../buses/campus-change";
 import { participantName } from "../participant-list";
 import {
   freeLegs,
@@ -153,6 +154,36 @@ export function replacedMemberships(
   return [...replaced.values()];
 }
 
+/**
+ * Bus seats people leave because the import moves them to another campus
+ * (plan M12, the same rule as editing a person): every seat on a bus of
+ * another campus, pinned or not, since nobody rides another campus's bus
+ * (Stage 2 ruling R19). Only buses the caller sees are read.
+ */
+export function campusChangeSeats(
+  plan: ImportPlan,
+  groups: BigEventGroupRow[],
+  members: BigEventGroupMemberRow[]
+): BigEventGroupMemberRow[] {
+  const busCampus = new Map(
+    groups
+      .filter((group) => group.kind === "bus")
+      .map((group) => [group.$id, group.campus_id] as const)
+  );
+  const left: BigEventGroupMemberRow[] = [];
+  for (const { changes, participantId } of plan.update) {
+    if (changes.campus_id === undefined) {
+      continue;
+    }
+    const seats = members.filter(
+      (membership) => membership.participant_id === participantId
+    );
+    const off = new Set(seatsOffCampus(seats, busCampus, changes.campus_id));
+    left.push(...seats.filter((seat) => off.has(seat.$id)));
+  }
+  return left;
+}
+
 /** A bus seat the import adds for someone already on that bus. */
 export interface MissingLeg {
   groupKey: string;
@@ -262,8 +293,9 @@ export function roomBusMovers(
 
 /**
  * Everyone given a bus seat or losing one: bus placements with a leg left to
- * write and their missing legs, replaced bus seats, and room bus moves.
- * After publishing each of them owes a notice (N1, N7).
+ * write and their missing legs, replaced bus seats, room bus moves, and
+ * seats left by a campus change (M12). After publishing each of them owes a
+ * notice (N1, N7).
  */
 export function busMovers(
   plan: ImportPlan,
@@ -287,6 +319,9 @@ export function busMovers(
   }
   for (const { participantId } of missingBusLegs(plan, groups, members)) {
     movers.participantIds.add(participantId);
+  }
+  for (const seat of campusChangeSeats(plan, groups, members)) {
+    movers.participantIds.add(seat.participant_id);
   }
   return movers;
 }

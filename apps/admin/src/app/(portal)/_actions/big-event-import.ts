@@ -19,16 +19,21 @@ import type {
   BigEventParticipantRow,
   BigEventRow,
 } from "@repo/shared/big-events/types";
-import { mapAllSettledWithConcurrency } from "@repo/shared/utils/concurrency";
-import { revalidatePath } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 import { z } from "zod";
 import { requireAuth } from "@/lib/authorization";
 import {
-  type BigEventAccess,
   canSeeParticipant,
   participantCampusFilter,
 } from "@/lib/big-events/access";
+import {
+  type AdminDb,
+  type GrantedAccess,
+  type PhaseCount,
+  requireBigEvent,
+  revalidateBigEvent,
+  settleWrites,
+} from "@/lib/big-events/action-helpers";
 import { suggestColumnsWithAi } from "@/lib/big-events/import/ai-mapping.server";
 import { IMPORT_FIELDS } from "@/lib/big-events/import/field-aliases";
 import { findHeaderRow } from "@/lib/big-events/import/header-row";
@@ -60,6 +65,7 @@ import {
 import {
   type BusMovers,
   busMovers,
+  campusChangeSeats,
   groupsByKey,
   type ImportPreview,
   isExistingTarget,
@@ -73,10 +79,6 @@ import { listAllRows, listRowsByIds } from "@/lib/big-events/list-rows";
 import { PARTICIPANT_CAMPUS_IDS } from "@/lib/big-events/participant-form";
 import { logAuditEvent } from "./audit-log";
 import { findSuggestions } from "./big-event-linking";
-import { getBigEvent } from "./big-events";
-
-type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
-type GrantedAccess = Exclude<BigEventAccess, null>;
 
 const DATABASE_ID = "app";
 const PARTICIPANTS = BIG_EVENT_TABLES.participants;
@@ -86,7 +88,6 @@ const MEMBERS = BIG_EVENT_TABLES.groupMembers;
 const MAX_FILE_BYTES = 4 * 1024 * 1024;
 const MAX_ROWS = 5000;
 const MAX_COLUMNS = 200;
-const WRITE_CONCURRENCY = 8;
 const SUGGESTION_CAP = 200;
 
 const mappingSchema = z.object({
@@ -112,14 +113,6 @@ const COLUMN_LIMITS = {
 
 function cut(value: string | null, limit: number): string | null {
   return value === null ? null : value.slice(0, limit);
-}
-
-async function requireBigEvent(bigEventId: string) {
-  const found = await getBigEvent(bigEventId);
-  if (!found) {
-    throw new Error("This big event doesn't exist or you can't see it");
-  }
-  return found;
 }
 
 function fileName(file: Blob): string {
@@ -390,44 +383,7 @@ function newGroupColumns(
   };
 }
 
-/** What one write phase did. Counts only: they go into the audit log. */
-interface PhaseCount {
-  failed: number;
-  written: number;
-}
-
 type PhaseName = "created" | "updated" | "groups" | "places" | "removed_places";
-
-/**
- * Runs every write of a phase to the end, even when some fail (ruling R28),
- * so nothing is still writing when the next phase or the caller looks.
- */
-async function settleWrites<T, R>(
-  items: T[],
-  write: (item: T) => Promise<R>
-): Promise<{ count: PhaseCount; done: R[] }> {
-  const results = await mapAllSettledWithConcurrency(
-    items,
-    WRITE_CONCURRENCY,
-    write
-  );
-  const done: R[] = [];
-  const errors: unknown[] = [];
-  for (const result of results) {
-    if (result.status === "fulfilled") {
-      done.push(result.value);
-    } else {
-      errors.push(result.reason);
-    }
-  }
-  if (errors.length > 0) {
-    console.error(
-      `[big-events] ${errors.length} import writes failed; the first:`,
-      errors[0]
-    );
-  }
-  return { count: { failed: errors.length, written: done.length }, done };
-}
 
 /** What the writes did; `complete` only when every phase wrote everything. */
 interface WriteOutcome {
@@ -656,9 +612,10 @@ function createPlaces(
 }
 
 /**
- * Old places of moved people (R8) and other seats on the legs people now
- * ride with their room (spec D5). Only the first count as moves in the
- * result; pinned places are never in either (R31).
+ * Old places of moved people (R8), other seats on the legs people now ride
+ * with their room (spec D5) and seats on another campus's buses after a
+ * campus change (M12). Only the first count as moves in the result; pinned
+ * places are never in the first two (R31).
  */
 function removePlaces(db: AdminDb, prepared: PreparedImport) {
   const { groups, members, plan } = prepared;
@@ -666,6 +623,9 @@ function removePlaces(db: AdminDb, prepared: PreparedImport) {
     string,
     { membership: BigEventGroupMemberRow; move: boolean }
   >();
+  for (const membership of campusChangeSeats(plan, groups, members)) {
+    removals.set(membership.$id, { membership, move: false });
+  }
   for (const membership of roomBusRemovals(plan, groups, members)) {
     removals.set(membership.$id, { membership, move: false });
   }
@@ -960,8 +920,7 @@ export async function applyImport(
       resourceId: bigEventId,
       resourceType: "big_event",
     });
-    revalidatePath("/big-events");
-    revalidatePath(`/big-events/${bigEventId}`, "layout");
+    revalidateBigEvent(bigEventId);
   }
   return toResult(outcome, prepared, linked.size, suggested);
 }

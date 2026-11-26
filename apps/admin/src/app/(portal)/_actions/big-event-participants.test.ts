@@ -544,6 +544,123 @@ describe("updateParticipant and the connect link (R36)", () => {
   });
 });
 
+describe("updateParticipant and buses (M12)", () => {
+  const writes: string[] = [];
+
+  beforeEach(() => {
+    writes.length = 0;
+    db.updateRow.mockImplementation(
+      (_db: string, table: string, id: string, data: object) => {
+        writes.push(
+          `update ${table} ${id} ${Object.keys(data).sort().join(",")}`
+        );
+        return Promise.resolve({});
+      }
+    );
+    db.deleteRow.mockImplementation(
+      (_db: string, table: string, id: string) => {
+        writes.push(`delete ${table} ${id}`);
+        return Promise.resolve({});
+      }
+    );
+  });
+
+  function route(event: Record<string, unknown> = {}) {
+    routeListRows({
+      big_event_group_members: () =>
+        rows([
+          {
+            $id: "s-out",
+            group_id: "bus-bergen",
+            leg: "out",
+            participant_id: "p1",
+          },
+          {
+            $id: "s-home",
+            group_id: "bus-bergen",
+            leg: "home",
+            participant_id: "p1",
+          },
+          {
+            $id: "s-oslo",
+            group_id: "bus-oslo",
+            leg: "home",
+            participant_id: "p1",
+          },
+          { $id: "room", group_id: "room-1", leg: null, participant_id: "p1" },
+        ]),
+      big_event_groups: () =>
+        rows([
+          { $id: "bus-bergen", campus_id: "2", kind: "bus" },
+          { $id: "bus-oslo", campus_id: "1", kind: "bus" },
+        ]),
+      big_event_participants: () => rows([participantRow()]),
+      big_events: () => rows([bigEventRow(event)]),
+    });
+  }
+
+  test("a campus change takes the person off the old campus's bus", async () => {
+    route();
+
+    await updateParticipant("p1", { ...formValues, campus_id: "1" });
+
+    expect(writes).toEqual([
+      "delete big_event_group_members s-out",
+      "delete big_event_group_members s-home",
+      expect.stringContaining("update big_event_participants p1 campus_id"),
+    ]);
+    expect(logAuditEvent.mock.calls.map((call) => call[1])).toEqual([
+      "big_event.bus.campus_change",
+      "big_event.participant.update",
+    ]);
+  });
+
+  test("after publishing they are owed a bus notice, marked first", async () => {
+    route({ bus_lists_published_at: "2027-01-05T09:00:00.000+00:00" });
+
+    await updateParticipant("p1", { ...formValues, campus_id: "1" });
+
+    expect(writes[0]).toBe(
+      "update big_event_participants p1 bus_notice_due_at"
+    );
+    expect(writes.slice(1, 3)).toEqual([
+      "delete big_event_group_members s-out",
+      "delete big_event_group_members s-home",
+    ]);
+  });
+
+  test("the same campus keeps every seat", async () => {
+    route({ bus_lists_published_at: "2027-01-05T09:00:00.000+00:00" });
+
+    await updateParticipant("p1", { ...formValues, first_name: "Kari Anne" });
+
+    expect(writes).toEqual([
+      expect.stringContaining("update big_event_participants p1 campus_id"),
+    ]);
+    expect(queriesFor("big_event_group_members")).toHaveLength(0);
+  });
+
+  test("a failed seat removal stops before the campus changes", async () => {
+    route();
+    db.deleteRow.mockImplementation(() =>
+      Promise.reject(new Error("Appwrite down"))
+    );
+    const consoleError = spyOn(console, "error").mockImplementation(
+      () => undefined
+    );
+
+    await expect(
+      updateParticipant("p1", { ...formValues, campus_id: "1" })
+    ).rejects.toThrow();
+
+    consoleError.mockRestore();
+    expect(writes).toEqual([]);
+    expect(logAuditEvent.mock.calls[0]?.[2]).toMatchObject({
+      payload: { complete: false },
+    });
+  });
+});
+
 describe("removeParticipants", () => {
   test("remove deletes the person's group memberships", async () => {
     routeListRows({

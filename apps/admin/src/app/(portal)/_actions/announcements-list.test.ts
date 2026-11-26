@@ -76,6 +76,21 @@ describe("listAnnouncements source filter", () => {
   });
 });
 
+describe("listAnnouncements big event pushes (R34)", () => {
+  test("leaves out pushes about a big event, keeps rows without a link", async () => {
+    for (const source of ["all", "auto", "manual"] as const) {
+      db.listRows.mockClear();
+      await listAnnouncements({ source });
+      expect(announcementQueries()).toContain(
+        Query.or([
+          Query.isNull("deep_link"),
+          Query.notStartsWith("deep_link", "biso://big-event"),
+        ])
+      );
+    }
+  });
+});
+
 describe("listAnnouncements segment names", () => {
   test("loads segment names in a single batch", async () => {
     db.listRows.mockImplementation((_d: string, table: string) => {

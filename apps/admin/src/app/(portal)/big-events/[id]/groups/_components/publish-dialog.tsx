@@ -16,17 +16,31 @@ import { toast } from "sonner";
 import { publishBusLists } from "../../../../_actions/big-event-buses";
 import { PortalButton } from "../../../../_components/portal-button";
 import { SERIF_STACK, STUDIO } from "../../../../_components/studio";
+import type { MissingBusDetail } from "./bus-board-model";
 
 interface PublishDialogProps {
   bigEventId: string;
+  /** Bus details the messages would leave out; publishing still goes. */
+  missing: MissingBusDetail[];
   onOpenChange: (open: boolean) => void;
   /** Everyone with a bus out: the people who get the message (N1). */
   riders: number;
 }
 
-/** "Publish bus lists": asks first, with how many people get a message. */
+const MISSING_KEYS: Record<MissingBusDetail["missing"], string> = {
+  both: "missingBoth",
+  departure: "missingDeparture",
+  meeting_point: "missingMeetingPoint",
+};
+
+/**
+ * "Publish bus lists": asks first, with how many people get a message and
+ * which buses lack a departure time or meeting point the messages would
+ * name.
+ */
 export function PublishDialog({
   bigEventId,
+  missing,
   onOpenChange,
   riders,
 }: PublishDialogProps) {
@@ -76,6 +90,21 @@ export function PublishDialog({
             {t("description", { count: riders })}
           </AlertDialogDescription>
         </AlertDialogHeader>
+        {missing.length > 0 && (
+          <div className="text-sm leading-6" style={{ color: STUDIO.ink2 }}>
+            <p>{t("missingIntro")}</p>
+            <ul className="mt-1 list-disc pl-5">
+              {missing.map((detail) => (
+                <li key={`${detail.bus}-${detail.leg}`}>
+                  {t(MISSING_KEYS[detail.missing], {
+                    bus: detail.bus,
+                    leg: detail.leg,
+                  })}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <AlertDialogFooter className="gap-2">
           <AlertDialogCancel disabled={isPublishing}>
             {tc("cancel")}
