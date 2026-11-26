@@ -13,6 +13,7 @@ import type {
   BigEventGroupMemberRow,
   BigEventGroupRow,
   BigEventParticipantRow,
+  BigEventRow,
 } from "@repo/shared/big-events/types";
 import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
 import { mapWithConcurrency } from "@repo/shared/utils/concurrency";
@@ -24,10 +25,15 @@ import {
 } from "@/lib/big-events/access";
 import {
   type AdminDb,
+  assertComplete,
   type GrantedAccess,
+  markNotices,
+  newWriteLog,
   requireBigEvent,
   revalidateBigEvent,
+  writePhase,
 } from "@/lib/big-events/action-helpers";
+import { seatsOffCampus } from "@/lib/big-events/buses/campus-change";
 import { normalizeEmail } from "@/lib/big-events/import/normalize";
 import { kickDeliveries } from "@/lib/big-events/kick-deliveries";
 import { listAllRows, listRowsByIds } from "@/lib/big-events/list-rows";
@@ -281,6 +287,78 @@ function suggestionFor(
   };
 }
 
+/** The person's seats on buses of another campus than `campusId` (M12). */
+async function seatsOffNewCampus(
+  db: AdminDb,
+  participant: BigEventParticipantRow,
+  campusId: string | null
+): Promise<string[]> {
+  const inEvent = Query.equal("big_event_id", [participant.big_event_id]);
+  const [buses, seats] = await Promise.all([
+    listAllRows<BigEventGroupRow>(db, BIG_EVENT_TABLES.groups, [
+      inEvent,
+      Query.equal("kind", ["bus"]),
+      Query.select(["$id", "campus_id"]),
+    ]),
+    listAllRows<BigEventGroupMemberRow>(db, BIG_EVENT_TABLES.groupMembers, [
+      inEvent,
+      Query.equal("participant_id", [participant.$id]),
+      Query.select(["$id", "group_id", "leg"]),
+    ]),
+  ]);
+  return seatsOffCampus(
+    seats,
+    new Map(buses.map((bus) => [bus.$id, bus.campus_id])),
+    campusId
+  );
+}
+
+/**
+ * M12: someone moved to another campus leaves the other campuses' buses
+ * (nobody rides another campus's bus, Stage 2 ruling R19). After the bus
+ * lists are published they are owed a bus notice, marked first (ruling
+ * R11). Runs before the campus itself changes, so a retry after a failure
+ * still sees the change and finishes it. Audited with counts only.
+ */
+async function leaveOtherCampusBuses(
+  ctx: Awaited<ReturnType<typeof requireAuth>>,
+  db: AdminDb,
+  event: BigEventRow,
+  participantId: string,
+  seatIds: string[]
+): Promise<void> {
+  const published = Boolean(event.bus_lists_published_at);
+  const log = newWriteLog();
+  try {
+    const noticed =
+      !published ||
+      (await markNotices(db, log, [participantId], new Date().toISOString()));
+    const removed =
+      noticed &&
+      (await writePhase(
+        log,
+        "seats",
+        seatIds,
+        (seatId) =>
+          db.deleteRow(DATABASE_ID, BIG_EVENT_TABLES.groupMembers, seatId),
+        "campus change"
+      ));
+    log.complete = Boolean(removed);
+  } finally {
+    await logAuditEvent(ctx, "big_event.bus.campus_change", {
+      payload: {
+        complete: log.complete,
+        notice: published,
+        participant_id: participantId,
+        phases: log.phases,
+      },
+      resourceId: event.$id,
+      resourceType: "big_event",
+    });
+  }
+  assertComplete(log);
+}
+
 function changedColumns(
   before: BigEventParticipantRow,
   after: Record<string, unknown>
@@ -341,7 +419,7 @@ export async function updateParticipant(
   if (!participant) {
     throw new Error("This person is no longer on the list");
   }
-  const { access } = await requireBigEvent(participant.big_event_id);
+  const { access, event } = await requireBigEvent(participant.big_event_id);
   // Both the person as they are and as they would be must be the caller's.
   if (
     !(canSeeParticipant(access, participant) && canSeeParticipant(access, data))
@@ -349,6 +427,12 @@ export async function updateParticipant(
     throw new Error("You can only change people from your own campus");
   }
   const columns = participantColumns(data);
+  if (columns.campus_id !== participant.campus_id) {
+    const seats = await seatsOffNewCampus(db, participant, columns.campus_id);
+    if (seats.length > 0) {
+      await leaveOtherCampusBuses(ctx, db, event, id, seats);
+    }
+  }
   // A new address kills the old connect link (ruling R36): a pending email to
   // the old address is skipped, and the next send makes a new link.
   const emailChanged =

@@ -576,6 +576,18 @@
         "done": "Busslistene er publisert",
         "published": "Publisert {date}"
       }
+    },
+    "messages": {
+      "everyone": "Alle",
+      "noBus": "Ingen buss",
+      "noRoom": "Ikke på rom",
+      "warnings": {
+        "noDeparture": "{bus} har ingen avgangstid for {leg, select, home {hjemreisen} other {utreisen}} ennå",
+        "noMeetingPoint": "{bus} har ikke noe oppmøtested for {leg, select, home {hjemreisen} other {utreisen}} ennå",
+        "noContact": "{bus} har ingen busskontakt ennå",
+        "peopleWithoutBus": "{count, plural, one {# person har} other {# personer har}} ingen buss {leg, select, home {hjem} other {ut}}, så bussdetaljene i meldingen blir tomme",
+        "peopleWithoutRoom": "{count, plural, one {# person er} other {# personer er}} ikke på rom, så rommet i meldingen blir tomt"
+      }
     }
   },
   "sidebar": {

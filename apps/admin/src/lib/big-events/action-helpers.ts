@@ -84,13 +84,15 @@ export function newWriteLog(): WriteLog {
 /**
  * Runs every write of one phase to the end, even when some fail, and logs
  * the counts. Returns the items written, or null when any write failed so
- * the caller stops before the next phase.
+ * the caller stops before the next phase. `label` names the writes in the
+ * error log.
  */
 export async function writePhase<T>(
   log: WriteLog,
   name: string,
   items: T[],
-  write: (item: T) => Promise<unknown>
+  write: (item: T) => Promise<unknown>,
+  label = "bus board"
 ): Promise<T[] | null> {
   if (items.length === 0) {
     return [];
@@ -110,7 +112,7 @@ export async function writePhase<T>(
   }
   const first = results.find((result) => result.status === "rejected");
   console.error(
-    `[big-events] ${failed} bus board writes failed; the first:`,
+    `[big-events] ${failed} ${label} writes failed; the first:`,
     first?.status === "rejected" ? first.reason : undefined
   );
   return null;
@@ -129,9 +131,14 @@ export function markNotices(
   participantIds: string[],
   now: string
 ): Promise<string[] | null> {
-  return writePhase(log, "notices", participantIds, (id) =>
-    db.updateRow<BigEventParticipantRow>(DATABASE_ID, PARTICIPANTS, id, {
-      bus_notice_due_at: now,
-    })
+  return writePhase(
+    log,
+    "notices",
+    participantIds,
+    (id) =>
+      db.updateRow<BigEventParticipantRow>(DATABASE_ID, PARTICIPANTS, id, {
+        bus_notice_due_at: now,
+      }),
+    "bus notice"
   );
 }

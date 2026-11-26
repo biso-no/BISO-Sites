@@ -576,6 +576,18 @@
         "done": "The bus lists are published",
         "published": "Published {date}"
       }
+    },
+    "messages": {
+      "everyone": "Everyone",
+      "noBus": "No bus",
+      "noRoom": "Not in a room",
+      "warnings": {
+        "noDeparture": "{bus} has no departure time {leg, select, home {for the way home} other {for the way out}} yet",
+        "noMeetingPoint": "{bus} has no meeting point {leg, select, home {for the way home} other {for the way out}} yet",
+        "noContact": "{bus} has no bus contact yet",
+        "peopleWithoutBus": "{count, plural, one {# person has} other {# people have}} no bus {leg, select, home {home} other {out}}, so the bus details in the message will be empty for them",
+        "peopleWithoutRoom": "{count, plural, one {# person isn't} other {# people aren't}} in a room, so the room in the message will be empty for them"
+      }
     }
   },
   "sidebar": {

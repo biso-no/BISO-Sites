@@ -1,6 +1,7 @@
 import { BIG_EVENT_STATUSES } from "@repo/shared/big-events/tables";
 import type { BigEventRow } from "@repo/shared/big-events/types";
 import { z } from "zod";
+import { autoTextsSchema } from "./messages/auto-texts";
 
 /** Campuses a big event can belong to: Oslo, Bergen, Trondheim, Stavanger, National. */
 export const BIG_EVENT_CAMPUS_IDS = ["1", "2", "3", "4", "5"] as const;
@@ -37,9 +38,19 @@ export const bigEventFormSchema = bigEventFields.refine(
   END_BEFORE_START
 );
 
-/** The settings form also sets the status. */
+/**
+ * The settings form also sets the status and, when it sends them, the
+ * automatic messages (plan M9): three switches and the organizers' own
+ * texts (null: the defaults). Left out, they stay as they are.
+ */
 export const bigEventUpdateSchema = bigEventFields
-  .extend({ status: z.enum(BIG_EVENT_STATUSES) })
+  .extend({
+    auto_bus_assigned: z.boolean().optional(),
+    auto_bus_moved: z.boolean().optional(),
+    auto_departure_reminder: z.boolean().optional(),
+    auto_texts: autoTextsSchema.nullable().optional(),
+    status: z.enum(BIG_EVENT_STATUSES),
+  })
   .refine(endsAfterStart, END_BEFORE_START);
 
 export type BigEventFormValues = z.infer<typeof bigEventFormSchema>;
@@ -108,5 +119,20 @@ export function bigEventColumns(values: BigEventFormValues) {
     place_name: values.place_name || null,
     starts_at: values.starts_at,
     travel_enabled: values.travel_enabled,
+  };
+}
+
+/** The automatic-message switches the form sent; the ones left out stay as they are. */
+export function autoMessageSwitches(values: BigEventUpdateValues) {
+  return {
+    ...(values.auto_bus_assigned === undefined
+      ? {}
+      : { auto_bus_assigned: values.auto_bus_assigned }),
+    ...(values.auto_bus_moved === undefined
+      ? {}
+      : { auto_bus_moved: values.auto_bus_moved }),
+    ...(values.auto_departure_reminder === undefined
+      ? {}
+      : { auto_departure_reminder: values.auto_departure_reminder }),
   };
 }

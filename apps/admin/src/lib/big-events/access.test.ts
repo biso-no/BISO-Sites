@@ -9,8 +9,11 @@ import {
   canCreateBigEvent,
   canEditBigEventSettings,
   canManageGroup,
+  canManageMessage,
+  canSeeMessage,
   canSeeParticipant,
   manageableGroupCampuses,
+  messageCampusIds,
   participantCampusFilter,
   visibleBigEventFilters,
 } from "./access";
@@ -327,5 +330,42 @@ describe("manageableGroupCampuses (R6)", () => {
     const access = bigEventAccess(bergenAdmin, nationalNoDept);
     expect(manageableGroupCampuses(access, nationalNoDept)).toEqual([BERGEN]);
     expect(manageableGroupCampuses(null, nationalNoDept)).toEqual([]);
+  });
+});
+
+describe("messages (R22)", () => {
+  const bergenAccess = {
+    campusIds: [BERGEN],
+    canEditSettings: true,
+    level: "campus" as const,
+  };
+  const both = { ...bergenAccess, campusIds: [OSLO, BERGEN] };
+
+  test("a message reaches the sender's scope: every campus for full access", () => {
+    expect(messageCampusIds({ level: "full" })).toEqual([]);
+    expect(messageCampusIds(both)).toEqual([OSLO, BERGEN]);
+  });
+
+  test("campus admins see their campuses' messages and organisation-wide ones", () => {
+    expect(canSeeMessage(bergenAccess, { campus_ids: [BERGEN] })).toBe(true);
+    expect(canSeeMessage(bergenAccess, { campus_ids: [OSLO, BERGEN] })).toBe(
+      true
+    );
+    expect(canSeeMessage(bergenAccess, { campus_ids: [] })).toBe(true);
+    expect(canSeeMessage(bergenAccess, { campus_ids: null })).toBe(true);
+    expect(canSeeMessage(bergenAccess, { campus_ids: [OSLO] })).toBe(false);
+    expect(canSeeMessage({ level: "full" }, { campus_ids: [OSLO] })).toBe(true);
+    expect(canSeeMessage(null, { campus_ids: [] })).toBe(false);
+  });
+
+  test("campus admins manage only messages limited to their own campuses", () => {
+    expect(canManageMessage(bergenAccess, { campus_ids: [BERGEN] })).toBe(true);
+    expect(canManageMessage(both, { campus_ids: [BERGEN] })).toBe(true);
+    expect(canManageMessage(bergenAccess, { campus_ids: [OSLO, BERGEN] })).toBe(
+      false
+    );
+    expect(canManageMessage(bergenAccess, { campus_ids: [] })).toBe(false);
+    expect(canManageMessage({ level: "full" }, { campus_ids: [] })).toBe(true);
+    expect(canManageMessage(null, { campus_ids: [BERGEN] })).toBe(false);
   });
 });
