@@ -4,24 +4,27 @@ import {
   BIG_EVENT_STATUSES,
   type BigEventStatus,
 } from "@repo/shared/big-events/tables";
-import { Switch } from "@repo/ui/components/ui/switch";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   type FormEvent,
-  type ReactNode,
   useCallback,
   useId,
   useState,
   useTransition,
 } from "react";
 import { toast } from "sonner";
+import {
+  type AutoTextsForm,
+  autoTextsPayload,
+} from "@/lib/big-events/auto-message-texts";
 import { joinOsloDateTime, splitOsloDateTime } from "@/lib/big-events/dates";
 import {
   type BigEventFormField,
   type BigEventUpdateValues,
   bigEventUpdateSchema,
 } from "@/lib/big-events/form-schema";
+import { autoTextsColumn } from "@/lib/big-events/messages/auto-texts";
 import { createBigEvent, updateBigEvent } from "../../_actions/big-events";
 import { DepartmentCombobox } from "../../_components/department-combobox";
 import { ImageUploadField } from "../../_components/image-upload-field";
@@ -32,6 +35,8 @@ import {
   PortalSelect,
 } from "../../_components/portal-fields";
 import { STUDIO, StudioCard, StudioLinkButton } from "../../_components/studio";
+import { AutoMessagesSection } from "./auto-messages-section";
+import { SwitchRow } from "./switch-row";
 
 type FieldErrors = Partial<Record<BigEventFormField, string>>;
 interface DateTimeParts {
@@ -40,6 +45,11 @@ interface DateTimeParts {
 }
 
 interface BigEventFormProps {
+  /**
+   * Settings only: the automatic messages' texts in use and their defaults,
+   * read by the page (the parser is server-only).
+   */
+  autoMessages?: { defaults: AutoTextsForm; texts: AutoTextsForm };
   /** Set on the settings page; absent when creating. */
   bigEventId?: string;
   campusLocked: boolean;
@@ -62,6 +72,7 @@ function firstErrorPerField(
 }
 
 export function BigEventForm({
+  autoMessages,
   bigEventId,
   campusLocked,
   campusOptions,
@@ -78,6 +89,7 @@ export function BigEventForm({
   const [end, setEnd] = useState<DateTimeParts>(() =>
     splitOsloDateTime(initial.ends_at)
   );
+  const [autoTexts, setAutoTexts] = useState(autoMessages?.texts ?? null);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [isPending, startTransition] = useTransition();
   const isSettings = bigEventId !== undefined;
@@ -93,6 +105,13 @@ export function BigEventForm({
     []
   );
 
+  /** The automatic texts refused, as the sentence shown under them. */
+  function refuseAutoTexts(error: "too_long" | "unknown_placeholder") {
+    const message = t(`form.errors.auto_${error}`);
+    setErrors({ auto_texts: message });
+    toast.error(message);
+  }
+
   function save(candidate: BigEventUpdateValues) {
     // The create form carries the default status too; the server ignores it.
     const parsed = bigEventUpdateSchema.safeParse(candidate);
@@ -104,11 +123,24 @@ export function BigEventForm({
       );
       return;
     }
+    // The same check the server makes, so the reason shows before saving.
+    const texts =
+      parsed.data.auto_texts === undefined
+        ? null
+        : autoTextsColumn(parsed.data.auto_texts);
+    if (texts && !texts.ok) {
+      refuseAutoTexts(texts.error);
+      return;
+    }
     setErrors({});
     startTransition(async () => {
       try {
         if (bigEventId) {
-          await updateBigEvent(bigEventId, parsed.data);
+          const result = await updateBigEvent(bigEventId, parsed.data);
+          if (!result.ok) {
+            refuseAutoTexts(result.error);
+            return;
+          }
           toast.success(t("form.saved"));
           router.refresh();
           return;
@@ -126,6 +158,9 @@ export function BigEventForm({
     event.preventDefault();
     save({
       ...values,
+      ...(autoMessages && autoTexts
+        ? { auto_texts: autoTextsPayload(autoTexts, autoMessages.defaults) }
+        : {}),
       ends_at: joinOsloDateTime(end.date, end.time),
       starts_at: joinOsloDateTime(start.date, start.time),
     });
@@ -283,6 +318,27 @@ export function BigEventForm({
           </div>
         )}
 
+        {isSettings && autoMessages && autoTexts && (
+          <AutoMessagesSection
+            defaults={autoMessages.defaults}
+            error={
+              errors.auto_texts ??
+              errors.auto_bus_assigned ??
+              errors.auto_bus_moved ??
+              errors.auto_departure_reminder
+            }
+            onSwitch={update}
+            onTexts={setAutoTexts}
+            switches={{
+              auto_bus_assigned: values.auto_bus_assigned ?? true,
+              auto_bus_moved: values.auto_bus_moved ?? true,
+              auto_departure_reminder: values.auto_departure_reminder ?? true,
+            }}
+            texts={autoTexts}
+            travel={values.travel_enabled}
+          />
+        )}
+
         <div
           className="flex items-center justify-end gap-2 border-t pt-5"
           style={{ borderColor: STUDIO.rule }}
@@ -335,50 +391,5 @@ function DateTimeField({
         />
       </div>
     </PortalField>
-  );
-}
-
-function SwitchRow({
-  checked,
-  help,
-  id,
-  label,
-  onChange,
-}: {
-  checked: boolean;
-  help: ReactNode;
-  id: string;
-  label: string;
-  onChange: (checked: boolean) => void;
-}) {
-  return (
-    <div
-      className="flex items-start justify-between gap-4 rounded-xl border px-4 py-3"
-      style={{ borderColor: STUDIO.rule }}
-    >
-      <div>
-        <label
-          className="font-medium text-sm"
-          htmlFor={id}
-          style={{ color: STUDIO.ink }}
-        >
-          {label}
-        </label>
-        <p
-          className="mt-0.5 text-[12.5px] leading-5"
-          id={`${id}-help`}
-          style={{ color: STUDIO.ink3 }}
-        >
-          {help}
-        </p>
-      </div>
-      <Switch
-        aria-describedby={`${id}-help`}
-        checked={checked}
-        className="mt-0.5 shrink-0"
-        id={id}
-        onCheckedChange={onChange}
-      />
-    </div>
   );
 }

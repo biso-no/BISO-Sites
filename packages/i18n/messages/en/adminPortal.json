@@ -63,7 +63,8 @@
     "tabs": {
       "participants": "Participants",
       "groups": "Groups",
-      "settings": "Settings"
+      "settings": "Settings",
+      "messages": "Messages"
     },
     "participants": {
       "reach": {
@@ -215,7 +216,13 @@
         "hero_image_url": "Upload the image again.",
         "travel_enabled": "Turn travel on or off.",
         "group_checkin_enabled": "Turn check-in on or off.",
-        "status": "Choose a status."
+        "status": "Choose a status.",
+        "auto_bus_assigned": "Turn the bus message on or off.",
+        "auto_bus_moved": "Turn the bus change message on or off.",
+        "auto_departure_reminder": "Turn the departure reminder on or off.",
+        "auto_texts": "Check the texts of the automatic messages.",
+        "auto_unknown_placeholder": "An automatic message has something in curly brackets that isn't a detail we can fill in. Use the buttons to add details.",
+        "auto_too_long": "The automatic messages are too long. Keep each title to 200 characters and each text to 2,000, or shorten some of your own texts."
       }
     },
     "import": {
@@ -587,6 +594,177 @@
         "noContact": "{bus} has no bus contact yet",
         "peopleWithoutBus": "{count, plural, one {# person has} other {# people have}} no bus {leg, select, home {home} other {out}}, so the bus details in the message will be empty for them",
         "peopleWithoutRoom": "{count, plural, one {# person isn't} other {# people aren't}} in a room, so the room in the message will be empty for them"
+      },
+      "newMessage": "New message",
+      "historyTitle": "Sent and planned",
+      "steps": {
+        "label": "Steps",
+        "message": "Message",
+        "who": "Who",
+        "check": "Check & send",
+        "next": "Next",
+        "back": "Back"
+      },
+      "write": {
+        "intro": "Write the message in {language, select, no {Norwegian} other {English}}. You fill in the other language under Check & send.",
+        "title": "Title in {language, select, no {Norwegian} other {English}}",
+        "body": "Text in {language, select, no {Norwegian} other {English}}",
+        "needText": "Write a title and a text first.",
+        "important": "Important",
+        "importantHelp": "Shown in red and pinned at the top until you unpin it. Sent as both a push and an email.",
+        "sms": "Also send as SMS",
+        "smsHelp": "No SMS provider is connected, so nothing is sent by SMS yet."
+      },
+      "placeholders": {
+        "label": "Add personal details",
+        "help": "Each person gets their own details. Pushes leave out the first name.",
+        "first_name": "First name",
+        "bus": "Bus",
+        "departure": "Departure",
+        "meeting_point": "Meeting point",
+        "bus_contact": "Bus contact",
+        "room": "Room"
+      },
+      "who": {
+        "legend": "Who gets it",
+        "everyone": "Everyone",
+        "everyoneHelp": "Everyone in this big event",
+        "everyoneFrom": "Everyone from {campuses}",
+        "campus": "Campus",
+        "campusHelp": "Everyone from the campuses you pick",
+        "groups": "Buses, rooms and groups",
+        "groupsHelp": "The people in the ones you pick",
+        "people": "Chosen people",
+        "peopleHelp": "Pick people by name",
+        "campuses": "Campuses",
+        "noCampuses": "Nobody here has a campus yet.",
+        "noGroups": "There are no buses, rooms or groups yet.",
+        "findGroup": "Find a bus, room or group",
+        "noGroupMatch": "Nothing has that name.",
+        "leg": "Which way?",
+        "legOut": "Way out",
+        "legHome": "Way home",
+        "legHelpBus": "A message to a bus goes to the people on it that way, with the details for that trip.",
+        "legHelpDetails": "The bus details in the message are for this trip.",
+        "search": "Search by name",
+        "noMatch": "Nobody by that name.",
+        "add": "Add {name}",
+        "remove": "Remove {name}",
+        "chosen": "{count, plural, =0 {Nobody chosen yet} one {# person chosen} other {# people chosen}}",
+        "peopleCap": "You can pick up to {max} people. To reach more, pick a campus or a group instead.",
+        "groupCap": "You can pick up to {max}. To reach more, send to everyone or a campus instead.",
+        "needAudience": "Choose who gets the message."
+      },
+      "reach": {
+        "incomplete": "Choose who gets the message to see how many it reaches.",
+        "counting": "Counting…",
+        "summary": "{people, plural, one {# person} other {# people}}: {push, plural, one {# gets a push} other {# get a push}}, {email, plural, one {# gets an email} other {# get an email}}",
+        "sms": "{count, plural, one {# gets an SMS} other {# get an SMS}}",
+        "unreachable": "{count} can't be reached (no email)",
+        "nobody": "Nobody matches who you chose.",
+        "failed": "Couldn't count right now. Try again in a moment."
+      },
+      "check": {
+        "languages": "Both languages",
+        "languagesHelp": "People with the app get it in their own language. Emails to people without the app carry both.",
+        "translate": "Translate",
+        "translating": "Translating…",
+        "translateHelp": "Fills in {target, select, no {Norwegian} other {English}} from {source, select, no {Norwegian} other {English}}. Read it through before you send.",
+        "translateReplaces": "Replaces the {target, select, no {Norwegian} other {English}} text with a translation of the {source, select, no {Norwegian} other {English}}. Read it through before you send.",
+        "translateFailed": "Couldn't translate right now. Try again, or write it yourself.",
+        "needBoth": "Write the title and text in both Norwegian and English. Translate can fill in the other language for you.",
+        "preview": "How it reads",
+        "previewHelp": "One example for each bus or room the text differs by. Pushes leave out the first name.",
+        "warnings": "Check these first",
+        "when": "When",
+        "now": "Send now",
+        "schedule": "Schedule",
+        "date": "Date",
+        "time": "Time (Oslo)",
+        "pickTime": "Pick a date and a time.",
+        "send": "Send message",
+        "sendScheduled": "Schedule message",
+        "sending": "Sending…"
+      },
+      "sent": {
+        "now": "Sent to {count, plural, one {# person} other {# people}}",
+        "sending": "It's going out now. You can follow it in the list below.",
+        "scheduled": "Planned for {when}",
+        "failed": "Sending failed. You can try again from the list below."
+      },
+      "history": {
+        "empty": "No messages yet.",
+        "automatic": "Automatic",
+        "important": "Important",
+        "status": {
+          "sent": "Sent",
+          "scheduled": "Planned",
+          "sending": "Sending",
+          "failed": "Failed"
+        },
+        "sentAt": "Sent {when}",
+        "scheduledAt": "Goes out {when}",
+        "sendingNow": "Going out now",
+        "failedAt": "Was due {when}",
+        "counts": "{people, plural, one {# person} other {# people}} · {push, plural, one {# push} other {# pushes}} · {email, plural, one {# email} other {# emails}}",
+        "smsCount": "{count} SMS",
+        "failedCount": "{count} not delivered",
+        "who": {
+          "everyone": "Everyone",
+          "chosen": "{count, plural, one {# chosen person} other {# chosen people}}",
+          "people": "{count, plural, one {# person} other {# people}}",
+          "hiddenGroups": "{count, plural, one {# other group} other {# other groups}}",
+          "out": "way out",
+          "home": "way home",
+          "unknown": "Not known"
+        },
+        "unpin": "Unpin",
+        "unpinned": "Unpinned. It's no longer at the top.",
+        "cancel": "Cancel",
+        "cancelQuestion": "Cancel this message? It won't be sent.",
+        "cancelConfirm": "Yes, cancel it",
+        "cancelKeep": "Keep it",
+        "cancelled": "The message is cancelled.",
+        "tooLateToCancel": "It's too late to cancel: the message goes out within a minute, or has already gone out.",
+        "retry": "Try again",
+        "retryHelp": "People not reached yet get the details as they were when it was first sent.",
+        "retried": "Sent to the people who weren't reached.",
+        "retrySending": "It's going out now.",
+        "retryFailed": "Sending failed again. You can try again later."
+      },
+      "errors": {
+        "already_sent": "This message has already gone out, or is going out now.",
+        "in_the_past": "That time has passed. Pick a later time.",
+        "missing_translation": "Write the title and text in both Norwegian and English.",
+        "no_access": "You don't have access to do this.",
+        "no_people": "Nobody matches who you chose. Choose someone else.",
+        "not_found": "This message doesn't exist any more. The list is updated.",
+        "unknown_placeholder": "Something in curly brackets isn't a detail we can fill in. Use the buttons to add details like first name or bus.",
+        "unexpected": "Something went wrong. Try again."
+      },
+      "auto": {
+        "title": "Automatic messages",
+        "help": "Sent by themselves while the big event is published and Travel is on. Turn off the ones you don't want, or change their text.",
+        "travelOff": "Automatic messages are about buses, so they're only sent while Travel is on.",
+        "assigned": "Your bus",
+        "assignedHelp": "When you publish the bus lists, each person is told which bus they're on.",
+        "moved": "Bus changes",
+        "movedHelp": "After the bus lists are published, people who are moved to another bus, or lose their seat, are told.",
+        "reminder": "Departure reminder",
+        "reminderHelp": "Two hours before a bus leaves, the people on it get a reminder.",
+        "kinds": {
+          "bus_assigned": "Text: your bus",
+          "bus_moved": "Text: new bus",
+          "bus_none": "Text: no bus seat",
+          "departure_reminder": "Text: departure reminder"
+        },
+        "own": "Your own text",
+        "reset": "Reset to default",
+        "defaultHint": "Leave a field empty to use the default."
+      },
+      "languages": {
+        "no": "Norwegian",
+        "en": "English"
       }
     }
   },
