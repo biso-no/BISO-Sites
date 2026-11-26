@@ -32,9 +32,11 @@ The form has three steps: **Melding** (Message), **Hvem** (Who) and **Sjekk og s
 
 Write **Tittel** (Title) and **Tekst** (Text) in the first language. The language is shown in the field names. You fill in the other language in the last step.
 
-Under **Legg inn personlige detaljer** (Add personal details) are buttons that put a detail into your text: **Fornavn** (First name), **Buss** (Bus), **Avgang** (Departure), **Oppmøtested** (Meeting point), **Busskontakt** (Bus contact) and **Rom** (Room). Each person gets their own details when the message goes out. A button that can't apply, for example the bus buttons when **Reise (busser)** (Travel (buses)) is off, is hidden. Pushes leave out the first name.
+Under **Legg inn personlige detaljer** (Add personal details) are buttons that put a detail into your text: **Fornavn** (First name), **Buss** (Bus), **Avgang** (Departure), **Oppmøtested** (Meeting point), **Busskontakt** (Bus contact), **Hjemreise** (Trip home) and **Rom** (Room). Each person gets their own details when the message goes out. The button writes the detail in the language of the field it sits under. A button that can't apply, for example the bus buttons when **Reise (busser)** (Travel (buses)) is off, is hidden. Pushes leave out the first name.
 
-Tick **Viktig** (Important) for a message people must see. It is shown in red, pinned at the top until someone unpins it, and sent as both a push and an email.
+**Hjemreise** (Trip home) only fills in on a message about the way out. For someone whose bus home is another bus, it says which, for example "Hjem: Buss 2, søn. 26. jan. kl. 12:15 fra Hotellet." For someone with a seat out but none home yet, it says "Du har ikke plass på bussen hjem ennå." (You don't have a seat on the bus home yet.) It is empty for someone who goes home on the same bus, or who has no seat out.
+
+Tick **Viktig** (Important) for a message people must see. It is sent as both a push and an email, and kept pinned until someone unpins it.
 
 If the SMS switch is on, **Send også som SMS** (Also send as SMS) shows too. See [SMS](#sms).
 
@@ -45,7 +47,7 @@ Under **Hvem får den** (Who gets it), choose one of:
 
 - **Alle** (Everyone): everyone in this big event.
 - **Campus**: everyone from the campuses you pick.
-- **Busser, rom og grupper** (Buses, rooms and groups): the people in the ones you pick. For a bus, **Hvilken vei?** (Which way?) is **Utreise** (Way out) or **Hjemreise** (Way home). The message goes to the people on that bus that way, with the bus details for that trip.
+- **Busser, rom og grupper** (Buses, rooms and groups): the people in the ones you pick, up to 100 buses, rooms and groups. For a bus, **Hvilken vei?** (Which way?) is **Utreise** (Way out) or **Hjemreise** (Way home). The message goes to the people on that bus that way, with the bus details for that trip.
 - **Utvalgte personer** (Chosen people): pick people by name, up to 100. To reach more, pick a campus or a group instead.
 
 Campus admins see and reach only their own campus. For them, **Alle** (Everyone) means everyone from their campus.
@@ -59,7 +61,9 @@ Under **Begge språk** (Both languages), write the title and text in the second 
 
 **Slik blir den** (How it reads) shows an example for each bus or room that changes the text. **Sjekk dette først** (Check these first) lists problems that won't stop the send but that you may want to fix, for example a bus with no departure time yet, a bus with no contact, or people who aren't on a bus or in a room, so the detail is empty for them.
 
-Under **Når** (When), choose **Send nå** (Send now) or **Planlegg** (Schedule). To schedule, pick **Dato** (Date) and **Klokkeslett (Oslo)** (Time (Oslo)). The time is Oslo time. Then choose **Send meldingen** (Send message), or **Planlegg meldingen** (Schedule message) for a scheduled one.
+Under **Når** (When), choose **Send nå** (Send now) or **Planlegg** (Schedule). To schedule, pick **Dato** (Date) and **Klokkeslett (Oslo)** (Time (Oslo)). The time is Oslo time. Then choose **Send meldingen** (Send message), or **Planlegg meldingen** (Schedule message) for a scheduled one. **Send meldingen** (Send message) waits while **Oversett** (Translate) is working, and the other way round.
+
+If the page says **Noe gikk galt. Sjekk listen under før du sender igjen.** (Something went wrong. Check the list below before you send it again.), the message may have gone out anyway. Look for it in **Sendt og planlagt** (Sent and planned). Sending the same message again from the form doesn't send it twice.
 
 </Step>
 </Steps>
@@ -68,8 +72,9 @@ Under **Når** (When), choose **Send nå** (Send now) or **Planlegg** (Schedule)
 
 Each person gets the message in the way that reaches them:
 
-- If their ticket is connected to an account and they have the app with push on, they get a push, in their own language.
-- Otherwise they get an email to the address on their ticket. People without the app get an email with both languages.
+- If their ticket is connected to an account and they have the app with push on, they get a push.
+- Otherwise they get an email to the address on their ticket, or else to their account's email.
+- People with a connected account get the push or email in their account's language. People without an account get an email with both languages.
 - **Viktig** (Important) messages go both ways: a push and an email.
 - People with no account and no email address can't be reached.
 
@@ -79,13 +84,13 @@ Several people can share one ticket email, for example a parent who bought sever
 
 ## SMS
 
-**Send også som SMS** (Also send as SMS) shows only when the SMS switch is on in the admin's feature settings. No SMS provider is connected, so nothing is sent by SMS yet. People who could only be reached by SMS count as unreachable.
+**Send også som SMS** (Also send as SMS) shows only when the SMS switch is on in the admin's feature settings. No SMS provider is connected, so nothing is sent by SMS yet. People who could only be reached by SMS count as unreachable. The history shows these as, for example, "2 SMS ikke sendt (ingen SMS-leverandør)" (2 SMS not sent (no SMS provider)).
 
 ## The history
 
 **Sendt og planlagt** (Sent and planned) lists every message, newest first, for the people you may see. Each one shows its status: **Sendt** (Sent), **Planlagt** (Planned), **Sendes** (Sending) or **Feilet** (Failed). A sent message shows how many people it reached, with the number of pushes and emails, and **ikke levert** (not delivered) for people it didn't get to. Messages the system sent itself are marked **Automatisk** (Automatic). See [Automatic bus messages](/guide/big-events/buses-and-groups#automatic-messages).
 
-- **Løsne** (Unpin) takes a **Viktig** (Important) message off the top, so it is no longer pinned. Any organizer who can see it can do this.
+- **Løsne** (Unpin) takes a **Viktig** (Important) message off the top, so it is no longer pinned. Global admins and the board that runs the big event can unpin any message. Campus admins can unpin the messages for their own campus, not messages to the whole big event.
 - **Avbryt** (Cancel) removes a planned message so it is never sent. You are asked to confirm. You can cancel until one minute before it goes out. After that it is too late. Automatic messages can't be cancelled, but you can switch them off in the settings.
 - **Prøv igjen** (Try again) shows on a failed message. It sends to the people who weren't reached yet, with the details as they were when it was first sent. People who already got it don't get it again.
 
@@ -104,11 +109,11 @@ Campus admins see the messages for their own campus and messages to the whole bi
 
 ## What the student sees
 
-A push opens the app's normal announcement view. There is no separate screen for big events in the app yet, and no page for the trip on the web. Students with no app get the message as an email.
+A push opens the app's normal announcement view, with the text's line breaks kept. There is no separate screen for big events in the app yet, and no page for the trip on the web. Students with no app get the message as an email. The pushes don't show in **Kommunikasjon** (Communications): they are listed here, under **Sendt og planlagt** (Sent and planned).
 
 ## Personal data
 
-The per-person copy of each message, who got it and with which details, is deleted 30 days after the big event ends. The messages themselves stay in the history.
+The per-person copy of each message, who got it and with which details, is deleted 30 days after the big event ends. So are the pushes sent about the big event and their entries in each student's app inbox. The messages themselves stay in the history.
 
 ## Common mistakes
 

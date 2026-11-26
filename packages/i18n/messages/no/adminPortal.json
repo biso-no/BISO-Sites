@@ -615,7 +615,7 @@
         "body": "Tekst på {language, select, no {norsk} other {engelsk}}",
         "needText": "Skriv en tittel og en tekst først.",
         "important": "Viktig",
-        "importantHelp": "Vises i rødt og festes øverst til du løsner den. Sendes både som push og e-post.",
+        "importantHelp": "Sendes både som push og e-post, og holdes festet til du løsner den.",
         "sms": "Send også som SMS",
         "smsHelp": "Ingen SMS-leverandør er koblet til, så ingenting sendes som SMS ennå."
       },
@@ -671,7 +671,7 @@
       },
       "check": {
         "languages": "Begge språk",
-        "languagesHelp": "De med appen får den på sitt eget språk. E-post til dem uten appen har begge språk.",
+        "languagesHelp": "De med tilkoblet konto får den på kontoens språk, som push eller e-post. De uten konto får en e-post med begge språk.",
         "translate": "Oversett",
         "translating": "Oversetter…",
         "translateHelp": "Fyller inn {target, select, no {norsk} other {engelsk}} fra {source, select, no {norsk} other {engelsk}}. Les gjennom før du sender.",

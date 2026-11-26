@@ -102,10 +102,10 @@ Before the bus lists are published, a fill places everyone who isn't moved by ha
 
 ## Publish the bus lists
 
-Choose **Publiser busslistene** (Publish bus lists). It publishes for the whole big event at once. The box says how many people will get a message about their bus.
+Choose **Publiser busslistene** (Publish bus lists). It publishes for the whole big event at once. The box says how many people will get a message about their bus. It also names any bus with no departure time or meeting point for the way out, and for the way home when people have a seat home, for example **Buss 3 mangler oppmøtested for utreisen.** (Bus 3 has no meeting point for the way out.). The messages leave out what is missing. You can still publish, but it is better to fill in the bus first.
 
 - Publishing doesn't show buses to anyone by itself. Students don't see buses anywhere yet.
-- Everyone with a seat on a bus out is told which bus they are on, by a message about 10 minutes later. See [Automatic messages](#automatic-messages). People without a seat aren't messaged, since some travel on their own.
+- Everyone with a seat on a bus out is told which bus they are on, by a message 10 to 15 minutes later. See [Automatic messages](#automatic-messages). People without a seat aren't messaged, since some travel on their own.
 - You can still move people afterwards.
 - There is no way to unpublish. The page then shows **Publisert** (Published) with the date.
 - If publishing fails part-way, nothing is published and you can run it again.
@@ -118,7 +118,7 @@ Choose **Publiser busslistene** (Publish bus lists). It publishes for the whole 
 
 - When you move someone, the move box shows **Busslistene er publisert** (The bus lists are published) and a tick box: **Gi beskjed til \{name} om endringen** (Tell … about the change). It is ticked by default. Untick it to move someone without them getting a message. This applies to bus moves and to moves onto a room that has a bus.
 - A move into a room that won't change the person's bus doesn't ask. If it changes their bus anyway, they get a message.
-- A person you tell gets a message about their bus about 10 minutes later. See [Automatic messages](#automatic-messages).
+- A person you tell gets a message about their bus 10 to 15 minutes later. See [Automatic messages](#automatic-messages).
 - A bus that is published and has people on it can't be deleted. The box says **Busslistene er publisert. Flytt folkene av bussen først.** (The bus lists are published. Move the people off this bus first.) Move everyone off, then delete it.
 
 </WhatHappensNext>
@@ -131,18 +131,20 @@ An import follows the same rules. See [Importing again](/guide/big-events/import
 
 After the bus lists are published, the system sends bus messages by itself. You don't write them. They are listed in **Meldinger** (Messages) with the label **Automatisk** (Automatic). See [Send messages to participants](/guide/big-events/messages).
 
-- **What starts them.** Each person's seat is checked about 10 minutes after it is set or changed. If someone is moved several times within those 10 minutes, they get one message, with the latest bus.
-- **What must be true.** The big event must be published, **Reise (busser)** (Travel (buses)) must be on, and the bus lists must be published. A draft or archived big event sends nothing.
+- **What starts them.** Each person's seat is checked 10 to 15 minutes after it is set or changed. If someone is moved several times within those 10 minutes, they get one message, with the latest bus.
+- **What must be true.** The big event must be published, **Reise (busser)** (Travel (buses)) must be on, and the bus lists must be published. A draft or archived big event sends nothing. Automatic messages stop 24 hours after the big event ends.
 - **Publishing.** Publishing tells the people with a seat on a bus out. People without a seat aren't messaged.
-- **Moves.** A person who is moved to another bus is told about the new bus. A person who loses their seat, or has none on their own campus's bus, is told they have no seat right now.
+- **Moves.** A person whose bus changes is told their seat has changed and which bus they are on. A person who loses their seat, or has none on their own campus's bus, is told they have no seat right now.
+- **The trip home.** The messages about the bus out end with the trip home when it is on another bus, for example "Hjem: Buss 2, søn. 26. jan. kl. 12:15 fra Hotellet." Someone with no seat home yet is told so. A change to the bus home sends a message too, about both trips.
 - **Reminders.** A reminder goes out 2 hours before each trip leaves, once per trip, to the people on that trip. A trip with nobody on it sends none.
-- **Campus change.** A person you move to another campus comes off the old campus's buses. After publishing, they get a bus message.
+- **Campus change.** A person you move to another campus, by hand or with an import, comes off the old campus's buses. After publishing, they get a bus message.
+- **When one fails.** An automatic message that fails is tried again by itself, for up to 2 hours.
 
 The messages go by push, or by email to people without the app. The texts follow the person's language.
 
 ### Switches and texts
 
-Open **Innstillinger** (Settings) and find **Automatiske meldinger** (Automatic messages). It shows when the big event is published and Travel is on. There are three switches:
+Open **Innstillinger** (Settings) and find **Automatiske meldinger** (Automatic messages). The section is always there, but the messages only go out while the big event is published and Travel is on. There are three switches:
 
 - **Bussen din** (Your bus): when you publish, each person is told which bus they are on.
 - **Bussendringer** (Bus changes): after publishing, people who are moved to another bus, or lose their seat, are told.
@@ -162,6 +164,6 @@ Students don't see their bus anywhere on a page or in a list yet. They get the m
 - Adding a bus without a campus, or on the wrong campus. A bus is filled only with its own campus's people.
 - Expecting the fill to move people who already have a bus after publishing. It only seats people without one.
 - Expecting **Ta av bussen** (Take off the bus) to keep someone off the buses. The next fill gives them a seat again.
-- Expecting a message the moment you publish or move someone. It goes out about 10 minutes later, and several moves in that time give one message.
+- Expecting a message the moment you publish or move someone. It goes out 10 to 15 minutes later, and several moves in that time give one message.
 - Expecting bus messages from a draft big event, with Travel off, or before the bus lists are published. Nothing is sent.
 - Trying to delete a published bus with people on it. Move them off first.

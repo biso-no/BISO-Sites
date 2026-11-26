@@ -615,7 +615,7 @@
         "body": "Text in {language, select, no {Norwegian} other {English}}",
         "needText": "Write a title and a text first.",
         "important": "Important",
-        "importantHelp": "Shown in red and pinned at the top until you unpin it. Sent as both a push and an email.",
+        "importantHelp": "Sent as both a push and an email, and kept pinned until you unpin it.",
         "sms": "Also send as SMS",
         "smsHelp": "No SMS provider is connected, so nothing is sent by SMS yet."
       },
@@ -671,7 +671,7 @@
       },
       "check": {
         "languages": "Both languages",
-        "languagesHelp": "People with the app get it in their own language. Emails to people without the app carry both.",
+        "languagesHelp": "People with a connected account get it in their account's language, by push or email. People without an account get an email with both languages.",
         "translate": "Translate",
         "translating": "Translating…",
         "translateHelp": "Fills in {target, select, no {Norwegian} other {English}} from {source, select, no {Norwegian} other {English}}. Read it through before you send.",

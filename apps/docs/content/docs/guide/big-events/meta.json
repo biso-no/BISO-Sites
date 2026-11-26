@@ -1,9 +1,4 @@
 {
   "title": "Big events",
-  "pages": [
-    "index",
-    "import-and-connect",
-    "buses-and-groups",
-    "messages"
-  ]
+  "pages": ["index", "import-and-connect", "buses-and-groups", "messages"]
 }
