@@ -93,6 +93,9 @@ async function kickDeliveries(): Promise<void> {
   const base = process.env.NEXT_PUBLIC_API_BASE_URL;
   const secret = process.env.CRON_SECRET;
   if (!(base && secret)) {
+    console.warn(
+      "[Connect help] Not kicking the email processor: NEXT_PUBLIC_API_BASE_URL or CRON_SECRET is not set"
+    );
     return;
   }
   try {
@@ -104,6 +107,11 @@ async function kickDeliveries(): Promise<void> {
         method: "POST",
       }
     );
+    if (!response.ok) {
+      console.warn(
+        `[Connect help] The email processor answered ${response.status}`
+      );
+    }
     // The run's answer isn't needed; release the connection.
     await response.body?.cancel();
   } catch {
