@@ -925,6 +925,36 @@ describe("message deliveries", () => {
     );
   });
 
+  it("names both people when the addresses differ only in case", async () => {
+    seedRecipient("p1");
+    seedRecipient("p2");
+    db.seed(
+      D,
+      messageRow({
+        $id: "d1",
+        participant_ids: ["p1"],
+        to_address: "Kari@x.no",
+      })
+    );
+    db.seed(
+      D,
+      messageRow({
+        $id: "d2",
+        participant_ids: ["p2"],
+        to_address: " kari@x.no",
+      })
+    );
+
+    await processDeliveries(deps(), RUN);
+
+    expect(sendEmail.mock.calls[0]?.[0].text).toContain(
+      "Til: First-p1 Last-p1"
+    );
+    expect(sendEmail.mock.calls[1]?.[0].text).toContain(
+      "Til: First-p2 Last-p2"
+    );
+  });
+
   it("sms rows are skipped with a reason", async () => {
     seedRecipient("p1");
     db.seed(D, messageRow({ channel: "sms", to_address: "+4799999999" }));

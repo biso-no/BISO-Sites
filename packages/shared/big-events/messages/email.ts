@@ -149,6 +149,48 @@ async function loadRecipients(
   return found;
 }
 
+const PAGE_SIZE = 100;
+
+function normalizeAddress(address: string | null | undefined): string {
+  return address?.trim().toLowerCase() ?? "";
+}
+
+/**
+ * How many of the message's email rows go to this address, compared trimmed
+ * and lowercased as Task 5 groups them (Appwrite can't query that way).
+ */
+async function countAtAddress(
+  db: DeliveryDb,
+  messageId: string,
+  address: string | null
+): Promise<number> {
+  const target = normalizeAddress(address);
+  let count = 0;
+  let cursor: string | undefined;
+  while (true) {
+    const queries = [
+      Query.equal("message_id", messageId),
+      Query.equal("channel", "email"),
+      Query.limit(PAGE_SIZE),
+    ];
+    if (cursor) {
+      queries.push(Query.cursorAfter(cursor));
+    }
+    const { rows } = await db.listRows<BigEventDeliveryRow>(
+      DB,
+      BIG_EVENT_TABLES.deliveries,
+      queries
+    );
+    count += rows.filter(
+      (r) => normalizeAddress(r.to_address) === target
+    ).length;
+    if (rows.length < PAGE_SIZE) {
+      return count;
+    }
+    cursor = rows.at(-1)?.$id;
+  }
+}
+
 /**
  * The email for a claimed message row, or `{ skip }` with the reason when the
  * message, the big event or every recipient is gone. The language comes from
@@ -193,18 +235,9 @@ export async function prepareMessageEmail(
 
   // Name the people when an email covers several, or when this message sends
   // more than one email to the same address (ruling R10).
-  const { total } = await db.listRows<BigEventDeliveryRow>(
-    DB,
-    BIG_EVENT_TABLES.deliveries,
-    [
-      Query.equal("message_id", message.$id),
-      Query.equal("channel", "email"),
-      Query.equal("to_address", row.to_address ?? ""),
-      Query.limit(2),
-    ]
-  );
+  const shared = await countAtAddress(db, message.$id, row.to_address);
   const names =
-    ids.length > 1 || total > 1 ? (await loadPeople(ids)).map(fullName) : [];
+    ids.length > 1 || shared > 1 ? (await loadPeople(ids)).map(fullName) : [];
 
   return buildMessageEmail({
     bodyEn: message.body_en,

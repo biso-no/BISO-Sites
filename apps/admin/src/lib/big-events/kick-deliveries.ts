@@ -1,5 +1,8 @@
 import "server-only";
 
+/** The missing-env warning is logged once per process. */
+let warnedMissingEnv = false;
+
 /**
  * Asks the api to start sending queued big event emails now instead of at the
  * next cron tick. Always safe: the route yields while another run is busy.
@@ -10,6 +13,10 @@ export function kickDeliveries(): void {
   const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
   const secret = process.env.CRON_SECRET;
   if (!(apiBase && secret)) {
+    if (warnedMissingEnv) {
+      return;
+    }
+    warnedMissingEnv = true;
     console.warn(
       "[big-events] Not kicking the email processor: NEXT_PUBLIC_API_BASE_URL or CRON_SECRET is not set"
     );

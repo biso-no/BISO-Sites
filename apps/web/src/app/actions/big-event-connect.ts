@@ -84,6 +84,9 @@ export async function connectTicket(
   return result;
 }
 
+/** The missing-env warning is logged once per process. */
+let warnedMissingEnv = false;
+
 /**
  * Starts the api's sending run now rather than at the next cron tick. Awaited
  * inside `after()`, so a runtime that freezes once the callback settles can't
@@ -93,6 +96,10 @@ async function kickDeliveries(): Promise<void> {
   const base = process.env.NEXT_PUBLIC_API_BASE_URL;
   const secret = process.env.CRON_SECRET;
   if (!(base && secret)) {
+    if (warnedMissingEnv) {
+      return;
+    }
+    warnedMissingEnv = true;
     console.warn(
       "[Connect help] Not kicking the email processor: NEXT_PUBLIC_API_BASE_URL or CRON_SECRET is not set"
     );

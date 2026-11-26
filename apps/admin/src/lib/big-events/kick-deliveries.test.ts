@@ -48,10 +48,11 @@ describe("kickDeliveries", () => {
     expect(warn).not.toHaveBeenCalled();
   });
 
-  test("kick logs once when the env is missing", () => {
+  test("kick logs once per process when the env is missing", () => {
     process.env.CRON_SECRET = "";
     const fetchMock = mock(async () => new Response("ok"));
     globalThis.fetch = fetchMock as never;
+    kickDeliveries();
     kickDeliveries();
     expect(warn).toHaveBeenCalledTimes(1);
     expect(fetchMock).not.toHaveBeenCalled();
