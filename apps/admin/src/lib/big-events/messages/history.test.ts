@@ -3,6 +3,8 @@ import type { BigEventMessageRow } from "@repo/shared/big-events/types";
 import { messageHistory } from "./history";
 
 const RUN = "2027-01-10T10:00:00.000+00:00";
+/** An hour before the default message is due. */
+const NOW = new Date("2027-01-10T08:00:00.000Z");
 
 function message(
   overrides: Partial<BigEventMessageRow> & { $id: string }
@@ -48,6 +50,7 @@ const always = () => true;
 describe("messageHistory", () => {
   test("history shows automatic messages, one per cron run and kind (R21)", () => {
     const items = messageHistory({
+      now: NOW,
       canManage: always,
       groups,
       messages: [
@@ -99,6 +102,7 @@ describe("messageHistory", () => {
 
   test("automatic messages of other runs or kinds stay apart; manual ones never merge", () => {
     const items = messageHistory({
+      now: NOW,
       canManage: always,
       groups,
       messages: [
@@ -118,6 +122,7 @@ describe("messageHistory", () => {
 
   test("newest first; a missing status is scheduled; sent time only once sent (R11)", () => {
     const items = messageHistory({
+      now: NOW,
       canManage: always,
       groups,
       messages: [
@@ -148,6 +153,7 @@ describe("messageHistory", () => {
 
   test("offers Cancel, Try again and Unpin only where they apply", () => {
     const items = messageHistory({
+      now: NOW,
       canManage: (row) => row.$id !== "theirs",
       groups,
       messages: [
@@ -184,8 +190,52 @@ describe("messageHistory", () => {
     expect(byId.get("auto")).toMatchObject({ canCancel: false });
   });
 
+  test("no Cancel within a minute of the send time, or after it (R28)", () => {
+    const items = messageHistory({
+      canManage: always,
+      groups,
+      messages: [
+        message({
+          $id: "in-30s",
+          scheduled_at: "2027-01-10T08:00:30.000Z",
+          sent_at: null,
+          status: "scheduled",
+        }),
+        message({
+          $id: "past",
+          scheduled_at: "2027-01-10T07:59:00.000Z",
+          sent_at: null,
+          status: "scheduled",
+        }),
+        message({
+          $id: "in-2min",
+          scheduled_at: "2027-01-10T08:02:00.000Z",
+          sent_at: null,
+          status: "scheduled",
+        }),
+        message({
+          $id: "no-time",
+          scheduled_at: null,
+          sent_at: null,
+          status: "scheduled",
+        }),
+      ],
+      now: NOW,
+    });
+    const canCancel = Object.fromEntries(
+      items.map((item) => [item.id, item.canCancel])
+    );
+    expect(canCancel).toEqual({
+      "in-2min": true,
+      "in-30s": false,
+      "no-time": false,
+      past: false,
+    });
+  });
+
   test("a merged item with one failed message offers to try that one again", () => {
     const [item] = messageHistory({
+      now: NOW,
       canManage: always,
       groups,
       messages: [
@@ -207,6 +257,7 @@ describe("messageHistory", () => {
 
   test("who it was for names only the groups the caller may see", () => {
     const items = messageHistory({
+      now: NOW,
       canManage: always,
       groups,
       messages: [

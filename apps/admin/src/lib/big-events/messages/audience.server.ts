@@ -6,10 +6,10 @@ import {
   resolveAudience,
 } from "@repo/shared/big-events/messages/audience";
 import {
-  type DeliveryRecipient,
+  deliveryRecipients,
   type PlannedRecipient,
   planDelivery,
-  varsFor,
+  type RecipientAccount,
 } from "@repo/shared/big-events/messages/plan";
 import {
   BIG_EVENT_TABLES,
@@ -46,10 +46,7 @@ const PERSON_COLUMNS = [
 ];
 const MEMBER_COLUMNS = ["$id", "group_id", "leg", "participant_id"];
 
-interface AccountRow extends Models.Row {
-  email: string | null;
-  locale: string | null;
-}
+type AccountRow = Models.Row & RecipientAccount;
 
 export interface AudienceData {
   buses: Map<string, BigEventGroupRow>;
@@ -107,22 +104,10 @@ export function reachedPeople(
   return ids.flatMap((id) => byId.get(id) ?? []);
 }
 
-function placesByPerson(
-  members: BigEventGroupMemberRow[]
-): Map<string, BigEventGroupMemberRow[]> {
-  const places = new Map<string, BigEventGroupMemberRow[]>();
-  for (const member of members) {
-    const list = places.get(member.participant_id) ?? [];
-    list.push(member);
-    places.set(member.participant_id, list);
-  }
-  return places;
-}
-
 /**
- * How each person would get the message (plan M3), with their details on
- * `leg` in both languages (ruling R6). Push reach comes from the cached
- * lookup the Participants tab uses.
+ * How each person would get the message (plan M3), built the way the send
+ * builds it (`deliveryRecipients`); only push reach differs: it comes from
+ * the cached lookup the Participants tab uses.
  */
 export async function planRecipients(
   db: AdminDb,
@@ -137,36 +122,17 @@ export async function planRecipients(
     ]),
     getPushReach(linked),
   ]);
-  const accountById = new Map(
-    accounts.map((account) => [account.$id, account])
-  );
-  const places = placesByPerson(data.members);
-  const recipients: DeliveryRecipient[] = people.map((participant) => {
-    const account = participant.user_id
-      ? accountById.get(participant.user_id)
-      : undefined;
-    const base = {
-      buses: data.buses,
-      leg: options.leg,
-      members: places.get(participant.$id) ?? [],
-      participant,
-      rooms: data.rooms,
-    };
-    const locale = account?.locale;
-    return {
-      participant,
-      userEmail: account?.email ?? null,
-      userLocale: locale === "no" || locale === "en" ? locale : null,
-      vars: {
-        en: varsFor({ ...base, locale: "en" }),
-        no: varsFor({ ...base, locale: "no" }),
-      },
-    };
-  });
   return planDelivery({
     important: options.important,
     pushUsers,
-    recipients,
+    recipients: deliveryRecipients({
+      accounts,
+      buses: data.buses,
+      leg: options.leg,
+      members: data.members,
+      people,
+      rooms: data.rooms,
+    }),
     sms: options.sms,
   });
 }

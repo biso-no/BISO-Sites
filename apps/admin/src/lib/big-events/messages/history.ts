@@ -4,6 +4,7 @@ import type {
   MessageStatus,
 } from "@repo/shared/big-events/tables";
 import type { BigEventMessageRow } from "@repo/shared/big-events/types";
+import { type MessageLocale, SCHEDULE_GRACE_MS } from "./draft";
 
 /**
  * The Messages tab's history (plan M10): every message the caller may see,
@@ -11,8 +12,6 @@ import type { BigEventMessageRow } from "@repo/shared/big-events/types";
  * what the caller may do with each. Text and totals only, never who the
  * people are (ruling R22). Pure module.
  */
-
-type Locale = "no" | "en";
 
 /** Who a message was for, without naming anyone. */
 export type AudienceSummary =
@@ -39,8 +38,11 @@ export interface MessageCounts {
 export interface MessageHistoryItem {
   audience: AudienceSummary | null;
   automatic: boolean;
-  body: Record<Locale, string>;
-  /** A manual message that hasn't started; cancelling deletes it. */
+  body: Record<MessageLocale, string>;
+  /**
+   * A manual message due more than a minute from now (ruling R28);
+   * cancelling deletes it.
+   */
   canCancel: boolean;
   canUnpin: boolean;
   counts: MessageCounts;
@@ -61,7 +63,7 @@ export interface MessageHistoryItem {
   /** When it went out; set only once sent (ruling R11). */
   sentAt: string | null;
   status: MessageStatus;
-  title: Record<Locale, string>;
+  title: Record<MessageLocale, string>;
 }
 
 export interface HistoryInput {
@@ -70,6 +72,8 @@ export interface HistoryInput {
   groups: ReadonlyMap<string, { name: string; visible: boolean }>;
   /** The messages the caller may see. */
   messages: BigEventMessageRow[];
+  /** When the list is made: a message about to go out can't be cancelled. */
+  now: Date;
 }
 
 /** A missing status is the column default (Stage 3 carry). */
@@ -77,6 +81,22 @@ export function messageStatus(
   message: Pick<BigEventMessageRow, "status">
 ): MessageStatus {
   return message.status ?? "scheduled";
+}
+
+/**
+ * Whether a manual message that hasn't started may still be cancelled: only
+ * while it is due more than a minute from `now` (ruling R28). The cron
+ * claims due messages only, so the delete can't race a send.
+ */
+export function cancellable(
+  message: Pick<BigEventMessageRow, "kind" | "scheduled_at" | "status">,
+  now: Date
+): boolean {
+  if (message.kind !== "manual" || messageStatus(message) !== "scheduled") {
+    return false;
+  }
+  const due = Date.parse(message.scheduled_at ?? "");
+  return !Number.isNaN(due) && due > now.getTime() + SCHEDULE_GRACE_MS;
 }
 
 const timeOf = (message: BigEventMessageRow): number =>
@@ -192,9 +212,9 @@ function toItem(
     automatic: first.kind !== "manual",
     body: { en: first.body_en ?? "", no: first.body_no ?? "" },
     canCancel:
-      first.kind === "manual" &&
-      status === "scheduled" &&
-      manageable.length === parts.length,
+      parts.length === 1 &&
+      manageable.length === 1 &&
+      cancellable(first, input.now),
     canUnpin: manageable.some((message) => message.pinned === true),
     counts: {
       email: sum((message) => message.email_count),

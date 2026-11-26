@@ -1,6 +1,8 @@
 import type { Audience } from "@repo/shared/big-events/messages/audience";
 import {
   findPlaceholders,
+  MESSAGE_BODY_MAX,
+  MESSAGE_TITLE_MAX,
   type Placeholder,
 } from "@repo/shared/big-events/messages/text";
 import { GROUP_LEGS, type GroupLeg } from "@repo/shared/big-events/tables";
@@ -34,20 +36,23 @@ export function refuse<E extends string>(error: E): MessageRefusal<E> {
   return { error, ok: false };
 }
 
-type Locale = "no" | "en";
+/** The two languages every message is written in (plan M6). */
+export type MessageLocale = "no" | "en";
 
-/** Column sizes of `big_event_messages`. */
-export const MESSAGE_TITLE_MAX = 200;
-export const MESSAGE_BODY_MAX = 2000;
 /**
  * Most groups or chosen people one message names: 100 ids of up to 36
  * characters fit the 4000-character `audience` column.
  */
 export const AUDIENCE_IDS_MAX = 100;
-/** A scheduled time this close behind now still counts as now. */
+/**
+ * A minute around now: a scheduled time this far behind still counts as now
+ * (ruling R23), and a message due within it can't be cancelled any more
+ * (ruling R28).
+ */
 export const SCHEDULE_GRACE_MS = 60_000;
 
-const idSchema = z.string().min(1).max(36);
+/** An Appwrite row id. */
+export const idSchema = z.string().min(1).max(36);
 const idsSchema = z.array(idSchema).min(1).max(AUDIENCE_IDS_MAX);
 
 const localizedSchema = (max: number) =>
@@ -88,11 +93,11 @@ export type SendWhen = { at: "now" } | { at: string };
 
 /** A message's title and text in both languages, trimmed. */
 export interface MessageTexts {
-  body: Record<Locale, string>;
-  title: Record<Locale, string>;
+  body: Record<MessageLocale, string>;
+  title: Record<MessageLocale, string>;
 }
 
-const LOCALES: readonly Locale[] = ["no", "en"];
+const LOCALES: readonly MessageLocale[] = ["no", "en"];
 
 /**
  * The draft's texts, trimmed. Refuses an unknown `{…}` (plan M4); with

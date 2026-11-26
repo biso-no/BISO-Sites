@@ -9,6 +9,10 @@
  * placeholder and is left untouched.
  */
 
+/** Column sizes of a message's title and text (`big_event_messages`). */
+export const MESSAGE_TITLE_MAX = 200;
+export const MESSAGE_BODY_MAX = 2000;
+
 export const PLACEHOLDERS = [
   "first_name",
   "bus",

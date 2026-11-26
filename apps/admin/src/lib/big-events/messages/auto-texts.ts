@@ -3,8 +3,13 @@ import type {
   AutoText,
   AutoTexts,
 } from "@repo/shared/big-events/messages/auto";
-import { findPlaceholders } from "@repo/shared/big-events/messages/text";
+import {
+  findPlaceholders,
+  MESSAGE_BODY_MAX,
+  MESSAGE_TITLE_MAX,
+} from "@repo/shared/big-events/messages/text";
 import { z } from "zod";
+import type { MessageLocale } from "./draft";
 
 /**
  * The organizers' own texts for automatic messages (`big_events.auto_texts`,
@@ -12,11 +17,7 @@ import { z } from "zod";
  * browser.
  */
 
-type Locale = "no" | "en";
-
-/** Column sizes: a message's title and text, and `big_events.auto_texts`. */
-const TITLE_MAX = 200;
-const BODY_MAX = 2000;
+/** Size of `big_events.auto_texts`. */
 const AUTO_TEXTS_MAX = 4000;
 
 const AUTO_KINDS: readonly AutoMessageKind[] = [
@@ -25,7 +26,7 @@ const AUTO_KINDS: readonly AutoMessageKind[] = [
   "bus_none",
   "departure_reminder",
 ];
-const LOCALES: readonly Locale[] = ["no", "en"];
+const LOCALES: readonly MessageLocale[] = ["no", "en"];
 
 const autoTextSchema = z.object({
   body: z.string().optional(),
@@ -51,7 +52,7 @@ export type AutoTextsError = "too_long" | "unknown_placeholder";
 function compact(input: AutoTextsInput): AutoTexts {
   const texts: AutoTexts = {};
   for (const kind of AUTO_KINDS) {
-    const languages: Partial<Record<Locale, Partial<AutoText>>> = {};
+    const languages: Partial<Record<MessageLocale, Partial<AutoText>>> = {};
     for (const locale of LOCALES) {
       const title = input[kind]?.[locale]?.title?.trim();
       const body = input[kind]?.[locale]?.body?.trim();
@@ -90,8 +91,8 @@ export function autoTextsColumn(
   }
   const tooLong = written.some(
     (text) =>
-      (text.title?.length ?? 0) > TITLE_MAX ||
-      (text.body?.length ?? 0) > BODY_MAX
+      (text.title?.length ?? 0) > MESSAGE_TITLE_MAX ||
+      (text.body?.length ?? 0) > MESSAGE_BODY_MAX
   );
   if (tooLong) {
     return { error: "too_long", ok: false };

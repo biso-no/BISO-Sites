@@ -240,6 +240,76 @@ export interface DeliveryRecipient {
   vars: LocalizedVars;
 }
 
+/** A linked account: its email and language, as the `user` table holds them. */
+export interface RecipientAccount {
+  $id: string;
+  email: string | null;
+  locale: string | null;
+}
+
+export interface DeliveryRecipientsInput {
+  /** The linked accounts of the people (missing ones count as none). */
+  accounts: RecipientAccount[];
+  buses: ReadonlyMap<string, VarsBus>;
+  leg: GroupLeg;
+  /** Group places of the big event; other people's places are ignored. */
+  members: VarsInput["members"];
+  people: (DeliveryRecipient["participant"] & VarsInput["participant"])[];
+  rooms: ReadonlyMap<string, VarsRoom>;
+}
+
+function placesByPerson(
+  members: VarsInput["members"]
+): Map<string, VarsInput["members"]> {
+  const places = new Map<string, VarsInput["members"]>();
+  for (const member of members) {
+    const list = places.get(member.participant_id);
+    if (list) {
+      list.push(member);
+    } else {
+      places.set(member.participant_id, [member]);
+    }
+  }
+  return places;
+}
+
+/**
+ * Each person with their account's email and language (`"no"` or `"en"`,
+ * else unknown) and their details on `leg` in both languages (ruling R6):
+ * what `planDelivery` needs. Shared by the send and admin's preview, so the
+ * reach shown is the reach sent.
+ */
+export function deliveryRecipients(
+  input: DeliveryRecipientsInput
+): DeliveryRecipient[] {
+  const accounts = new Map(
+    input.accounts.map((account) => [account.$id, account])
+  );
+  const places = placesByPerson(input.members);
+  return input.people.map((participant) => {
+    const account = participant.user_id
+      ? accounts.get(participant.user_id)
+      : undefined;
+    const base = {
+      buses: input.buses,
+      leg: input.leg,
+      members: places.get(participant.$id) ?? [],
+      participant,
+      rooms: input.rooms,
+    };
+    const locale = account?.locale;
+    return {
+      participant,
+      userEmail: account?.email ?? null,
+      userLocale: locale === "no" || locale === "en" ? locale : null,
+      vars: {
+        en: varsFor({ ...base, locale: "en" }),
+        no: varsFor({ ...base, locale: "no" }),
+      },
+    };
+  });
+}
+
 export interface PlannedRecipient {
   email: boolean;
   /** The address the email goes to (null when no email is sent). */

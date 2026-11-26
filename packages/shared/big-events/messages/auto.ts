@@ -22,7 +22,7 @@ import { sendBusMessages } from "./bus-messages";
 import { listAll } from "./load";
 import { sendDueReminders } from "./reminders";
 import { type SendDeps, sendMessage } from "./send";
-import { defaultAutoTexts } from "./text";
+import { defaultAutoTexts, MESSAGE_BODY_MAX, MESSAGE_TITLE_MAX } from "./text";
 
 const DB = "app";
 const EVENTS = BIG_EVENT_TABLES.events;
@@ -34,9 +34,6 @@ const STALE_AFTER_MS = 10 * MINUTE_MS;
 const ENDED_GRACE_MS = 24 * 60 * MINUTE_MS;
 /** No new send starts after this; what is left goes out on the next run. */
 const DEFAULT_BUDGET_MS = 40_000;
-/** Column sizes of `big_event_messages`. */
-const TITLE_MAX_CHARS = 200;
-const BODY_MAX_CHARS = 2000;
 const LOG_TAG = "[big-event-messages]";
 
 // ── Texts ─────────────────────────────────────────────────────────────────────
@@ -160,8 +157,8 @@ async function createAutoMessage(
       also_sms: false,
       audience: JSON.stringify(input.audience),
       big_event_id: input.event.$id,
-      body_en: texts.en.body.slice(0, BODY_MAX_CHARS),
-      body_no: texts.no.body.slice(0, BODY_MAX_CHARS),
+      body_en: texts.en.body.slice(0, MESSAGE_BODY_MAX),
+      body_no: texts.no.body.slice(0, MESSAGE_BODY_MAX),
       campus_ids: input.campusIds,
       created_by: null,
       email_count: 0,
@@ -176,8 +173,8 @@ async function createAutoMessage(
       sent_at: null,
       sms_count: 0,
       status: "scheduled",
-      title_en: texts.en.title.slice(0, TITLE_MAX_CHARS),
-      title_no: texts.no.title.slice(0, TITLE_MAX_CHARS),
+      title_en: texts.en.title.slice(0, MESSAGE_TITLE_MAX),
+      title_no: texts.no.title.slice(0, MESSAGE_TITLE_MAX),
     }
   );
   return row.$id;

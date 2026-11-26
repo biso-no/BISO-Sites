@@ -9,15 +9,17 @@ import {
 } from "@repo/shared/big-events/messages/text";
 import type { GroupLeg } from "@repo/shared/big-events/tables";
 import type { BigEventParticipantRow } from "@repo/shared/big-events/types";
-import { type MessageTexts, usedPlaceholders } from "./draft";
+import {
+  type MessageLocale,
+  type MessageTexts,
+  usedPlaceholders,
+} from "./draft";
 
 /**
  * What "Check & send" shows before a message goes out (ruling R23): one
  * rendered sample per distinct text, and the bus and room details the text
  * needs but the audience lacks (plan M5). Pure module.
  */
-
-type Locale = "no" | "en";
 
 /** At most this many samples. */
 export const SAMPLES_MAX = 5;
@@ -35,20 +37,20 @@ const usesBus = (uses: ReadonlySet<Placeholder>): boolean =>
 export interface MessageSample {
   /** The bus and/or room the sample stands for, or "Everyone". */
   label: string;
-  text: Record<Locale, { body: string; title: string }>;
+  text: Record<MessageLocale, { body: string; title: string }>;
 }
 
 export interface SampleInput {
   labels: { everyone: string; noBus: string; noRoom: string };
   /** The admin's language, for the label. */
-  locale: Locale;
+  locale: MessageLocale;
   /** The audience, in order; the first person of each distinct text is shown. */
   people: { vars: LocalizedVars }[];
   texts: MessageTexts;
 }
 
 function render(texts: MessageTexts, vars: LocalizedVars, forPush: boolean) {
-  const one = (locale: Locale) => ({
+  const one = (locale: MessageLocale) => ({
     body: renderText(texts.body[locale], vars[locale], { forPush }),
     title: renderText(texts.title[locale], vars[locale], { forPush }),
   });

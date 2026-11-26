@@ -3,6 +3,7 @@ import type { GroupLeg } from "../tables";
 import type { BigEventGroupRow } from "../types";
 import {
   type DeliveryRecipient,
+  deliveryRecipients,
   parseStoredVars,
   planDelivery,
   reachSummary,
@@ -362,6 +363,59 @@ describe("planDelivery", () => {
       sms: true,
     });
     expect(on).toMatchObject({ push: true, sms: true, smsTo: "+4791234567" });
+  });
+});
+
+// ── Recipients ────────────────────────────────────────────────────────────────
+
+describe("deliveryRecipients", () => {
+  function person(
+    participant: typeof ola,
+    fields: { ticket_email?: string; user_id?: string }
+  ) {
+    return {
+      ...participant,
+      phone: null,
+      ticket_email: null,
+      user_id: null,
+      ...fields,
+    };
+  }
+
+  it("joins each person's account and their details in both languages", () => {
+    const recipients = deliveryRecipients({
+      accounts: [
+        { $id: "u-ola", email: "ola@bi.no", locale: "no" },
+        { $id: "u-kari", email: "kari@bi.no", locale: "de" },
+      ],
+      buses,
+      leg: "home",
+      members,
+      people: [
+        person(ola, { user_id: "u-ola" }),
+        person(kari, { user_id: "u-kari" }),
+        person(nils, { ticket_email: "nils@example.com", user_id: "u-gone" }),
+      ],
+      rooms,
+    });
+
+    expect(
+      recipients.map((recipient) => [
+        recipient.participant.$id,
+        recipient.userEmail,
+        recipient.userLocale,
+      ])
+    ).toEqual([
+      ["p-ola", "ola@bi.no", "no"],
+      // An account language other than no/en is unknown; a missing account too.
+      ["p-kari", "kari@bi.no", null],
+      ["p-nils", null, null],
+    ]);
+    expect(recipients[0]?.vars).toEqual({
+      en: vars(ola, "home", "en"),
+      no: vars(ola, "home", "no"),
+    });
+    expect(recipients[2]?.participant.ticket_email).toBe("nils@example.com");
   });
 });
 

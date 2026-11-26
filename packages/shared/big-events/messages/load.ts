@@ -17,10 +17,10 @@ import type {
 } from "../types";
 import { type Audience, resolveAudience } from "./audience";
 import {
-  type DeliveryRecipient,
+  deliveryRecipients,
   type PlannedRecipient,
   planDelivery,
-  varsFor,
+  type RecipientAccount,
 } from "./plan";
 import { pushTargetUsers, type UsersApi } from "./push-targets";
 
@@ -30,10 +30,7 @@ const PAGE_SIZE = 500;
 /** Appwrite refuses an `equal` query with more values than this. */
 const MAX_QUERY_VALUES = 100;
 
-interface AccountRow extends Models.Row {
-  email: string | null;
-  locale: string | null;
-}
+type AccountRow = Models.Row & RecipientAccount;
 
 export interface LoadedDelivery {
   event: BigEventRow;
@@ -79,8 +76,8 @@ function parseAudience(raw: string | null): Audience {
 async function loadAccounts(
   db: TablesDB,
   userIds: string[]
-): Promise<Map<string, AccountRow>> {
-  const accounts = new Map<string, AccountRow>();
+): Promise<AccountRow[]> {
+  const accounts: AccountRow[] = [];
   for (let start = 0; start < userIds.length; start += MAX_QUERY_VALUES) {
     const chunk = userIds.slice(start, start + MAX_QUERY_VALUES);
     const { rows } = await db.listRows<AccountRow>(DB, USER_TABLE, [
@@ -88,26 +85,9 @@ async function loadAccounts(
       Query.select(["$id", "email", "locale"]),
       Query.limit(chunk.length),
     ]);
-    for (const account of rows) {
-      accounts.set(account.$id, account);
-    }
+    accounts.push(...rows);
   }
   return accounts;
-}
-
-function seatsByParticipant(
-  members: BigEventGroupMemberRow[]
-): Map<string, BigEventGroupMemberRow[]> {
-  const seats = new Map<string, BigEventGroupMemberRow[]>();
-  for (const member of members) {
-    const list = seats.get(member.participant_id);
-    if (list) {
-      list.push(member);
-    } else {
-      seats.set(member.participant_id, [member]);
-    }
-  }
-  return seats;
 }
 
 /**
@@ -160,40 +140,19 @@ export async function loadDelivery(
     pushTargetUsers(deps.users, linked),
   ]);
 
-  const seats = seatsByParticipant(members);
-  const leg = message.leg ?? "out";
-  const recipients: DeliveryRecipient[] = people.map((participant) => {
-    const account = participant.user_id
-      ? accounts.get(participant.user_id)
-      : undefined;
-    const base = {
-      buses,
-      leg,
-      members: seats.get(participant.$id) ?? [],
-      participant,
-      rooms,
-    };
-    let userLocale: "no" | "en" | null = null;
-    if (account?.locale === "no" || account?.locale === "en") {
-      userLocale = account.locale;
-    }
-    return {
-      participant,
-      userEmail: account?.email ?? null,
-      userLocale,
-      vars: {
-        en: varsFor({ ...base, locale: "en" }),
-        no: varsFor({ ...base, locale: "no" }),
-      },
-    };
-  });
-
   return {
     event,
     planned: planDelivery({
       important: Boolean(message.important),
       pushUsers,
-      recipients,
+      recipients: deliveryRecipients({
+        accounts,
+        buses,
+        leg: message.leg ?? "out",
+        members,
+        people,
+        rooms,
+      }),
       sms,
     }),
   };

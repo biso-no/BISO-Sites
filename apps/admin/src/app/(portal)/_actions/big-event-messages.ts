@@ -11,6 +11,10 @@ import {
   sendMessage,
 } from "@repo/shared/big-events/messages/send";
 import {
+  MESSAGE_BODY_MAX,
+  MESSAGE_TITLE_MAX,
+} from "@repo/shared/big-events/messages/text";
+import {
   BIG_EVENT_TABLES,
   type MessageStatus,
 } from "@repo/shared/big-events/tables";
@@ -40,8 +44,7 @@ import {
 } from "@/lib/big-events/messages/audience.server";
 import {
   checkDraftTexts,
-  MESSAGE_BODY_MAX,
-  MESSAGE_TITLE_MAX,
+  idSchema,
   type MessageDraft,
   type MessageRefusal,
   type MessageResult,
@@ -54,6 +57,7 @@ import {
   usedPlaceholders,
 } from "@/lib/big-events/messages/draft";
 import {
+  cancellable,
   type MessageHistoryItem,
   messageHistory,
   messageStatus,
@@ -76,14 +80,14 @@ import { getBigEvent } from "./big-events";
  * The Messages tab (plans M6–M11): preview, translate, send or schedule,
  * cancel, try again, unpin and the history. Anyone with access to the big
  * event may send, campus admins only to their campus (spec D2). Expected
- * refusals come back as `{ ok: false, error }`; anything else throws.
+ * refusals come back as `{ ok: false, error }`, and a send that fails as
+ * status `failed` (ruling R29); anything else throws.
  */
 
 const DATABASE_ID = "app";
 const MESSAGES = BIG_EVENT_TABLES.messages;
 const GROUPS = BIG_EVENT_TABLES.groups;
 
-const idSchema = z.string().min(1).max(36);
 const translateSchema = z.object({
   body: z.string().max(MESSAGE_BODY_MAX),
   from: z.enum(["no", "en"]),
@@ -119,7 +123,9 @@ async function manageableMessage(
 /**
  * Sends a message right away (ruling R14: a send that outlives the action
  * is finished by the messages cron), then asks the api to start on the
- * emails it queued.
+ * emails it queued. A send that fails has marked the message `failed`; it
+ * is logged and answered as `failed` (ruling R29), so the tab can offer
+ * "Try again" from the history.
  */
 async function sendInline(
   messageId: string
@@ -127,8 +133,9 @@ async function sendInline(
   | { counts: SendCounts | null; ok: true; status: MessageStatus }
   | MessageRefusal<"not_found">
 > {
+  const deps = await messageSendDeps();
   try {
-    const result = await sendMessage(await messageSendDeps(), messageId);
+    const result = await sendMessage(deps, messageId);
     if (result.ok) {
       return { counts: result.counts, ok: true, status: "sent" };
     }
@@ -141,6 +148,13 @@ async function sendInline(
       ok: true,
       status: result.error === "already_sent" ? "sent" : "sending",
     };
+  } catch (error) {
+    // Ids only; the server's console errors also reach Sentry as logs.
+    console.error(
+      `[big-events] Message ${messageId} could not be sent:`,
+      error
+    );
+    return { counts: null, ok: true, status: "failed" };
   } finally {
     kickDeliveries();
   }
@@ -363,7 +377,10 @@ export async function sendBigEventMessage(
   };
 }
 
-/** Deletes a manual message that hasn't started (plan M8). */
+/**
+ * Deletes a manual message that is due more than a minute from now (plan
+ * M8, ruling R28).
+ */
 export async function cancelMessage(messageId: string): Promise<MessageResult> {
   const ctx = await requireAuth();
   const found = await manageableMessage(messageId);
@@ -375,7 +392,9 @@ export async function cancelMessage(messageId: string): Promise<MessageResult> {
   if (message.kind !== "manual") {
     return refuse("no_access");
   }
-  if (messageStatus(message) !== "scheduled") {
+  // Too late once it is due within a minute (ruling R28): the cron may be
+  // claiming it, and a delete then could leave half a send.
+  if (!cancellable(message, new Date())) {
     return refuse("already_sent");
   }
   await db.deleteRow(DATABASE_ID, MESSAGES, message.$id);
@@ -473,6 +492,7 @@ export async function listMessages(
         ])
       ),
       messages: rows.filter((message) => canSeeMessage(access, message)),
+      now: new Date(),
     }),
     ok: true,
   };

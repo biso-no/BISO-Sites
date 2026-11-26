@@ -6,6 +6,7 @@ import {
   expect,
   mock,
   setSystemTime,
+  spyOn,
   test,
 } from "bun:test";
 import type { UserAuthContext } from "@/lib/authorization";
@@ -480,6 +481,30 @@ describe("sendBigEventMessage", () => {
     expect(oslo).toEqual({ error: "no_people", ok: false });
   });
 
+  test("a send that fails is reported as failed, not thrown (R29)", async () => {
+    sendMessage.mockImplementationOnce(() =>
+      Promise.reject(new Error("push service down"))
+    );
+    const consoleError = spyOn(console, "error").mockImplementation(
+      () => undefined
+    );
+
+    const result = await sendBigEventMessage("b1", draft(), { at: "now" });
+
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    consoleError.mockRestore();
+    expect(result).toEqual({
+      messageId: String(messages()[0]?.$id),
+      ok: true,
+      people: 3,
+      status: "failed",
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(logAuditEvent.mock.calls[0]?.[2]).toMatchObject({
+      payload: { status: "failed" },
+    });
+  });
+
   test("a later time is scheduled for the cron, not sent", async () => {
     const result = await sendBigEventMessage("b1", draft(), {
       at: "2027-01-21T08:00:00+01:00",
@@ -539,16 +564,42 @@ describe("translateMessage", () => {
 
 describe("cancelMessage, retryMessage and unpinMessage", () => {
   test("a scheduled message is cancelled by deleting it", async () => {
+    const later = { scheduled_at: "2027-01-20T12:05:00.000Z", sent_at: null };
     seed({
       [MESSAGES]: [
-        messageRow("m1", { sent_at: null, status: "scheduled" }),
-        messageRow("m2", { sent_at: null, status: null }),
+        messageRow("m1", { ...later, status: "scheduled" }),
+        messageRow("m2", { ...later, status: null }),
       ],
     });
     expect(await cancelMessage("m1")).toEqual({ ok: true });
     expect(await cancelMessage("m2")).toEqual({ ok: true });
     expect(messages()).toHaveLength(0);
     expect(logAuditEvent.mock.calls[0]?.[1]).toBe("big_event.message.cancel");
+  });
+
+  test("a message due within a minute, or already due, can't be cancelled (R28)", async () => {
+    seed({
+      [MESSAGES]: [
+        messageRow("in-30s", {
+          scheduled_at: "2027-01-20T12:00:30.000Z",
+          sent_at: null,
+          status: "scheduled",
+        }),
+        messageRow("past", {
+          scheduled_at: "2027-01-20T11:00:00.000Z",
+          sent_at: null,
+          status: "scheduled",
+        }),
+      ],
+    });
+    for (const id of ["in-30s", "past"]) {
+      expect(await cancelMessage(id)).toEqual({
+        error: "already_sent",
+        ok: false,
+      });
+    }
+    expect(messages()).toHaveLength(2);
+    expect(logAuditEvent).not.toHaveBeenCalled();
   });
 
   test("automatic messages can't be cancelled; other campuses' messages can't be touched", async () => {
@@ -596,6 +647,25 @@ describe("cancelMessage, retryMessage and unpinMessage", () => {
     expect(sendMessage.mock.calls[0]?.[1]).toBe("m1");
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(logAuditEvent.mock.calls[0]?.[1]).toBe("big_event.message.retry");
+  });
+
+  test("a try again that fails again is reported as failed (R29)", async () => {
+    seed({ [MESSAGES]: [messageRow("m1", { status: "failed" })] });
+    sendMessage.mockImplementationOnce(() =>
+      Promise.reject(new Error("push service down"))
+    );
+    const consoleError = spyOn(console, "error").mockImplementation(
+      () => undefined
+    );
+
+    const result = await retryMessage("m1");
+
+    consoleError.mockRestore();
+    expect(result).toEqual({ ok: true, status: "failed" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(logAuditEvent.mock.calls[0]?.[2]).toMatchObject({
+      payload: { message_id: "m1", status: "failed" },
+    });
   });
 
   test("unpin takes the pin off", async () => {
