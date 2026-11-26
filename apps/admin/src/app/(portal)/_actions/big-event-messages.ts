@@ -33,6 +33,7 @@ import {
 } from "@/lib/big-events/access";
 import {
   type AdminDb,
+  type GrantedAccess,
   revalidateBigEvent,
 } from "@/lib/big-events/action-helpers";
 import { kickDeliveries } from "@/lib/big-events/kick-deliveries";
@@ -299,11 +300,16 @@ type SendAnswer = MessageResult<{
  */
 async function alreadyWritten(
   db: AdminDb,
+  access: GrantedAccess,
   bigEventId: string,
   messageId: string
 ): Promise<SendAnswer> {
   const existing = await readMessage(db, messageId);
-  if (!existing || existing.big_event_id !== bigEventId) {
+  if (
+    !existing ||
+    existing.big_event_id !== bigEventId ||
+    !canSeeMessage(access, existing)
+  ) {
     return refuse("no_access");
   }
   // An earlier attempt may have queued emails and stopped before asking.
@@ -390,7 +396,7 @@ export async function sendBigEventMessage(
     if (!isConflict(error)) {
       throw error;
     }
-    return await alreadyWritten(db, bigEventId, id);
+    return await alreadyWritten(db, found.access, bigEventId, id);
   }
   const details = {
     also_sms: input.alsoSms,

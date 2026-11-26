@@ -565,6 +565,19 @@ describe("sendBigEventMessage", () => {
     expect(sendMessage).toHaveBeenCalledTimes(1);
   });
 
+  test("a draft id naming a message the caller can't see tells nothing", async () => {
+    seed({
+      [MESSAGES]: [
+        messageRow("oslo-message", { campus_ids: ["1"], recipients: 40 }),
+      ],
+    });
+    currentCtx = bergenAdmin;
+    expect(
+      await sendBigEventMessage("b1", draft(), { at: "now" }, "oslo-message")
+    ).toEqual({ error: "no_access", ok: false });
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
   test("a draft id that can't be a message id is refused", async () => {
     for (const bad of [
       "",
