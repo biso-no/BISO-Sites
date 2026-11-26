@@ -10,8 +10,10 @@ import { hasValidCronSecret } from "@/lib/cron-auth";
  * (`BIG_EVENTS_CLEANUP_URL`), which sends `x-cron-secret`; can also be hit
  * manually with `Authorization: Bearer ${CRON_SECRET}`.
  *
- * Deletes participants, group memberships and email deliveries 30 days after a
- * big event ends. The event and its groups stay, without names (ruling R35):
+ * Deletes participants, group memberships, email deliveries and the
+ * per-person copies of messages (`big_event_message_recipients`) 30 days
+ * after a big event ends. The messages themselves stay for the history. The
+ * event and its groups stay, without names (ruling R35):
  * a room takes its room number, or "Rom", in place of the buyer's name, and
  * every group loses its buyer, contact person and note (a note can name
  * people, ruling R20). Bounded per run (1000 rows deleted or groups
@@ -183,6 +185,7 @@ export async function POST(request: Request) {
     let participantsDeleted = 0;
     let membersDeleted = 0;
     let deliveriesDeleted = 0;
+    let messageRecipientsDeleted = 0;
     let cursor: string | undefined;
     while (budget.left > 0) {
       const { rows: events } = await db.listRows(
@@ -215,6 +218,12 @@ export async function POST(request: Request) {
           event.$id,
           budget
         );
+        messageRecipientsDeleted += await deleteForEvent(
+          db,
+          BIG_EVENT_TABLES.messageRecipients,
+          event.$id,
+          budget
+        );
         groupsAnonymised += await anonymiseGroups(db, event.$id, budget);
       }
       if (events.length < EVENTS_PER_PAGE) {
@@ -224,12 +233,13 @@ export async function POST(request: Request) {
     }
 
     console.log(
-      `[Big Event Cleanup] Deleted ${participantsDeleted} participants, ${membersDeleted} group members and ${deliveriesDeleted} deliveries; anonymised ${groupsAnonymised} groups`
+      `[Big Event Cleanup] Deleted ${participantsDeleted} participants, ${membersDeleted} group members, ${deliveriesDeleted} deliveries and ${messageRecipientsDeleted} message recipients; anonymised ${groupsAnonymised} groups`
     );
     return NextResponse.json({
       deliveriesDeleted,
       groupsAnonymised,
       membersDeleted,
+      messageRecipientsDeleted,
       participantsDeleted,
     });
   } catch (error) {

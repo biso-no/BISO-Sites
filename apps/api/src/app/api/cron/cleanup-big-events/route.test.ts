@@ -79,6 +79,7 @@ describe("POST /api/cron/cleanup-big-events", () => {
       deliveriesDeleted: 1,
       groupsAnonymised: 0,
       membersDeleted: 2,
+      messageRecipientsDeleted: 1,
       participantsDeleted: 3,
     });
     const eventsQuery = JSON.stringify(listRows.mock.calls[0]);
@@ -92,6 +93,39 @@ describe("POST /api/cron/cleanup-big-events", () => {
     expect(deleteRow).not.toHaveBeenCalledWith("app", "big_events", "e0");
   });
 
+  it("deletes message recipients 30 days after the end", async () => {
+    listRows.mockImplementation((_db: string, table: string) => {
+      if (table === "big_events") {
+        return Promise.resolve(rows("e", 1));
+      }
+      if (table === "big_event_message_recipients") {
+        return Promise.resolve(rows("r", 4));
+      }
+      return Promise.resolve({ rows: [], total: 0 });
+    });
+
+    const body = await (
+      await POST(request({ "x-cron-secret": SECRET }))
+    ).json();
+
+    expect(body.messageRecipientsDeleted).toBe(4);
+    expect(deleteRow).toHaveBeenCalledWith(
+      "app",
+      "big_event_message_recipients",
+      "r3"
+    );
+    const recipientQuery = JSON.stringify(
+      listRows.mock.calls.find(
+        ([, table]) => table === "big_event_message_recipients"
+      )
+    );
+    expect(recipientQuery).toContain("e0");
+    // The messages themselves stay, for the history.
+    expect(
+      listRows.mock.calls.some(([, table]) => table === "big_event_messages")
+    ).toBe(false);
+  });
+
   it("leaves a big event that ended 29 days ago alone", async () => {
     listRows.mockResolvedValue({ rows: [], total: 0 });
     const response = await POST(request({ "x-cron-secret": SECRET }));
@@ -99,6 +133,7 @@ describe("POST /api/cron/cleanup-big-events", () => {
       deliveriesDeleted: 0,
       groupsAnonymised: 0,
       membersDeleted: 0,
+      messageRecipientsDeleted: 0,
       participantsDeleted: 0,
     });
     expect(listRows).toHaveBeenCalledTimes(1);
@@ -285,7 +320,11 @@ describe("POST /api/cron/cleanup-big-events", () => {
       await POST(request({ "x-cron-secret": SECRET }))
     ).json();
     expect(body.participantsDeleted).toBe(1000);
-    expect(body.membersDeleted + body.deliveriesDeleted).toBe(0);
+    expect(
+      body.membersDeleted +
+        body.deliveriesDeleted +
+        body.messageRecipientsDeleted
+    ).toBe(0);
     expect(body.groupsAnonymised).toBe(0);
     expect(deleteRow).toHaveBeenCalledTimes(1000);
     expect(updateRow).not.toHaveBeenCalled();

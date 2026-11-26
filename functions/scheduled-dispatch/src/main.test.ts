@@ -43,7 +43,7 @@ function installFetch() {
   }) as typeof fetch;
 }
 
-async function run() {
+async function run(log: (...messages: unknown[]) => void = () => undefined) {
   const result: { body?: unknown; status?: number } = {};
   await handler({
     req: { headers: { "x-appwrite-trigger": "schedule" }, method: "POST" },
@@ -54,7 +54,7 @@ async function run() {
         return result;
       },
     },
-    log: () => undefined,
+    log,
     error: () => undefined,
   });
   return result;
@@ -131,6 +131,19 @@ describe("monitorSlugFor", () => {
     expect(monitorSlugFor("RECRUITMENT_RETENTION_CLEANUP_URL")).toBe(
       "dispatch-recruitment-retention-cleanup"
     );
+  });
+});
+
+describe("scheduled-dispatch targets", () => {
+  test("pings the big event messages target with 60 seconds to answer", async () => {
+    const messagesUrl = "https://api.example.com/big-event-messages";
+    process.env.BIG_EVENT_MESSAGES_URL = messagesUrl;
+    const lines: string[] = [];
+    await run((...messages) => lines.push(messages.join(" ")));
+    expect(pings).toContain(messagesUrl);
+    expect(
+      lines.some((line) => line.includes("BIG_EVENT_MESSAGES_URL@60000ms"))
+    ).toBe(true);
   });
 });
 
