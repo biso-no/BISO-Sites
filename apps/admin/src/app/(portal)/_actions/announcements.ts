@@ -3,6 +3,7 @@
 import { ID, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import type { Announcements, EventSegments } from "@repo/api/types/appwrite";
+import { BIG_EVENT_DEEP_LINK_PREFIX } from "@repo/shared/big-events/messages/deep-link";
 import { resolvePushChannel } from "@repo/shared/utils/notification-topics";
 import { revalidatePath } from "next/cache";
 import { parseAudiencePeople } from "@/lib/announcements/audience-people";
@@ -536,6 +537,13 @@ export async function listAnnouncements(opts?: {
   const queries: string[] = [
     Query.orderDesc("$updatedAt"),
     ...applyContentRelationshipScopeQueries(ctx),
+    // A big event's pushes belong to its Messages tab, not here (ruling
+    // R34). Filtered in the query, so pages and the total stay right; a
+    // row without a link is kept (a plain "not starts with" drops nulls).
+    Query.or([
+      Query.isNull("deep_link"),
+      Query.notStartsWith("deep_link", BIG_EVENT_DEEP_LINK_PREFIX),
+    ]),
     Query.limit(ANNOUNCEMENTS_PAGE_SIZE),
     Query.offset((page - 1) * ANNOUNCEMENTS_PAGE_SIZE),
   ];

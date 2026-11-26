@@ -17,6 +17,7 @@ import type {
   BigEventMessageRow,
   BigEventRow,
 } from "../types";
+import { bigEventDeepLink } from "./deep-link";
 import { listAll } from "./load";
 import type { LocalizedVars, PlannedRecipient } from "./plan";
 import { renderText, textToHtml } from "./text";
@@ -108,7 +109,7 @@ async function pushChunk(
     audience_type: "users",
     audience_value: JSON.stringify(userIds),
     category: message.important ? "urgent" : "trip",
-    deep_link: `biso://big-event?slug=${encodeURIComponent(ctx.event.slug)}`,
+    deep_link: bigEventDeepLink(ctx.event.slug),
     push: true,
     sent_at: at,
     source: message.kind === "manual" ? "manual" : "auto",

@@ -81,6 +81,8 @@ describe("POST /api/cron/cleanup-big-events", () => {
       membersDeleted: 2,
       messageRecipientsDeleted: 1,
       participantsDeleted: 3,
+      pushCopiesDeleted: 0,
+      pushInboxRowsDeleted: 0,
     });
     const eventsQuery = JSON.stringify(listRows.mock.calls[0]);
     expect(eventsQuery).toContain("big_events");
@@ -126,6 +128,101 @@ describe("POST /api/cron/cleanup-big-events", () => {
     ).toBe(false);
   });
 
+  it("deletes the big event's push copies and their inbox rows", async () => {
+    const link = "biso://big-event?slug=winter%20games%202027";
+    listRows.mockImplementation(
+      (_db: string, table: string, queries: string[]) => {
+        const query = JSON.stringify(queries);
+        if (table === "big_events") {
+          return Promise.resolve({
+            rows: [{ $id: "e0", slug: "winter games 2027" }],
+            total: 1,
+          });
+        }
+        if (table === "announcements") {
+          // Deleted ones are gone on the next read.
+          const left = ["a1", "a2"].filter(
+            (id) =>
+              !deleteRow.mock.calls.some(
+                ([, t, row]) => t === table && row === id
+              )
+          );
+          return Promise.resolve({
+            rows: left.map(($id) => ({ $id })),
+            total: left.length,
+          });
+        }
+        if (table === "user_notifications" && query.includes("a1")) {
+          const done = deleteRow.mock.calls.some(
+            ([, t]) => t === "user_notifications"
+          );
+          return Promise.resolve(done ? rows("n", 0) : rows("n", 3));
+        }
+        return Promise.resolve({ rows: [], total: 0 });
+      }
+    );
+
+    const body = await (
+      await POST(request({ "x-cron-secret": SECRET }))
+    ).json();
+
+    expect(body).toMatchObject({
+      pushCopiesDeleted: 2,
+      pushInboxRowsDeleted: 3,
+    });
+    const announcementQuery = JSON.stringify(
+      listRows.mock.calls.find(([, table]) => table === "announcements")
+    );
+    expect(announcementQuery).toContain(JSON.stringify(link).slice(1, -1));
+    expect(announcementQuery).toContain("deep_link");
+    const deletes = deleteRow.mock.calls.map(
+      ([, table, id]) => `${table}:${id}`
+    );
+    expect(deletes).toEqual([
+      "user_notifications:n0",
+      "user_notifications:n1",
+      "user_notifications:n2",
+      "announcements:a1",
+      "announcements:a2",
+    ]);
+  });
+
+  it("push copies count against the per-run budget", async () => {
+    listRows.mockImplementation((_db: string, table: string) => {
+      if (table === "big_events") {
+        return Promise.resolve({
+          rows: [{ $id: "e0", slug: "wg" }],
+          total: 1,
+        });
+      }
+      if (table === "big_event_participants") {
+        // 9 full pages and 99 more: one delete left in the budget.
+        const pages = listRows.mock.calls.filter(
+          ([, t]) => t === "big_event_participants"
+        ).length;
+        return Promise.resolve(rows("p", pages < 10 ? 100 : 99));
+      }
+      if (table === "announcements") {
+        return Promise.resolve(rows("a", 2));
+      }
+      if (table === "user_notifications") {
+        // As many as the one delete left in the budget asks for.
+        return Promise.resolve(rows("n", 1));
+      }
+      return Promise.resolve({ rows: [], total: 0 });
+    });
+
+    const body = await (
+      await POST(request({ "x-cron-secret": SECRET }))
+    ).json();
+
+    expect(body.participantsDeleted).toBe(999);
+    expect(body.pushInboxRowsDeleted).toBe(1);
+    // The announcement stays until its inbox rows are gone.
+    expect(body.pushCopiesDeleted).toBe(0);
+    expect(deleteRow).toHaveBeenCalledTimes(1000);
+  });
+
   it("leaves a big event that ended 29 days ago alone", async () => {
     listRows.mockResolvedValue({ rows: [], total: 0 });
     const response = await POST(request({ "x-cron-secret": SECRET }));
@@ -135,6 +232,8 @@ describe("POST /api/cron/cleanup-big-events", () => {
       membersDeleted: 0,
       messageRecipientsDeleted: 0,
       participantsDeleted: 0,
+      pushCopiesDeleted: 0,
+      pushInboxRowsDeleted: 0,
     });
     expect(listRows).toHaveBeenCalledTimes(1);
     expect(deleteRow).not.toHaveBeenCalled();
