@@ -19,7 +19,7 @@ import type {
 } from "../types";
 import { listAll } from "./load";
 import type { LocalizedVars, PlannedRecipient } from "./plan";
-import { renderText } from "./text";
+import { renderText, textToHtml } from "./text";
 
 /** A person to send to, their recipient row and the details their copies use. */
 export interface SendTarget {
@@ -56,6 +56,8 @@ const RECIPIENTS = BIG_EVENT_TABLES.messageRecipients;
 const DELIVERIES = BIG_EVENT_TABLES.deliveries;
 const ANNOUNCEMENTS = "announcements";
 const PUSH_CHUNK = 100;
+/** Pushes in flight at once (ruling R38). */
+const PUSH_CONCURRENCY = 4;
 const WRITE_CONCURRENCY = 8;
 /** Size of `announcements.title_*`. */
 const TITLE_MAX = 200;
@@ -100,6 +102,9 @@ async function pushChunk(
   const at = ctx.now().toISOString();
   const announcement = await db.createRow(DB, ANNOUNCEMENTS, ID.unique(), {
     ...texts,
+    // The app shows the body as HTML: keep the organizer's line breaks.
+    body_en: textToHtml(texts.body_en),
+    body_no: textToHtml(texts.body_no),
     audience_type: "users",
     audience_value: JSON.stringify(userIds),
     category: message.important ? "urgent" : "trip",
@@ -109,10 +114,22 @@ async function pushChunk(
     source: message.kind === "manual" ? "manual" : "auto",
     status: "sent",
   });
-  await dispatchAnnouncement(announcement as unknown as Announcements, {
-    db,
-    messaging: ctx.messaging,
-  });
+  try {
+    await dispatchAnnouncement(announcement as unknown as Announcements, {
+      db,
+      messaging: ctx.messaging,
+    });
+  } catch (error) {
+    // Not left as `sent` in anyone's records; the retry makes a new one.
+    try {
+      await db.updateRow(DB, ANNOUNCEMENTS, announcement.$id, {
+        status: "failed",
+      });
+    } catch {
+      // The send fails either way; the push error is the one to report.
+    }
+    throw error;
+  }
   await mapWithConcurrency(chunk, WRITE_CONCURRENCY, (target) =>
     db.updateRow(DB, RECIPIENTS, target.row.$id, { pushed_at: at })
   );
@@ -124,7 +141,8 @@ async function pushChunk(
 /**
  * Pushes everyone due one and not pushed yet: one announcement per group of
  * people whose push is identical in both languages (Stage 3 ruling R6), at
- * most 100 people each. `onPushed` runs after each push with its head count.
+ * most 100 people each, four pushes at a time (ruling R38). `onPushed` runs
+ * after each push with its head count.
  */
 export async function sendPushes(
   ctx: ChannelContext,
@@ -150,13 +168,19 @@ export async function sendPushes(
       groups.set(key, { targets: [target], texts });
     }
   }
+  const chunks: { targets: SendTarget[]; texts: PushTexts }[] = [];
   for (const group of groups.values()) {
     for (let start = 0; start < group.targets.length; start += PUSH_CHUNK) {
-      const chunk = group.targets.slice(start, start + PUSH_CHUNK);
-      await pushChunk(ctx, group.texts, chunk);
-      await onPushed(chunk.length);
+      chunks.push({
+        targets: group.targets.slice(start, start + PUSH_CHUNK),
+        texts: group.texts,
+      });
     }
   }
+  await mapWithConcurrency(chunks, PUSH_CONCURRENCY, async (chunk) => {
+    await pushChunk(ctx, chunk.texts, chunk.targets);
+    await onPushed(chunk.targets.length);
+  });
 }
 
 // ── Emails and SMS ────────────────────────────────────────────────────────────

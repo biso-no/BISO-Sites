@@ -3,8 +3,10 @@ import "server-only";
 /**
  * Automatic big event messages (plan M9, spec D7): their texts, and the run
  * behind the api's messages cron. `runDueMessages`:
- * 1. sends messages whose time has come, and finishes sends left in
- *    `sending` for 10 minutes (a run that crashed or timed out);
+ * 1. sends messages whose time has come, finishes sends left in `sending`
+ *    for 10 minutes (a run that crashed or timed out), and tries again
+ *    automatic messages that failed at least 10 minutes ago and were due
+ *    within the last 2 hours (ruling R33);
  * 2. bus messages (bus-messages.ts), for published big events with Travel
  *    on and the bus lists published;
  * 3. departure reminders (reminders.ts), for the same big events unless
@@ -30,6 +32,8 @@ const MESSAGES = BIG_EVENT_TABLES.messages;
 const MINUTE_MS = 60_000;
 /** A `sending` message with no write for this long may be claimed again. */
 const STALE_AFTER_MS = 10 * MINUTE_MS;
+/** A failed automatic message due longer ago than this isn't tried again. */
+const RETRY_WINDOW_MS = 2 * 60 * MINUTE_MS;
 /** A big event that ended longer ago than this has nothing left to send. */
 const ENDED_GRACE_MS = 24 * 60 * MINUTE_MS;
 /** No new send starts after this; what is left goes out on the next run. */
@@ -128,6 +132,8 @@ export type AutoEvent = Pick<
 export interface AutoRun {
   db: TablesDB;
   now: Date;
+  /** The run's time is up: write nothing more, leave the rest due. */
+  outOfTime: () => boolean;
   /** Sends a message unless the run is out of time; true when it went out. */
   send: (messageId: string) => Promise<boolean>;
   /** Writes an automatic message, `scheduled` for now; returns its id. */
@@ -212,6 +218,7 @@ async function sendAutoMessage(
 async function dueMessageIds(db: TablesDB, now: Date): Promise<string[]> {
   const due = Query.lessThanEqual("scheduled_at", now.toISOString());
   const stale = new Date(now.getTime() - STALE_AFTER_MS).toISOString();
+  const retryFrom = new Date(now.getTime() - RETRY_WINDOW_MS).toISOString();
   const idOnly = Query.select(["$id"]);
   const lists = await Promise.all([
     listAll<BigEventMessageRow>(db, MESSAGES, [
@@ -228,6 +235,14 @@ async function dueMessageIds(db: TablesDB, now: Date): Promise<string[]> {
     listAll<BigEventMessageRow>(db, MESSAGES, [
       Query.equal("status", "sending"),
       Query.lessThanEqual("$updatedAt", stale),
+      idOnly,
+    ]),
+    listAll<BigEventMessageRow>(db, MESSAGES, [
+      Query.equal("status", "failed"),
+      Query.equal("kind", [...AUTO_KINDS]),
+      Query.lessThanEqual("$updatedAt", stale),
+      Query.greaterThanEqual("scheduled_at", retryFrom),
+      due,
       idOnly,
     ]),
   ]);
@@ -284,8 +299,8 @@ export interface DueMessagesResult {
 
 /**
  * The messages cron (plan M9): scheduled messages, bus messages, departure
- * reminders. After `budgetMs` (default 40 s) no send starts, and no step 2
- * or 3 for a further big event: what is left goes out on the next run.
+ * reminders. After `budgetMs` (default 40 s) no send starts and no further
+ * message is written (ruling R38): what is left goes out on the next run.
  */
 export async function runDueMessages(
   deps: SendDeps,
@@ -297,6 +312,7 @@ export async function runDueMessages(
   const run: AutoRun = {
     db: deps.db,
     now,
+    outOfTime,
     send: (id) => sendAutoMessage(deps, deadline, id),
     write: (input) => createAutoMessage(deps.db, now, input),
   };

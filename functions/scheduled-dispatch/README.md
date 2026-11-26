@@ -161,8 +161,10 @@ console settings are the source of truth — not this repo. The current setup:
 - **Schedule:** set this in the console (e.g. `*/5 * * * *`) — a function with an
   empty schedule never fires.
 - **Timeout:** the whole-execution limit (Appwrite max 900s). Keep it above
-  `CRON_TIMEOUT_MS`. Pings run in parallel, so wall-clock is the slowest single
-  endpoint, not the sum.
+  the largest per-target timeout (300s for the ledger poster, the Finago and
+  expense checks, order reconcile and big event messages), not just
+  `CRON_TIMEOUT_MS`. Pings run in parallel, so wall-clock is the slowest
+  single endpoint, not the sum.
 - **Variables:** `CRON_SECRET` + the endpoint URLs (see above).
 - **Scopes:** none needed — the function only makes outbound HTTP calls, never the
   Appwrite SDK.

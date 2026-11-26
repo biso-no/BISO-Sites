@@ -5,9 +5,12 @@ import "server-only";
  * the api cron (scheduled and automatic messages).
  *
  * A run claims the message (`scheduled` → `sending`, then reads it back and
- * goes on only when its own claim stuck; Appwrite has no transactions). While
- * `sending`, `sent_at` holds the claim time; a message left in `sending` with
- * no write for 10 minutes may be claimed again. Each run then:
+ * goes on only when its own claim stuck; Appwrite has no transactions), or
+ * goes on from a claim its caller made (`claimedAt`). While `sending`,
+ * `sent_at` holds the claim time; a message left in `sending` with no write
+ * for 10 minutes may be claimed again, and so may an automatic message that
+ * failed at least 10 minutes ago and was due within the last 2 hours (ruling
+ * R33). Each run then:
  * 1. works out who gets it and how (load.ts);
  * 2. writes one recipient row per person (kept from earlier runs);
  * 3. pushes, one `announcements` row per group of people whose push text is
@@ -18,8 +21,8 @@ import "server-only";
  * 5. writes the counts and `sent`.
  * A retry only pushes people without `pushed_at` and only queues deliveries
  * nobody queued yet (plan M8). A step that throws marks the message `failed`
- * with the counts so far, and the error is rethrown; "Try again" sets a
- * failed message back to `scheduled`.
+ * with the counts so far, and the error is rethrown; a failed manual message
+ * goes out again only by "Try again", which claims it itself.
  */
 
 import { ID, type Messaging, Query, type TablesDB } from "@repo/api";
@@ -39,8 +42,16 @@ export interface SendDeps {
   messaging: Messaging;
   now?: () => Date;
   users: UsersApi;
-  /** The public website. Not used by the send itself yet. */
-  webBase: string;
+  /** The public website, when known. Not used by the send itself yet. */
+  webBase?: string;
+}
+
+export interface SendOptions {
+  /**
+   * The caller already claimed the message: its `sent_at` when it set it to
+   * `sending`. The send goes on from that claim while it still holds.
+   */
+  claimedAt?: string;
 }
 
 /** People the message is for, and how many of them each channel covers. */
@@ -52,8 +63,8 @@ export interface SendCounts {
 }
 
 /**
- * `busy`: another run is sending it, or it failed (it is sent again only
- * after "Try again" puts it back to `scheduled`).
+ * `busy`: another run is sending it, or it failed (a manual message is sent
+ * again only by "Try again"; an automatic one by the cron, ruling R33).
  */
 export type SendError = "already_sent" | "busy" | "not_found";
 
@@ -65,6 +76,8 @@ const DB = "app";
 const MESSAGES = BIG_EVENT_TABLES.messages;
 const RECIPIENTS = BIG_EVENT_TABLES.messageRecipients;
 const STALE_AFTER_MS = 10 * 60_000;
+/** A failed automatic message due longer ago than this is left alone (R33). */
+const RETRY_WINDOW_MS = 2 * 60 * 60_000;
 const WRITE_CONCURRENCY = 8;
 const CONFLICT = 409;
 
@@ -87,21 +100,58 @@ type Claim =
   | { message: BigEventMessageRow; ok: true }
   | { error: SendError; ok: false };
 
-async function claim(db: TablesDB, id: string, now: Date): Promise<Claim> {
+/** The row is `sending` under the caller's own claim. */
+function heldBy(row: BigEventMessageRow, claimedAt: string): boolean {
+  return (
+    row.status === "sending" &&
+    row.sent_at !== null &&
+    Date.parse(row.sent_at) === Date.parse(claimedAt)
+  );
+}
+
+/**
+ * Whether a run may claim it: scheduled; `sending` with no write for 10
+ * minutes; or automatic, failed at least 10 minutes ago and due within the
+ * last 2 hours (ruling R33).
+ */
+function claimable(row: BigEventMessageRow, now: Date): boolean {
+  const quiet = Date.parse(row.$updatedAt) <= now.getTime() - STALE_AFTER_MS;
+  switch (row.status ?? "scheduled") {
+    case "scheduled":
+      return true;
+    case "sending":
+      return quiet;
+    case "failed":
+      return (
+        row.kind !== "manual" &&
+        quiet &&
+        row.scheduled_at !== null &&
+        Date.parse(row.scheduled_at) >= now.getTime() - RETRY_WINDOW_MS
+      );
+    default:
+      return false;
+  }
+}
+
+async function claim(
+  db: TablesDB,
+  id: string,
+  now: Date,
+  claimedAt: string | undefined
+): Promise<Claim> {
   const row = await orNullIfNotFound(
     db.getRow<BigEventMessageRow>(DB, MESSAGES, id)
   );
   if (!row) {
     return { error: "not_found", ok: false };
   }
-  const status = row.status ?? "scheduled";
-  if (status === "sent") {
+  if (claimedAt && heldBy(row, claimedAt)) {
+    return { message: row, ok: true };
+  }
+  if (row.status === "sent") {
     return { error: "already_sent", ok: false };
   }
-  const stale =
-    status === "sending" &&
-    Date.parse(row.$updatedAt) <= now.getTime() - STALE_AFTER_MS;
-  if (!(status === "scheduled" || stale)) {
+  if (!claimable(row, now)) {
     return { error: "busy", ok: false };
   }
   await db.updateRow(DB, MESSAGES, id, {
@@ -230,10 +280,11 @@ async function deliver(
  */
 export async function sendMessage(
   deps: SendDeps,
-  messageId: string
+  messageId: string,
+  options: SendOptions = {}
 ): Promise<SendResult> {
   const now = deps.now ?? (() => new Date());
-  const claimed = await claim(deps.db, messageId, now());
+  const claimed = await claim(deps.db, messageId, now(), options.claimedAt);
   if (!claimed.ok) {
     return claimed;
   }

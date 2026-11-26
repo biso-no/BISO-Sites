@@ -148,6 +148,38 @@ export function renderText(
   return out + text.slice(cursor);
 }
 
+const BLANK_LINE = /\n[ \t]*\n/;
+const CARRIAGE_RETURN = /\r\n?/g;
+const NEWLINE = /\n/g;
+const HTML_SPECIAL = /[&<>"']/g;
+const HTML_ENTITIES: Record<string, string> = {
+  '"': "&quot;",
+  "&": "&amp;",
+  "'": "&#39;",
+  "<": "&lt;",
+  ">": "&gt;",
+};
+
+/**
+ * Plain text as the HTML an announcement body holds (the app renders it as
+ * HTML): blank-line separated paragraphs in `<p>`, single line breaks as
+ * `<br>`, and `& < > " '` escaped.
+ */
+export function textToHtml(text: string): string {
+  return text
+    .replace(CARRIAGE_RETURN, "\n")
+    .split(BLANK_LINE)
+    .map((paragraph) => paragraph.trim())
+    .filter((paragraph) => paragraph !== "")
+    .map(
+      (paragraph) =>
+        `<p>${paragraph
+          .replace(HTML_SPECIAL, (char) => HTML_ENTITIES[char] ?? char)
+          .replace(NEWLINE, "<br>")}</p>`
+    )
+    .join("");
+}
+
 type AutoKind =
   | "bus_assigned"
   | "bus_moved"

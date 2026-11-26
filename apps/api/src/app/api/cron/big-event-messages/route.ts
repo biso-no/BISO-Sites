@@ -13,18 +13,19 @@ import { webBaseUrl } from "@/lib/public-urls";
  * Sends scheduled messages whose time has come (and finishes sends that
  * stalled), the automatic bus messages after the bus lists are published,
  * and departure reminders 2 hours before each bus leg. Pushes go out here;
- * emails and SMS are queued for `big-event-deliveries`. A send that would
- * start after about 40 seconds waits for the next run.
+ * emails and SMS are queued for `big-event-deliveries`. After about 40
+ * seconds no new send starts and no new message is written: the rest waits
+ * for the next run. A send already going may take longer, up to the 300
+ * seconds the route allows (ruling R38).
  */
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function POST(request: Request) {
   const secret = process.env.CRON_SECRET;
-  const webBase = webBaseUrl();
-  if (!(secret && webBase)) {
-    console.error("[Big Event Messages] Missing configuration");
+  if (!secret) {
+    console.error("[Big Event Messages] CRON_SECRET is not configured");
     return NextResponse.json({ error: "not_configured" }, { status: 500 });
   }
   if (!hasValidCronSecret(request, secret)) {
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
         isSmsEnabled: () => isFeatureEnabled("big_events_sms"),
         messaging,
         users,
-        webBase,
+        webBase: webBaseUrl(),
       },
       new Date()
     );

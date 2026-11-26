@@ -218,11 +218,51 @@ function errorText(error: unknown): string {
 }
 
 /**
+ * One batch: write its message (none when the kind is switched off), mark
+ * its people as told (checked once more, so a move made meanwhile is never
+ * wiped out) and send it. A failure is logged and leaves only this batch's
+ * people owed. Returns 1 when it wrote a message.
+ */
+async function tellBatch(
+  run: AutoRun,
+  event: AutoEvent,
+  group: BusGroup,
+  batch: DueParticipant[]
+): Promise<number> {
+  let written = 0;
+  try {
+    const messageId = group.send
+      ? await run.write({
+          audience: {
+            participantIds: batch.map((person) => person.$id),
+            type: "people",
+          },
+          campusIds: group.campusId ? [group.campusId] : [],
+          event,
+          kind: group.kind,
+          leg: "out",
+        })
+      : null;
+    written = messageId ? 1 : 0;
+    await markTold(run.db, await unchangedSinceRead(run.db, batch), run.now);
+    if (messageId) {
+      await run.send(messageId);
+    }
+  } catch (error) {
+    console.error(
+      `${LOG_TAG} A bus message for big event ${event.$id} failed: ${errorText(error)}`
+    );
+  }
+  return written;
+}
+
+/**
  * Step 2 for one big event (ruling R17): read who is due, re-read to keep
  * only people not moved again meanwhile, then per message write it, mark its
  * people (checked once more, so a move made meanwhile is never wiped out)
  * and send it. A message that fails leaves only its own people owed for the
- * next run. Returns how many messages it wrote.
+ * next run, and so does running out of time (ruling R38). Returns how many
+ * messages it wrote.
  */
 export async function sendBusMessages(
   run: AutoRun,
@@ -243,29 +283,10 @@ export async function sendBusMessages(
   let written = 0;
   for (const group of busGroups(event, people, riders)) {
     for (const batch of batches(group)) {
-      try {
-        const messageId = group.send
-          ? await run.write({
-              audience: {
-                participantIds: batch.map((person) => person.$id),
-                type: "people",
-              },
-              campusIds: group.campusId ? [group.campusId] : [],
-              event,
-              kind: group.kind,
-              leg: "out",
-            })
-          : null;
-        written += messageId ? 1 : 0;
-        await markTold(db, await unchangedSinceRead(db, batch), run.now);
-        if (messageId) {
-          await run.send(messageId);
-        }
-      } catch (error) {
-        console.error(
-          `${LOG_TAG} A bus message for big event ${event.$id} failed: ${errorText(error)}`
-        );
+      if (run.outOfTime()) {
+        return written;
       }
+      written += await tellBatch(run, event, group, batch);
     }
   }
   return written;

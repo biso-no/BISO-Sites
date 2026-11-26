@@ -470,6 +470,44 @@ describe("runDueMessages: scheduled messages", () => {
     ]);
   });
 
+  it("retries a failed automatic message, never a manual one (R33)", async () => {
+    event();
+    bus("bus-1", "Buss 1");
+    person("p1", { bus: "bus-1" });
+    const failedAuto = (id: string, fields: Partial<BigEventMessageRow>) =>
+      message(id, {
+        $updatedAt: at(-11),
+        audience: JSON.stringify({ participantIds: ["p1"], type: "people" }),
+        kind: "bus_assigned",
+        scheduled_at: at(-30),
+        status: "failed",
+        ...fields,
+      });
+    failedAuto("m-auto", {});
+    failedAuto("m-recent", { $updatedAt: at(-5) });
+    failedAuto("m-old", { scheduled_at: at(-121) });
+    failedAuto("m-manual", { kind: "manual" });
+
+    const first = await runAt(0);
+
+    expect(first.scheduled).toBe(1);
+    const status = (id: string) =>
+      messages().find((row) => row.$id === id)?.status;
+    expect(status("m-auto")).toBe("sent");
+    expect(status("m-recent")).toBe("failed");
+    expect(status("m-old")).toBe("failed");
+    expect(status("m-manual")).toBe("failed");
+
+    // Once its last try is 10 minutes old, the recent one goes too.
+    const later = await runAt(6);
+    expect(later.scheduled).toBe(1);
+    expect(status("m-recent")).toBe("sent");
+    expect(status("m-manual")).toBe("failed");
+    expect(recipientsOf("m-auto").map((row) => row.participant_id)).toEqual([
+      "p1",
+    ]);
+  });
+
   it("one message's error doesn't stop the others", async () => {
     event();
     message("m1", { scheduled_at: at(-10) });
@@ -778,6 +816,39 @@ describe("runDueMessages: bus messages", () => {
     expect(next).toEqual({ busMessages: 1, reminders: 1, scheduled: 0 });
   });
 
+  it("bus messages stop between messages once the time is up", async () => {
+    event();
+    bus("bus-1", "Buss 1");
+    bus("bus-2", "Buss 2", { campus_id: "2" });
+    person("p1", { bus: "bus-1", dueAt: at(-30) });
+    person("p2", { bus: "bus-2", campus: "2", dueAt: at(-30) });
+    // Writing the first message uses up the run's time.
+    let time = 1_000_000;
+    vi.spyOn(Date, "now").mockImplementation(() => time);
+    db.afterCreate = (table) => {
+      if (table === M) {
+        time += 60_000;
+      }
+    };
+
+    const late = await runAt(0, { budgetMs: 40_000 });
+
+    expect(late.busMessages).toBe(1);
+    expect(automatic()).toHaveLength(1);
+    const [first] = automatic();
+    const told = audienceOf(first as BigEventMessageRow).participantIds[0];
+    const waiting = told === "p1" ? "p2" : "p1";
+    expect(participant(told).bus_notice_due_at).toBeNull();
+    expect(participant(waiting).bus_notice_due_at).toBe(at(-30));
+    // Not sent in a run that is out of time: the next run sends it.
+    expect(first?.status).toBe("scheduled");
+
+    db.afterCreate = null;
+    const next = await runAt(5);
+    expect(next).toMatchObject({ busMessages: 1, scheduled: 1 });
+    expect(participant(waiting).bus_notified_at).toBe(at(5));
+  });
+
   it("someone moved after the message was written is left for the next run", async () => {
     event();
     bus("bus-1", "Buss 1");
@@ -1053,6 +1124,58 @@ describe("runDueMessages: departure reminders", () => {
     expect(second.reminders).toBe(0);
     expect(automatic()).toHaveLength(1);
     expect(group("bus-1").out_reminder_sent_at).toBe(at(0));
+  });
+
+  it("reminders stop between buses once the time is up", async () => {
+    event();
+    bus("bus-1", "Buss 1", { out_departs_at: at(60) });
+    bus("bus-2", "Buss 2", { out_departs_at: at(60) });
+    person("p1", { bus: "bus-1", notifiedAt: at(-200) });
+    person("p2", { bus: "bus-2", notifiedAt: at(-200) });
+    let time = 1_000_000;
+    vi.spyOn(Date, "now").mockImplementation(() => time);
+    db.afterCreate = (table) => {
+      if (table === M) {
+        time += 60_000;
+      }
+    };
+
+    const late = await runAt(0, { budgetMs: 40_000 });
+
+    expect(late.reminders).toBe(1);
+    const stamped = ["bus-1", "bus-2"].filter(
+      (id) => group(id).out_reminder_sent_at !== null
+    );
+    expect(stamped).toHaveLength(1);
+
+    db.afterCreate = null;
+    const next = await runAt(5);
+    expect(next.reminders).toBe(1);
+    expect(automatic()).toHaveLength(2);
+    expect(automatic().every((row) => row.status === "sent")).toBe(true);
+  });
+
+  it("a reminder whose stamp failed isn't written twice", async () => {
+    event();
+    bus("bus-1", "Buss 1", { out_departs_at: at(60) });
+    person("p1", { bus: "bus-1", notifiedAt: at(-200) });
+    vi.spyOn(console, "error").mockImplementation(() => {
+      // Expected: the failed stamp is logged.
+    });
+    let stampFails = true;
+    db.failUpdate = (table) => table === G && stampFails;
+
+    await runAt(0);
+    expect(automatic()).toHaveLength(1);
+    expect(group("bus-1").out_reminder_sent_at).toBeNull();
+
+    stampFails = false;
+    const next = await runAt(5);
+
+    expect(next.reminders).toBe(0);
+    expect(automatic()).toHaveLength(1);
+    expect(automatic()[0]?.status).toBe("sent");
+    expect(group("bus-1").out_reminder_sent_at).toBe(at(5));
   });
 
   it("no reminder for a bus leg nobody rides, until someone gets a seat", async () => {

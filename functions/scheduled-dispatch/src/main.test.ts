@@ -135,14 +135,14 @@ describe("monitorSlugFor", () => {
 });
 
 describe("scheduled-dispatch targets", () => {
-  test("pings the big event messages target with 60 seconds to answer", async () => {
+  test("pings the big event messages target with 300 seconds to answer", async () => {
     const messagesUrl = "https://api.example.com/big-event-messages";
     process.env.BIG_EVENT_MESSAGES_URL = messagesUrl;
     const lines: string[] = [];
     await run((...messages) => lines.push(messages.join(" ")));
     expect(pings).toContain(messagesUrl);
     expect(
-      lines.some((line) => line.includes("BIG_EVENT_MESSAGES_URL@60000ms"))
+      lines.some((line) => line.includes("BIG_EVENT_MESSAGES_URL@300000ms"))
     ).toBe(true);
   });
 });

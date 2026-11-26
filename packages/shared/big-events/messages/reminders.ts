@@ -5,18 +5,24 @@ import "server-only";
  * (auto.ts): 2 hours before each bus leg leaves, one message to the people on
  * that bus for that leg, stamped on the bus so it goes out once. A leg
  * nobody rides gets none and stays unstamped, so someone seated later in the
- * 2 hours still gets theirs.
+ * 2 hours still gets theirs. A reminder written before its stamp failed is
+ * found again and only stamped.
  */
 
 import { Query } from "@repo/api";
 import { BIG_EVENT_TABLES, type GroupLeg } from "../tables";
-import type { BigEventGroupMemberRow, BigEventGroupRow } from "../types";
+import type {
+  BigEventGroupMemberRow,
+  BigEventGroupRow,
+  BigEventMessageRow,
+} from "../types";
 import type { AutoEvent, AutoRun } from "./auto";
 import { listAll } from "./load";
 
 const DB = "app";
 const GROUPS = BIG_EVENT_TABLES.groups;
 const MEMBERS = BIG_EVENT_TABLES.groupMembers;
+const MESSAGES = BIG_EVENT_TABLES.messages;
 /** How long before a bus leg leaves its reminder goes out. */
 const REMINDER_LEAD_MS = 2 * 60 * 60_000;
 
@@ -67,10 +73,46 @@ async function hasRiders(
   return rows.length > 0;
 }
 
+const legKey = (busId: string, leg: GroupLeg) => `${busId}:${leg}`;
+
+function groupIdsOf(audience: string | null): string[] {
+  try {
+    const parsed: unknown = audience ? JSON.parse(audience) : null;
+    const ids = (parsed as { groupIds?: unknown } | null)?.groupIds;
+    return Array.isArray(ids)
+      ? ids.filter((id): id is string => typeof id === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+/** The bus legs of the big event that already have a reminder message. */
+async function remindedLegs(
+  run: AutoRun,
+  event: AutoEvent
+): Promise<Set<string>> {
+  const reminders = await listAll<BigEventMessageRow>(run.db, MESSAGES, [
+    Query.equal("big_event_id", event.$id),
+    Query.equal("kind", "departure_reminder"),
+    Query.select(["$id", "audience", "leg"]),
+  ]);
+  const legs = new Set<string>();
+  for (const reminder of reminders) {
+    if (reminder.leg) {
+      for (const busId of groupIdsOf(reminder.audience)) {
+        legs.add(legKey(busId, reminder.leg));
+      }
+    }
+  }
+  return legs;
+}
+
 /**
- * Writes each due reminder, stamps its bus leg, then sends them (ruling
- * R17's order). Each one stores the leg its audience is for (ruling R13) and
- * the bus's campus. Returns how many it wrote.
+ * Writes each due reminder unless one exists already, stamps its bus leg,
+ * then sends them (ruling R17's order). Each one stores the leg its
+ * audience is for (ruling R13) and the bus's campus. Once the run is out of
+ * time the rest stay due (ruling R38). Returns how many it wrote.
  */
 export async function sendDueReminders(
   run: AutoRun,
@@ -89,16 +131,23 @@ export async function sendDueReminders(
     ]),
   ]);
   const stamp = run.now.toISOString();
+  const due = buses.flatMap((bus) =>
+    LEGS.filter((leg) => reminderDue(bus, leg, run.now)).map((leg) => ({
+      bus,
+      leg,
+    }))
+  );
+  const reminded = due.length > 0 ? await remindedLegs(run, event) : null;
   const written: string[] = [];
-  for (const bus of buses) {
-    for (const leg of LEGS) {
-      if (
-        !(
-          reminderDue(bus, leg, run.now) && (await hasRiders(run, bus.$id, leg))
-        )
-      ) {
-        continue;
-      }
+  for (const { bus, leg } of due) {
+    if (run.outOfTime()) {
+      break;
+    }
+    if (!(await hasRiders(run, bus.$id, leg))) {
+      continue;
+    }
+    // Written on an earlier run whose stamp failed: just stamp it now.
+    if (!reminded?.has(legKey(bus.$id, leg))) {
       written.push(
         await run.write({
           audience: { groupIds: [bus.$id], leg, type: "groups" },
@@ -108,15 +157,15 @@ export async function sendDueReminders(
           leg,
         })
       );
-      await run.db.updateRow<BigEventGroupRow>(
-        DB,
-        GROUPS,
-        bus.$id,
-        leg === "out"
-          ? { out_reminder_sent_at: stamp }
-          : { home_reminder_sent_at: stamp }
-      );
     }
+    await run.db.updateRow<BigEventGroupRow>(
+      DB,
+      GROUPS,
+      bus.$id,
+      leg === "out"
+        ? { out_reminder_sent_at: stamp }
+        : { home_reminder_sent_at: stamp }
+    );
   }
   for (const id of written) {
     await run.send(id);

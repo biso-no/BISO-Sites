@@ -43,14 +43,24 @@ describe("POST /api/cron/big-event-messages", () => {
     expect(runDueMessages).not.toHaveBeenCalled();
   });
 
-  it("reports not_configured without the secret or a web address", async () => {
-    vi.stubEnv("NEXT_PUBLIC_WEB_BASE_URL", "");
-    vi.stubEnv("NEXT_PUBLIC_BASE_URL", "");
-    expect((await POST(request({ "x-cron-secret": SECRET }))).status).toBe(500);
-    vi.stubEnv("NEXT_PUBLIC_WEB_BASE_URL", "https://biso.no");
+  it("reports not_configured without the secret", async () => {
     vi.stubEnv("CRON_SECRET", "");
     expect((await POST(request({ "x-cron-secret": SECRET }))).status).toBe(500);
     expect(runDueMessages).not.toHaveBeenCalled();
+  });
+
+  it("runs without a web address", async () => {
+    vi.stubEnv("NEXT_PUBLIC_WEB_BASE_URL", "");
+    vi.stubEnv("NEXT_PUBLIC_BASE_URL", "");
+    vi.stubEnv("WEB_PUBLIC_BASE_URL", "");
+    const response = await POST(request({ "x-cron-secret": SECRET }));
+    expect(response.status).toBe(200);
+    expect(runDueMessages).toHaveBeenCalledTimes(1);
+  });
+
+  it("may run up to 300 seconds (R38)", async () => {
+    const route = await import("./route");
+    expect(route.maxDuration).toBe(300);
   });
 
   it("runs the due messages and returns the counts", async () => {

@@ -15,6 +15,9 @@ const { dispatchAnnouncement } = vi.hoisted(() => ({
 vi.mock("../../utils/push-dispatch", () => ({ dispatchAnnouncement }));
 
 const { sendMessage } = await import("./send");
+const { localizedPushContent } = await vi.importActual<
+  typeof import("../../utils/push-dispatch")
+>("../../utils/push-dispatch");
 
 // ── In-memory Appwrite fake ───────────────────────────────────────────────────
 
@@ -390,13 +393,13 @@ describe("sendMessage", () => {
     // One text per bus, in both languages, without the first name.
     expect(new Set(sent.map((a) => a.body_no))).toEqual(
       new Set([
-        "Hei! Buss 1 går fre. 22. jan. kl. 14:00.",
-        "Hei! Buss 2 går fre. 22. jan. kl. 15:00.",
+        "<p>Hei! Buss 1 går fre. 22. jan. kl. 14:00.</p>",
+        "<p>Hei! Buss 2 går fre. 22. jan. kl. 15:00.</p>",
       ])
     );
     expect(sent.find((a) => a.body_no?.includes("Buss 2"))).toMatchObject({
       audience_type: "users",
-      body_en: "Hi! Buss 2 leaves Fri 22 Jan, 15:00.",
+      body_en: "<p>Hi! Buss 2 leaves Fri 22 Jan, 15:00.</p>",
       category: "trip",
       deep_link: "biso://big-event?slug=winter-games",
       push: true,
@@ -596,9 +599,186 @@ describe("sendMessage", () => {
     expect(
       sent.map((a) => [a.body_no, JSON.parse(a.audience_value ?? "[]")])
     ).toEqual([
-      ["Hei! Buss 1.", ["u-p1"]],
-      ["Hei! Buss 1. Hjem: Buss 2.", ["u-p2", "u-p3"]],
+      ["<p>Hei! Buss 1.</p>", ["u-p1"]],
+      ["<p>Hei! Buss 1. Hjem: Buss 2.</p>", ["u-p2", "u-p3"]],
     ]);
+  });
+
+  it("the app gets the push text as HTML that keeps its line breaks", async () => {
+    person("p1", { account: { locale: "no" }, bus: "bus-1", push: true });
+    message({
+      body_en: "Hi {first name}!\nLine two\n\nTom & <Jerry> \"x\" 'y'",
+      body_no: "Hei {fornavn}!\r\nLinje to\n \nAvsnitt",
+    });
+
+    await sendMessage(deps(), "m1");
+
+    const [announcement] = dispatchAnnouncement.mock.calls.map(
+      ([row]) => row as Announcements
+    );
+    expect(announcement).toMatchObject({
+      body_en:
+        "<p>Hi!<br>Line two</p><p>Tom &amp; &lt;Jerry&gt; &quot;x&quot; &#39;y&#39;</p>",
+      body_no: "<p>Hei!<br>Linje to</p><p>Avsnitt</p>",
+    });
+    // The push itself is clean text.
+    expect(localizedPushContent(announcement as Announcements).en.body).toBe(
+      "Hi! Line two Tom & <Jerry> \"x\" 'y'"
+    );
+    expect(localizedPushContent(announcement as Announcements).no.body).toBe(
+      "Hei! Linje to Avsnitt"
+    );
+  });
+
+  it("push groups go out four at a time", async () => {
+    for (let index = 3; index <= 8; index += 1) {
+      bus(`bus-${index}`, `Buss ${index}`, "2027-01-22T13:00:00.000Z");
+      person(`p${index}`, {
+        account: { locale: "no" },
+        bus: `bus-${index}`,
+        push: true,
+      });
+    }
+    message({ body_en: "{bus}", body_no: "{buss}" });
+    let inFlight = 0;
+    let most = 0;
+    dispatchAnnouncement.mockImplementation(async () => {
+      inFlight += 1;
+      most = Math.max(most, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      inFlight -= 1;
+      return { recipients: 1 };
+    });
+
+    const result = await sendMessage(deps(), "m1");
+
+    expect(result).toMatchObject({ counts: { push: 6 }, ok: true });
+    expect(dispatchAnnouncement).toHaveBeenCalledTimes(6);
+    expect(most).toBe(4);
+    expect(
+      db.rows<BigEventMessageRecipientRow>(R).every((row) => row.pushed_at)
+    ).toBe(true);
+  });
+
+  it("a push that fails leaves its announcement marked failed", async () => {
+    person("p1", { account: { locale: "no" }, bus: "bus-1", push: true });
+    message();
+    dispatchAnnouncement.mockImplementationOnce(() =>
+      Promise.reject(new Error("push service down"))
+    );
+
+    await expect(sendMessage(deps(), "m1")).rejects.toThrow(
+      "push service down"
+    );
+
+    expect(db.rows<Row>("announcements").map((row) => row.status)).toEqual([
+      "failed",
+    ]);
+  });
+
+  it("a send already claimed by the caller goes on from that claim", async () => {
+    person("p1", { account: { locale: "no" }, bus: "bus-1", push: true });
+    const claimedAt = new Date(clock.getTime() - 1000).toISOString();
+    message({ sent_at: claimedAt, status: "sending" });
+
+    // Someone else's claim is left alone.
+    expect(
+      await sendMessage(deps(), "m1", {
+        claimedAt: new Date(clock.getTime() - 2000).toISOString(),
+      })
+    ).toEqual({ error: "busy", ok: false });
+    expect(await sendMessage(deps(), "m1")).toEqual({
+      error: "busy",
+      ok: false,
+    });
+    expect(pushed).toEqual([]);
+
+    const result = await sendMessage(deps(), "m1", { claimedAt });
+
+    expect(result).toMatchObject({ counts: { push: 1 }, ok: true });
+    expect(messageRow().status).toBe("sent");
+    expect(
+      await sendMessage(deps(), "m1", { claimedAt: clock.toISOString() })
+    ).toEqual({ error: "already_sent", ok: false });
+  });
+
+  it("only a recently failed automatic message is claimed again (R33)", async () => {
+    person("p1", { account: { locale: "no" }, bus: "bus-1", push: true });
+    const failed = (fields: Partial<BigEventMessageRow>) => {
+      db.table(M).clear();
+      message({
+        $updatedAt: new Date(clock.getTime() - 11 * MINUTE).toISOString(),
+        kind: "bus_assigned",
+        scheduled_at: new Date(clock.getTime() - 30 * MINUTE).toISOString(),
+        status: "failed",
+        ...fields,
+      });
+    };
+    const busy = { error: "busy", ok: false };
+
+    failed({ kind: "manual" });
+    expect(await sendMessage(deps(), "m1")).toEqual(busy);
+    failed({
+      $updatedAt: new Date(clock.getTime() - 5 * MINUTE).toISOString(),
+    });
+    expect(await sendMessage(deps(), "m1")).toEqual(busy);
+    failed({
+      scheduled_at: new Date(clock.getTime() - 121 * MINUTE).toISOString(),
+    });
+    expect(await sendMessage(deps(), "m1")).toEqual(busy);
+    expect(pushed).toEqual([]);
+
+    failed({});
+    expect(await sendMessage(deps(), "m1")).toMatchObject({ ok: true });
+    expect(pushed).toEqual([["u-p1"]]);
+  });
+
+  it("the audience and the details use one leg", async () => {
+    person("p-out", { bus: "bus-1", ticketEmail: "out@example.com" });
+    person("p-home", { ticketEmail: "home@example.com" });
+    db.seed(GM, {
+      $id: "seat-p-home-home",
+      big_event_id: "be1",
+      group_id: "bus-1",
+      leg: "home",
+      participant_id: "p-home",
+    });
+    const bus1 = db.table(G).get("bus-1");
+    if (bus1) {
+      bus1.home_meeting_point = "Hotellet";
+    }
+    // The leg is on the audience only.
+    message({
+      audience: JSON.stringify({
+        groupIds: ["bus-1"],
+        leg: "home",
+        type: "groups",
+      }),
+      leg: null,
+    });
+
+    await sendMessage(deps(), "m1");
+
+    const rows = db.rows<BigEventMessageRecipientRow>(R);
+    expect(rows.map((row) => row.participant_id)).toEqual(["p-home"]);
+    expect(JSON.parse(rows[0]?.vars ?? "null")).toMatchObject({
+      no: { bus: "Buss 1", meeting_point: "Hotellet" },
+    });
+
+    // The leg is on the message only.
+    db.table(M).clear();
+    db.table(R).clear();
+    db.table(D).clear();
+    message({
+      audience: JSON.stringify({ groupIds: ["bus-1"], type: "groups" }),
+      leg: "home",
+    });
+
+    await sendMessage(deps(), "m1");
+
+    expect(
+      db.rows<BigEventMessageRecipientRow>(R).map((row) => row.participant_id)
+    ).toEqual(["p-home"]);
   });
 
   it("pushes that differ only in English stay apart", async () => {

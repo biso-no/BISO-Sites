@@ -117,9 +117,15 @@ export async function loadDelivery(
   );
 
   const campusIds = message.campus_ids ?? [];
+  const stored = parseAudience(message.audience);
+  // One leg for who gets it and whose details they get (ruling R13).
+  const leg =
+    message.leg ?? (stored.type === "groups" ? stored.leg : undefined) ?? "out";
+  const audience: Audience =
+    stored.type === "groups" ? { ...stored, leg } : stored;
   const reached = resolveAudience({
     allowedCampusIds: campusIds.length > 0 ? campusIds : "all",
-    audience: parseAudience(message.audience),
+    audience,
     buses,
     members,
     participants,
@@ -148,7 +154,7 @@ export async function loadDelivery(
       recipients: deliveryRecipients({
         accounts,
         buses,
-        leg: message.leg ?? "out",
+        leg,
         members,
         people,
         rooms,
