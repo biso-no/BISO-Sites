@@ -172,7 +172,10 @@ function HistoryEntry({
           <Badge color={IMPORTANT_RED}>{t("history.important")}</Badge>
         )}
         {item.pinned && (
-          <Pin aria-hidden size={13} style={{ color: IMPORTANT_RED }} />
+          <>
+            <Pin aria-hidden size={13} style={{ color: IMPORTANT_RED }} />
+            <span className="sr-only">{t("history.pinned")}</span>
+          </>
         )}
       </div>
       <h3

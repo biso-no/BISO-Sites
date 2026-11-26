@@ -50,7 +50,7 @@ mock.module("next-intl/server", () => ({
 }));
 
 const sendMessage = mock(
-  async (_deps: unknown, _id: string) =>
+  async (_deps: unknown, _id: string, _options?: { claimedAt?: string }) =>
     ({
       counts: { email: 1, push: 1, recipients: 3, sms: 0 },
       ok: true,
@@ -116,10 +116,21 @@ const {
   listMessages,
   previewMessage,
   retryMessage,
-  sendBigEventMessage,
+  sendBigEventMessage: sendAction,
   translateMessage,
   unpinMessage,
 } = await import("./big-event-messages");
+
+let drafts = 0;
+/** Each call a new draft unless a test names one, as the composer does. */
+function sendBigEventMessage(
+  bigEventId: string,
+  message: MessageDraft,
+  when: { at: string },
+  draftId = `draft-${++drafts}`
+) {
+  return sendAction(bigEventId, message, when, draftId);
+}
 
 const EVENTS = "big_events";
 const PARTICIPANTS = "big_event_participants";
@@ -434,6 +445,7 @@ describe("sendBigEventMessage", () => {
 
     expect(result).toMatchObject({ ok: true, people: 3, status: "sent" });
     const [row] = messages();
+    // Written already claimed for this send (ruling R35).
     expect(row).toMatchObject({
       also_sms: false,
       audience: JSON.stringify({ type: "everyone" }),
@@ -446,12 +458,14 @@ describe("sendBigEventMessage", () => {
       leg: null,
       pinned: true,
       scheduled_at: NOW,
-      status: "scheduled",
+      sent_at: NOW,
+      status: "sending",
       title_en: "Your bus",
     });
     expect(result.ok && result.messageId).toBe(row?.$id);
     expect(sendMessage).toHaveBeenCalledTimes(1);
     expect(sendMessage.mock.calls[0]?.[1]).toBe(row?.$id);
+    expect(sendMessage.mock.calls[0]?.[2]).toEqual({ claimedAt: NOW });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [, action, details] = logAuditEvent.mock.calls[0] as [
       unknown,
@@ -512,11 +526,57 @@ describe("sendBigEventMessage", () => {
     expect(result).toMatchObject({ ok: true, status: "scheduled" });
     expect(messages()[0]).toMatchObject({
       scheduled_at: "2027-01-21T07:00:00.000Z",
+      sent_at: null,
       status: "scheduled",
     });
     expect(sendMessage).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
     expect(logAuditEvent.mock.calls[0]?.[1]).toBe("big_event.message.schedule");
+  });
+
+  test("the message takes the draft's id; sending it again sends nothing more (R35)", async () => {
+    const first = await sendBigEventMessage(
+      "b1",
+      draft(),
+      { at: "now" },
+      "0b9f2a64-5c1e-4f3a-9d2b-7e8c1a2b3c4d"
+    );
+    expect(first).toMatchObject({
+      messageId: "0b9f2a64-5c1e-4f3a-9d2b-7e8c1a2b3c4d",
+      ok: true,
+    });
+    // The first answer was lost; the row went on and was sent.
+    Object.assign(messages()[0] ?? {}, { recipients: 3, status: "sent" });
+
+    const again = await sendBigEventMessage(
+      "b1",
+      draft(),
+      { at: "now" },
+      "0b9f2a64-5c1e-4f3a-9d2b-7e8c1a2b3c4d"
+    );
+
+    expect(again).toEqual({
+      messageId: "0b9f2a64-5c1e-4f3a-9d2b-7e8c1a2b3c4d",
+      ok: true,
+      people: 3,
+      status: "sent",
+    });
+    expect(messages()).toHaveLength(1);
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  test("a draft id that can't be a message id is refused", async () => {
+    for (const bad of [
+      "",
+      "-starts-with-a-dash",
+      "has space",
+      "x".repeat(37),
+    ]) {
+      await expect(
+        sendBigEventMessage("b1", draft(), { at: "now" }, bad)
+      ).rejects.toThrow();
+    }
+    expect(messages()).toHaveLength(0);
   });
 
   test("a bus audience without a leg is stored for the way out (R13, R8)", async () => {
@@ -634,7 +694,7 @@ describe("cancelMessage, retryMessage and unpinMessage", () => {
     expect(messages()).toHaveLength(3);
   });
 
-  test("try again puts a failed message back for now and sends it", async () => {
+  test("try again claims a failed message itself and sends it (R35)", async () => {
     seed({
       [MESSAGES]: [messageRow("m1", { failed_count: 2, status: "failed" })],
     });
@@ -642,11 +702,35 @@ describe("cancelMessage, retryMessage and unpinMessage", () => {
     expect(result).toEqual({ ok: true, status: "sent" });
     expect(fake.db.updateRow.mock.calls[0]?.[3]).toEqual({
       scheduled_at: NOW,
-      status: "scheduled",
+      sent_at: NOW,
+      status: "sending",
     });
     expect(sendMessage.mock.calls[0]?.[1]).toBe("m1");
+    expect(sendMessage.mock.calls[0]?.[2]).toEqual({ claimedAt: NOW });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(logAuditEvent.mock.calls[0]?.[1]).toBe("big_event.message.retry");
+  });
+
+  test("try again sends nothing when another run took the message first", async () => {
+    seed({ [MESSAGES]: [messageRow("m1", { status: "failed" })] });
+    // Another run claims it right after this write, before the read-back.
+    fake.db.updateRow.mockImplementationOnce(
+      (
+        _db: string,
+        _table: string,
+        _id: string,
+        data: Record<string, unknown> = {}
+      ) => {
+        const row = messages()[0] as FakeRow;
+        Object.assign(row, data, { sent_at: "2027-01-20T12:00:00.500Z" });
+        return Promise.resolve({ ...row });
+      }
+    );
+
+    const result = await retryMessage("m1");
+
+    expect(result).toEqual({ ok: true, status: "sending" });
+    expect(sendMessage).not.toHaveBeenCalled();
   });
 
   test("a try again that fails again is reported as failed (R29)", async () => {

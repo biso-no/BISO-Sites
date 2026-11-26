@@ -105,6 +105,9 @@ describe("HistoryList", () => {
       onChanged,
     });
     const [automatic, important] = entries(container);
+    // Screen readers hear what the pin icon shows.
+    expect(important?.textContent).toContain("Pinned");
+    expect(automatic?.textContent).not.toContain("Pinned");
     expect(automatic?.textContent).toContain("Automatic");
     expect(automatic?.textContent).toContain("Your bus");
     expect(automatic?.textContent).toContain("40 people");
@@ -204,6 +207,16 @@ describe("HistoryList", () => {
       "Sending failed again. You can try again later."
     );
     expect(onChanged).toHaveBeenCalled();
+  });
+
+  test("SMS are counted as not sent while there is no SMS provider (D9)", async () => {
+    const container = await mounter.mount(HistoryList, {
+      items: [
+        item({ counts: { email: 3, failed: 0, people: 4, push: 1, sms: 2 } }),
+      ],
+      onChanged,
+    });
+    expect(container.textContent).toContain("2 SMS not sent (no SMS provider)");
   });
 
   test("says so when there are no messages yet", async () => {

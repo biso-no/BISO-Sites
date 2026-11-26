@@ -35,6 +35,12 @@ export interface ComposerState {
   alsoSms: boolean;
   audienceType: AudienceType | null;
   campusIds: string[];
+  /**
+   * This draft's id, sent with it and used as the message's id (ruling
+   * R35): sending it again after a dropped answer can't send it twice. A
+   * new draft gets a new one.
+   */
+  draftId: string;
   groupIds: string[];
   important: boolean;
   /** Whose bus details and which bus riders (ruling R8): the way out by default. */
@@ -58,11 +64,17 @@ export interface MessagePersonOption {
   name: string;
 }
 
+/** A new draft id: a UUID, which is a valid Appwrite row id. */
+export function newDraftId(): string {
+  return crypto.randomUUID();
+}
+
 export function emptyComposer(): ComposerState {
   return {
     alsoSms: false,
     audienceType: null,
     campusIds: [],
+    draftId: newDraftId(),
     groupIds: [],
     important: false,
     leg: "out",

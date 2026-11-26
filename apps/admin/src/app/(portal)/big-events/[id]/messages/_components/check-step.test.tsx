@@ -63,6 +63,7 @@ afterAll(() => mounter.restore());
 beforeEach(() => {
   sendBigEventMessage.mockClear();
   translateMessage.mockClear();
+  onSent.mockClear();
   resetToasts();
 });
 
@@ -101,6 +102,7 @@ function Check({ start }: { start: ComposerTexts }) {
   const [texts, setTexts] = useState(start);
   return createElement(CheckStep, {
     bigEventId: "b1",
+    draftId: "draft-1",
     draft: {
       alsoSms: false,
       audience: { type: "everyone" },
@@ -233,6 +235,122 @@ describe("CheckStep", () => {
       "Nobody matches who you chose. Choose someone else."
     );
     expect(container.textContent).not.toContain("no_people");
+  });
+
+  test("sends with the draft's own id, so a repeat can't send twice (R35)", async () => {
+    const container = await mounter.mount(Check, { start: both });
+    await click(findButton(container, "Send message"));
+    await settle();
+
+    expect(sendBigEventMessage.mock.calls[0]?.[3]).toBe("draft-1");
+  });
+
+  test("an unexpected error asks to check the list before sending again", async () => {
+    sendBigEventMessage.mockImplementationOnce(() =>
+      Promise.reject(new Error("network"))
+    );
+    const container = await mounter.mount(Check, { start: both });
+    await click(findButton(container, "Send message"));
+    await settle();
+
+    expect(container.textContent).toContain(
+      "Something went wrong. Check the list below before you send it again."
+    );
+    expect(onSent).not.toHaveBeenCalled();
+  });
+
+  test("Send waits for Translate, and Translate for Send", async () => {
+    let finishTranslating: () => void = () => undefined;
+    translateMessage.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishTranslating = () =>
+            resolve({ body: "Hei.", ok: true, title: "Hei" });
+        })
+    );
+    const container = await mounter.mount(Check, { start: both });
+    await click(findButton(container, "Translate"));
+    expect(isDisabled(findButton(container, "Send message"))).toBe(true);
+    finishTranslating();
+    await settle();
+    expect(isDisabled(findButton(container, "Send message"))).toBe(false);
+
+    let finishSending: () => void = () => undefined;
+    sendBigEventMessage.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishSending = () =>
+            resolve({ messageId: "m1", ok: true, people: 3, status: "sent" });
+        })
+    );
+    await click(findButton(container, "Send message"));
+    expect(isDisabled(findButton(container, "Translate"))).toBe(true);
+    finishSending();
+    await settle();
+  });
+
+  test("samples and warnings with the same name all show", async () => {
+    const consoleError = spyOn(console, "error").mockImplementation(
+      () => undefined
+    );
+    const twice: MessagePreview = {
+      ...preview,
+      answer: {
+        kind: "ready",
+        reach: { email: 2, people: 2, push: 0, sms: 0, unreachable: 0 },
+        samples: [
+          {
+            label: "Buss 1",
+            text: {
+              en: { body: "A", title: "T" },
+              no: { body: "A", title: "T" },
+            },
+          },
+          {
+            label: "Buss 1",
+            text: {
+              en: { body: "B", title: "T" },
+              no: { body: "B", title: "T" },
+            },
+          },
+        ],
+        warnings: [
+          "Buss 1 has no meeting point",
+          "Buss 1 has no meeting point",
+        ],
+      },
+    };
+    const container = await mounter.mount(
+      () =>
+        createElement(CheckStep, {
+          bigEventId: "b1",
+          draft: {
+            alsoSms: false,
+            audience: { type: "everyone" },
+            body: both.body,
+            important: false,
+            title: both.title,
+          },
+          draftId: "draft-1",
+          locale: "en",
+          now: () => NOW,
+          onBack: () => undefined,
+          onSent,
+          onTextChange: () => undefined,
+          placeholders: PLACEHOLDERS,
+          preview: twice,
+          texts: both,
+        }),
+      {}
+    );
+    const keyWarnings = consoleError.mock.calls.filter((call) =>
+      String(call[0]).includes("same key")
+    );
+    consoleError.mockRestore();
+    expect(keyWarnings).toEqual([]);
+    expect(
+      findElements(container, (element) => element.tagName === "ARTICLE")
+    ).toHaveLength(2);
   });
 
   test("a send that failed says so and points to the history", async () => {

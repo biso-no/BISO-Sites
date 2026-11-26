@@ -53,6 +53,13 @@ export const SCHEDULE_GRACE_MS = 60_000;
 
 /** An Appwrite row id. */
 export const idSchema = z.string().min(1).max(36);
+/**
+ * A new message's id, chosen by the composer (ruling R35): what Appwrite
+ * takes as a custom row id, such as a UUID.
+ */
+export const draftIdSchema = z
+  .string()
+  .regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,35}$/);
 const idsSchema = z.array(idSchema).min(1).max(AUDIENCE_IDS_MAX);
 
 const localizedSchema = (max: number) =>

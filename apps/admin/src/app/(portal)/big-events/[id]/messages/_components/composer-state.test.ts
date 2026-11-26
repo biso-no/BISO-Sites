@@ -113,6 +113,19 @@ describe("draftOf", () => {
   });
 });
 
+const APPWRITE_ID = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,35}$/;
+
+describe("emptyComposer", () => {
+  test("every new draft gets its own id, valid as a message id (R35)", () => {
+    const first = emptyComposer().draftId;
+    const second = emptyComposer().draftId;
+    expect(first).not.toBe(second);
+    for (const id of [first, second]) {
+      expect(id).toMatch(APPWRITE_ID);
+    }
+  });
+});
+
 describe("showsLeg", () => {
   test("only with Travel on, for a bus or bus details in the text", () => {
     const bus = state({ audienceType: "groups", groupIds: ["bus-1"] });

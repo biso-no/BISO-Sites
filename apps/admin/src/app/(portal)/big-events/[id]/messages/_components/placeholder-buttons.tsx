@@ -5,15 +5,16 @@ import {
   placeholderToken,
 } from "@repo/shared/big-events/messages/text";
 import { Plus } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useEffect, useRef } from "react";
+import type { MessageLocale } from "@/lib/big-events/messages/draft";
 import { STUDIO } from "../../../../_components/studio";
 import { LABEL_CLASS } from "./ui";
 
 /**
  * Personal details go into a message by button, never typed (spec D6): each
- * button puts its `{…}` token in the admin's language where the cursor was
- * in the field last used.
+ * button puts its `{…}` token, in the language of the fields it sits under,
+ * where the cursor was in the field last used.
  */
 
 type FieldElement = HTMLInputElement | HTMLTextAreaElement;
@@ -107,15 +108,17 @@ export function useCursorInsert<F extends string>({
 interface PlaceholderButtonsProps {
   /** The details this big event has (no bus details without Travel). */
   keys: readonly Placeholder[];
+  /** The language of the fields: tokens are written in it. */
+  language: MessageLocale;
   onInsert: (token: string) => void;
 }
 
 export function PlaceholderButtons({
   keys,
+  language,
   onInsert,
 }: PlaceholderButtonsProps) {
   const t = useTranslations("adminPortal.bigEvents.messages.placeholders");
-  const locale = useLocale() === "no" ? "no" : "en";
   if (keys.length === 0) {
     return null;
   }
@@ -127,7 +130,7 @@ export function PlaceholderButtons({
           <button
             className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs transition-colors"
             key={key}
-            onClick={() => onInsert(placeholderToken(locale, key))}
+            onClick={() => onInsert(placeholderToken(language, key))}
             // Keeps the field focused, so its caret stays where it was.
             onMouseDown={(event) => event.preventDefault()}
             style={{

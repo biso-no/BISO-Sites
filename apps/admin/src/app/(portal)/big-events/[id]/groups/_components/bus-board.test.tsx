@@ -693,6 +693,27 @@ describe("BusBoard", () => {
     expect(publishBusLists).toHaveBeenCalledWith("b1");
   });
 
+  test("publishing names buses missing a departure time or meeting point", async () => {
+    const container = await mount();
+    await click(findButton(container, "Publish bus lists"));
+    const dialog = byRole(container, "alertdialog");
+
+    expect(dialog.textContent).toContain(
+      "The messages leave out what a bus is missing. You can still publish."
+    );
+    expect(dialog.textContent).toContain(
+      "Bus 1 has no departure time or meeting point for the way home."
+    );
+    expect(dialog.textContent).toContain(
+      "Bus 2 has no departure time or meeting point for the way out."
+    );
+    expect(dialog.textContent).not.toContain(
+      "Bus 1 has no departure time or meeting point for the way out."
+    );
+    await click(findButton(dialog, "Publish"));
+    expect(publishBusLists).toHaveBeenCalledWith("b1");
+  });
+
   test("once published, a pill with the date replaces the button", async () => {
     const container = await mount(groupsView(PUBLISHED));
     expect(container.textContent).toContain("Published 1 Dec");

@@ -74,6 +74,10 @@ function notFound(): Error {
   return Object.assign(new Error("Row not found"), { code: 404 });
 }
 
+function conflict(): Error {
+  return Object.assign(new Error("Row already exists"), { code: 409 });
+}
+
 export function createFakeTablesDb() {
   const tables = new Map<string, FakeRow[]>();
   let nextId = 0;
@@ -103,6 +107,10 @@ export function createFakeTablesDb() {
         data: Record<string, unknown>
       ) =>
         gate({ data, kind: "create", rowId, tableId }).then(() => {
+          // A chosen id that is taken is refused, as Appwrite does.
+          if (table(tableId).some((row) => row.$id === rowId)) {
+            throw conflict();
+          }
           nextId += 1;
           const $id = rowId === "unique()" ? `new-${tableId}-${nextId}` : rowId;
           const row: FakeRow = { ...data, $id };

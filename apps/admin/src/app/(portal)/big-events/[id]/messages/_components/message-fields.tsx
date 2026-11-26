@@ -77,7 +77,11 @@ export function MessageFields({
           {...cursor.bind("body")}
         />
       </div>
-      <PlaceholderButtons keys={placeholders} onInsert={cursor.insert} />
+      <PlaceholderButtons
+        keys={placeholders}
+        language={language}
+        onInsert={cursor.insert}
+      />
     </div>
   );
 }

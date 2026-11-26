@@ -170,6 +170,7 @@ export function Composer({
         <CheckStep
           bigEventId={bigEventId}
           draft={draft}
+          draftId={state.draftId}
           locale={locale}
           onBack={() => setStep("who")}
           onSent={handleSent}

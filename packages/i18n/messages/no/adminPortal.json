@@ -581,7 +581,11 @@
         "description": "{count, plural, one {# person får en melding om hvilken buss de skal med.} other {# personer får en melding om hvilken buss de skal med.}} Du kan fortsatt flytte folk etterpå.",
         "confirm": "Publiser",
         "done": "Busslistene er publisert",
-        "published": "Publisert {date}"
+        "published": "Publisert {date}",
+        "missingIntro": "Meldingene blir uten det en buss mangler. Du kan publisere likevel.",
+        "missingDeparture": "{bus} mangler avgangstid for {leg, select, home {hjemreisen} other {utreisen}}.",
+        "missingMeetingPoint": "{bus} mangler oppmøtested for {leg, select, home {hjemreisen} other {utreisen}}.",
+        "missingBoth": "{bus} mangler avgangstid og oppmøtested for {leg, select, home {hjemreisen} other {utreisen}}."
       }
     },
     "messages": {
@@ -708,7 +712,7 @@
         "sendingNow": "Sendes nå",
         "failedAt": "Skulle vært sendt {when}",
         "counts": "{people, plural, one {# person} other {# personer}} · {push} push · {email} e-post",
-        "smsCount": "{count} SMS",
+        "smsCount": "{count} SMS ikke sendt (ingen SMS-leverandør)",
         "failedCount": "{count} ikke levert",
         "who": {
           "everyone": "Alle",
@@ -719,6 +723,7 @@
           "home": "hjemreise",
           "unknown": "Ukjent"
         },
+        "pinned": "Festet",
         "unpin": "Løsne",
         "unpinned": "Løsnet. Den ligger ikke lenger øverst.",
         "cancel": "Avbryt",
@@ -741,7 +746,8 @@
         "no_people": "Ingen passer med det du valgte. Velg noen andre.",
         "not_found": "Denne meldingen finnes ikke lenger. Listen er oppdatert.",
         "unknown_placeholder": "Noe i krøllparentes er ikke en detalj vi kan fylle inn. Bruk knappene for å legge inn detaljer som fornavn eller buss.",
-        "unexpected": "Noe gikk galt. Prøv igjen."
+        "unexpected": "Noe gikk galt. Prøv igjen.",
+        "unexpectedSend": "Noe gikk galt. Sjekk listen under før du sender igjen."
       },
       "auto": {
         "title": "Automatiske meldinger",

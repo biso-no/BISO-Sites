@@ -65,6 +65,7 @@ import {
 import {
   type BusMovers,
   busMovers,
+  campusChangeSeats,
   groupsByKey,
   type ImportPreview,
   isExistingTarget,
@@ -611,9 +612,10 @@ function createPlaces(
 }
 
 /**
- * Old places of moved people (R8) and other seats on the legs people now
- * ride with their room (spec D5). Only the first count as moves in the
- * result; pinned places are never in either (R31).
+ * Old places of moved people (R8), other seats on the legs people now ride
+ * with their room (spec D5) and seats on another campus's buses after a
+ * campus change (M12). Only the first count as moves in the result; pinned
+ * places are never in the first two (R31).
  */
 function removePlaces(db: AdminDb, prepared: PreparedImport) {
   const { groups, members, plan } = prepared;
@@ -621,6 +623,9 @@ function removePlaces(db: AdminDb, prepared: PreparedImport) {
     string,
     { membership: BigEventGroupMemberRow; move: boolean }
   >();
+  for (const membership of campusChangeSeats(plan, groups, members)) {
+    removals.set(membership.$id, { membership, move: false });
+  }
   for (const membership of roomBusRemovals(plan, groups, members)) {
     removals.set(membership.$id, { membership, move: false });
   }

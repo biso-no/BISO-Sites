@@ -46,8 +46,9 @@ export function SamplePreviews({ samples, warnings }: SamplePreviewsProps) {
             {t("check.warnings")}
           </h4>
           <ul className="mt-1.5 list-disc pl-5 text-sm leading-6">
-            {warnings.map((warning) => (
-              <li key={warning} style={{ color: STUDIO.ink2 }}>
+            {warnings.map((warning, index) => (
+              // Two campuses can each have a "Buss 1".
+              <li key={`${index}-${warning}`} style={{ color: STUDIO.ink2 }}>
                 {warning}
               </li>
             ))}
@@ -64,10 +65,10 @@ export function SamplePreviews({ samples, warnings }: SamplePreviewsProps) {
               {t("check.previewHelp")}
             </p>
           </div>
-          {samples.map((sample) => (
+          {samples.map((sample, index) => (
             <article
               className="rounded-xl px-4 py-3"
-              key={sample.label}
+              key={`${index}-${sample.label}`}
               style={{
                 background: STUDIO.white,
                 border: `0.5px solid ${STUDIO.rule}`,

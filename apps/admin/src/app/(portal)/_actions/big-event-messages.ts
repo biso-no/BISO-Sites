@@ -1,6 +1,6 @@
 "use server";
 
-import { ID, Query } from "@repo/api";
+import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import {
   type ReachSummary,
@@ -44,6 +44,7 @@ import {
 } from "@/lib/big-events/messages/audience.server";
 import {
   checkDraftTexts,
+  draftIdSchema,
   idSchema,
   type MessageDraft,
   type MessageRefusal,
@@ -87,6 +88,7 @@ import { getBigEvent } from "./big-events";
 const DATABASE_ID = "app";
 const MESSAGES = BIG_EVENT_TABLES.messages;
 const GROUPS = BIG_EVENT_TABLES.groups;
+const CONFLICT = 409;
 
 const translateSchema = z.object({
   body: z.string().max(MESSAGE_BODY_MAX),
@@ -96,6 +98,22 @@ const translateSchema = z.object({
 
 type Ctx = Awaited<ReturnType<typeof requireAuth>>;
 
+function isConflict(error: unknown): boolean {
+  return (error as { code?: unknown } | null)?.code === CONFLICT;
+}
+
+async function readMessage(
+  db: AdminDb,
+  messageId: string
+): Promise<BigEventMessageRow | null> {
+  const { rows } = await db.listRows<BigEventMessageRow>(
+    DATABASE_ID,
+    MESSAGES,
+    [Query.equal("$id", [messageId]), Query.limit(1)]
+  );
+  return rows[0] ?? null;
+}
+
 /** The message by id, when the caller may cancel, retry or unpin it. */
 async function manageableMessage(
   messageId: string
@@ -104,12 +122,7 @@ async function manageableMessage(
 > {
   const id = idSchema.parse(messageId);
   const { db } = await createAdminClient();
-  const { rows } = await db.listRows<BigEventMessageRow>(
-    DATABASE_ID,
-    MESSAGES,
-    [Query.equal("$id", [id]), Query.limit(1)]
-  );
-  const message = rows[0];
+  const message = await readMessage(db, id);
   if (!message) {
     return refuse("not_found");
   }
@@ -121,21 +134,23 @@ async function manageableMessage(
 }
 
 /**
- * Sends a message right away (ruling R14: a send that outlives the action
- * is finished by the messages cron), then asks the api to start on the
- * emails it queued. A send that fails has marked the message `failed`; it
- * is logged and answered as `failed` (ruling R29), so the tab can offer
- * "Try again" from the history.
+ * Sends a message this action has claimed (`claimedAt`, ruling R35) right
+ * away (ruling R14: a send that outlives the action is finished by the
+ * messages cron), then asks the api to start on the emails it queued. A
+ * send that fails has marked the message `failed`; it is logged and
+ * answered as `failed` (ruling R29), so the tab can offer "Try again" from
+ * the history.
  */
 async function sendInline(
-  messageId: string
+  messageId: string,
+  claimedAt: string
 ): Promise<
   | { counts: SendCounts | null; ok: true; status: MessageStatus }
   | MessageRefusal<"not_found">
 > {
   const deps = await messageSendDeps();
   try {
-    const result = await sendMessage(deps, messageId);
+    const result = await sendMessage(deps, messageId, { claimedAt });
     if (result.ok) {
       return { counts: result.counts, ok: true, status: "sent" };
     }
@@ -272,19 +287,51 @@ export async function translateMessage(
   };
 }
 
+type SendAnswer = MessageResult<{
+  messageId: string;
+  people: number;
+  status: MessageStatus;
+}>;
+
 /**
- * Writes the message in the caller's scope (`campus_ids`, ruling R22) with
- * its leg (ruling R13), then sends it now or leaves it for the cron at the
- * chosen time. Important messages are pinned (plan M10).
+ * The draft was sent before and its answer lost (ruling R35): how that
+ * message stands now, without sending it again.
+ */
+async function alreadyWritten(
+  db: AdminDb,
+  bigEventId: string,
+  messageId: string
+): Promise<SendAnswer> {
+  const existing = await readMessage(db, messageId);
+  if (!existing || existing.big_event_id !== bigEventId) {
+    return refuse("no_access");
+  }
+  // An earlier attempt may have queued emails and stopped before asking.
+  kickDeliveries();
+  return {
+    messageId: existing.$id,
+    ok: true,
+    people: existing.recipients ?? 0,
+    status: messageStatus(existing),
+  };
+}
+
+/**
+ * Writes the message, with the draft's own id (ruling R35), in the caller's
+ * scope (`campus_ids`, ruling R22) with its leg (ruling R13), then sends it
+ * now or leaves it for the cron at the chosen time. "Send now" writes it
+ * already claimed (`sending`) and goes on from that claim. The same draft
+ * sent twice is sent once: the second answer says how the first stands.
+ * Important messages are pinned (plan M10).
  */
 export async function sendBigEventMessage(
   bigEventId: string,
   draft: MessageDraft,
-  when: SendWhen
-): Promise<
-  MessageResult<{ messageId: string; people: number; status: MessageStatus }>
-> {
+  when: SendWhen,
+  draftId: string
+): Promise<SendAnswer> {
   const ctx = await requireAuth();
+  const id = draftIdSchema.parse(draftId);
   const input = messageDraftSchema.parse(draft);
   const timing = sendWhenSchema.parse(when);
   const found = await getBigEvent(bigEventId);
@@ -312,11 +359,11 @@ export async function sendBigEventMessage(
   }
   const { texts } = checked;
   const campusIds = messageCampusIds(found.access);
-  const row = await db.createRow<BigEventMessageRow>(
-    DATABASE_ID,
-    MESSAGES,
-    ID.unique(),
-    {
+  // "Send now" is claimed for this action as it is written (ruling R35).
+  const claimedAt = time.immediate ? time.at : null;
+  let row: BigEventMessageRow;
+  try {
+    row = await db.createRow<BigEventMessageRow>(DATABASE_ID, MESSAGES, id, {
       also_sms: input.alsoSms,
       audience: JSON.stringify(audience),
       big_event_id: bigEventId,
@@ -333,13 +380,18 @@ export async function sendBigEventMessage(
       push_count: 0,
       recipients: 0,
       scheduled_at: time.at,
-      sent_at: null,
+      sent_at: claimedAt,
       sms_count: 0,
-      status: "scheduled",
+      status: claimedAt ? "sending" : "scheduled",
       title_en: texts.title.en,
       title_no: texts.title.no,
+    });
+  } catch (error) {
+    if (!isConflict(error)) {
+      throw error;
     }
-  );
+    return await alreadyWritten(db, bigEventId, id);
+  }
   const details = {
     also_sms: input.alsoSms,
     audience: audience.type,
@@ -350,14 +402,14 @@ export async function sendBigEventMessage(
     people,
     scheduled_at: time.at,
   };
-  if (!time.immediate) {
+  if (!claimedAt) {
     await audit(ctx, "big_event.message.schedule", bigEventId, details);
     revalidateBigEvent(bigEventId);
     return { messageId: row.$id, ok: true, people, status: "scheduled" };
   }
   let sent: Awaited<ReturnType<typeof sendInline>> | null = null;
   try {
-    sent = await sendInline(row.$id);
+    sent = await sendInline(row.$id, claimedAt);
   } finally {
     await audit(ctx, "big_event.message.send", bigEventId, {
       ...details,
@@ -406,9 +458,10 @@ export async function cancelMessage(messageId: string): Promise<MessageResult> {
 }
 
 /**
- * "Try again" on a failed message: back to scheduled for now, then sent
- * right away (ruling R12). People already reached aren't sent it twice;
- * the rest get the details stored on the first attempt (plan M8).
+ * "Try again" on a failed message: claimed for this action (`sending` for
+ * now, read back to check no other run took it, ruling R35), then sent
+ * right away. People already reached aren't sent it twice; the rest get the
+ * details stored on the first attempt (plan M8).
  */
 export async function retryMessage(
   messageId: string
@@ -422,13 +475,25 @@ export async function retryMessage(
   if (messageStatus(message) !== "failed") {
     return refuse("already_sent");
   }
+  const claimedAt = new Date().toISOString();
   await db.updateRow<BigEventMessageRow>(DATABASE_ID, MESSAGES, message.$id, {
-    scheduled_at: new Date().toISOString(),
-    status: "scheduled",
+    scheduled_at: claimedAt,
+    sent_at: claimedAt,
+    status: "sending",
   });
+  const fresh = await readMessage(db, message.$id);
+  const ours =
+    fresh?.status === "sending" &&
+    fresh.sent_at !== null &&
+    Date.parse(fresh.sent_at) === Date.parse(claimedAt);
+  if (!ours) {
+    // Another run (the cron, or someone else's "Try again") has it now.
+    revalidateBigEvent(message.big_event_id);
+    return { ok: true, status: "sending" };
+  }
   let sent: Awaited<ReturnType<typeof sendInline>> | null = null;
   try {
-    sent = await sendInline(message.$id);
+    sent = await sendInline(message.$id, claimedAt);
   } finally {
     await audit(ctx, "big_event.message.retry", message.big_event_id, {
       counts: sent?.ok ? sent.counts : null,

@@ -11,6 +11,7 @@ import {
   boardCampuses,
   boardColumns,
   defaultBoardCampus,
+  missingBusDetails,
   movingPeople,
   NO_BUS,
   roomMoveChangesBus,
@@ -279,5 +280,57 @@ describe("roomMoveChangesBus", () => {
     expect(roomMoveChangesBus(groups, null, ola)).toBe(false);
     const buddy = { ...roomOn("bus-b"), kind: "buddy" as const };
     expect(roomMoveChangesBus(groups, buddy, ola)).toBe(false);
+  });
+});
+
+describe("missingBusDetails", () => {
+  const busView = (
+    name: string,
+    fields: Partial<BigEventGroupRow>,
+    riders = { home: 0, out: 10 }
+  ): GroupView => ({
+    ...bus(name, 50, "2"),
+    members: [],
+    name,
+    openPlaces: null,
+    riders,
+    seats: riders,
+    ...fields,
+  });
+  const full = {
+    home_departs_at: "2027-01-27T12:00:00.000Z",
+    home_meeting_point: "Hotellet",
+    out_departs_at: "2027-01-24T07:30:00.000Z",
+    out_meeting_point: "Main entrance",
+  };
+
+  test("names the buses missing a time or meeting point, home only with seats home", () => {
+    expect(
+      missingBusDetails([
+        busView("Buss 10", { ...full, out_meeting_point: "  " }),
+        busView(
+          "Buss 2",
+          { ...full, home_departs_at: null },
+          { home: 0, out: 3 }
+        ),
+        busView(
+          "Buss 3",
+          { ...full, home_meeting_point: null },
+          { home: 4, out: 4 }
+        ),
+        busView("Buss 1", {}, { home: 2, out: 2 }),
+        busView("Buss 4", full, { home: 5, out: 5 }),
+        view(room("room-1", 4)),
+      ])
+    ).toEqual([
+      { bus: "Buss 1", leg: "out", missing: "both" },
+      { bus: "Buss 1", leg: "home", missing: "both" },
+      { bus: "Buss 3", leg: "home", missing: "meeting_point" },
+      { bus: "Buss 10", leg: "out", missing: "meeting_point" },
+    ]);
+  });
+
+  test("nothing missing, nothing to say", () => {
+    expect(missingBusDetails([busView("Buss 1", full)])).toEqual([]);
   });
 });

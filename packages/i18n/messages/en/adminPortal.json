@@ -581,7 +581,11 @@
         "description": "{count, plural, one {# person will get a message saying which bus they're on.} other {# people will get a message saying which bus they're on.}} You can still move people afterwards.",
         "confirm": "Publish",
         "done": "The bus lists are published",
-        "published": "Published {date}"
+        "published": "Published {date}",
+        "missingIntro": "The messages leave out what a bus is missing. You can still publish.",
+        "missingDeparture": "{bus} has no departure time for the {leg, select, home {way home} other {way out}}.",
+        "missingMeetingPoint": "{bus} has no meeting point for the {leg, select, home {way home} other {way out}}.",
+        "missingBoth": "{bus} has no departure time or meeting point for the {leg, select, home {way home} other {way out}}."
       }
     },
     "messages": {
@@ -708,7 +712,7 @@
         "sendingNow": "Going out now",
         "failedAt": "Was due {when}",
         "counts": "{people, plural, one {# person} other {# people}} · {push, plural, one {# push} other {# pushes}} · {email, plural, one {# email} other {# emails}}",
-        "smsCount": "{count} SMS",
+        "smsCount": "{count} SMS not sent (no SMS provider)",
         "failedCount": "{count} not delivered",
         "who": {
           "everyone": "Everyone",
@@ -719,6 +723,7 @@
           "home": "way home",
           "unknown": "Not known"
         },
+        "pinned": "Pinned",
         "unpin": "Unpin",
         "unpinned": "Unpinned. It's no longer at the top.",
         "cancel": "Cancel",
@@ -741,7 +746,8 @@
         "no_people": "Nobody matches who you chose. Choose someone else.",
         "not_found": "This message doesn't exist any more. The list is updated.",
         "unknown_placeholder": "Something in curly brackets isn't a detail we can fill in. Use the buttons to add details like first name or bus.",
-        "unexpected": "Something went wrong. Try again."
+        "unexpected": "Something went wrong. Try again.",
+        "unexpectedSend": "Something went wrong. Check the list below before you send it again."
       },
       "auto": {
         "title": "Automatic messages",

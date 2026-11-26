@@ -17,10 +17,10 @@ const mounter = createMounter();
 afterEach(() => mounter.unmount());
 afterAll(() => mounter.restore());
 
-function Fields() {
+function Fields({ language = "en" }: { language?: "no" | "en" }) {
   const [value, setValue] = useState({ body: "", title: "" });
   return createElement(MessageFields, {
-    language: "en",
+    language,
     onChange: (field: "body" | "title", next: string) =>
       setValue((previous) => ({ ...previous, [field]: next })),
     placeholders: PLACEHOLDERS,
@@ -54,6 +54,17 @@ describe("placeholder buttons", () => {
     await click(findButton(container, "First name"));
 
     expect(body.value).toBe("Hi {first name}, see you");
+  });
+
+  test("a button inserts the token in the field's language", async () => {
+    // The admin reads English; these are the Norwegian fields.
+    const container = await mounter.mount(Fields, { language: "no" });
+    const body = field(container, "TEXTAREA");
+
+    await click(findButton(container, "First name"));
+    await click(findButton(container, "Trip home"));
+
+    expect(body.value).toBe("{fornavn}{hjemreise}");
   });
 
   test("a selection is replaced by the token", async () => {

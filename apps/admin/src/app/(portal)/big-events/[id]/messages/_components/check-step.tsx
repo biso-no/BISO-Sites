@@ -38,6 +38,11 @@ const LANGUAGES: readonly MessageLocale[] = ["no", "en"];
 interface CheckStepProps {
   bigEventId: string;
   draft: MessageDraft;
+  /**
+   * This draft's own id, the message's id once sent: sending the same draft
+   * twice sends it once (ruling R35).
+   */
+  draftId: string;
   /** The admin's language, the one the message was written in first. */
   locale: MessageLocale;
   now?: () => Date;
@@ -62,6 +67,7 @@ interface CheckStepProps {
 export function CheckStep({
   bigEventId,
   draft,
+  draftId,
   locale,
   now = () => new Date(),
   onBack,
@@ -138,7 +144,12 @@ export function CheckStep({
     setError(null);
     startSending(async () => {
       try {
-        const result = await sendBigEventMessage(bigEventId, draft, when);
+        const result = await sendBigEventMessage(
+          bigEventId,
+          draft,
+          when,
+          draftId
+        );
         if (!result.ok) {
           setError(t(`errors.${result.error}`));
           return;
@@ -146,7 +157,9 @@ export function CheckStep({
         announce(result.status, result.people, when);
         onSent();
       } catch {
-        setError(t("errors.unexpected"));
+        // It may have gone out: the list shows it if so, and sending the
+        // same draft again won't send it twice.
+        setError(t("errors.unexpectedSend"));
       }
     });
   }
@@ -167,7 +180,7 @@ export function CheckStep({
           </div>
           <div className="flex max-w-xs flex-col items-end gap-1 text-right">
             <PortalButton
-              disabled={!hasText(texts, source)}
+              disabled={!hasText(texts, source) || isSending}
               loading={isTranslating}
               onClick={translate}
               size="sm"
@@ -235,7 +248,7 @@ export function CheckStep({
           {t("steps.back")}
         </PortalButton>
         <PortalButton
-          disabled={!complete}
+          disabled={!complete || isTranslating}
           loading={isSending}
           onClick={send}
           variant="primary"
