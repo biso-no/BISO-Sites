@@ -567,6 +567,40 @@ describe("sendMessage", () => {
     ).toEqual([["p1"], ["p2"]]);
   });
 
+  it("pushes group by the trip home too, still without the first name", async () => {
+    for (const id of ["p1", "p2", "p3"]) {
+      person(id, { account: { locale: "no" }, bus: "bus-1", push: true });
+    }
+    const home = (id: string, busId: string) =>
+      db.seed(GM, {
+        $id: `home-${id}`,
+        big_event_id: "be1",
+        group_id: busId,
+        leg: "home",
+        participant_id: id,
+      });
+    home("p1", "bus-1");
+    home("p2", "bus-2");
+    home("p3", "bus-2");
+    message({
+      body_en: "Hi {first name}! {bus}. {trip home}",
+      body_no: "Hei {fornavn}! {buss}. {hjemreise}",
+      leg: "out",
+    });
+
+    await sendMessage(deps(), "m1");
+
+    const sent = dispatchAnnouncement.mock.calls.map(
+      ([announcement]) => announcement as Announcements
+    );
+    expect(
+      sent.map((a) => [a.body_no, JSON.parse(a.audience_value ?? "[]")])
+    ).toEqual([
+      ["Hei! Buss 1.", ["u-p1"]],
+      ["Hei! Buss 1. Hjem: Buss 2.", ["u-p2", "u-p3"]],
+    ]);
+  });
+
   it("pushes that differ only in English stay apart", async () => {
     person("p1", { account: { locale: "no" }, bus: "bus-1", push: true });
     person("p2", { account: { locale: "no" }, bus: "bus-2", push: true });

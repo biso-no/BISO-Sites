@@ -104,6 +104,7 @@ describe("varsFor", () => {
       first_name: "Ola",
       meeting_point: "Nydalen T",
       room: "312",
+      trip_home: "Hjem: Buss 2, søn. 26. jan. kl. 12:15.",
     });
     expect(vars(ola, "out", "en")).toMatchObject({
       departure: "Fri 24 Jan, 14:00",
@@ -131,7 +132,52 @@ describe("varsFor", () => {
       bus_contact: "Per Hansen",
       first_name: "Kari",
       room: "Room · Kari Nordmann",
+      trip_home: "Home: Buss 1, Sun 26 Jan, 11:30 from Hafjell hotell.",
     });
+  });
+
+  it("names the trip home on the way out only when it is another bus", () => {
+    const home = (
+      seats: ReturnType<typeof seat>[],
+      locale: "no" | "en" = "no",
+      leg: GroupLeg = "out"
+    ) =>
+      varsFor({ buses, leg, locale, members: seats, participant: ola, rooms })
+        .trip_home;
+    // Home on the same bus: nothing to add.
+    expect(
+      home([seat("bus-1", "p-ola", "out"), seat("bus-1", "p-ola", "home")])
+    ).toBeUndefined();
+    // Home on another bus: its name, time and meeting point, as far as known.
+    expect(
+      home([seat("bus-2", "p-ola", "out"), seat("bus-1", "p-ola", "home")])
+    ).toBe("Hjem: Buss 1, søn. 26. jan. kl. 11:30 fra Hafjell hotell.");
+    expect(
+      home(
+        [seat("bus-1", "p-ola", "out"), seat("bus-2", "p-ola", "home")],
+        "en"
+      )
+    ).toBe("Home: Buss 2, Sun 26 Jan, 12:15.");
+    // A seat out but none home yet.
+    expect(home([seat("bus-1", "p-ola", "out")])).toBe(
+      "Du har ikke plass på bussen hjem ennå."
+    );
+    expect(home([seat("bus-1", "p-ola", "out")], "en")).toBe(
+      "You don't have a seat on the bus home yet."
+    );
+    // A home seat on another campus's bus doesn't count.
+    expect(
+      home([seat("bus-1", "p-ola", "out"), seat("bus-bergen", "p-ola", "home")])
+    ).toBe("Du har ikke plass på bussen hjem ennå.");
+    // No seat out: nothing. A message for the way home: nothing.
+    expect(home([seat("bus-2", "p-ola", "home")])).toBeUndefined();
+    expect(
+      home(
+        [seat("bus-1", "p-ola", "out"), seat("bus-2", "p-ola", "home")],
+        "no",
+        "home"
+      )
+    ).toBeUndefined();
   });
 
   it("never names another campus's bus", () => {

@@ -623,6 +623,7 @@
         "departure": "Avgang",
         "meeting_point": "Oppmøtested",
         "bus_contact": "Busskontakt",
+        "trip_home": "Hjemreise",
         "room": "Rom"
       },
       "who": {

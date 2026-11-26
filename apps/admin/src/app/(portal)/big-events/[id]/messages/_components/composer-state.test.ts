@@ -134,6 +134,19 @@ describe("showsLeg", () => {
         true
       )
     ).toBe(true);
+    expect(
+      showsLeg(
+        state({
+          audienceType: "everyone",
+          texts: {
+            body: { en: "{trip home}", no: "" },
+            title: { en: "", no: "" },
+          },
+        }),
+        busIds,
+        true
+      )
+    ).toBe(true);
   });
 });
 

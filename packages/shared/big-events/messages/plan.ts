@@ -53,6 +53,19 @@ const DEPARTURE_DAY: Intl.DateTimeFormatOptions = {
 };
 const INTL_LOCALE: Record<Locale, string> = { en: "en-GB", no: "nb-NO" };
 const ROOM_PREFIX: Record<Locale, string> = { en: "Room", no: "Rom" };
+const HOME_WORDS: Record<Locale, { from: string; home: string; none: string }> =
+  {
+    en: {
+      from: "from",
+      home: "Home",
+      none: "You don't have a seat on the bus home yet.",
+    },
+    no: {
+      from: "fra",
+      home: "Hjem",
+      none: "Du har ikke plass på bussen hjem ennå.",
+    },
+  };
 
 /** "fre. 24. jan. kl. 14:00" / "Fri 24 Jan, 14:00" in Oslo time. */
 function formatDeparture(
@@ -94,14 +107,50 @@ function compact(vars: MessageVars): MessageVars {
   return out;
 }
 
+interface Seat {
+  bus: VarsBus;
+  id: string;
+}
+
+/**
+ * The trip home for a message about the way out (spec D7, ruling R32): the
+ * home bus when it isn't the bus out, or that there is no seat home yet.
+ * Nothing without a seat out.
+ */
+function tripHome(
+  out: Seat | undefined,
+  home: Seat | undefined,
+  locale: Locale
+): string | undefined {
+  const words = HOME_WORDS[locale];
+  if (!out || home?.id === out.id) {
+    return;
+  }
+  if (!home) {
+    return words.none;
+  }
+  const details = [
+    present(home.bus.name),
+    formatDeparture(home.bus.home_departs_at, locale),
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const meetingPoint = present(home.bus.home_meeting_point);
+  const text = [details, meetingPoint && `${words.from} ${meetingPoint}`]
+    .filter(Boolean)
+    .join(" ");
+  return text ? `${words.home}: ${text}.` : undefined;
+}
+
 /**
  * One person's placeholder values for a message on `leg`: their own bus seat
- * on that leg and their room. A seat on another campus's bus is never named
- * (Stage 2 ruling R19). Missing details are left out (they render as nothing).
+ * on that leg and their room, and on the way out their trip home when it
+ * differs. A seat on another campus's bus is never named (Stage 2 ruling
+ * R19). Missing details are left out (they render as nothing).
  */
 export function varsFor(input: VarsInput): MessageVars {
   const { buses, leg, locale, participant, rooms } = input;
-  let bus: VarsBus | undefined;
+  const seats: Partial<Record<GroupLeg, Seat>> = {};
   let room: VarsRoom | undefined;
   for (const member of input.members) {
     if (member.participant_id !== participant.$id) {
@@ -109,13 +158,14 @@ export function varsFor(input: VarsInput): MessageVars {
     }
     if (member.leg === null) {
       room ??= rooms.get(member.group_id);
-    } else if (member.leg === leg && !bus) {
+    } else if (!seats[member.leg]) {
       const seat = buses.get(member.group_id);
       if (seat && seat.campus_id === participant.campus_id) {
-        bus = seat;
+        seats[member.leg] = { bus: seat, id: member.group_id };
       }
     }
   }
+  const bus = seats[leg]?.bus;
 
   const roomName =
     room &&
@@ -135,6 +185,8 @@ export function varsFor(input: VarsInput): MessageVars {
       leg === "out" ? bus?.out_meeting_point : bus?.home_meeting_point
     ),
     room: roomName,
+    trip_home:
+      leg === "out" ? tripHome(seats.out, seats.home, locale) : undefined,
   });
 }
 

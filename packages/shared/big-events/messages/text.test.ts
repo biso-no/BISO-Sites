@@ -11,7 +11,7 @@ import {
 describe("message text", () => {
   it("reads placeholders in either language", () => {
     const found = findPlaceholders(
-      "Hei {fornavn} / {First Name}, {buss} {departure} {  meeting   point } {oppmøtested} {BUSSKONTAKT} {rom}"
+      "Hei {fornavn} / {First Name}, {buss} {departure} {  meeting   point } {oppmøtested} {BUSSKONTAKT} {rom} {Hjemreise} {trip  home}"
     );
     expect(found.unknown).toEqual([]);
     expect(found.known).toEqual([
@@ -23,9 +23,13 @@ describe("message text", () => {
       "meeting_point",
       "bus_contact",
       "room",
+      "trip_home",
+      "trip_home",
     ]);
     expect(placeholderToken("no", "first_name")).toBe("{fornavn}");
     expect(placeholderToken("en", "meeting_point")).toBe("{meeting point}");
+    expect(placeholderToken("no", "trip_home")).toBe("{hjemreise}");
+    expect(placeholderToken("en", "trip_home")).toBe("{trip home}");
     expect(PLACEHOLDER_LABELS.no.first_name).toBe("fornavn");
     expect(Object.keys(PLACEHOLDER_LABELS.en)).toEqual([...PLACEHOLDERS]);
   });
@@ -73,6 +77,29 @@ describe("message text", () => {
     expect(renderText("Hello\n  {fornavn}: hi", {}, push)).toBe("Hello\n  hi");
   });
 
+  it("drops a separator a removed placeholder leaves before a closing mark", () => {
+    const push = { forPush: true };
+    expect(renderText("Hei, {fornavn}!", {}, push)).toBe("Hei!");
+    expect(renderText("Hei, {fornavn}?", {}, push)).toBe("Hei?");
+    expect(renderText("Hei, {fornavn}.", {}, push)).toBe("Hei.");
+    expect(renderText("Hei, {fornavn}, bussen går kl. 14", {}, push)).toBe(
+      "Hei, bussen går kl. 14"
+    );
+    expect(renderText("Hei; {fornavn}: bussen", {}, push)).toBe("Hei: bussen");
+    expect(renderText("Hei, {fornavn}", {}, push)).toBe("Hei");
+    expect(renderText("Hei, {fornavn}\nBussen går", {}, push)).toBe(
+      "Hei\nBussen går"
+    );
+    // A separator before text that goes on stays.
+    expect(renderText("Hei, {fornavn} og velkommen", {}, push)).toBe(
+      "Hei, og velkommen"
+    );
+    // The name, when it is there, keeps the comma.
+    expect(renderText("Hei, {fornavn}!", { first_name: "Ola" })).toBe(
+      "Hei, Ola!"
+    );
+  });
+
   it("keeps newlines and strips blanks left before them", () => {
     expect(renderText("Hei {fornavn}\nBuss {buss}", { bus: "3" }, {})).toBe(
       "Hei\nBuss 3"
@@ -100,6 +127,28 @@ describe("message text", () => {
     );
   });
 
+  it("the bus defaults end with the trip home, left out when empty", () => {
+    const { en, no } = defaultAutoTexts("bus_moved");
+    const out = { bus: "Buss 1", departure: "fre. 24. jan. kl. 14:00" };
+    expect(renderText(no.body, { ...out, meeting_point: "Nydalen T" })).toBe(
+      "Hei! Bussplassen din er endret. Du er på Buss 1. Den går fre. 24. jan. kl. 14:00 fra Nydalen T."
+    );
+    expect(
+      renderText(
+        en.body,
+        {
+          ...out,
+          first_name: "Ola",
+          meeting_point: "Nydalen T",
+          trip_home: "Home: Buss 2, Sun 26 Jan, 12:15.",
+        },
+        { forPush: true }
+      )
+    ).toBe(
+      "Hi! Your bus seat has changed. You're on Buss 1. It leaves fre. 24. jan. kl. 14:00 from Nydalen T. Home: Buss 2, Sun 26 Jan, 12:15."
+    );
+  });
+
   it("defaults exist for every automatic kind in both languages", () => {
     for (const kind of [
       "bus_assigned",
@@ -117,21 +166,21 @@ describe("message text", () => {
     expect(defaultAutoTexts("bus_assigned")).toEqual({
       no: {
         title: "Bussen din",
-        body: "Hei {fornavn}! Du skal med {buss}. Den går {avgang} fra {oppmøtested}.",
+        body: "Hei {fornavn}! Du skal med {buss}. Den går {avgang} fra {oppmøtested}. {hjemreise}",
       },
       en: {
         title: "Your bus",
-        body: "Hi {first name}! You're on {bus}. It leaves {departure} from {meeting point}.",
+        body: "Hi {first name}! You're on {bus}. It leaves {departure} from {meeting point}. {trip home}",
       },
     });
     expect(defaultAutoTexts("bus_moved")).toEqual({
       no: {
         title: "Ny buss",
-        body: "Hei {fornavn}! Du er flyttet til {buss}. Den går {avgang} fra {oppmøtested}.",
+        body: "Hei {fornavn}! Bussplassen din er endret. Du er på {buss}. Den går {avgang} fra {oppmøtested}. {hjemreise}",
       },
       en: {
         title: "New bus",
-        body: "Hi {first name}! You've been moved to {bus}. It leaves {departure} from {meeting point}.",
+        body: "Hi {first name}! Your bus seat has changed. You're on {bus}. It leaves {departure} from {meeting point}. {trip home}",
       },
     });
     expect(defaultAutoTexts("bus_none")).toEqual({

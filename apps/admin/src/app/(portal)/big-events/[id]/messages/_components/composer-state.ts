@@ -90,6 +90,7 @@ const BUS_DETAILS: ReadonlySet<Placeholder> = new Set([
   "bus_contact",
   "departure",
   "meeting_point",
+  "trip_home",
 ]);
 
 /** The text names a bus detail in either language. */

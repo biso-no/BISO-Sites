@@ -177,6 +177,18 @@ describe("messageWarnings (M5, R23)", () => {
     expect(warnings).toEqual([{ count: 3, kind: "people_without_room" }]);
   });
 
+  test("the trip home is a bus detail: people without a bus are counted", () => {
+    const warnings = messageWarnings({
+      buses,
+      leg: "out",
+      members,
+      people,
+      roomIds: new Set(),
+      uses: new Set(["trip_home"]),
+    });
+    expect(warnings).toEqual([{ count: 2, kind: "people_without_bus" }]);
+  });
+
   test("no bus or room placeholder, no warnings", () => {
     expect(
       messageWarnings({

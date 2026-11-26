@@ -29,6 +29,7 @@ const BUS_DETAILS: readonly Placeholder[] = [
   "bus_contact",
   "departure",
   "meeting_point",
+  "trip_home",
 ];
 
 const usesBus = (uses: ReadonlySet<Placeholder>): boolean =>

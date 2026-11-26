@@ -19,6 +19,7 @@ export const PLACEHOLDERS = [
   "departure",
   "meeting_point",
   "bus_contact",
+  "trip_home",
   "room",
 ] as const;
 
@@ -33,6 +34,7 @@ export const PLACEHOLDER_LABELS: Record<Locale, Record<Placeholder, string>> = {
     departure: "avgang",
     meeting_point: "oppmøtested",
     bus_contact: "busskontakt",
+    trip_home: "hjemreise",
     room: "rom",
   },
   en: {
@@ -41,6 +43,7 @@ export const PLACEHOLDER_LABELS: Record<Locale, Record<Placeholder, string>> = {
     departure: "departure",
     meeting_point: "meeting point",
     bus_contact: "bus contact",
+    trip_home: "trip home",
     room: "room",
   },
 };
@@ -85,12 +88,17 @@ const TRAILING_BLANKS = /[ \t]+$/;
 const LEADING_BLANKS = /^[ \t]+/;
 const LEADING_LINE_PUNCTUATION = /^[,;:][ \t]*/;
 const CLOSING_PUNCTUATION_OR_BREAK = /^(?:[.,!?;:]|\n|\r|$)/;
+/** A separator (and blanks) the text so far ends with. */
+const TRAILING_SEPARATOR = /[,;:][ \t]*$/;
 
 /**
  * Tidies the spacing around one removed placeholder. `out` is the text
  * produced so far, `rest` the original text after the token. Returns the
  * adjusted `out` and `rest`. Only whitespace and punctuation touching the
- * removal change; the rest of the text is left alone.
+ * removal change; the rest of the text is left alone. A separator left
+ * right before a closing mark, another separator or the end of a line goes
+ * too: "Hei, {fornavn}!" becomes "Hei!", "Hei, {fornavn}, bussen" becomes
+ * "Hei, bussen".
  */
 function closeGap(out: string, rest: string): { out: string; rest: string } {
   const afterBlanks = rest.replace(LEADING_BLANKS, "");
@@ -102,7 +110,10 @@ function closeGap(out: string, rest: string): { out: string; rest: string } {
     };
   }
   if (CLOSING_PUNCTUATION_OR_BREAK.test(afterBlanks)) {
-    return { out: out.replace(TRAILING_BLANKS, ""), rest: afterBlanks };
+    return {
+      out: out.replace(TRAILING_SEPARATOR, "").replace(TRAILING_BLANKS, ""),
+      rest: afterBlanks,
+    };
   }
   return { out, rest: afterBlanks };
 }
@@ -150,21 +161,21 @@ const AUTO_TEXTS: Record<
   bus_assigned: {
     no: {
       title: "Bussen din",
-      body: "Hei {fornavn}! Du skal med {buss}. Den går {avgang} fra {oppmøtested}.",
+      body: "Hei {fornavn}! Du skal med {buss}. Den går {avgang} fra {oppmøtested}. {hjemreise}",
     },
     en: {
       title: "Your bus",
-      body: "Hi {first name}! You're on {bus}. It leaves {departure} from {meeting point}.",
+      body: "Hi {first name}! You're on {bus}. It leaves {departure} from {meeting point}. {trip home}",
     },
   },
   bus_moved: {
     no: {
       title: "Ny buss",
-      body: "Hei {fornavn}! Du er flyttet til {buss}. Den går {avgang} fra {oppmøtested}.",
+      body: "Hei {fornavn}! Bussplassen din er endret. Du er på {buss}. Den går {avgang} fra {oppmøtested}. {hjemreise}",
     },
     en: {
       title: "New bus",
-      body: "Hi {first name}! You've been moved to {bus}. It leaves {departure} from {meeting point}.",
+      body: "Hi {first name}! Your bus seat has changed. You're on {bus}. It leaves {departure} from {meeting point}. {trip home}",
     },
   },
   bus_none: {

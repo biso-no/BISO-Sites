@@ -415,7 +415,7 @@ describe("autoTextsFor", () => {
       title: "Din buss",
     });
     expect(texts.en).toEqual({
-      body: "Hi {first name}! You're on {bus}. It leaves {departure} from {meeting point}.",
+      body: "Hi {first name}! You're on {bus}. It leaves {departure} from {meeting point}. {trip home}",
       title: "Your bus",
     });
     const moved = autoTextsFor(
@@ -425,7 +425,7 @@ describe("autoTextsFor", () => {
       "bus_moved"
     );
     expect(moved.no.title).toBe("Byttet");
-    expect(moved.no.body).toContain("Du er flyttet til {buss}");
+    expect(moved.no.body).toContain("Du er på {buss}");
   });
 
   it("falls back to the defaults when the texts can't be read", () => {

@@ -623,6 +623,7 @@
         "departure": "Departure",
         "meeting_point": "Meeting point",
         "bus_contact": "Bus contact",
+        "trip_home": "Trip home",
         "room": "Room"
       },
       "who": {
