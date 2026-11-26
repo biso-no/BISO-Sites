@@ -260,10 +260,13 @@ async function deliver(
   counts.push = targets.filter((target) => target.row.pushed_at).length;
 
   const ctx = { db, event, message, messaging: deps.messaging, now };
-  await sendPushes(ctx, targets, async (people) => {
+  await sendPushes(ctx, targets, async (people, write) => {
     counts.push += people;
-    // Progress, which also tells other runs this one is still going.
-    await db.updateRow(DB, MESSAGES, message.$id, countColumns(counts));
+    // Progress, which also tells other runs this one is still going. None
+    // once a push has failed: the failed mark carries the count (R39).
+    if (write) {
+      await db.updateRow(DB, MESSAGES, message.$id, countColumns(counts));
+    }
   });
   Object.assign(counts, await queueDeliveries(ctx, targets, sms));
   await db.updateRow(DB, MESSAGES, message.$id, {

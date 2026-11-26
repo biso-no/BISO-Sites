@@ -660,6 +660,66 @@ describe("sendMessage", () => {
     ).toBe(true);
   });
 
+  it("a failed push stops the pushes: nothing starts after it (R39)", async () => {
+    for (let index = 3; index <= 8; index += 1) {
+      bus(`bus-${index}`, `Buss ${index}`, "2027-01-22T13:00:00.000Z");
+      person(`p${index}`, {
+        account: { locale: "no" },
+        bus: `bus-${index}`,
+        push: true,
+      });
+    }
+    message({ body_en: "{bus}", body_no: "{buss}" });
+    const events: string[] = [];
+    let calls = 0;
+    let inFlight = 0;
+    // The first push fails quickly; the other three in flight finish later.
+    dispatchAnnouncement.mockImplementation(async () => {
+      calls += 1;
+      const call = calls;
+      events.push(`start ${call}`);
+      inFlight += 1;
+      try {
+        await new Promise((resolve) =>
+          setTimeout(resolve, call === 1 ? 5 : 20)
+        );
+        if (call === 1) {
+          events.push("rejected");
+          throw new Error("push service down");
+        }
+        return { recipients: 1 };
+      } finally {
+        inFlight -= 1;
+      }
+    });
+    db.afterUpdate = (table, row) => {
+      if (table === M) {
+        events.push(row.status === "failed" ? "marked failed" : "progress");
+      }
+    };
+
+    const outcome = await sendMessage(deps(), "m1").then(
+      () => ({ inFlight, rejected: false }),
+      () => ({ inFlight, rejected: true })
+    );
+
+    // It fails only once the pushes already going have finished.
+    expect(outcome).toEqual({ inFlight: 0, rejected: true });
+    expect(dispatchAnnouncement).toHaveBeenCalledTimes(4);
+    const after = events.slice(events.indexOf("rejected") + 1);
+    expect(after.some((event) => event.startsWith("start"))).toBe(false);
+    // No progress is written after the failure, only the failed mark.
+    expect(after).toEqual(["marked failed"]);
+    // The failed mark counts the three pushes that went out.
+    expect(messageRow()).toMatchObject({ push_count: 3, status: "failed" });
+    // The three that went out are stamped, so "Try again" skips them.
+    expect(
+      db
+        .rows<BigEventMessageRecipientRow>(R)
+        .filter((row) => row.pushed_at !== null)
+    ).toHaveLength(3);
+  });
+
   it("a push that fails leaves its announcement marked failed", async () => {
     person("p1", { account: { locale: "no" }, bus: "bus-1", push: true });
     message();

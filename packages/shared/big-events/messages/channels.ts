@@ -140,15 +140,56 @@ async function pushChunk(
 }
 
 /**
+ * Runs `work` over `items`, at most `limit` at a time, and stops at the
+ * first error (ruling R39): no item starts after it, the ones in flight
+ * finish, then the error is thrown. `work` gets `stopped`, true once any
+ * item has failed.
+ */
+async function runUntilFirstError<T>(
+  items: T[],
+  limit: number,
+  work: (item: T, stopped: () => boolean) => Promise<void>
+): Promise<void> {
+  const state: { error: unknown; failed: boolean; next: number } = {
+    error: undefined,
+    failed: false,
+    next: 0,
+  };
+  const stopped = () => state.failed;
+  const worker = async (): Promise<void> => {
+    while (!state.failed && state.next < items.length) {
+      const item = items[state.next] as T;
+      state.next += 1;
+      try {
+        await work(item, stopped);
+      } catch (error) {
+        if (!state.failed) {
+          state.failed = true;
+          state.error = error;
+        }
+      }
+    }
+  };
+  const workers = Math.max(1, Math.min(limit, items.length));
+  await Promise.all(Array.from({ length: workers }, worker));
+  if (state.failed) {
+    throw state.error;
+  }
+}
+
+/**
  * Pushes everyone due one and not pushed yet: one announcement per group of
  * people whose push is identical in both languages (Stage 3 ruling R6), at
  * most 100 people each, four pushes at a time (ruling R38). `onPushed` runs
- * after each push with its head count.
+ * after each push with its head count. A push that fails stops the rest
+ * (ruling R39): no push starts after it, the ones already going finish (and
+ * are stamped), then the error is thrown. Those finish with `write` false:
+ * they are counted, but no progress is written after the failure.
  */
 export async function sendPushes(
   ctx: ChannelContext,
   targets: SendTarget[],
-  onPushed: (people: number) => Promise<void>
+  onPushed: (people: number, write: boolean) => Promise<void>
 ): Promise<void> {
   const groups = new Map<string, { targets: SendTarget[]; texts: PushTexts }>();
   for (const target of targets) {
@@ -178,9 +219,9 @@ export async function sendPushes(
       });
     }
   }
-  await mapWithConcurrency(chunks, PUSH_CONCURRENCY, async (chunk) => {
+  await runUntilFirstError(chunks, PUSH_CONCURRENCY, async (chunk, stopped) => {
     await pushChunk(ctx, chunk.texts, chunk.targets);
-    await onPushed(chunk.targets.length);
+    await onPushed(chunk.targets.length, !stopped());
   });
 }
 
