@@ -1,0 +1,120 @@
+---
+title: Send messages to participants
+description: How to write a message to a big event's participants, choose who gets it, check who it reaches, send it now or later, and follow it in the history.
+who: Global admins, members of the board that runs the big event, and campus admins for their own campus's people.
+covers:
+  - apps/admin/src/app/(portal)/big-events/[id]/messages/**
+  - apps/admin/src/app/(portal)/_actions/big-event-messages.ts
+  - apps/admin/src/lib/big-events/messages/**
+  - packages/shared/big-events/messages/**
+  - apps/api/src/app/api/cron/big-event-messages/**
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- The big event exists and its participants are on the list. See [Import people and connect tickets](/guide/big-events/import-and-connect).
+- Campus admins only see and reach people from their own campus.
+- The screens follow your admin language. Each label is given in Norwegian first, with the English in brackets.
+- Buses, rooms and bus details only work in a message if you have set them up. See [Buses and groups](/guide/big-events/buses-and-groups).
+
+</BeforeYouStart>
+
+Open the big event and go to **Meldinger** (Messages). The writing form is on the left under **Ny melding** (New message). **Sendt og planlagt** (Sent and planned) is the history on the right.
+
+## Write and send a message
+
+The form has three steps: **Melding** (Message), **Hvem** (Who) and **Sjekk og send** (Check & send). Use **Neste** (Next) and **Tilbake** (Back) to move between them.
+
+<Steps>
+<Step title="Melding (Message)">
+
+Write **Tittel** (Title) and **Tekst** (Text) in the first language. The language is shown in the field names. You fill in the other language in the last step.
+
+Under **Legg inn personlige detaljer** (Add personal details) are buttons that put a detail into your text: **Fornavn** (First name), **Buss** (Bus), **Avgang** (Departure), **Oppmøtested** (Meeting point), **Busskontakt** (Bus contact) and **Rom** (Room). Each person gets their own details when the message goes out. A button that can't apply, for example the bus buttons when **Reise (busser)** (Travel (buses)) is off, is hidden. Pushes leave out the first name.
+
+Tick **Viktig** (Important) for a message people must see. It is shown in red, pinned at the top until someone unpins it, and sent as both a push and an email.
+
+If the SMS switch is on, **Send også som SMS** (Also send as SMS) shows too. See [SMS](#sms).
+
+</Step>
+<Step title="Hvem (Who)">
+
+Under **Hvem får den** (Who gets it), choose one of:
+
+- **Alle** (Everyone): everyone in this big event.
+- **Campus**: everyone from the campuses you pick.
+- **Busser, rom og grupper** (Buses, rooms and groups): the people in the ones you pick. For a bus, **Hvilken vei?** (Which way?) is **Utreise** (Way out) or **Hjemreise** (Way home). The message goes to the people on that bus that way, with the bus details for that trip.
+- **Utvalgte personer** (Chosen people): pick people by name, up to 100. To reach more, pick a campus or a group instead.
+
+Campus admins see and reach only their own campus. For them, **Alle** (Everyone) means everyone from their campus.
+
+Under the choice, a line shows how many people the message reaches. See [Who gets what](#who-gets-what).
+
+</Step>
+<Step title="Sjekk og send (Check & send)">
+
+Under **Begge språk** (Both languages), write the title and text in the second language too. Both are required. **Oversett** (Translate) fills in the other language from the one you wrote. It replaces whatever was in the other language, so read it through before you send.
+
+**Slik blir den** (How it reads) shows an example for each bus or room that changes the text. **Sjekk dette først** (Check these first) lists problems that won't stop the send but that you may want to fix, for example a bus with no departure time yet, a bus with no contact, or people who aren't on a bus or in a room, so the detail is empty for them.
+
+Under **Når** (When), choose **Send nå** (Send now) or **Planlegg** (Schedule). To schedule, pick **Dato** (Date) and **Klokkeslett (Oslo)** (Time (Oslo)). The time is Oslo time. Then choose **Send meldingen** (Send message), or **Planlegg meldingen** (Schedule message) for a scheduled one.
+
+</Step>
+</Steps>
+
+## Who gets what
+
+Each person gets the message in the way that reaches them:
+
+- If their ticket is connected to an account and they have the app with push on, they get a push, in their own language.
+- Otherwise they get an email to the address on their ticket. People without the app get an email with both languages.
+- **Viktig** (Important) messages go both ways: a push and an email.
+- People with no account and no email address can't be reached.
+
+The reach line above the send button counts it for you, for example "12 personer: 8 får push, 4 får e-post". It also says how many **kan ikke nås (ingen e-post)** (can't be reached (no email)). It counts before you send, so change who gets it if the number is wrong.
+
+Several people can share one ticket email, for example a parent who bought several tickets. When the text is the same for all of them, that address gets one email. When the text differs, for example different buses, the address gets one email per text, and each email says who it is for.
+
+## SMS
+
+**Send også som SMS** (Also send as SMS) shows only when the SMS switch is on in the admin's feature settings. No SMS provider is connected, so nothing is sent by SMS yet. People who could only be reached by SMS count as unreachable.
+
+## The history
+
+**Sendt og planlagt** (Sent and planned) lists every message, newest first, for the people you may see. Each one shows its status: **Sendt** (Sent), **Planlagt** (Planned), **Sendes** (Sending) or **Feilet** (Failed). A sent message shows how many people it reached, with the number of pushes and emails, and **ikke levert** (not delivered) for people it didn't get to. Messages the system sent itself are marked **Automatisk** (Automatic). See [Automatic bus messages](/guide/big-events/buses-and-groups#automatic-messages).
+
+- **Løsne** (Unpin) takes a **Viktig** (Important) message off the top, so it is no longer pinned. Any organizer who can see it can do this.
+- **Avbryt** (Cancel) removes a planned message so it is never sent. You are asked to confirm. You can cancel until one minute before it goes out. After that it is too late. Automatic messages can't be cancelled, but you can switch them off in the settings.
+- **Prøv igjen** (Try again) shows on a failed message. It sends to the people who weren't reached yet, with the details as they were when it was first sent. People who already got it don't get it again.
+
+Campus admins see the messages for their own campus and messages to the whole big event, with the text and the totals but no names.
+
+<WhatHappensNext>
+
+## What happens next
+
+- A message sent now goes out right away. If it takes longer than expected, the page says it is going out and you can follow it in the history.
+- A planned message goes out at its time, give or take a few minutes. The system checks for due messages every few minutes.
+- Pushes go out first. Emails are sent a few at a time, so a long list can take a while.
+- The message appears in **Sendt og planlagt** (Sent and planned) with its counts.
+
+</WhatHappensNext>
+
+## What the student sees
+
+A push opens the app's normal announcement view. There is no separate screen for big events in the app yet, and no page for the trip on the web. Students with no app get the message as an email.
+
+## Personal data
+
+The per-person copy of each message, who got it and with which details, is deleted 30 days after the big event ends. The messages themselves stay in the history.
+
+## Common mistakes
+
+- Sending without checking the reach line. Look at how many people it reaches and how many can't be reached.
+- Writing only one language. Both are required, and **Oversett** (Translate) replaces what is already in the other language.
+- Expecting **Send også som SMS** (Also send as SMS) to send texts. Nothing goes out by SMS yet.
+- Trying to cancel a message in its last minute. It goes out anyway.
+- Choosing a bus for a message with bus details, but with the wrong way. Check **Hvilken vei?** (Which way?).
+- Expecting **Prøv igjen** (Try again) to use the current bus details. It uses the details as they were when the message was first sent.

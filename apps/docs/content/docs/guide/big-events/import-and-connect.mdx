@@ -79,7 +79,7 @@ When each row is a room booking, the file with the buyers (Payment 1) puts each 
 - Someone you moved by hand, to a bus, a room or another group, stays where you put them, whatever the file says. The preview counts them, for example "2 personer ble flyttet for hånd og blir der" (2 people stay where they were moved by hand).
 - A person in a room that has a bus rides that bus, unless you moved them to another bus by hand for that trip. The bus must belong to their campus: someone from another campus keeps their own bus. If you moved their way out by hand, a way home they have stays where it is. If they have no way home yet, it goes on the way-out bus when that bus belongs to their campus.
 - A booked room gets the number of places on its ticket again, if the ticket now says another size.
-- After the bus lists are published, everyone whose bus changes is marked to get a message about their bus. The preview says how many, for example "3 personer får en melding om bussen sin" (3 people will get a message about their bus). The import only marks them.
+- After the bus lists are published, everyone whose bus changes gets a message about their bus, about 10 minutes later. The preview says how many, for example "3 personer får en melding om bussen sin" (3 people will get a message about their bus).
 - A new email address for someone already on the list stops the link in the connect emails they already got. See [Send connect emails](#send-connect-emails).
 - Rooms and groups belong to a campus. Two groups with the same name on different campuses stay separate.
 - If **Kunne ikke lagre. Ingenting ble endret.** (Couldn't save. Nothing was changed.) shows, nothing was written. Try again.
@@ -88,7 +88,7 @@ When each row is a room booking, the file with the buyers (Payment 1) puts each 
 ## The participants list
 
 - **Legg til person** (Add person) adds someone who isn't on the ticket list. The email you give is where their connect email goes.
-- **Rediger** (Edit), in the menu on a row, changes a person's name, email, phone or campus. It doesn't change their account. A new email address stops the link in the connect emails they already got.
+- **Rediger** (Edit), in the menu on a row, changes a person's name, email, phone or campus. It doesn't change their account. A new email address stops the link in the connect emails they already got. If you change the campus, the person comes off the buses of the old campus, since a bus carries only its own campus's people. After the bus lists are published, they get a bus message about it. See [Automatic messages](/guide/big-events/buses-and-groups#automatic-messages).
 - **Søk etter navn eller e-post** (Search by name or email) and the **Campus** filter narrow the list. The three reach piles, **Ikke på rom ennå**, **Ikke på buss ennå** (Not on a bus yet) and **Trenger ny lenke** (Needs a new link) are filters too, each with a count. **Trenger ny lenke** shows people who got a connect email, aren't connected, and whose link no longer works, for example after you changed their email address.
 - The **Buss** (Bus) column shows each person's bus, with **Hjem: …** (Home: …) when the way home is on another bus, and **Ingen buss** (No bus) when they have none. To place people, see [Buses and groups](/guide/big-events/buses-and-groups).
 - **Kopier e-postadresser** (Copy emails) copies the addresses of the people shown.
@@ -155,7 +155,7 @@ Only connected people can be checked, because that is how we find their membersh
 
 ## Personal data
 
-Ticket emails, phone numbers, connections to accounts and the email history are deleted 30 days after the big event ends. After that the list is empty. Rooms and groups stay without names: a room named after its buyer gets its room number, or **Rom**, as its name, and buses and groups lose their contact person and their note.
+Ticket emails, phone numbers, connections to accounts, the email history and each person's copy of the messages (who got what, with their details) are deleted 30 days after the big event ends. After that the list is empty. The messages themselves stay in the history. Rooms and groups stay without names: a room named after its buyer gets its room number, or **Rom**, as its name, and buses and groups lose their contact person and their note.
 
 ## Common mistakes
 
